@@ -19,6 +19,10 @@ export interface EmitInput {
   summary?: string
   xCli: XCli
   bodyFields: BodyField[]
+  pathParams?: string[]
+  queryFields?: BodyField[]
+  /** Number of directory segments in the output file path (e.g. "todo/add.ts" → depth 2) */
+  depth?: number
 }
 
 function operationFnName(operationId: string): string {
@@ -43,14 +47,15 @@ export function emitCommand(input: EmitInput): string | null {
   if (input.xCli.hidden) return null
   const fnName = operationFnName(input.operationId)
   const cmdLeaf = leafCommand(input.xCli.command)
+  // Compute relative prefix: depth = number of path segments in the output file
+  // e.g. "todo add" → parts=["todo","add"] → depth=2 → prefix="../../"
+  const cmdParts = input.xCli.command.split(/\s+/)
+  const depth = input.depth ?? cmdParts.length
+  const relPrefix = "../".repeat(depth)
   const positional = input.xCli.positional ?? []
   const aliases = input.xCli.aliases ?? {}
-
-  const args: string[] = positional.map((name) => {
-    const field = input.bodyFields.find((f) => f.name === name)
-    const required = field?.required ?? true
-    return `.argument("${required ? `<${name}>` : `[${name}]`}", "${name}")`
-  })
+  const pathParams = input.pathParams ?? []
+  const queryFields = input.queryFields ?? []
 
   // Find the alias entry for a field: alias key can be exact field name, its kebab,
   // or a prefix segment (e.g. alias key "project" covers field "project_id").
@@ -68,30 +73,82 @@ export function emitCommand(input: EmitInput): string | null {
     return { longFlag: flagName }
   }
 
-  const options: string[] = input.bodyFields
-    .filter((f) => !positional.includes(f.name))
+  // All non-positional options: body fields + query fields (excluding path params, which are positional)
+  // Path params that are positional are already handled via .argument()
+  const positionalSet = new Set(positional)
+  const pathParamSet = new Set(pathParams)
+
+  const args: string[] = positional.map((name) => {
+    // Check in pathParams first (always required), then bodyFields
+    const isPathParam = pathParamSet.has(name)
+    const field = isPathParam ? undefined : input.bodyFields.find((f) => f.name === name)
+    const required = isPathParam || (field?.required ?? true)
+    return `.argument("${required ? `<${name}>` : `[${name}]`}", "${name}")`
+  })
+
+  // Options from body fields (skip positional and path params)
+  const bodyOptions = input.bodyFields
+    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
     .map((f) => {
       const { longFlag, short } = resolveAlias(f.name)
       const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
       return `.option("${flagSpec}", "${f.name}")`
     })
 
-  const argNames = positional.map((p) => p)
-  const optMap = input.bodyFields
-    .filter((f) => !positional.includes(f.name))
+  // Options from query fields (skip positional and path params)
+  const queryOptions = queryFields
+    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
+    .map((f) => {
+      const { longFlag, short } = resolveAlias(f.name)
+      const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
+      return `.option("${flagSpec}", "${f.name}")`
+    })
+
+  const options = [...bodyOptions, ...queryOptions]
+
+  // Build action parameter list: positional args + "opts"
+  const argNames = positional
+
+  // Build path block (path params that are positional)
+  const pathPositionals = positional.filter((p) => pathParamSet.has(p))
+  const pathBlock =
+    pathPositionals.length > 0
+      ? [`      path: {`, ...pathPositionals.map((p) => `        ${p},`), `      },`]
+      : []
+
+  // Build body block (body fields, positional non-path + options)
+  const bodyPositionals = positional.filter((p) => !pathParamSet.has(p))
+  const bodyOptLines = input.bodyFields
+    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
     .map((f) => {
       const { longFlag } = resolveAlias(f.name)
-      return `      ${f.name}: opts.${camelize(longFlag)}`
+      return `        ${f.name}: opts.${camelize(longFlag)},`
     })
-    .join(",\n")
-  const posMap = positional.map((p) => `      ${p}`).join(",\n")
-  const bodyAssembly = [posMap, optMap].filter(Boolean).join(",\n")
+  const bodyHasContent = bodyPositionals.length > 0 || bodyOptLines.length > 0
+  const bodyBlock = bodyHasContent
+    ? [
+        `      body: {`,
+        ...bodyPositionals.map((p) => `        ${p},`),
+        ...bodyOptLines,
+        `      },`,
+      ]
+    : []
+
+  // Build query block (query fields)
+  const queryOptLines = queryFields
+    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
+    .map((f) => {
+      const { longFlag } = resolveAlias(f.name)
+      return `        ${f.name}: opts.${camelize(longFlag)},`
+    })
+  const queryBlock =
+    queryOptLines.length > 0 ? [`      query: {`, ...queryOptLines, `      },`] : []
 
   return [
     `// AUTO-GENERATED — DO NOT EDIT (source: ${input.operationId})`,
     `import { Command } from "commander"`,
-    `import { ${fnName} } from "../../generated/sdk/index.js"`,
-    `import { loadSdkClient } from "../../handwritten/auth/load-sdk-client.js"`,
+    `import { ${fnName} } from "${relPrefix}sdk/index.js"`,
+    `import { loadSdkClient } from "${relPrefix}handwritten/auth/load-sdk-client.js"`,
     ``,
     `export const ${fnName}Command = new Command(${JSON.stringify(cmdLeaf)})`,
     `  .description(${JSON.stringify(input.summary ?? input.xCli.command)})`,
@@ -101,9 +158,9 @@ export function emitCommand(input: EmitInput): string | null {
     `    const client = await loadSdkClient()`,
     `    const result = await ${fnName}({`,
     `      client: (client as unknown as { _rawClient: unknown })._rawClient as never,`,
-    `      body: {`,
-    bodyAssembly,
-    `      },`,
+    ...pathBlock,
+    ...bodyBlock,
+    ...queryBlock,
     `    })`,
     `    console.log(JSON.stringify(result.data, null, 2))`,
     `  })`,
