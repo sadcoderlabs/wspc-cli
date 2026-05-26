@@ -11,15 +11,15 @@ import { todoGetCommand } from "./todo/show.js"
 import { todoUpdateCommand } from "./todo/update.js"
 
 export function registerGeneratedCommands(root: Command): void {
-  const root_todo = root.command("todo")
-  const root_todo_project = root_todo.command("project")
+  const root_todo = root.command("todo").description("todo commands")
+  const root_todo_project = root_todo.command("project").description("project commands")
   root_todo_project.addCommand(projectCreateCommand)
   root_todo_project.addCommand(projectListCommand)
-  const root_todo_rule = root_todo.command("rule")
+  const root_todo_rule = root_todo.command("rule").description("rule commands")
   root_todo_rule.addCommand(recurrenceRuleListCommand)
   root_todo.addCommand(todoCreateCommand)
   root_todo.addCommand(todoListCommand)
-  const root_todo_type = root_todo.command("type")
+  const root_todo_type = root_todo.command("type").description("type commands")
   root_todo_type.addCommand(todoTypeListCommand)
   root_todo.addCommand(todoDeleteCommand)
   root_todo.addCommand(todoGetCommand)

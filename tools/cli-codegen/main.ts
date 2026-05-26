@@ -118,7 +118,11 @@ function emitTreeRegistration(node: TreeNode, parentVar: string, depth: number):
       out.push(`${indent}${parentVar}.addCommand(${child.leafVarName})`)
     } else {
       const subVar = `${parentVar}_${seg.replace(/[^a-zA-Z0-9]/g, "_")}`
-      out.push(`${indent}const ${subVar} = ${parentVar}.command(${JSON.stringify(seg)})`)
+      // Set a description on parent commands too — without one, commander
+      // prints a blank next to the segment in --help, which looks broken.
+      out.push(
+        `${indent}const ${subVar} = ${parentVar}.command(${JSON.stringify(seg)}).description(${JSON.stringify(`${seg} commands`)})`,
+      )
       if (child.leafVarName) {
         out.push(`${indent}${subVar}.addCommand(${child.leafVarName})`)
       }
