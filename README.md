@@ -7,7 +7,7 @@ Official TypeScript SDK and CLI for [wspc.ai](https://wspc.ai).
 ## Install
 
 ```bash
-npm i -g wspc
+npm i -g @wspc/cli
 ```
 
 ## Quick start
