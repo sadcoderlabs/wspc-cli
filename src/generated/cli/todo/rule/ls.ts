@@ -16,5 +16,12 @@ export const recurrenceRuleListCommand = new Command("ls")
         user_id: opts.userId,
       },
     })
-    console.log(JSON.stringify(result.data, null, 2))
+    if (result.error || !result.response?.ok) {
+      process.stderr.write(
+        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
+      )
+      process.exitCode = 1
+      return
+    }
+    if (result.data !== undefined) console.log(JSON.stringify(result.data, null, 2))
   })

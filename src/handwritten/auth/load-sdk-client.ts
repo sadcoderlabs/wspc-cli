@@ -2,7 +2,7 @@ import { ConfigStore } from "../config/index.js"
 import { createClient, createConfig } from "../../generated/sdk/client/index.js"
 import { createAuthInterceptor } from "./sdk-auth.js"
 
-const DEFAULT_CLIENT_ID = "oac_wspc_cli"
+const DEFAULT_CLIENT_ID = "client_01KSHTBV7X4AKQE73G7D8G0D0X"
 
 export interface LoadedClient {
   _rawClient: ReturnType<typeof createClient>

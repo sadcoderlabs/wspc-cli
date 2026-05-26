@@ -40,10 +40,14 @@ export async function dispatch(argv: string[], { allowRetry = true }: { allowRet
         return
       }
       process.stderr.write(`error: ${(err as Error).message}\n`)
-      process.exit(2)
+      // exitCode (not process.exit) so Node closes fetch / file streams
+      // cleanly — avoids a libuv assertion on Windows when async handles
+      // are still in CLOSING state at forced-exit time.
+      process.exitCode = 2
+      return
     }
     process.stderr.write(`error: ${(err as Error).message ?? err}\n`)
-    process.exit(1)
+    process.exitCode = 1
   }
 }
 

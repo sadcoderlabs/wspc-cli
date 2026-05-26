@@ -35,6 +35,39 @@ describe("runLogin", () => {
     })
   })
 
+  it("forwards onPrompt from caller into device flow (no silent swallow)", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-onprompt-"))
+    const store = new ConfigStore({ configDir: dir })
+    const writes: string[] = []
+    const jsonEvents: Record<string, unknown>[] = []
+    const deviceFlow = vi.fn().mockImplementation(async (o: { onPrompt: (p: unknown) => void }) => {
+      o.onPrompt({ verification_uri: "https://app.wspc.ai/device", user_code: "ABCD-1234", expires_in: 600 })
+      return {
+        access_token: "wat_x",
+        refresh_token: "wrt_x",
+        expires_in: 900,
+        token_type: "Bearer",
+      }
+    })
+    await runLogin({
+      store,
+      baseUrl: "https://api.wspc.ai",
+      deviceFlow,
+      now: () => 1,
+      output: {
+        write: (s) => writes.push(s),
+        writeJson: (e) => jsonEvents.push(e),
+      },
+    })
+    // The output side received the prompt event…
+    expect(jsonEvents).toContainEqual(
+      expect.objectContaining({ event: "device_code_issued", user_code: "ABCD-1234" }),
+    )
+    // …and the human-readable verification_uri line landed in stdout.
+    expect(writes.some((l) => l.includes("verification_uri:"))).toBe(true)
+    expect(writes.some((l) => l.includes("ABCD-1234"))).toBe(true)
+  })
+
   it("writes api_key in escape-hatch mode", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-"))
     const store = new ConfigStore({ configDir: dir })

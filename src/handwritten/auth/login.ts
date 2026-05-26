@@ -19,7 +19,7 @@ export interface RunLoginOptions {
   apiKey?: string
 }
 
-const DEFAULT_CLIENT_ID = "oac_wspc_cli"
+const DEFAULT_CLIENT_ID = "client_01KSHTBV7X4AKQE73G7D8G0D0X"
 
 export async function runLogin(opts: RunLoginOptions): Promise<void> {
   const envName = opts.envName ?? "prod"
@@ -35,7 +35,10 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
   }
 
   const clientId = opts.clientId ?? DEFAULT_CLIENT_ID
-  const flow = opts.deviceFlow ?? ((o) => runDeviceFlow({ ...o, onPrompt: () => {} }))
+  // NB: default flow MUST pass o.onPrompt through verbatim. Earlier
+  // implementation did `...o, onPrompt: () => {}` which silently swallowed
+  // the real callback and left users staring at an empty terminal forever.
+  const flow = opts.deviceFlow ?? runDeviceFlow
 
   const result = await flow({
     baseUrl: opts.baseUrl,

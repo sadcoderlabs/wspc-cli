@@ -7,5 +7,8 @@ export const whoamiCommand = new Command("whoami")
   .action(async () => {
     const r = await runWhoami({ store: new ConfigStore() })
     process.stdout.write(JSON.stringify(r, null, 2) + "\n")
-    if (r.status === "logged_out") process.exit(1)
+    // Use exitCode (not process.exit) so Node finishes closing the fetch
+    // response stream before exit. process.exit() forces termination and
+    // trips a libuv assertion on Windows when handles aren't yet closed.
+    if (r.status === "logged_out") process.exitCode = 1
   })

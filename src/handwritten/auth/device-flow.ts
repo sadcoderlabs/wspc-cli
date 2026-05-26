@@ -68,8 +68,15 @@ export async function runDeviceFlow(opts: RunDeviceFlowOptions): Promise<DeviceF
     if (tokenRes.ok) {
       return (await tokenRes.json()) as DeviceFlowResult
     }
-    const errJson = (await tokenRes.json().catch(() => ({ error: "unknown" }))) as { error?: string }
-    switch (errJson.error) {
+    // Server may return either RFC 8628 string form { error: "authorization_pending" }
+    // or wspc's envelope { error: { code: "AUTHORIZATION_PENDING", message } }. Handle both.
+    const errBody = (await tokenRes.json().catch(() => ({}))) as {
+      error?: string | { code?: string }
+    }
+    const rawCode =
+      typeof errBody.error === "string" ? errBody.error : (errBody.error?.code ?? "")
+    const errCode = rawCode.toLowerCase()
+    switch (errCode) {
       case "authorization_pending":
         continue
       case "slow_down":
@@ -77,9 +84,9 @@ export async function runDeviceFlow(opts: RunDeviceFlowOptions): Promise<DeviceF
         continue
       case "access_denied":
       case "expired_token":
-        throw new Error(`device_flow_${errJson.error}`)
+        throw new Error(`device_flow_${errCode}`)
       default:
-        throw new Error(`device_flow_error: ${errJson.error ?? "unknown"} (HTTP ${tokenRes.status})`)
+        throw new Error(`device_flow_error: ${errCode || "unknown"} (HTTP ${tokenRes.status})`)
     }
   }
   throw new Error("device_flow_timeout")

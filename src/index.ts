@@ -68,7 +68,7 @@ function buildAuthOptions(opts: WspcClientOptions): object {
           accessToken: opts.accessToken,
           refreshToken: opts.refreshToken,
           baseUrl: opts.baseUrl ?? API_BASE,
-          clientId: "oac_wspc_cli",
+          clientId: "client_01KSHTBV7X4AKQE73G7D8G0D0X",
           onTokenRefresh: opts.onTokenRefresh ?? (() => {}),
         })
   // Hey API 0.97 client.gen.ts uses opts.fetch as the underlying fetch impl.

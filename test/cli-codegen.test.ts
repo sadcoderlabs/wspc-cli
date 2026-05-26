@@ -26,6 +26,10 @@ describe("emitCommand", () => {
     expect(code).toContain('.option("-p, --project <value>"')
     expect(code).toContain('.option("--due-at <value>"')
     expect(code).toContain("todoCreate({")
+    // Emitted action must surface HTTP errors instead of printing "undefined"
+    expect(code).toContain("result.error || !result.response?.ok")
+    expect(code).toContain("process.exitCode = 1")
+    expect(code).toContain("result.data !== undefined")
   })
 
   it("returns null for hidden operations", () => {
