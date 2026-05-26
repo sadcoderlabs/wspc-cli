@@ -1,8 +1,14 @@
 import type { ConfigStore } from "../config/index.js"
 
+export interface WhoamiUser {
+  user_id: string
+  email: string
+  display_name?: string
+}
+
 export type WhoamiResult =
   | { status: "logged_out" }
-  | { status: "logged_in"; user: { id: string; email: string } }
+  | { status: "logged_in"; user: WhoamiUser }
 
 export async function runWhoami(opts: {
   store: ConfigStore
@@ -19,6 +25,18 @@ export async function runWhoami(opts: {
   })
   if (res.status === 401) return { status: "logged_out" }
   if (!res.ok) throw new Error(`whoami_failed: HTTP ${res.status}`)
-  const body = (await res.json()) as { id: string; email: string }
-  return { status: "logged_in", user: { id: body.id, email: body.email } }
+  // Server (GetMeResponse) returns { user_id, email, display_name?, api_key_id? }.
+  const body = (await res.json()) as {
+    user_id: string
+    email: string
+    display_name?: string
+  }
+  return {
+    status: "logged_in",
+    user: {
+      user_id: body.user_id,
+      email: body.email,
+      ...(body.display_name !== undefined ? { display_name: body.display_name } : {}),
+    },
+  }
 }

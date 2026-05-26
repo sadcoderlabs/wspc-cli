@@ -53,6 +53,7 @@ describe("runLogin", () => {
       store,
       baseUrl: "https://api.wspc.ai",
       deviceFlow,
+      ensureClient: async () => "client_TEST",
       now: () => 1,
       output: {
         write: (s) => writes.push(s),
@@ -66,6 +67,32 @@ describe("runLogin", () => {
     // …and the human-readable verification_uri line landed in stdout.
     expect(writes.some((l) => l.includes("verification_uri:"))).toBe(true)
     expect(writes.some((l) => l.includes("ABCD-1234"))).toBe(true)
+  })
+
+  it("calls ensureClient when no explicit clientId is provided", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-ensure-"))
+    const store = new ConfigStore({ configDir: dir })
+    const ensureClient = vi.fn().mockResolvedValue("client_ENSURED")
+    const deviceFlow = vi.fn().mockImplementation(async (o: { clientId: string }) => {
+      // Verify ensureClient's id was forwarded into the device flow
+      expect(o.clientId).toBe("client_ENSURED")
+      return {
+        access_token: "wat_x",
+        refresh_token: "wrt_x",
+        expires_in: 900,
+        token_type: "Bearer",
+      }
+    })
+    await runLogin({
+      store,
+      baseUrl: "https://api.wspc.ai",
+      ensureClient,
+      deviceFlow,
+      now: () => 1,
+      output: { write: () => {}, writeJson: () => {} },
+    })
+    expect(ensureClient).toHaveBeenCalledWith("prod")
+    expect(deviceFlow).toHaveBeenCalledOnce()
   })
 
   it("writes api_key in escape-hatch mode", async () => {

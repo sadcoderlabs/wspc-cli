@@ -45,12 +45,29 @@ describe("loadSdkClient", () => {
           api_base: "https://api.wspc.ai",
           access_token: "acc_token",
           refresh_token: "ref_token",
+          client_id: "client_PERSISTED",
         },
       },
     })
     const client = await loadSdkClient({ store })
     expect(client).toBeDefined()
     expect((client as { _rawClient: unknown })._rawClient).toBeDefined()
+  })
+
+  it("throws actionable error when OAuth tokens but no client_id", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-load-no-cid-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          access_token: "acc_token",
+          refresh_token: "ref_token",
+        },
+      },
+    })
+    await expect(loadSdkClient({ store })).rejects.toThrow(/no client_id.*wspc logout && wspc login/)
   })
 
   it("uses default ConfigStore when no store provided (just checks it doesn't throw on import)", async () => {

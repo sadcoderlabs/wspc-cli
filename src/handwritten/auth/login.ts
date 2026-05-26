@@ -1,5 +1,6 @@
 import type { ConfigStore } from "../config/index.js"
 import { runDeviceFlow, type DeviceFlowResult } from "./device-flow.js"
+import { ensureClientId } from "./client-registration.js"
 
 export interface LoginOutput {
   write(line: string): void
@@ -12,14 +13,15 @@ export interface RunLoginOptions {
   output: LoginOutput
   envName?: string
   // Device flow path:
+  /** Skip auto-registration and use this exact client_id instead. */
   clientId?: string
+  /** Override the default RFC 7591 register step (tests). */
+  ensureClient?: (envName: string) => Promise<string>
   deviceFlow?: (opts: { baseUrl: string; clientId: string; onPrompt: (p: unknown) => void }) => Promise<DeviceFlowResult>
   now?: () => number
   // API key escape hatch:
   apiKey?: string
 }
-
-const DEFAULT_CLIENT_ID = "client_01KSHTBV7X4AKQE73G7D8G0D0X"
 
 export async function runLogin(opts: RunLoginOptions): Promise<void> {
   const envName = opts.envName ?? "prod"
@@ -34,7 +36,11 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     return
   }
 
-  const clientId = opts.clientId ?? DEFAULT_CLIENT_ID
+  // Resolve a client_id: explicit override wins, then registered-on-disk,
+  // otherwise auto-register via RFC 7591 and persist.
+  const ensureClient =
+    opts.ensureClient ?? ((env: string) => ensureClientId({ store: opts.store, envName: env, baseUrl: opts.baseUrl }))
+  const clientId = opts.clientId ?? (await ensureClient(envName))
   // NB: default flow MUST pass o.onPrompt through verbatim. Earlier
   // implementation did `...o, onPrompt: () => {}` which silently swallowed
   // the real callback and left users staring at an empty terminal forever.
@@ -54,18 +60,21 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     },
   })
 
-  c.current_env = envName
-  c.envs[envName] = {
-    ...(c.envs[envName] ?? {}),
+  // Re-read: ensureClient may have written a fresh client_id to disk while
+  // we held the stale `c` from line 29. Without re-reading we'd clobber it.
+  const cFinal = await opts.store.read()
+  cFinal.current_env = envName
+  cFinal.envs[envName] = {
+    ...(cFinal.envs[envName] ?? {}),
     api_base: opts.baseUrl,
     refresh_token: result.refresh_token,
     access_token: result.access_token,
     access_token_expires_at: now() + result.expires_in * 1000,
   }
   // Strip any leftover api_key (login is OAuth now)
-  const env = c.envs[envName] as unknown as Record<string, unknown>
+  const env = cFinal.envs[envName] as unknown as Record<string, unknown>
   if (env && "api_key" in env) delete env.api_key
-  await opts.store.write(c)
+  await opts.store.write(cFinal)
   opts.output.writeJson({ event: "login_success" })
   opts.output.write(`✓ logged in → env "${envName}"`)
 }

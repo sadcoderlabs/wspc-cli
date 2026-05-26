@@ -43,9 +43,37 @@ describe("logout / whoami", () => {
     const fetchMock = (async () => ({
       ok: true,
       status: 200,
-      json: async () => ({ id: "usr_x", email: "alice@example.com" }),
+      json: async () => ({ user_id: "usr_x", email: "alice@example.com", display_name: "Alice" }),
     })) as unknown as typeof fetch
     const result = await runWhoami({ store, fetchImpl: fetchMock })
-    expect(result).toEqual({ status: "logged_in", user: { id: "usr_x", email: "alice@example.com" } })
+    expect(result).toEqual({
+      status: "logged_in",
+      user: { user_id: "usr_x", email: "alice@example.com", display_name: "Alice" },
+    })
+  })
+
+  it("whoami omits display_name when server does not return it", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-whoami-no-display-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          access_token: "wat_x",
+          access_token_expires_at: Date.now() + 60_000,
+        },
+      },
+    })
+    const fetchMock = (async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ user_id: "usr_y", email: "bob@example.com" }),
+    })) as unknown as typeof fetch
+    const result = await runWhoami({ store, fetchImpl: fetchMock })
+    expect(result).toEqual({
+      status: "logged_in",
+      user: { user_id: "usr_y", email: "bob@example.com" },
+    })
   })
 })

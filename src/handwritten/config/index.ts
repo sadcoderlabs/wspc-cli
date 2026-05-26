@@ -10,6 +10,11 @@ export interface EnvConfig {
   access_token_expires_at?: number
   actor?: "user" | "agent"
   agent_label?: string
+  // RFC 7591 dynamically registered OAuth public client. Created on first
+  // `wspc login` (device flow path) and reused thereafter — including for
+  // refresh-token grant calls. Kept across `wspc logout` (it's identity,
+  // not a credential).
+  client_id?: string
 }
 
 export interface WspcConfig {

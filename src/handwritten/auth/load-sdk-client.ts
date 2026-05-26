@@ -2,8 +2,6 @@ import { ConfigStore } from "../config/index.js"
 import { createClient, createConfig } from "../../generated/sdk/client/index.js"
 import { createAuthInterceptor } from "./sdk-auth.js"
 
-const DEFAULT_CLIENT_ID = "client_01KSHTBV7X4AKQE73G7D8G0D0X"
-
 export interface LoadedClient {
   _rawClient: ReturnType<typeof createClient>
 }
@@ -27,11 +25,16 @@ export async function loadSdkClient(opts: { store?: ConfigStore } = {}): Promise
     interceptor = createAuthInterceptor({ apiKey: env.api_key })
   } else {
     // OAuth mode — access_token and refresh_token are guaranteed present here
+    if (!env.client_id) {
+      throw new Error(
+        "config has OAuth tokens but no client_id — run `wspc logout && wspc login` to re-register",
+      )
+    }
     interceptor = createAuthInterceptor({
       accessToken: env.access_token!,
       refreshToken: env.refresh_token!,
       baseUrl: env.api_base,
-      clientId: DEFAULT_CLIENT_ID,
+      clientId: env.client_id,
       onTokenRefresh: async ({ accessToken, refreshToken, expiresAt }) => {
         const cfg = await store.read()
         const e = cfg.envs[current.name]

@@ -27,6 +27,13 @@ export type WspcClientOptions =
   | {
       accessToken: string
       refreshToken: string
+      /**
+       * OAuth client_id this token pair was issued to. The wspc CLI registers
+       * a public client via RFC 7591 on first login and stores the id; library
+       * callers must pass whatever client_id matches their tokens (refresh
+       * grants require it).
+       */
+      clientId: string
       onTokenRefresh?: (next: { accessToken: string; refreshToken: string; expiresAt: number }) => void | Promise<void>
       baseUrl?: string
     }
@@ -68,7 +75,7 @@ function buildAuthOptions(opts: WspcClientOptions): object {
           accessToken: opts.accessToken,
           refreshToken: opts.refreshToken,
           baseUrl: opts.baseUrl ?? API_BASE,
-          clientId: "client_01KSHTBV7X4AKQE73G7D8G0D0X",
+          clientId: opts.clientId,
           onTokenRefresh: opts.onTokenRefresh ?? (() => {}),
         })
   // Hey API 0.97 client.gen.ts uses opts.fetch as the underlying fetch impl.
