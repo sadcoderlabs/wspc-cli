@@ -60,7 +60,7 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     access_token_expires_at: now() + result.expires_in * 1000,
   }
   // Strip any leftover api_key (login is OAuth now)
-  const env = c.envs[envName] as Record<string, unknown>
+  const env = c.envs[envName] as unknown as Record<string, unknown>
   if (env && "api_key" in env) delete env.api_key
   await opts.store.write(c)
   opts.output.writeJson({ event: "login_success" })
