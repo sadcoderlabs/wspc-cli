@@ -1,0 +1,35 @@
+{
+  "name": "wspc",
+  "version": "0.0.0",
+  "description": "Official TypeScript SDK and CLI for wspc (https://wspc.ai)",
+  "type": "module",
+  "bin": { "wspc": "./dist/cli.js" },
+  "exports": { ".": "./dist/index.js" },
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "spec/openapi.json", "README.md", "LICENSE"],
+  "engines": { "node": ">=24" },
+  "license": "MIT",
+  "repository": "github:sadcoderlabs/wspc-client",
+  "scripts": {
+    "sync-spec": "tsx scripts/sync-spec.ts",
+    "generate": "npm run generate:sdk && npm run generate:cli",
+    "generate:sdk": "openapi-ts",
+    "generate:cli": "tsx tools/cli-codegen/main.ts",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "commander": "14.0.3"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.97.3",
+    "@types/node": "25.6.2",
+    "rimraf": "6.1.3",
+    "tsup": "8.5.1",
+    "tsx": "4.21.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.6"
+  }
+}
