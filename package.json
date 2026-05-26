@@ -35,7 +35,8 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run sync-spec && npm run build"
   },
   "dependencies": {
     "commander": "14.0.3"
