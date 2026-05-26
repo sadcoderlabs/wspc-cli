@@ -1,5 +1,6 @@
 import { createClient, createConfig } from "./generated/sdk/client/index.js"
 import type { Client } from "./generated/sdk/client/index.js"
+import { createAuthInterceptor } from "./handwritten/auth/sdk-auth.js"
 import {
   todoCreate,
   todoList,
@@ -59,9 +60,24 @@ export class WspcClient {
   }
 }
 
-// Placeholder; Task 17 replaces with real auth interceptor logic.
-function buildAuthOptions(_opts: WspcClientOptions): object {
-  return {}
+function buildAuthOptions(opts: WspcClientOptions): object {
+  const interceptor =
+    "apiKey" in opts
+      ? createAuthInterceptor({ apiKey: opts.apiKey })
+      : createAuthInterceptor({
+          accessToken: opts.accessToken,
+          refreshToken: opts.refreshToken,
+          baseUrl: opts.baseUrl ?? API_BASE,
+          clientId: "oac_wspc_cli",
+          onTokenRefresh: opts.onTokenRefresh ?? (() => {}),
+        })
+  // Hey API 0.97 client.gen.ts uses opts.fetch as the underlying fetch impl.
+  // Routing every SDK call through interceptor.execute handles bearer injection
+  // and transparent refresh-on-401.
+  return {
+    fetch: ((input: RequestInfo | URL, init?: RequestInit) =>
+      interceptor.execute(new Request(input as RequestInfo, init))) as typeof fetch,
+  }
 }
 
 class TodosResource {
