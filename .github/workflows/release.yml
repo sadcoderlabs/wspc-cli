@@ -1,4 +1,5 @@
 name: Release
+# Manual release — trigger from Actions tab → Run workflow.
 
 on:
   workflow_dispatch:
