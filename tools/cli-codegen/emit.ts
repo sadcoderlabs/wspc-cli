@@ -51,7 +51,11 @@ export function emitCommand(input: EmitInput): string | null {
   // e.g. "todo add" → parts=["todo","add"] → depth=2 → prefix="../../"
   const cmdParts = input.xCli.command.split(/\s+/)
   const depth = input.depth ?? cmdParts.length
-  const relPrefix = "../".repeat(depth)
+  // Files are placed at src/generated/cli/<cmd parts>.ts.
+  // The SDK lives at src/generated/sdk/, so we need depth levels up to reach src/generated/.
+  const sdkRelPrefix = "../".repeat(depth)
+  // The handwritten helpers live at src/handwritten/, which is one more level up from src/generated/.
+  const handwrittenRelPrefix = "../".repeat(depth + 1)
   const positional = input.xCli.positional ?? []
   const aliases = input.xCli.aliases ?? {}
   const pathParams = input.pathParams ?? []
@@ -147,8 +151,8 @@ export function emitCommand(input: EmitInput): string | null {
   return [
     `// AUTO-GENERATED — DO NOT EDIT (source: ${input.operationId})`,
     `import { Command } from "commander"`,
-    `import { ${fnName} } from "${relPrefix}sdk/index.js"`,
-    `import { loadSdkClient } from "${relPrefix}handwritten/auth/load-sdk-client.js"`,
+    `import { ${fnName} } from "${sdkRelPrefix}sdk/index.js"`,
+    `import { loadSdkClient } from "${handwrittenRelPrefix}handwritten/auth/load-sdk-client.js"`,
     ``,
     `export const ${fnName}Command = new Command(${JSON.stringify(cmdLeaf)})`,
     `  .description(${JSON.stringify(input.summary ?? input.xCli.command)})`,

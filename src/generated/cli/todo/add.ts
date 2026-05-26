@@ -1,7 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_create)
 import { Command } from "commander"
 import { todoCreate } from "../../sdk/index.js"
-import { loadSdkClient } from "../../handwritten/auth/load-sdk-client.js"
+import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 
 export const todoCreateCommand = new Command("add")
   .description("Create a todo")

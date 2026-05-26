@@ -1,7 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_type_list)
 import { Command } from "commander"
 import { todoTypeList } from "../../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
+import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
 
 export const todoTypeListCommand = new Command("ls")
   .description("List todo types")

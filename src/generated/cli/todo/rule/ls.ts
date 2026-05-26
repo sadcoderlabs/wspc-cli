@@ -1,7 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: recurrence_rule_list)
 import { Command } from "commander"
 import { recurrenceRuleList } from "../../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
+import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
 
 export const recurrenceRuleListCommand = new Command("ls")
   .description("List recurring todo rules")

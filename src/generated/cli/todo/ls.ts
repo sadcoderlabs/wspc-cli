@@ -1,7 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_list)
 import { Command } from "commander"
 import { todoList } from "../../sdk/index.js"
-import { loadSdkClient } from "../../handwritten/auth/load-sdk-client.js"
+import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 
 export const todoListCommand = new Command("ls")
   .description("List todos with filters")

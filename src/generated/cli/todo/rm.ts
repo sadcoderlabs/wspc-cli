@@ -1,7 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_delete)
 import { Command } from "commander"
 import { todoDelete } from "../../sdk/index.js"
-import { loadSdkClient } from "../../handwritten/auth/load-sdk-client.js"
+import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 
 export const todoDeleteCommand = new Command("rm")
   .description("Soft-delete a todo")

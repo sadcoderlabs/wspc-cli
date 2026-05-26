@@ -1,7 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_get)
 import { Command } from "commander"
 import { todoGet } from "../../sdk/index.js"
-import { loadSdkClient } from "../../handwritten/auth/load-sdk-client.js"
+import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 
 export const todoGetCommand = new Command("show")
   .description("Get a todo by id")

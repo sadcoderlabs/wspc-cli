@@ -1,7 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: project_create)
 import { Command } from "commander"
 import { projectCreate } from "../../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
+import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
 
 export const projectCreateCommand = new Command("add")
   .description("Create a project")

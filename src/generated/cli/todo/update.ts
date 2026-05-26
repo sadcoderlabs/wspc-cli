@@ -1,7 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_update)
 import { Command } from "commander"
 import { todoUpdate } from "../../sdk/index.js"
-import { loadSdkClient } from "../../handwritten/auth/load-sdk-client.js"
+import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 
 export const todoUpdateCommand = new Command("update")
   .description("Update a todo")
