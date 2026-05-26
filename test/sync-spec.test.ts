@@ -1,0 +1,35 @@
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { promises as fs } from "node:fs"
+import { join } from "node:path"
+import { tmpdir } from "node:os"
+import { syncSpec } from "../scripts/sync-spec.js"
+
+describe("syncSpec", () => {
+  let workDir: string
+
+  beforeEach(async () => {
+    workDir = await fs.mkdtemp(join(tmpdir(), "wspc-sync-"))
+  })
+
+  it("writes spec/openapi.json and src/version.ts with computed SPEC_SHA", async () => {
+    const fakeSpec = { openapi: "3.1.0", info: { title: "wspc", version: "0.1.0" }, paths: {} }
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify(fakeSpec),
+    })
+    await syncSpec({
+      url: "https://api.wspc.ai/openapi.json",
+      packageVersion: "0.3.2",
+      rootDir: workDir,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      now: () => new Date("2026-05-26T10:00:00Z"),
+    })
+    const written = JSON.parse(await fs.readFile(join(workDir, "spec/openapi.json"), "utf8"))
+    expect(written).toEqual(fakeSpec)
+    const versionTs = await fs.readFile(join(workDir, "src/version.ts"), "utf8")
+    expect(versionTs).toContain('export const VERSION = "0.3.2"')
+    expect(versionTs).toMatch(/export const SPEC_SHA = "[a-f0-9]{8}"/)
+    expect(versionTs).toContain('export const SPEC_FETCHED_AT = "2026-05-26T10:00:00.000Z"')
+    expect(versionTs).toContain('export const API_BASE = "https://api.wspc.ai"')
+  })
+})
