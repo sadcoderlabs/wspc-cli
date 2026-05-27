@@ -10561,6 +10561,21 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "alias add",
+          "positional": [
+            "email"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "created_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -10852,6 +10867,24 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "alias ls",
+          "display": {
+            "shape": "list",
+            "columns": [
+              "id",
+              "email",
+              "label",
+              "created_at"
+            ],
+            "format": {
+              "id": "id-short",
+              "label": "truncate",
+              "created_at": "relative-time"
+            },
+            "emptyMessage": "no aliases"
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -11125,6 +11158,21 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "alias rm",
+          "positional": [
+            "email"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "created_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -11367,6 +11415,19 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "email rm",
+          "options": {
+            "id": {
+              "array": true,
+              "mapsTo": "ids"
+            }
+          },
+          "display": {
+            "shape": "object",
+            "format": {}
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -11665,6 +11726,10 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "_handwritten",
+          "hidden": true
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -11930,6 +11995,25 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "email show",
+          "positional": [
+            "id"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "org_id": "id-short",
+              "user_id": "id-short",
+              "received_at": "relative-time",
+              "created_at": "relative-time",
+              "read_at": "relative-time",
+              "deleted_at": "relative-time",
+              "is_read": "bool-badge"
+            }
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -12446,6 +12530,27 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "email ls",
+          "display": {
+            "shape": "list",
+            "columns": [
+              "id",
+              "from_addr",
+              "subject",
+              "is_read",
+              "received_at"
+            ],
+            "format": {
+              "id": "id-short",
+              "from_addr": "truncate",
+              "subject": "truncate",
+              "is_read": "bool-badge",
+              "received_at": "relative-time"
+            },
+            "emptyMessage": "no emails"
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -12884,6 +12989,19 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "email read",
+          "options": {
+            "id": {
+              "array": true,
+              "mapsTo": "ids"
+            }
+          },
+          "display": {
+            "shape": "object",
+            "format": {}
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -13182,6 +13300,19 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "email unread",
+          "options": {
+            "id": {
+              "array": true,
+              "mapsTo": "ids"
+            }
+          },
+          "display": {
+            "shape": "object",
+            "format": {}
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -13480,6 +13611,10 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "_internal",
+          "hidden": true
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -13702,6 +13837,10 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "_internal",
+          "hidden": true
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -13995,6 +14134,10 @@
             "bearerAuth": []
           }
         ],
+        "x-cli": {
+          "command": "_handwritten",
+          "hidden": true
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -14004,7 +14147,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc email send \\\n  --from alice-shop@wspc.app \\\n  --to alice@example.com \\\n  --subject \"Welcome to WSPC\" \\\n  --text \"Hi Alice — welcome aboard.\" \\\n  --idempotency-key retry-20260601-001"
+            "source": "wspc email send \\\n  --from alice-shop@wspc.app \\\n  --to alice@example.com \\\n  --subject \"Welcome to WSPC\" \\\n  --text \"Hi Alice — welcome aboard.\" \\\n  --attach ./report.pdf \\\n  --idempotency-key retry-20260601-001"
           },
           {
             "lang": "typescript",
