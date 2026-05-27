@@ -124,3 +124,53 @@ describe("emitCommand: body unwrap", () => {
   })
 })
 
+describe("emitCommand: exitOnField", () => {
+  it("emits process.exit(1) check on specified response field", () => {
+    const out = emitCommand({
+      operationId: "org_push_keys",
+      method: "post",
+      path: "/org/push-keys",
+      xCli: {
+        command: "org push-keys",
+        display: { shape: "object" },
+        exitOnField: {
+          path: "ok",
+          failOn: false,
+        },
+      },
+      bodyFields: [],
+    })
+
+    expect(out).not.toBeNull()
+    const code = out!
+
+    expect(code).toContain("render({ kind: \"org_push_keys\", display: {\"shape\":\"object\"} }, result.data)")
+    expect(code).toContain("if (result.data?.ok === false) {")
+    expect(code).toContain("process.exit(1)")
+  })
+
+  it("handles nested paths and string values for exitOnField", () => {
+    const out = emitCommand({
+      operationId: "org_push_keys",
+      method: "post",
+      path: "/org/push-keys",
+      xCli: {
+        command: "org push-keys",
+        display: { shape: "object" },
+        exitOnField: {
+          path: "status.error",
+          failOn: "partial_failure",
+        },
+      },
+      bodyFields: [],
+    })
+
+    expect(out).not.toBeNull()
+    const code = out!
+
+    expect(code).toContain("if (result.data?.status?.error === \"partial_failure\") {")
+    expect(code).toContain("process.exit(1)")
+  })
+})
+
+

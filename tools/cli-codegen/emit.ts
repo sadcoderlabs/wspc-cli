@@ -18,6 +18,11 @@ export interface XCliBody {
   unwrap?: string
 }
 
+export interface XCliExitOnField {
+  path: string
+  failOn: any
+}
+
 export interface XCli {
   command: string
   positional?: string[]
@@ -27,6 +32,7 @@ export interface XCli {
   display?: XCliDisplay
   options?: Record<string, XCliOption>
   body?: XCliBody
+  exitOnField?: XCliExitOnField
 }
 
 export interface BodyField {
@@ -402,6 +408,18 @@ export function emitCommand(input: EmitInput): string | null {
     }
   }
 
+  const exitOnField = input.xCli.exitOnField
+  const exitLines: string[] = []
+  if (exitOnField) {
+    const pathParts = exitOnField.path.split(".")
+    const accessExpr = `result.data?.${pathParts.join("?.")}`
+    exitLines.push(
+      `    if (${accessExpr} === ${JSON.stringify(exitOnField.failOn)}) {`,
+      `      process.exit(1)`,
+      `    }`,
+    )
+  }
+
   // Build import list — only include helpers actually used.
   const imports: string[] = [
     `import { Command } from "commander"`,
@@ -453,6 +471,7 @@ export function emitCommand(input: EmitInput): string | null {
     `      return`,
     `    }`,
     `    render({ kind: ${JSON.stringify(kind)}, display: ${displayLiteral} }, result.data)`,
+    ...exitLines,
     `  })`,
     ``,
   ].join("\n")
