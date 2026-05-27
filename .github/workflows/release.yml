@@ -35,6 +35,11 @@ jobs:
       - run: npm ci
       - name: Sync latest spec
         run: npm run sync-spec
+      - name: Check spec drift
+        # `npm version` below requires a clean tree; a drifted spec would also
+        # mean we'd ship something different from what's on main. Fail loudly
+        # and ask the operator to commit the refreshed spec first.
+        run: git diff --exit-code -- spec/openapi.json || (echo "spec/openapi.json drifted from main — commit the refreshed spec before releasing"; exit 1)
       - name: Generate and check drift
         run: |
           npm run generate
@@ -50,7 +55,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Bump version
-        run: npm version ${{ inputs.bump }} -m "chore(release): %s"
+        run: |
+          npm version ${{ inputs.bump }} -m "chore(release): %s"
       - name: Publish to npm
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
@@ -61,10 +67,10 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Push tag
-        if: ${{ inputs.dry_run != 'true' }}
+        if: ${{ !inputs.dry_run }}
         run: git push --follow-tags
       - name: GitHub release
-        if: ${{ inputs.dry_run != 'true' }}
+        if: ${{ !inputs.dry_run }}
         run: gh release create "v$(node -p 'require("./package.json").version')" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
