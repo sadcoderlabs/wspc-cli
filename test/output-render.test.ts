@@ -107,6 +107,61 @@ describe("render", () => {
     expect(out).toContain("status")
   })
 
+  it("writes raw shape passthrough without JSON escaping (TTY)", () => {
+    const ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n"
+    render({ kind: "event.ics", display: { shape: "raw" } }, ics)
+    // No JSON quoting, no \r\n -> \\r\\n escaping; trailing newline preserved.
+    expect(cap.output()).toBe(ics)
+  })
+
+  it("writes raw shape passthrough when piped (non-TTY)", () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true })
+    const ics = "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n"
+    render({ kind: "event.ics", display: { shape: "raw" } }, ics)
+    expect(cap.output()).toBe(ics)
+  })
+
+  it("raw shape appends a trailing newline when missing", () => {
+    render({ kind: "event.ics", display: { shape: "raw" } }, "hello")
+    expect(cap.output()).toBe("hello\n")
+  })
+
+  it("renders attendee array as indented sub-list under scalar fields", () => {
+    render(
+      { kind: "event.get", display: { shape: "object" } },
+      {
+        event: {
+          id: "evt_1",
+          title: "Standup",
+          attendees: [
+            { email: "alice@example.com", display_name: "Alice" },
+            { email: "bob@example.com" },
+          ],
+        },
+      },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("attendees")
+    expect(out).toContain("2 items")
+    expect(out).toContain("1. Alice <alice@example.com>")
+    expect(out).toContain("2. <bob@example.com>")
+  })
+
+  it("caps long arrays with an overflow line", () => {
+    const attendees = Array.from({ length: 12 }, (_, i) => ({
+      email: `u${i}@x.com`,
+    }))
+    render(
+      { kind: "event.get", display: { shape: "object" } },
+      { event: { id: "evt_1", attendees } },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("12 items")
+    expect(out).toContain("10. <u9@x.com>")
+    expect(out).toContain("... and 2 more")
+    expect(out).not.toContain("11. <u10@x.com>")
+  })
+
   it("falls back to JSON for objects with no scalar fields", () => {
     render(
       { kind: "weird.object", display: { shape: "object" } },
