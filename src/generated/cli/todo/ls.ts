@@ -44,5 +44,5 @@ export const todoListCommand = new Command("ls")
       process.exitCode = 1
       return
     }
-    render({ kind: "todo_list", display: {"shape":"list","columns":["id","status","title","due_at","project_id"],"format":{"id":"id-short","status":"status-badge","title":"truncate","due_at":"relative-time","project_id":"id-short"},"emptyMessage":"no todos"} }, result.data)
+    render({ kind: "todo_list", display: {"shape":"list","columns":["id","status","title","due_at"],"format":{"id":"id-short","status":"status-badge","title":"truncate","due_at":"relative-time"},"emptyMessage":"no todos"} }, result.data)
   })

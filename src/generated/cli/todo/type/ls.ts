@@ -26,5 +26,5 @@ export const todoTypeListCommand = new Command("ls")
       process.exitCode = 1
       return
     }
-    render({ kind: "todo_type_list", display: {"shape":"list","columns":["id","label","project_id"],"format":{"id":"id-short","label":"truncate","project_id":"id-short"},"emptyMessage":"no todo types"} }, result.data)
+    render({ kind: "todo_type_list", display: {"shape":"list","columns":["id","label"],"format":{"id":"id-short","label":"truncate"},"emptyMessage":"no todo types"} }, result.data)
   })

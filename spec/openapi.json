@@ -16449,13 +16449,11 @@
             "columns": [
               "id",
               "rrule",
-              "dtstart",
-              "project_id"
+              "dtstart"
             ],
             "format": {
               "id": "id-short",
-              "rrule": "truncate",
-              "project_id": "id-short"
+              "rrule": "truncate"
             },
             "emptyMessage": "no recurrence rules"
           }
@@ -17359,15 +17357,13 @@
               "id",
               "status",
               "title",
-              "due_at",
-              "project_id"
+              "due_at"
             ],
             "format": {
               "id": "id-short",
               "status": "status-badge",
               "title": "truncate",
-              "due_at": "relative-time",
-              "project_id": "id-short"
+              "due_at": "relative-time"
             },
             "emptyMessage": "no todos"
           }
@@ -18356,13 +18352,11 @@
             "shape": "list",
             "columns": [
               "id",
-              "label",
-              "project_id"
+              "label"
             ],
             "format": {
               "id": "id-short",
-              "label": "truncate",
-              "project_id": "id-short"
+              "label": "truncate"
             },
             "emptyMessage": "no todo types"
           }
