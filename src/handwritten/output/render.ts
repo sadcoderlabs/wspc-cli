@@ -16,6 +16,7 @@
 
 import {
   boolBadge,
+  colorise,
   dim,
   green,
   idShort,
@@ -144,7 +145,7 @@ function renderList(data: unknown, hints?: XCliDisplay): void {
   const headers = columns.map((c) => c.toUpperCase())
   const rows = items.map((item) =>
     columns.map((col) =>
-      formatCell((item as Record<string, unknown>)[col], format[col]),
+      formatCell((item as Record<string, unknown>)[col], format[col], hints?.enumColorMap?.[col]),
     ),
   )
   process.stdout.write(table(headers, rows))
@@ -209,7 +210,7 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
     ...arrayFields.map((f) => f.length),
   )
   for (const f of fields) {
-    const value = formatCell(obj[f], format[f])
+    const value = formatCell(obj[f], format[f], hints?.enumColorMap?.[f])
     process.stdout.write(`  ${dim(f.padEnd(labelWidth))}  ${value}\n`)
   }
   for (const f of arrayFields) {
@@ -282,8 +283,12 @@ function isScalar(v: unknown): boolean {
   return v === null || (typeof v !== "object" && typeof v !== "function")
 }
 
-function formatCell(value: unknown, fmt?: XCliFormat): string {
-  if (value === undefined || value === null) return dim("—")
+function formatCell(
+  value: unknown,
+  fmt?: XCliFormat,
+  colorMap?: Record<string, { label: string; color: string }>,
+): string {
+  if (fmt !== "enum-badge" && (value === undefined || value === null)) return dim("—")
   switch (fmt) {
     case "id-short":
       return idShort(String(value))
@@ -295,6 +300,16 @@ function formatCell(value: unknown, fmt?: XCliFormat): string {
       return truncate(String(value), 50)
     case "bool-badge":
       return boolBadge(value)
+    case "enum-badge": {
+      const map = colorMap ?? {}
+      const key = (value === null || value === undefined) ? "null" : String(value)
+      const entry = map[key] ?? map["*"]
+      if (!entry) {
+        return value === undefined || value === null ? dim("—") : String(value)
+      }
+      const label = entry.label.replace("<value>", String(value))
+      return colorise(label, entry.color)
+    }
     default:
       if (typeof value === "object") return JSON.stringify(value)
       return String(value)

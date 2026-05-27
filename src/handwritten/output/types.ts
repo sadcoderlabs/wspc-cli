@@ -20,6 +20,7 @@ export interface XCliDisplay {
    * scripts / `jq` see everything.
    */
   dataPath?: string
+  enumColorMap?: Record<string, Record<string, { label: string; color: string }>>
 }
 
 /**
@@ -32,6 +33,7 @@ export type XCliFormat =
   | "relative-time"
   | "truncate"
   | "bool-badge"
+  | "enum-badge"
 
 /**
  * Stable identifier tying a generated CLI command to an output renderer.

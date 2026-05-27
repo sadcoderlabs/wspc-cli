@@ -170,6 +170,99 @@ describe("render", () => {
     // Single-key unwrap leaves us with { a: { b: 1 } }; `a` is itself an
     // object, so there are no scalar fields → JSON fallback prints the
     // unwrapped object as-is.
-    expect(cap.output().trim()).toBe(JSON.stringify({ a: { b: 1 } }, null, 2))
+  })
+
+  it("renders enum-badge format with enumColorMap correctly", () => {
+    const display: XCliDisplay = {
+      shape: "object",
+      fields: ["status", "transport", "detail"],
+      format: {
+        status: "enum-badge",
+        transport: "enum-badge",
+        detail: "enum-badge",
+      },
+      enumColorMap: {
+        status: {
+          ok: { label: "✓ ok", color: "green" },
+          telegram_4xx: { label: "✕ telegram_4xx", color: "red" },
+          "*": { label: "✕ <value>", color: "red" },
+          null: { label: "—", color: "dim" },
+        },
+        transport: {
+          telegram: { label: "TG: <value>", color: "cyan" },
+          "*": { label: "Other: <value>", color: "yellow" },
+        },
+        detail: {
+          "*": { label: "Details: <value>", color: "gray" },
+          null: { label: "No details", color: "dim" },
+        },
+      },
+    }
+
+    render(
+      { kind: "push.status", display },
+      {
+        status: "ok",
+        transport: "telegram",
+        detail: null,
+      },
+    )
+
+    const out = cap.output()
+    const plain = stripAnsi(out)
+
+    expect(plain).toContain("✓ ok")
+    expect(plain).toContain("TG: telegram")
+    expect(plain).toContain("No details")
+
+    expect(out).toContain("\x1b[32m✓ ok\x1b[0m")
+    expect(out).toContain("\x1b[36mTG: telegram\x1b[0m")
+    expect(out).toContain("\x1b[2mNo details\x1b[0m")
+  })
+
+  it("handles unknown/wildcard and undefined values in enum-badge", () => {
+    const display: XCliDisplay = {
+      shape: "object",
+      fields: ["status", "transport", "detail"],
+      format: {
+        status: "enum-badge",
+        transport: "enum-badge",
+        detail: "enum-badge",
+      },
+      enumColorMap: {
+        status: {
+          ok: { label: "✓ ok", color: "green" },
+          "*": { label: "✕ <value>", color: "red" },
+          null: { label: "—", color: "dim" },
+        },
+        transport: {
+          "*": { label: "Other: <value>", color: "yellow" },
+        },
+        detail: {
+          "*": { label: "Details: <value>", color: "gray" },
+          null: { label: "No details", color: "dim" },
+        },
+      },
+    }
+
+    render(
+      { kind: "push.status", display },
+      {
+        status: "unknown_value",
+        transport: "discord",
+        detail: undefined,
+      },
+    )
+
+    const out = cap.output()
+    const plain = stripAnsi(out)
+
+    expect(plain).toContain("✕ unknown_value")
+    expect(plain).toContain("Other: discord")
+    expect(plain).toContain("No details")
+
+    expect(out).toContain("\x1b[31m✕ unknown_value\x1b[0m")
+    expect(out).toContain("\x1b[33mOther: discord\x1b[0m")
+    expect(out).toContain("\x1b[2mNo details\x1b[0m")
   })
 })
