@@ -171,6 +171,62 @@ describe("emitCommand: exitOnField", () => {
     expect(code).toContain("if (result.data?.status?.error === \"partial_failure\") {")
     expect(code).toContain("process.exit(1)")
   })
+
+  it("handles empty string, null/undefined, and malformed path in exitOnField safely", () => {
+    // 1. Empty string path
+    const outEmpty = emitCommand({
+      operationId: "org_push_keys",
+      method: "post",
+      path: "/org/push-keys",
+      xCli: {
+        command: "org push-keys",
+        display: { shape: "object" },
+        exitOnField: {
+          path: "",
+          failOn: false,
+        },
+      },
+      bodyFields: [],
+    })
+    expect(outEmpty).not.toBeNull()
+    expect(outEmpty!).toContain("if (result.data === false) {")
+
+    // 2. Malformed path with empty segments
+    const outMalformed = emitCommand({
+      operationId: "org_push_keys",
+      method: "post",
+      path: "/org/push-keys",
+      xCli: {
+        command: "org push-keys",
+        display: { shape: "object" },
+        exitOnField: {
+          path: "status..error",
+          failOn: "error",
+        },
+      },
+      bodyFields: [],
+    })
+    expect(outMalformed).not.toBeNull()
+    expect(outMalformed!).toContain("if (result.data?.status?.error === \"error\") {")
+
+    // 3. Null path (cast to any for runtime test)
+    const outNull = emitCommand({
+      operationId: "org_push_keys",
+      method: "post",
+      path: "/org/push-keys",
+      xCli: {
+        command: "org push-keys",
+        display: { shape: "object" },
+        exitOnField: {
+          path: null as any,
+          failOn: true,
+        },
+      },
+      bodyFields: [],
+    })
+    expect(outNull).not.toBeNull()
+    expect(outNull!).toContain("if (result.data === true) {")
+  })
 })
 
 

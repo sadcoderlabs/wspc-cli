@@ -411,8 +411,8 @@ export function emitCommand(input: EmitInput): string | null {
   const exitOnField = input.xCli.exitOnField
   const exitLines: string[] = []
   if (exitOnField) {
-    const pathParts = exitOnField.path.split(".")
-    const accessExpr = `result.data?.${pathParts.join("?.")}`
+    const pathParts = (exitOnField.path || "").split(".").filter((p) => p.trim() !== "")
+    const accessExpr = pathParts.length > 0 ? `result.data?.${pathParts.join("?.")}` : `result.data`
     exitLines.push(
       `    if (${accessExpr} === ${JSON.stringify(exitOnField.failOn)}) {`,
       `      process.exit(1)`,
