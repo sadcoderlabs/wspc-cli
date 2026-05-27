@@ -6,6 +6,8 @@ import { logoutCommand } from "./handwritten/commands/logout.js"
 import { whoamiCommand } from "./handwritten/commands/whoami.js"
 import { configCommand } from "./handwritten/commands/config.js"
 import { todoDoneCommand } from "./handwritten/commands/todo-done.js"
+import { sendCommand } from "./handwritten/commands/email/send.js"
+import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
 import { VERSION, SPEC_SHA, SPEC_FETCHED_AT } from "./version.js"
 
 function buildProgram(): Command {
@@ -30,6 +32,17 @@ function buildProgram(): Command {
 
   const todo = program.commands.find((c) => c.name() === "todo")
   if (todo) todo.addCommand(todoDoneCommand)
+
+  // Mount handwritten email commands under the generated `email` subtree.
+  // They live in handwritten/ because they need behavior (multipart-equivalent
+  // base64 attachment encoding, binary stream download) that the codegen layer
+  // deliberately doesn't model.
+  const email = program.commands.find((c) => c.name() === "email")
+  if (!email) {
+    throw new Error("email command tree not found; codegen output may be missing")
+  }
+  email.addCommand(sendCommand)
+  email.addCommand(attachmentCommand)
 
   return program
 }
