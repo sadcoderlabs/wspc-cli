@@ -67,6 +67,23 @@ function extractBodyFields(
     schema = resolveRef(schema.$ref, spec)
   }
   if (!schema.properties) return []
+
+  const unwrapKey = op["x-cli"]?.body?.unwrap
+  if (unwrapKey && schema.properties[unwrapKey]) {
+    let subSchema = schema.properties[unwrapKey]
+    if (subSchema.$ref) {
+      subSchema = resolveRef(subSchema.$ref, spec)
+    }
+    if (subSchema.properties) {
+      const required = new Set(subSchema.required ?? [])
+      return Object.entries(subSchema.properties).map(([name, def]) => ({
+        name,
+        type: (def.type as BodyField["type"]) ?? "string",
+        required: required.has(name),
+      }))
+    }
+  }
+
   const required = new Set(schema.required ?? [])
   return Object.entries(schema.properties).map(([name, def]) => ({
     name,

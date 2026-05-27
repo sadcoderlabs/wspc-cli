@@ -89,3 +89,38 @@ describe("emitCommand: array option without parser", () => {
     expect(code).toContain("ids: ids as string[]")
   })
 })
+
+describe("emitCommand: body unwrap", () => {
+  it("supports body.unwrap to flatten 1-level nested body wrapper field into top-level flags, and reconstructs it when calling the SDK", () => {
+    const out = emitCommand({
+      operationId: "org_push_keys",
+      method: "post",
+      path: "/org/push-keys",
+      xCli: {
+        command: "org push-keys",
+        body: { unwrap: "config" },
+        options: {
+          target_bot: { mapsTo: "target_bot_username" },
+        },
+        display: { shape: "object" },
+      },
+      bodyFields: [
+        { name: "transport", type: "string", required: true },
+        { name: "target_bot_username", type: "string", required: false },
+      ],
+    })
+
+    expect(out).not.toBeNull()
+    const code = out!
+
+    // Verify top-level flags are generated from unwrapped properties
+    expect(code).toContain('.option("--transport <value>", "transport")')
+    expect(code).toContain('.option("--target-bot <value>", "target_bot")')
+
+    // Verify SDK call block reconstructs the unwrapped object
+    expect(code).toContain("config: {")
+    expect(code).toContain("transport: opts.transport,")
+    expect(code).toContain("target_bot_username: opts.targetBot,")
+  })
+})
+

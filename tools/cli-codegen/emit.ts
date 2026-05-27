@@ -14,6 +14,10 @@ export interface XCliOption {
   exclusive?: boolean
 }
 
+export interface XCliBody {
+  unwrap?: string
+}
+
 export interface XCli {
   command: string
   positional?: string[]
@@ -22,6 +26,7 @@ export interface XCli {
   hidden?: boolean
   display?: XCliDisplay
   options?: Record<string, XCliOption>
+  body?: XCliBody
 }
 
 export interface BodyField {
@@ -300,14 +305,27 @@ export function emitCommand(input: EmitInput): string | null {
       return `        ${f.name}: opts.${camelize(longFlag)},`
     })
   const bodyHasContent = bodyPositionals.length > 0 || bodyOptLines.length > 0
-  const bodyBlock = bodyHasContent
-    ? [
+  const unwrapKey = input.xCli.body?.unwrap
+  let bodyBlock: string[] = []
+  if (bodyHasContent) {
+    if (unwrapKey) {
+      bodyBlock = [
+        `      body: {`,
+        `        ${unwrapKey}: {`,
+        ...bodyPositionals.map((p) => `          ${p},`),
+        ...bodyOptLines.map((line) => `  ${line}`),
+        `        },`,
+        `      },`,
+      ]
+    } else {
+      bodyBlock = [
         `      body: {`,
         ...bodyPositionals.map((p) => `        ${p},`),
         ...bodyOptLines,
         `      },`,
       ]
-    : []
+    }
+  }
 
   // Build query block (query fields)
   const queryOptLines = queryFields
