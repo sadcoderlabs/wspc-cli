@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs"
 import { join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { emitCommand, type XCli, type BodyField } from "./emit.js"
 
 const SPEC_PATH = "spec/openapi.json"
@@ -202,7 +203,14 @@ async function main(): Promise<void> {
   console.log(`✓ emitted ${emitted.length} CLI commands -> ${OUT_DIR}`)
 }
 
-main().catch((e) => {
-  console.error(e)
-  process.exit(1)
-})
+// Only run when invoked directly (e.g. `tsx tools/cli-codegen/main.ts`).
+// Skip when imported as a module — otherwise `main.test.ts` importing
+// `shouldSkipRoute` would trigger a full wipe-and-regen of `OUT_DIR` as
+// a side effect, which both slows tests and leaves `src/generated/cli/`
+// modified in git after every `npm test` run.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
+}
