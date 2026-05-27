@@ -11,6 +11,7 @@ interface SchemaLike {
   properties?: Record<string, SchemaLike>
   required?: string[]
   $ref?: string
+  oneOf?: SchemaLike[]
 }
 
 interface ParameterLike {
@@ -67,6 +68,42 @@ function extractBodyFields(
     schema = resolveRef(schema.$ref, spec)
   }
   if (!schema.properties) return []
+
+  const unwrapKey = op["x-cli"]?.body?.unwrap
+  if (unwrapKey && schema.properties[unwrapKey]) {
+    let subSchema = schema.properties[unwrapKey]
+    if (subSchema.$ref) {
+      subSchema = resolveRef(subSchema.$ref, spec)
+    }
+    let props: Record<string, SchemaLike> = {}
+    const required = new Set<string>()
+    if (subSchema.properties) {
+      props = subSchema.properties
+      if (subSchema.required) {
+        subSchema.required.forEach((r) => required.add(r))
+      }
+    } else if (subSchema.oneOf) {
+      for (let s of subSchema.oneOf) {
+        if (s.$ref) {
+          s = resolveRef(s.$ref, spec)
+        }
+        if (s.properties) {
+          Object.assign(props, s.properties)
+          if (s.required) {
+            s.required.forEach((r) => required.add(r))
+          }
+        }
+      }
+    }
+    if (Object.keys(props).length > 0) {
+      return Object.entries(props).map(([name, def]) => ({
+        name,
+        type: (def.type as BodyField["type"]) ?? "string",
+        required: required.has(name),
+      }))
+    }
+  }
+
   const required = new Set(schema.required ?? [])
   return Object.entries(schema.properties).map(([name, def]) => ({
     name,

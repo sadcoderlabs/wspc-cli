@@ -1,7 +1,11 @@
 // AUTO-GENERATED — DO NOT EDIT
 import { Command } from "commander"
+import { keyCreateCommand } from "./keys/create.js"
+import { keyListCommand } from "./keys/ls.js"
 import { orgGetCommand } from "./org/show.js"
 import { authMeCommand } from "./auth/me.js"
+import { orgMembersListCommand } from "./org/members.js"
+import { keyRevokeCommand } from "./keys/rm.js"
 import { eventCreateCommand } from "./event/add.js"
 import { eventListCommand } from "./event/ls.js"
 import { eventDeleteCommand } from "./event/rm.js"
@@ -16,6 +20,10 @@ import { emailGetCommand } from "./email/show.js"
 import { emailListCommand } from "./email/ls.js"
 import { emailMarkReadCommand } from "./email/read.js"
 import { emailMarkUnreadCommand } from "./email/unread.js"
+import { pushConfigDeleteCommand } from "./push/config/rm.js"
+import { pushConfigSetCommand } from "./push/config/set.js"
+import { pushConfigGetCommand } from "./push/config/show.js"
+import { pushTestCommand } from "./push/test.js"
 import { projectCreateCommand } from "./todo/project/add.js"
 import { projectListCommand } from "./todo/project/ls.js"
 import { recurrenceRuleListCommand } from "./todo/rule/ls.js"
@@ -27,8 +35,13 @@ import { todoGetCommand } from "./todo/show.js"
 import { todoUpdateCommand } from "./todo/update.js"
 
 export function registerGeneratedCommands(root: Command): void {
+  const root_keys = root.command("keys").description("keys commands")
+  root_keys.addCommand(keyCreateCommand)
+  root_keys.addCommand(keyListCommand)
+  root_keys.addCommand(keyRevokeCommand)
   const root_org = root.command("org").description("org commands")
   root_org.addCommand(orgGetCommand)
+  root_org.addCommand(orgMembersListCommand)
   const root_auth = root.command("auth").description("auth commands")
   root_auth.addCommand(authMeCommand)
   const root_event = root.command("event").description("event commands")
@@ -48,6 +61,12 @@ export function registerGeneratedCommands(root: Command): void {
   root_email.addCommand(emailListCommand)
   root_email.addCommand(emailMarkReadCommand)
   root_email.addCommand(emailMarkUnreadCommand)
+  const root_push = root.command("push").description("push commands")
+  const root_push_config = root_push.command("config").description("config commands")
+  root_push_config.addCommand(pushConfigDeleteCommand)
+  root_push_config.addCommand(pushConfigSetCommand)
+  root_push_config.addCommand(pushConfigGetCommand)
+  root_push.addCommand(pushTestCommand)
   const root_todo = root.command("todo").description("todo commands")
   const root_todo_project = root_todo.command("project").description("project commands")
   root_todo_project.addCommand(projectCreateCommand)

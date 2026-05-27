@@ -29,6 +29,27 @@ export const red = (s: string): string => wrap("31", s)
 export const gray = (s: string): string => wrap("90", s)
 export const cyan = (s: string): string => wrap("36", s)
 
+export function colorise(s: string, color?: string): string {
+  switch (color) {
+    case "green":
+      return green(s)
+    case "yellow":
+      return yellow(s)
+    case "red":
+      return red(s)
+    case "gray":
+      return gray(s)
+    case "cyan":
+      return cyan(s)
+    case "dim":
+      return dim(s)
+    case "bold":
+      return bold(s)
+    default:
+      return s
+  }
+}
+
 // ---------- value formatters ----------
 
 const ANSI_RE = /\x1b\[[0-9;]*m/g

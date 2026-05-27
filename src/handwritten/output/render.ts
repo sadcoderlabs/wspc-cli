@@ -16,6 +16,7 @@
 
 import {
   boolBadge,
+  colorise,
   dim,
   green,
   idShort,
@@ -144,7 +145,7 @@ function renderList(data: unknown, hints?: XCliDisplay): void {
   const headers = columns.map((c) => c.toUpperCase())
   const rows = items.map((item) =>
     columns.map((col) =>
-      formatCell((item as Record<string, unknown>)[col], format[col]),
+      formatCell((item as Record<string, unknown>)[col], format[col], hints?.enumColorMap?.[col]),
     ),
   )
   process.stdout.write(table(headers, rows))
@@ -209,11 +210,21 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
     ...arrayFields.map((f) => f.length),
   )
   for (const f of fields) {
-    const value = formatCell(obj[f], format[f])
+    const value = formatCell(obj[f], format[f], hints?.enumColorMap?.[f])
     process.stdout.write(`  ${dim(f.padEnd(labelWidth))}  ${value}\n`)
   }
   for (const f of arrayFields) {
     renderArrayField(f, obj[f] as unknown[], labelWidth)
+  }
+  if (hints?.secretField) {
+    const value = obj[hints.secretField]
+    if (value !== undefined) {
+      process.stdout.write("\n")
+      process.stdout.write(colorise("⚠  This is the only time you'll see this key. Save it now.", "yellow") + "\n")
+      process.stdout.write("\n")
+      process.stdout.write("   To use it as the active env credential:\n")
+      process.stdout.write(`     wspc env add <name> --api-key ${value}\n`)
+    }
   }
 }
 
@@ -282,8 +293,12 @@ function isScalar(v: unknown): boolean {
   return v === null || (typeof v !== "object" && typeof v !== "function")
 }
 
-function formatCell(value: unknown, fmt?: XCliFormat): string {
-  if (value === undefined || value === null) return dim("—")
+function formatCell(
+  value: unknown,
+  fmt?: XCliFormat,
+  colorMap?: Record<string, { label: string; color: string }>,
+): string {
+  if (fmt !== "enum-badge" && (value === undefined || value === null)) return dim("—")
   switch (fmt) {
     case "id-short":
       return idShort(String(value))
@@ -295,6 +310,16 @@ function formatCell(value: unknown, fmt?: XCliFormat): string {
       return truncate(String(value), 50)
     case "bool-badge":
       return boolBadge(value)
+    case "enum-badge": {
+      const map = colorMap ?? {}
+      const key = (value === null || value === undefined) ? "null" : String(value)
+      const entry = map[key] ?? map["*"]
+      if (!entry) {
+        return value === undefined || value === null ? dim("—") : String(value)
+      }
+      const label = entry.label.replace("<value>", String(value))
+      return colorise(label, entry.color)
+    }
     default:
       if (typeof value === "object") return JSON.stringify(value)
       return String(value)

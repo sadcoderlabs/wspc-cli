@@ -14,6 +14,15 @@ export interface XCliOption {
   exclusive?: boolean
 }
 
+export interface XCliBody {
+  unwrap?: string
+}
+
+export interface XCliExitOnField {
+  path: string
+  failOn: any
+}
+
 export interface XCli {
   command: string
   positional?: string[]
@@ -22,6 +31,8 @@ export interface XCli {
   hidden?: boolean
   display?: XCliDisplay
   options?: Record<string, XCliOption>
+  body?: XCliBody
+  exitOnField?: XCliExitOnField
 }
 
 export interface BodyField {
@@ -300,14 +311,27 @@ export function emitCommand(input: EmitInput): string | null {
       return `        ${f.name}: opts.${camelize(longFlag)},`
     })
   const bodyHasContent = bodyPositionals.length > 0 || bodyOptLines.length > 0
-  const bodyBlock = bodyHasContent
-    ? [
+  const unwrapKey = input.xCli.body?.unwrap
+  let bodyBlock: string[] = []
+  if (bodyHasContent) {
+    if (unwrapKey) {
+      bodyBlock = [
+        `      body: {`,
+        `        ${unwrapKey}: {`,
+        ...bodyPositionals.map((p) => `          ${p},`),
+        ...bodyOptLines.map((line) => `  ${line}`),
+        `        },`,
+        `      },`,
+      ]
+    } else {
+      bodyBlock = [
         `      body: {`,
         ...bodyPositionals.map((p) => `        ${p},`),
         ...bodyOptLines,
         `      },`,
       ]
-    : []
+    }
+  }
 
   // Build query block (query fields)
   const queryOptLines = queryFields
@@ -384,6 +408,18 @@ export function emitCommand(input: EmitInput): string | null {
     }
   }
 
+  const exitOnField = input.xCli.exitOnField
+  const exitLines: string[] = []
+  if (exitOnField) {
+    const pathParts = (exitOnField.path || "").split(".").filter((p) => p.trim() !== "")
+    const accessExpr = pathParts.length > 0 ? `result.data?.${pathParts.join("?.")}` : `result.data`
+    exitLines.push(
+      `    if (${accessExpr} === ${JSON.stringify(exitOnField.failOn)}) {`,
+      `      process.exit(1)`,
+      `    }`,
+    )
+  }
+
   // Build import list — only include helpers actually used.
   const imports: string[] = [
     `import { Command } from "commander"`,
@@ -435,6 +471,7 @@ export function emitCommand(input: EmitInput): string | null {
     `      return`,
     `    }`,
     `    render({ kind: ${JSON.stringify(kind)}, display: ${displayLiteral} }, result.data)`,
+    ...exitLines,
     `  })`,
     ``,
   ].join("\n")
