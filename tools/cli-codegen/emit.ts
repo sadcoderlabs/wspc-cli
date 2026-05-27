@@ -239,6 +239,10 @@ export function emitCommand(input: EmitInput): string | null {
       const target = optDef.mapsTo ?? optKey
       return snakeToCamel(target)
     }
+    if (optDef.array && !optDef.parser) {
+      const target = optDef.mapsTo ?? optKey
+      return snakeToCamel(target)
+    }
     return `opts.${camelKey}`
   }
 
@@ -259,7 +263,9 @@ export function emitCommand(input: EmitInput): string | null {
         // user might omit the flag (commander has no way to mark required
         // options for us). Cast to satisfy the SDK type — runtime validation
         // server-side surfaces the missing-field error.
-        const suffix = f.required ? ` as string` : ""
+        const optDef = xCliOptions[optKey]!
+        const castType = optDef.array ? "string[]" : "string"
+        const suffix = f.required ? ` as ${castType}` : ""
         return `        ${f.name}: ${expr}${suffix},`
       }
       const { longFlag } = resolveAlias(f.name)
@@ -334,6 +340,15 @@ export function emitCommand(input: EmitInput): string | null {
       conversionLines.push(
         `    const ${rawVar} = opts.${camelKey} as string[]`,
         `    const ${targetVar} = ${rawVar}.length > 0 ? ${rawVar}.map(parseAttendee) : undefined`,
+      )
+    } else if (optDef.array && !optDef.parser) {
+      const camelKey = camelize(kebab(optKey))
+      const target = optDef.mapsTo ?? optKey
+      const targetVar = snakeToCamel(target)
+      const rawVar = `${camelKey}Raw`
+      conversionLines.push(
+        `    const ${rawVar} = opts.${camelKey} as string[]`,
+        `    const ${targetVar} = ${rawVar}.length > 0 ? ${rawVar} : undefined`,
       )
     }
   }
