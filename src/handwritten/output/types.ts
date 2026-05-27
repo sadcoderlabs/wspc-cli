@@ -11,13 +11,27 @@ export interface XCliDisplay {
   fields?: string[]
   format?: Record<string, XCliFormat>
   emptyMessage?: string
+  /**
+   * Single-level key the pretty renderer drills into before applying the rest
+   * of the hint. Use when the response is a wrapper (e.g. `GET /email/
+   * messages/{id}` returns `{ email, attachments }` — `dataPath: "email"`
+   * makes pretty mode render the email's fields directly). JSON output is
+   * unaffected — the full server payload always prints in `--json` mode so
+   * scripts / `jq` see everything.
+   */
+  dataPath?: string
 }
 
 /**
  * Well-known formatter ids. Renderers must ignore unknown values (forward-
  * compat: spec may introduce new formats before CLI ships support).
  */
-export type XCliFormat = "id-short" | "status-badge" | "relative-time" | "truncate"
+export type XCliFormat =
+  | "id-short"
+  | "status-badge"
+  | "relative-time"
+  | "truncate"
+  | "bool-badge"
 
 /**
  * Stable identifier tying a generated CLI command to an output renderer.

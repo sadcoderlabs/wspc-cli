@@ -8,6 +8,14 @@ import { eventDeleteCommand } from "./event/rm.js"
 import { eventGetCommand } from "./event/show.js"
 import { eventUpdateCommand } from "./event/set.js"
 import { eventIcsDownloadCommand } from "./event/ics.js"
+import { emailAliasCreateCommand } from "./alias/add.js"
+import { emailAliasListCommand } from "./alias/ls.js"
+import { emailAliasDeleteCommand } from "./alias/rm.js"
+import { emailDeleteCommand } from "./email/rm.js"
+import { emailGetCommand } from "./email/show.js"
+import { emailListCommand } from "./email/ls.js"
+import { emailMarkReadCommand } from "./email/read.js"
+import { emailMarkUnreadCommand } from "./email/unread.js"
 import { projectCreateCommand } from "./todo/project/add.js"
 import { projectListCommand } from "./todo/project/ls.js"
 import { recurrenceRuleListCommand } from "./todo/rule/ls.js"
@@ -30,6 +38,16 @@ export function registerGeneratedCommands(root: Command): void {
   root_event.addCommand(eventGetCommand)
   root_event.addCommand(eventUpdateCommand)
   root_event.addCommand(eventIcsDownloadCommand)
+  const root_alias = root.command("alias").description("alias commands")
+  root_alias.addCommand(emailAliasCreateCommand)
+  root_alias.addCommand(emailAliasListCommand)
+  root_alias.addCommand(emailAliasDeleteCommand)
+  const root_email = root.command("email").description("email commands")
+  root_email.addCommand(emailDeleteCommand)
+  root_email.addCommand(emailGetCommand)
+  root_email.addCommand(emailListCommand)
+  root_email.addCommand(emailMarkReadCommand)
+  root_email.addCommand(emailMarkUnreadCommand)
   const root_todo = root.command("todo").description("todo commands")
   const root_todo_project = root_todo.command("project").description("project commands")
   root_todo_project.addCommand(projectCreateCommand)

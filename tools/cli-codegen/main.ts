@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs"
 import { join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { emitCommand, type XCli, type BodyField } from "./emit.js"
 
 const SPEC_PATH = "spec/openapi.json"
@@ -32,6 +33,13 @@ interface OperationLike {
     }
   }
   "x-cli"?: XCli
+}
+
+export function shouldSkipRoute(xCli: { command: string; hidden?: boolean }): boolean {
+  if (xCli.hidden) return true
+  if (xCli.command === "_internal") return true
+  if (xCli.command === "_handwritten") return true
+  return false
 }
 
 function camelize(snake: string): string {
@@ -161,7 +169,7 @@ async function main(): Promise<void> {
 
   for (const [routePath, methods] of Object.entries(spec.paths)) {
     for (const [method, op] of Object.entries(methods)) {
-      if (!op.operationId || !op["x-cli"] || op["x-cli"].hidden) continue
+      if (!op.operationId || !op["x-cli"] || shouldSkipRoute(op["x-cli"])) continue
       const bodyFields = extractBodyFields(op, spec)
       const pathParams = extractPathParams(op)
       const queryFields = extractQueryFields(op)
@@ -195,7 +203,14 @@ async function main(): Promise<void> {
   console.log(`✓ emitted ${emitted.length} CLI commands -> ${OUT_DIR}`)
 }
 
-main().catch((e) => {
-  console.error(e)
-  process.exit(1)
-})
+// Only run when invoked directly (e.g. `tsx tools/cli-codegen/main.ts`).
+// Skip when imported as a module — otherwise `main.test.ts` importing
+// `shouldSkipRoute` would trigger a full wipe-and-regen of `OUT_DIR` as
+// a side effect, which both slows tests and leaves `src/generated/cli/`
+// modified in git after every `npm test` run.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
+}
