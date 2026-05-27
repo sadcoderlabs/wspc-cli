@@ -32,6 +32,35 @@ describe("emitCommand: array option without parser", () => {
     expect(code).not.toContain("ids: opts.id")
   })
 
+  it("variadic positional binds to mapsTo body field, suppresses --flag", () => {
+    const out = emitCommand({
+      operationId: "email_delete",
+      method: "post",
+      path: "/email/messages/delete",
+      xCli: {
+        command: "email rm",
+        positional: ["id"],
+        options: { id: { array: true, mapsTo: "ids" } },
+        display: { shape: "object" },
+      },
+      bodyFields: [{ name: "ids", type: "array", required: true }],
+    })
+
+    expect(out).not.toBeNull()
+    const code = out!
+
+    // Variadic positional argument, NOT a --id flag
+    expect(code).toContain('.argument("<id...>"')
+    expect(code).not.toContain("--id <value>")
+
+    // Conversion reads from the positional variable, not opts.id
+    expect(code).toContain("const idRaw = id as string[]")
+    expect(code).not.toContain("const idRaw = opts.id")
+
+    // Body field uses the renamed converted variable
+    expect(code).toContain("ids: ids as string[]")
+  })
+
   it("handles array option without mapsTo (key equals field name)", () => {
     const out = emitCommand({
       operationId: "email_batch_delete",

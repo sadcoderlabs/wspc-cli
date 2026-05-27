@@ -137,9 +137,20 @@ export function emitCommand(input: EmitInput): string | null {
   // expose to users is `id`, not `filename`.
   const isIcsDownload = input.operationId === "event_ics_download"
 
+  // A positional name that also appears as an array x-cli option becomes a
+  // variadic positional (`<name...>`) bound to the option's body target via
+  // `mapsTo`. e.g. `positional: ["id"]` + `options.id.array: true` →
+  // `wspc email rm <id...>` writing into `body.ids: string[]`.
+  const variadicPositionalSet = new Set(
+    positional.filter((p) => xCliOptions[p]?.array === true),
+  )
+
   const args: string[] = positional.map((name) => {
     if (isIcsDownload && name === "id") {
       return `.argument("<id>", "id")`
+    }
+    if (variadicPositionalSet.has(name)) {
+      return `.argument("<${name}...>", "${name}")`
     }
     // Check in pathParams first (always required), then bodyFields
     const isPathParam = pathParamSet.has(name)
@@ -165,9 +176,21 @@ export function emitCommand(input: EmitInput): string | null {
     return `.option("${flagSpec}", "${f.name}")`
   }
 
+  // Skip body fields whose x-cli option key has been promoted to a variadic
+  // positional — those values come in via .argument(<name...>), not a flag.
+  function bodyFieldOwnedByVariadicPositional(f: BodyField): boolean {
+    const optKey = fieldToOptionKey[f.name]
+    return optKey !== undefined && variadicPositionalSet.has(optKey)
+  }
+
   // Options from body fields (skip positional and path params)
   const bodyOptions = input.bodyFields
-    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
+    .filter(
+      (f) =>
+        !positionalSet.has(f.name) &&
+        !pathParamSet.has(f.name) &&
+        !bodyFieldOwnedByVariadicPositional(f),
+    )
     .map(emitFieldOption)
 
   // Options from query fields (skip positional and path params)
@@ -251,7 +274,12 @@ export function emitCommand(input: EmitInput): string | null {
   // (as `filename`), so it must not also leak into a body.
   const bodyPositionals = isIcsDownload
     ? []
-    : positional.filter((p) => !pathParamSet.has(p))
+    : positional.filter(
+        // Variadic positionals are handled via the x-cli option / conversion
+        // block (they need a `mapsTo` rename + array cast). Plain positionals
+        // map 1:1 to body field names and are emitted with shorthand below.
+        (p) => !pathParamSet.has(p) && !variadicPositionalSet.has(p),
+      )
   const bodyOptLines = input.bodyFields
     .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
     .map((f) => {
@@ -346,8 +374,11 @@ export function emitCommand(input: EmitInput): string | null {
       const target = optDef.mapsTo ?? optKey
       const targetVar = snakeToCamel(target)
       const rawVar = `${camelKey}Raw`
+      // Variadic positional: commander hands us `string[]` directly in the
+      // action's argument. Flag accumulator: read off `opts.<key>`.
+      const source = variadicPositionalSet.has(optKey) ? camelKey : `opts.${camelKey}`
       conversionLines.push(
-        `    const ${rawVar} = opts.${camelKey} as string[]`,
+        `    const ${rawVar} = ${source} as string[]`,
         `    const ${targetVar} = ${rawVar}.length > 0 ? ${rawVar} : undefined`,
       )
     }

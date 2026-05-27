@@ -59,22 +59,22 @@ describe("wspc email (generated)", () => {
     expect(calls.get.mock.calls[0]?.[0]?.path).toMatchObject({ id: "eml_X" })
   })
 
-  it("read passes --id repeated → body.ids[]", async () => {
-    await emailMarkReadCommand.parseAsync(["node", "read", "--id", "eml_A", "--id", "eml_B"])
+  it("read takes variadic positional ids → body.ids[]", async () => {
+    await emailMarkReadCommand.parseAsync(["node", "read", "eml_A", "eml_B"])
     expect(calls.markRead.mock.calls[0]?.[0]?.body).toMatchObject({
       ids: ["eml_A", "eml_B"],
     })
   })
 
-  it("unread passes --id repeated → body.ids[]", async () => {
-    await emailMarkUnreadCommand.parseAsync(["node", "unread", "--id", "eml_D", "--id", "eml_E"])
+  it("unread takes variadic positional ids → body.ids[]", async () => {
+    await emailMarkUnreadCommand.parseAsync(["node", "unread", "eml_D", "eml_E"])
     expect(calls.markUnread.mock.calls[0]?.[0]?.body).toMatchObject({
       ids: ["eml_D", "eml_E"],
     })
   })
 
-  it("rm passes --id repeated → body.ids[]", async () => {
-    await emailDeleteCommand.parseAsync(["node", "rm", "--id", "eml_C"])
+  it("rm takes variadic positional ids → body.ids[]", async () => {
+    await emailDeleteCommand.parseAsync(["node", "rm", "eml_C"])
     expect(calls.delete.mock.calls[0]?.[0]?.body).toMatchObject({ ids: ["eml_C"] })
   })
 })
