@@ -58,13 +58,14 @@ export function render(ctx: RenderContext, data: unknown): void {
 }
 
 function shouldOutputJson(): boolean {
+  // Explicit overrides win over TTY detection so users can force either
+  // mode in CI logs, screenshots, captured output, or AI-driven tooling.
   if (process.env.WSPC_OUTPUT === "json") return true
-  // The codegen will surface `--json` as a commander option that flips this
-  // env var before the action runs; setting via env keeps the renderer pure.
+  if (process.env.WSPC_OUTPUT === "pretty") return false
+  // The codegen wires `--json` to flip WSPC_OUTPUT=json before the action.
   if (!process.stdout.isTTY) {
-    // Pipe / redirect — machine consumer. We default to *pretty* per spec
-    // (user explicitly chose pretty-by-default), but still emit JSON when
-    // output is captured so scripts / `jq` / AI agents don't have to opt in.
+    // Pipe / redirect — machine consumer. Default to JSON so scripts /
+    // `jq` / AI agents get a parseable shape without opting in.
     return true
   }
   return false
