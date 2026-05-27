@@ -11,6 +11,15 @@ export interface XCliDisplay {
   fields?: string[]
   format?: Record<string, XCliFormat>
   emptyMessage?: string
+  /**
+   * Single-level key the pretty renderer drills into before applying the rest
+   * of the hint. Use when the response is a wrapper (e.g. `GET /email/
+   * messages/{id}` returns `{ email, attachments }` — `dataPath: "email"`
+   * makes pretty mode render the email's fields directly). JSON output is
+   * unaffected — the full server payload always prints in `--json` mode so
+   * scripts / `jq` see everything.
+   */
+  dataPath?: string
 }
 
 /**

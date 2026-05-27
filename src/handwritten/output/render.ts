@@ -61,12 +61,24 @@ export function render(ctx: RenderContext, data: unknown): void {
     process.stdout.write(JSON.stringify(data, null, 2) + "\n")
     return
   }
+  // Drill into the wrapper key for pretty mode only. JSON output above
+  // intentionally preserves the full server payload.
+  const target = drillDataPath(data, ctx.display?.dataPath)
   const specific = SPECIFIC_RENDERERS[ctx.kind]
   if (specific) {
-    specific(data, ctx.display)
+    specific(target, ctx.display)
     return
   }
-  renderGeneric(data, ctx.display)
+  renderGeneric(target, ctx.display)
+}
+
+function drillDataPath(data: unknown, dataPath: string | undefined): unknown {
+  if (!dataPath) return data
+  if (data === null || typeof data !== "object") return data
+  const value = (data as Record<string, unknown>)[dataPath]
+  // If the wrapper key is missing, fall back to the original payload so the
+  // user still sees something useful instead of "undefined".
+  return value === undefined ? data : value
 }
 
 function shouldOutputJson(): boolean {
