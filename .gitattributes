@@ -1,0 +1,5 @@
+# Workflow YAML must use LF — some GitHub Actions tooling and YAML parsers
+# are sensitive to CRLF, and a malformed workflow file silently fails to
+# register on GitHub.
+*.yml text eol=lf
+*.yaml text eol=lf
