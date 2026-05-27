@@ -3408,6 +3408,28 @@
         "tags": [
           "Org"
         ],
+        "x-cli": {
+          "command": "org show",
+          "examples": [
+            "wspc org show",
+            "wspc org show --json"
+          ],
+          "display": {
+            "shape": "object",
+            "fields": [
+              "id",
+              "name",
+              "created_at",
+              "updated_at"
+            ],
+            "format": {
+              "id": "id-short",
+              "name": "truncate",
+              "created_at": "relative-time",
+              "updated_at": "relative-time"
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
@@ -3797,6 +3819,26 @@
         "tags": [
           "Auth"
         ],
+        "x-cli": {
+          "command": "auth me",
+          "examples": [
+            "wspc auth me",
+            "wspc auth me --json"
+          ],
+          "display": {
+            "shape": "object",
+            "fields": [
+              "user_id",
+              "email",
+              "display_name",
+              "api_key_id"
+            ],
+            "format": {
+              "user_id": "id-short",
+              "api_key_id": "id-short"
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
