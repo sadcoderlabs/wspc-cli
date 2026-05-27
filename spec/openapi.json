@@ -2629,6 +2629,23 @@
         ],
         "summary": "Create a new API key (full value returned once)",
         "description": "### Overview\nCreates and provisions a new long-lived API key for the authenticated user. The complete plaintext API key value (`api_key`) is returned **only once** in this endpoint's response and cannot be retrieved again.\n\n### When to Use\n- Use this endpoint when a user requests a new API key (e.g., `wspc keys create --label \"My Agent\"`) to isolate access for specific environments, applications, or developers.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Key Limit**: A user is limited to a maximum of 25 active API keys. Requesting a new key beyond this limit will result in a `KEY_LIMIT_EXCEEDED` error.\n- **Label Validation**: The `label` parameter must be between 1 and 60 characters after trimming whitespace. Failing to provide a valid label results in an `INVALID_LABEL` error.\n\n### Troubleshooting\n- **401 Unauthorized**: The Bearer token is missing or invalid.\n- **400 Bad Request**: The `label` parameter is empty, too long, or missing.\n- **400 Bad Request (Limit Exceeded)**: The user has hit the maximum limit of 25 active keys. An existing active key must be revoked before creating a new one.",
+        "x-cli": {
+          "command": "keys create",
+          "display": {
+            "shape": "object",
+            "fields": [
+              "id",
+              "label",
+              "api_key",
+              "created_at"
+            ],
+            "format": {
+              "id": "id-short",
+              "created_at": "relative-time"
+            },
+            "secretField": "api_key"
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -2638,7 +2655,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc keys create --label \"Claude\""
+            "source": "wspc keys create --label \"openclaw-tokyo\""
           },
           {
             "lang": "typescript",
@@ -3026,6 +3043,26 @@
         ],
         "summary": "List active API keys",
         "description": "### Overview\nReturns a list of all active (non-revoked) API keys belonging to the authenticated user. It also includes the `current_key_id` identifying the specific key used to authenticate the current request.\n\n### When to Use\n- Use this endpoint to view active API keys (e.g., when running `wspc keys list` or displaying API key management screens in user profiles).\n- Use the `current_key_id` to identify which key is making the current call, facilitating self-rotation or auditing.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- Only active keys are returned; keys that have been revoked are filtered out and excluded from the response.\n- The full secret key is never returned; only the last 4 characters (`key_last4`) are provided for identification.\n\n### Troubleshooting\n- **401 Unauthorized**: The provided Bearer token is missing, expired, or invalid. Ensure you are passing a valid, active API key.",
+        "x-cli": {
+          "command": "keys ls",
+          "display": {
+            "shape": "list",
+            "dataPath": "keys",
+            "columns": [
+              "id",
+              "label",
+              "last_4",
+              "created_at",
+              "last_used_at"
+            ],
+            "format": {
+              "id": "id-short",
+              "created_at": "relative-time",
+              "last_used_at": "relative-time"
+            },
+            "emptyMessage": "(no API keys)"
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -3035,7 +3072,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc keys list"
+            "source": "wspc keys ls"
           },
           {
             "lang": "typescript",
@@ -4485,6 +4522,23 @@
         "tags": [
           "Org"
         ],
+        "x-cli": {
+          "command": "org members",
+          "display": {
+            "shape": "list",
+            "dataPath": "members",
+            "columns": [
+              "user_id",
+              "email",
+              "display_name",
+              "joined_at"
+            ],
+            "format": {
+              "user_id": "id-short",
+              "joined_at": "relative-time"
+            }
+          }
+        },
         "security": [
           {
             "bearerAuth": []
@@ -5939,6 +5993,12 @@
         ],
         "summary": "Soft-revoke an API key",
         "description": "### Overview\nPermanently revokes an active API key by its unique ID. Once revoked, the key becomes immediately invalid and will be rejected by all services.\n\n### When to Use\n- Use this endpoint to permanently deactivate an API key (e.g., when running `wspc keys revoke <id>`) due to token rotation, key leakage, or decommissioning of a machine/service.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- Revocation is permanent and cannot be undone.\n- A user can revoke any key they own, including the one they are currently using to make the call. If they revoke the current key, subsequent requests using that key will return `401 Unauthorized`.\n\n### Troubleshooting\n- **401 Unauthorized**: The active token is missing, expired, or invalid.\n- **404 Not Found**: The specified key ID does not exist, belongs to another user, or has already been revoked.\n- **400 Bad Request**: The `id` path parameter format is invalid. It must be in the format `key_<ULID>`.",
+        "x-cli": {
+          "command": "keys rm",
+          "positional": [
+            "id"
+          ]
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -5948,7 +6008,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc keys revoke key_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
+            "source": "wspc keys rm key_abcd1234efgh5678"
           },
           {
             "lang": "typescript",
@@ -14594,7 +14654,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc push config rm --transport telegram"
+            "source": "wspc push config rm telegram"
           },
           {
             "lang": "typescript",
@@ -14602,6 +14662,12 @@
             "source": "import { PushClient } from \"@wspc/client\"\nconst push = new PushClient({ baseUrl: \"https://push.wspc.app\", apiKey: process.env.WSPC_API_KEY! })\nawait push.configDelete(\"telegram\")"
           }
         ],
+        "x-cli": {
+          "command": "push config rm",
+          "positional": [
+            "transport"
+          ]
+        },
         "parameters": [
           {
             "schema": {
@@ -14881,7 +14947,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc push config set --transport telegram --target-bot @your_agent_bot --skip-test"
+            "source": "wspc push config set --transport telegram --target-bot @your_agent_bot"
           },
           {
             "lang": "typescript",
@@ -14889,6 +14955,22 @@
             "source": "import { PushClient } from \"@wspc/client\"\nconst push = new PushClient({ baseUrl: \"https://push.wspc.app\", apiKey: process.env.WSPC_API_KEY! })\nawait push.configSet({ transport: \"telegram\", target_bot_username: \"@your_agent_bot\" })"
           }
         ],
+        "x-cli": {
+          "command": "push config set",
+          "body": {
+            "unwrap": "config"
+          },
+          "display": {
+            "shape": "object",
+            "fields": [
+              "transport",
+              "target_bot_username"
+            ],
+            "format": {
+              "transport": "truncate"
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -15211,6 +15293,41 @@
             "source": "import { PushClient } from \"@wspc/client\"\nconst push = new PushClient({ baseUrl: \"https://push.wspc.app\", apiKey: process.env.WSPC_API_KEY! })\nconst { configs } = await push.configList()"
           }
         ],
+        "x-cli": {
+          "command": "push config show",
+          "display": {
+            "shape": "list",
+            "dataPath": "configs",
+            "columns": [
+              "transport",
+              "target_bot_username",
+              "last_test_at",
+              "last_test_status"
+            ],
+            "format": {
+              "transport": "truncate",
+              "last_test_at": "relative-time",
+              "last_test_status": "enum-badge"
+            },
+            "enumColorMap": {
+              "last_test_status": {
+                "ok": {
+                  "label": "✓ ok",
+                  "color": "green"
+                },
+                "*": {
+                  "label": "✕ <value>",
+                  "color": "red"
+                },
+                "null": {
+                  "label": "—",
+                  "color": "dim"
+                }
+              }
+            },
+            "emptyMessage": "(no push transports registered)"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -15488,6 +15605,25 @@
             "source": "import { PushClient } from \"@wspc/client\"\nconst push = new PushClient({ baseUrl: \"https://push.wspc.app\", apiKey: process.env.WSPC_API_KEY! })\nconst result = await push.test(\"telegram\")"
           }
         ],
+        "x-cli": {
+          "command": "push test",
+          "exitOnField": {
+            "path": "ok",
+            "failOn": false
+          },
+          "display": {
+            "shape": "object",
+            "fields": [
+              "ok",
+              "status",
+              "detail",
+              "durationMs"
+            ],
+            "format": {
+              "ok": "bool-badge"
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
