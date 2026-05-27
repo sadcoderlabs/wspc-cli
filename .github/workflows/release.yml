@@ -32,6 +32,10 @@ jobs:
           node-version: "24"
           cache: npm
           registry-url: "https://registry.npmjs.org"
+      - name: Ensure npm >= 11.5.1 for trusted publishing
+        # Runner-bundled npm can lag behind. Trusted publishing (OIDC) needs
+        # 11.5.1+ to honour the id-token exchange; pin to latest to stay safe.
+        run: npm install -g npm@latest
       - run: npm ci
       - name: Sync latest spec
         run: npm run sync-spec
@@ -58,14 +62,17 @@ jobs:
         run: |
           npm version ${{ inputs.bump }} -m "chore(release): %s"
       - name: Publish to npm
+        # Auth happens via OIDC (npm Trusted Publishing) — no NODE_AUTH_TOKEN
+        # needed. The `--provenance` flag attaches a signed attestation tying
+        # the published tarball to this exact commit + workflow run. npm docs
+        # claim provenance is automatic under trusted publishing, but real
+        # usage reports show the flag is still required to actually emit it.
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            npm publish --dry-run
+            npm publish --provenance --dry-run
           else
-            npm publish
+            npm publish --provenance
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Push tag
         if: ${{ !inputs.dry_run }}
         run: git push --follow-tags
