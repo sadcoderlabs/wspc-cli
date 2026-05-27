@@ -2,6 +2,12 @@
 import { Command } from "commander"
 import { orgGetCommand } from "./org/show.js"
 import { authMeCommand } from "./auth/me.js"
+import { eventCreateCommand } from "./event/add.js"
+import { eventListCommand } from "./event/ls.js"
+import { eventDeleteCommand } from "./event/rm.js"
+import { eventGetCommand } from "./event/show.js"
+import { eventUpdateCommand } from "./event/set.js"
+import { eventIcsDownloadCommand } from "./event/ics.js"
 import { projectCreateCommand } from "./todo/project/add.js"
 import { projectListCommand } from "./todo/project/ls.js"
 import { recurrenceRuleListCommand } from "./todo/rule/ls.js"
@@ -17,6 +23,13 @@ export function registerGeneratedCommands(root: Command): void {
   root_org.addCommand(orgGetCommand)
   const root_auth = root.command("auth").description("auth commands")
   root_auth.addCommand(authMeCommand)
+  const root_event = root.command("event").description("event commands")
+  root_event.addCommand(eventCreateCommand)
+  root_event.addCommand(eventListCommand)
+  root_event.addCommand(eventDeleteCommand)
+  root_event.addCommand(eventGetCommand)
+  root_event.addCommand(eventUpdateCommand)
+  root_event.addCommand(eventIcsDownloadCommand)
   const root_todo = root.command("todo").description("todo commands")
   const root_todo_project = root_todo.command("project").description("project commands")
   root_todo_project.addCommand(projectCreateCommand)

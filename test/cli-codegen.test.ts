@@ -82,4 +82,146 @@ describe("emitCommand", () => {
     })
     expect(code).toBeNull()
   })
+
+  it("emits an array accumulator for options marked array: true", () => {
+    const code = emitCommand({
+      operationId: "event_create",
+      method: "post",
+      path: "/events",
+      summary: "Schedule",
+      xCli: {
+        command: "event add",
+        options: { tag: { array: true } },
+      },
+      bodyFields: [{ name: "tag", type: "array", required: false }],
+    })
+    expect(code).not.toBeNull()
+    expect(code).toContain(
+      '(val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[]',
+    )
+  })
+
+  it("emits resolveTimezone, parseTimeInput, and --tz flag for datetime parser", () => {
+    const code = emitCommand({
+      operationId: "event_create",
+      method: "post",
+      path: "/events",
+      summary: "Schedule",
+      xCli: {
+        command: "event add",
+        options: { start: { parser: "datetime" } },
+      },
+      bodyFields: [{ name: "start", type: "string", required: false }],
+    })
+    expect(code).not.toBeNull()
+    expect(code).toContain("const zone = resolveTimezone(opts.tz as string | undefined)")
+    expect(code).toContain("startValue = parseTimeInput(opts.start as string, zone).toISO() ?? undefined")
+    expect(code).toContain('.option("--tz <zone>"')
+    expect(code).toContain("parseTimeInput, resolveTimezone")
+  })
+
+  it("branches on allDayFlag and uses parseDateOnly / inclusiveEndToExclusive", () => {
+    const code = emitCommand({
+      operationId: "event_create",
+      method: "post",
+      path: "/events",
+      summary: "Schedule",
+      xCli: {
+        command: "event add",
+        options: {
+          start: { parser: "datetime", allDayFlag: "all_day" },
+          end: { parser: "datetime", allDayFlag: "all_day", exclusive: true },
+        },
+      },
+      bodyFields: [
+        { name: "start", type: "string", required: false },
+        { name: "end", type: "string", required: false },
+      ],
+    })
+    expect(code).not.toBeNull()
+    expect(code).toContain("if (opts.allDay) {")
+    expect(code).toContain("startValue = parseDateOnly(opts.start as string)")
+    expect(code).toContain("endValue = inclusiveEndToExclusive(opts.end as string)")
+    expect(code).toContain('.option("--all-day"')
+    expect(code).toContain("parseDateOnly")
+    expect(code).toContain("inclusiveEndToExclusive")
+  })
+
+  it("uses mapsTo target as the SDK field name but keeps the flag named by option key", () => {
+    const code = emitCommand({
+      operationId: "event_list",
+      method: "get",
+      path: "/events",
+      summary: "List events",
+      xCli: {
+        command: "event ls",
+        options: { from: { mapsTo: "start_from", parser: "datetime" } },
+      },
+      bodyFields: [],
+      queryFields: [{ name: "start_from", type: "string", required: false }],
+    })
+    expect(code).not.toBeNull()
+    expect(code).toContain('.option("--from <value>"')
+    expect(code).not.toContain('.option("--start-from')
+    expect(code).toContain("start_from: fromValue")
+  })
+
+  it("emits event_ics_download with filename interpolation and no body block", () => {
+    const code = emitCommand({
+      operationId: "event_ics_download",
+      method: "get",
+      path: "/events/{filename}",
+      summary: "Download ICS",
+      xCli: { command: "event ics", positional: ["id"] },
+      bodyFields: [],
+      pathParams: ["filename"],
+    })
+    expect(code).not.toBeNull()
+    expect(code).toContain("filename: `${id}.ics`")
+    expect(code).not.toContain("body: {")
+  })
+
+  it("does not import attendee/date helpers when only datetime parser is used", () => {
+    const code = emitCommand({
+      operationId: "event_list",
+      method: "get",
+      path: "/events",
+      summary: "List events",
+      xCli: {
+        command: "event ls",
+        options: { since: { parser: "datetime" } },
+      },
+      bodyFields: [],
+      queryFields: [{ name: "since", type: "string", required: false }],
+    })
+    expect(code).not.toBeNull()
+    expect(code).not.toContain("parseAttendee")
+    expect(code).not.toContain("parseDateOnly")
+    expect(code).not.toContain("inclusiveEndToExclusive")
+  })
+
+  it("does not emit a duplicate --all-day flag when body has an all_day field", () => {
+    const code = emitCommand({
+      operationId: "event_create",
+      method: "post",
+      path: "/events",
+      summary: "Schedule",
+      xCli: {
+        command: "event add",
+        options: {
+          start: { parser: "datetime", allDayFlag: "all_day" },
+        },
+      },
+      bodyFields: [
+        { name: "start", type: "string", required: false },
+        { name: "all_day", type: "boolean", required: false },
+      ],
+    })
+    expect(code).not.toBeNull()
+    // Exactly one --all-day option line (the body field's value option),
+    // and no duplicate boolean flag from the allDayFlag emission.
+    const allMatches = code!.match(/\.option\("--all-day[" ]/g) ?? []
+    expect(allMatches.length).toBe(1)
+    expect(code).not.toContain('.option("--all-day", "all_day")')
+  })
 })

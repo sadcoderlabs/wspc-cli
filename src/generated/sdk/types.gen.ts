@@ -5,336 +5,966 @@ export type ClientOptions = {
 };
 
 export type CreateApiKeyBody = {
+    /**
+     * Human-readable label for the new key (1–60 chars after trimming). Pick something that identifies where the key will live — agent name, machine, or environment — so you can recognise it later in `wspc keys list`.
+     */
     label: string;
 };
 
 export type CreateApiKeyResponse = {
+    /**
+     * Stable API key id (`key_<ULID>`). Save this alongside the plaintext key — you need it to revoke the key later.
+     */
     id: string;
+    /**
+     * Full plaintext API key. Returned **only in this response** — the server stores only a hash, so this value cannot be retrieved later. Store it in a secrets manager / `WSPC_API_KEY` env var immediately.
+     */
     api_key: string;
+    /**
+     * The trimmed label saved on the new key (echoed back from the request body).
+     */
     label: string;
+    /**
+     * Last 4 characters of `api_key`. Persisted on the server so future `GET /auth/keys` calls can identify this key without exposing the secret.
+     */
     key_last4: string;
+    /**
+     * Unix epoch in milliseconds at which the key was created.
+     */
     created_at: number;
 };
 
 export type OAuthDeviceBody = {
+    /**
+     * Identifier of the OAuth client initiating the device flow. Must already be registered via `POST /auth/oauth/register`.
+     */
     client_id: string;
+    /**
+     * Optional space-separated scope list. Defaults to `wspc:full` when omitted; WSPC issues only this scope today.
+     */
     scope?: string;
+    /**
+     * Optional RFC 8707 resource indicator the resulting access token will be bound to. When omitted, the server uses the default WSPC API audience.
+     */
     resource?: string;
 };
 
 export type OAuthDeviceResponse = {
+    /**
+     * Opaque device code. The client polls the token endpoint with this value until the user approves or denies the authorization.
+     */
     device_code: string;
+    /**
+     * Short user-facing code (typically 8 characters). Display to the user so they can enter it at `verification_uri` on a second device.
+     */
     user_code: string;
+    /**
+     * URL the user visits on a second device to enter the `user_code` and approve the authorization.
+     */
     verification_uri: string;
+    /**
+     * Pre-filled variant of `verification_uri` that already includes the `user_code` as a query parameter. Useful for QR codes.
+     */
     verification_uri_complete: string;
+    /**
+     * Lifetime of `device_code` and `user_code` in seconds. After this window the codes expire and the flow must be restarted.
+     */
     expires_in: number;
+    /**
+     * Minimum number of seconds the client should wait between polls to the token endpoint. Clients receiving `SLOW_DOWN` must back off further.
+     */
     interval: number;
 };
 
 export type Org = {
+    /**
+     * Stable organization id. Every API key resolves to an org; cross-org data isolation is enforced by every worker.
+     */
     id: string;
+    /**
+     * Human-readable organization name shown in dashboards and headers. Defaults to the owner's display name at signup; changeable via future org-admin endpoints.
+     */
     name: string;
+    /**
+     * Unix epoch in milliseconds at which the organization was created.
+     */
     created_at: number;
+    /**
+     * Unix epoch in milliseconds at which the organization's metadata was last mutated. Equals `created_at` until the org is renamed.
+     */
     updated_at: number;
 };
 
 export type GetMeResponse = {
+    /**
+     * Stable identifier for the user the bearer token authenticates. Same value across API keys and OAuth tokens for the same human.
+     */
     user_id: string;
+    /**
+     * Primary email address of the authenticated user. Stored lowercased; used as the login identity in the magic-code flow.
+     */
     email: string;
+    /**
+     * Optional human-friendly display name. Omitted from the response when the user has not set one.
+     */
     display_name?: string;
+    /**
+     * Identifier of the API key used to authenticate this call. Omitted when the bearer token is an OAuth access token rather than a long-lived API key.
+     */
     api_key_id?: string;
 };
 
 export type ListOrgMembersQuery = {
+    /**
+     * Opaque pagination cursor. Pass the `next_cursor` returned by the previous page to fetch the next slice. Omit on the first call.
+     */
     cursor?: string;
+    /**
+     * Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response.
+     */
     limit?: number;
 };
 
 export type ListOrgMembersResponse = {
+    /**
+     * Members on this page, ordered by `joined_at` ascending. In v1 always contains exactly one entry (the authenticated caller).
+     */
     members: Array<{
+        /**
+         * Stable user id of this member. Use it as the `user_id` filter on `/todo/items` to scope to one assignee, or as the target of `PATCH /todo/items/{id}` `user_id` to reassign a todo.
+         */
         user_id: string;
+        /**
+         * Primary email address used at signup. Acts as the human-facing identity for invitations and calendar attendee dedupe.
+         */
         email: string;
+        /**
+         * Optional display name set during signup or profile edits. Falls back to the email address when absent.
+         */
         display_name?: string;
+        /**
+         * Unix epoch in milliseconds at which the user joined this organization. In v1 (personal orgs), equals the user's signup time.
+         */
         joined_at: number;
     }>;
+    /**
+     * Opaque cursor for the next page. Absent when this page is the last one (no more results).
+     */
     next_cursor?: string;
 };
 
 export type ListApiKeysResponse = {
+    /**
+     * All active (non-revoked) API keys for the authenticated user, newest first by `created_at`.
+     */
     keys: Array<{
+        /**
+         * Stable API key id (`key_<ULID>`). Use this id to revoke the key via `DELETE /auth/keys/{id}`. The full plaintext key is never returned here — only at create time.
+         */
         id: string;
+        /**
+         * Caller-supplied label for distinguishing keys (e.g. machine, agent, or environment). Trimmed and validated to 1–60 chars at create time. Update support is not yet provided — pick a meaningful label up front.
+         */
         label: string;
+        /**
+         * Last 4 characters of the plaintext key. Lets the user identify a key in lists without exposing the secret. Absent on legacy rows created before this field was tracked.
+         */
         key_last4?: string;
+        /**
+         * Unix epoch in milliseconds at which the key was created.
+         */
         created_at: number;
+        /**
+         * Unix epoch in milliseconds of the most recent successful authentication with this key. Absent if the key has never been used. Useful for spotting keys safe to revoke.
+         */
         last_used_at?: number;
     }>;
+    /**
+     * Id of the key used to authenticate this request. Lets a UI mark the in-use key (and protect it from accidental revocation). Absent when the request was made via a non-key auth flow (e.g. browser session).
+     */
     current_key_id?: string;
 };
 
 export type OAuthAuthServerMetadata = {
+    /**
+     * Issuer identifier of this authorization server. Stable per-environment; clients use it to bind a discovered metadata document to a specific server.
+     */
     issuer: string;
+    /**
+     * URL of the human-facing authorization endpoint. Clients redirect users here to start the authorization-code grant; the WSPC web app renders the consent screen and posts back to the token endpoint.
+     */
     authorization_endpoint: string;
+    /**
+     * URL of the token endpoint. Clients POST grant requests (`authorization_code`, `refresh_token`, `urn:ietf:params:oauth:grant-type:device_code`) here to obtain access tokens.
+     */
     token_endpoint: string;
+    /**
+     * URL of the RFC 7591 dynamic client registration endpoint. Present when the server allows public registration; omitted otherwise.
+     */
     registration_endpoint?: string;
+    /**
+     * URL of the RFC 7009 token revocation endpoint. Present when the server supports revoking access / refresh tokens.
+     */
     revocation_endpoint?: string;
+    /**
+     * URL of the RFC 8628 device authorization endpoint. Present when the server supports the device authorization grant for input-constrained clients.
+     */
     device_authorization_endpoint?: string;
+    /**
+     * List of OAuth response_type values supported at the authorization endpoint. WSPC currently advertises `code` (authorization-code flow only).
+     */
     response_types_supported: Array<string>;
+    /**
+     * List of OAuth grant_type values accepted at the token endpoint. WSPC advertises `authorization_code`, `refresh_token`, and `urn:ietf:params:oauth:grant-type:device_code`.
+     */
     grant_types_supported: Array<string>;
+    /**
+     * List of PKCE code-challenge methods accepted at the authorization endpoint. WSPC only allows `S256`; plain text PKCE is not supported.
+     */
     code_challenge_methods_supported: Array<string>;
+    /**
+     * List of client authentication methods accepted at the token endpoint. WSPC uses public PKCE clients only — value is `["none"]`.
+     */
     token_endpoint_auth_methods_supported: Array<string>;
+    /**
+     * List of OAuth scopes the server advertises. WSPC issues a single `wspc:full` scope today; fine-grained scopes are reserved for future use.
+     */
     scopes_supported?: Array<string>;
 };
 
 export type OAuthRegisterBody = {
+    /**
+     * Human-readable name for the client application. Shown to users on the consent screen so they know which agent / integration is requesting access.
+     */
     client_name: string;
+    /**
+     * Non-empty list of redirect URIs the client may use. Must exactly match the `redirect_uri` sent in subsequent authorization requests. Use `http://localhost:<port>/callback` for native / local development clients.
+     */
     redirect_uris: Array<string>;
+    /**
+     * Client authentication method to use at the token endpoint. `none` (the default and the only fully supported value today) is for public PKCE clients; `client_secret_basic` is reserved for future confidential clients.
+     */
     token_endpoint_auth_method?: 'none' | 'client_secret_basic';
+    /**
+     * List of grant types the client intends to use. Defaults to `["authorization_code", "refresh_token"]`; add `urn:ietf:params:oauth:grant-type:device_code` for device flow.
+     */
     grant_types?: Array<string>;
 };
 
 export type OAuthRegisterResponse = {
+    /**
+     * Server-assigned identifier for the newly registered client. Use as the `client_id` in subsequent authorization, device, and token requests. Public value; safe to embed in client code.
+     */
     client_id: string;
+    /**
+     * Human-readable name echoed back from the request body.
+     */
     client_name: string;
+    /**
+     * List of redirect URIs registered for this client. Echoed back from the request; the server enforces an exact match at the authorization endpoint.
+     */
     redirect_uris: Array<string>;
+    /**
+     * Token-endpoint authentication method recorded for the client. Echoed back from the request after normalization to the lowercase form.
+     */
     token_endpoint_auth_method: string;
+    /**
+     * Grant types the client may exercise. Echoed back from the request after defaulting; reflects what the server will actually accept for this client.
+     */
     grant_types: Array<string>;
+    /**
+     * Unix timestamp (seconds) at which the server issued `client_id`. Useful for clients that want to detect registration drift.
+     */
     client_id_issued_at: number;
 };
 
 export type RequestCodeBody = {
+    /**
+     * Email address to send the magic code to. Lowercased and trimmed server-side. The same response is returned whether or not the address is registered, to avoid disclosing account existence.
+     */
     email: string;
 };
 
 export type RequestCodeResponse = {
+    /**
+     * Always the literal `code_sent`. Indicates the request was accepted; does not confirm that an email was actually delivered to a registered address.
+     */
     status: 'code_sent';
+    /**
+     * Human-readable confirmation message. Safe to surface to end users.
+     */
     message: string;
 };
 
 export type RevokeApiKeyResponse = {
+    /**
+     * Always `true` on a successful revoke. Subsequent requests authenticating with the revoked key return `401 INVALID_API_KEY`.
+     */
     ok: true;
 };
 
 export type OAuthRevokeBody = {
+    /**
+     * Access token or refresh token to revoke. Server returns 200 whether or not the token was valid; do not infer existence from the response.
+     */
     token: string;
+    /**
+     * Optional hint about the token kind to speed up lookup. Values: `access_token` (the token is an access token), `refresh_token` (the token is a refresh token). Omit when unknown.
+     */
     token_type_hint?: 'access_token' | 'refresh_token';
 };
 
 export type OAuthTokenBody = {
+    /**
+     * Fixed literal `authorization_code`. Selects the standard OAuth 2.1 authorization-code + PKCE exchange.
+     */
     grant_type: 'authorization_code';
+    /**
+     * Authorization code returned from the authorization endpoint. Single-use; expires within a few minutes.
+     */
     code: string;
+    /**
+     * PKCE code verifier (RFC 7636). The plain-text value whose SHA-256 hash was sent as `code_challenge` at the authorization endpoint.
+     */
     code_verifier: string;
+    /**
+     * Identifier of the OAuth client redeeming the code. Must match the `client_id` used at the authorization endpoint.
+     */
     client_id: string;
+    /**
+     * Redirect URI used in the prior authorization request. Must exactly match one of the URIs registered for the client.
+     */
     redirect_uri: string;
+    /**
+     * Optional RFC 8707 resource indicator. Identifies the protected resource the access token is intended for. When omitted, the server falls back to a service-default audience.
+     */
     resource?: string;
 } | {
+    /**
+     * Fixed literal `refresh_token`. Requests a new access token using a refresh token.
+     */
     grant_type: 'refresh_token';
+    /**
+     * Refresh token previously issued by `POST /auth/oauth/token`. Rotated on every refresh; the old refresh token is invalidated.
+     */
     refresh_token: string;
+    /**
+     * Identifier of the OAuth client refreshing the token.
+     */
     client_id: string;
+    /**
+     * Optional RFC 8707 resource indicator. Must match (or be a subset of) the resource the original token was bound to.
+     */
     resource?: string;
 } | {
+    /**
+     * Fixed RFC 8628 URN `urn:ietf:params:oauth:grant-type:device_code`. Selects the device authorization grant.
+     */
     grant_type: 'urn:ietf:params:oauth:grant-type:device_code';
+    /**
+     * Device code obtained from `POST /auth/oauth/device`. Polled until the user approves or denies the authorization on a second device.
+     */
     device_code: string;
+    /**
+     * Identifier of the OAuth client that initiated the device flow.
+     */
     client_id: string;
+    /**
+     * Optional RFC 8707 resource indicator. Must match the resource the device authorization was started with.
+     */
     resource?: string;
 };
 
 export type OAuthTokenResponse = {
+    /**
+     * Opaque bearer access token. Send as `Authorization: Bearer <access_token>` to WSPC services. Treat as a short-lived secret.
+     */
     access_token: string;
+    /**
+     * Always the literal `Bearer`. WSPC issues OAuth bearer tokens only.
+     */
     token_type: 'Bearer';
+    /**
+     * Lifetime of the access token in seconds. Clients should refresh before this deadline to avoid 401 responses.
+     */
     expires_in: number;
+    /**
+     * Refresh token used to obtain a new access token without re-prompting the user. Rotated on every use; store securely.
+     */
     refresh_token: string;
+    /**
+     * Space-separated list of OAuth scopes granted on this token. WSPC issues `wspc:full` today.
+     */
     scope: string;
 };
 
 export type VerifyCodeBody = {
+    /**
+     * Email address that received the magic code. Must exactly match (after lowercasing) the address used in the prior `POST /auth/request-code` call.
+     */
     email: string;
+    /**
+     * Numeric magic code delivered by email. Single-use; expires a few minutes after issuance. Treat as a short-lived secret.
+     */
     code: string;
 };
 
 export type VerifyCodeResponse = {
+    /**
+     * Stable identifier for the authenticated user. Same value across login sessions; safe to persist in client state.
+     */
     user_id: string;
+    /**
+     * Long-lived API key for the active environment, prefixed `wspc_`. Send as `Authorization: Bearer <api_key>` to every WSPC service. Treat as a secret; rotate by calling `wspc logout` followed by `wspc login` again.
+     */
     api_key: string;
+    /**
+     * `true` when this verify call created a brand-new user account; `false` when the email already had an account.
+     */
     created: boolean;
 };
 
+/**
+ * Request body for POST `/calendar/events`. `start` and `end` must be the same kind (both timed ISO datetimes with offset, or both ISO date-only for all-day) and `end` must be strictly after `start`.
+ */
 export type CreateEventBody = {
+    /**
+     * Short human-readable summary of the event. Shown in list views and `.ics` SUMMARY.
+     */
     title: string;
+    /**
+     * Free-form notes about the event (agenda, dial-in instructions, etc.). Markdown formatted (CommonMark + GFM tables, strikethrough, task lists); stored verbatim. Invitation emails include the raw source — most email clients display it as plain text.
+     */
     description?: string;
+    /**
+     * Accepts ISO 8601 datetime with offset (e.g. `2026-06-01T12:30:00+08:00`) for timed events, or ISO date-only (e.g. `2026-06-01`) for all-day. The `wspc` CLI additionally accepts natural-language phrases (`tomorrow 12:30pm`, `next Monday 9am`) and resolves them to ISO before sending; the server itself only accepts ISO. All-day uses RFC 5545 exclusive end: a one-day event on 6/1 is `start=2026-06-01, end=2026-06-02`; both endpoints must be the same type.
+     */
     start: string;
+    /**
+     * Accepts ISO 8601 datetime with offset (e.g. `2026-06-01T12:30:00+08:00`) for timed events, or ISO date-only (e.g. `2026-06-01`) for all-day. The `wspc` CLI additionally accepts natural-language phrases (`tomorrow 12:30pm`, `next Monday 9am`) and resolves them to ISO before sending; the server itself only accepts ISO. All-day uses RFC 5545 exclusive end: a one-day event on 6/1 is `start=2026-06-01, end=2026-06-02`; both endpoints must be the same type.
+     */
     end: string;
+    /**
+     * Free-text location — physical address, room, or short note. Separate from `url` (meeting link).
+     */
     location?: string;
+    /**
+     * Optional meeting link (Zoom / Meet / etc.). Kept separate from `location` so calendar clients can render it as a join action.
+     */
     url?: string;
+    /**
+     * Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses.
+     */
     status?: 'confirmed' | 'tentative' | 'cancelled';
+    /**
+     * Up to 50 unique attendees (deduped case-insensitively by email). If non-empty, each attendee receives an invitation email with an `.ics` REQUEST attachment as a side effect of creation.
+     */
     attendees?: Array<{
+        /**
+         * Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out.
+         */
         email: string;
+        /**
+         * Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address.
+         */
         display_name?: string;
     }>;
 };
 
+/**
+ * A calendar event row as returned by the API.
+ */
 export type Event = {
+    /**
+     * Server-assigned event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
+     */
     id: string;
+    /**
+     * Owner user id (`usr_` prefix).
+     */
     user_id: string;
+    /**
+     * Event title.
+     */
     title: string;
+    /**
+     * Free-form notes, Markdown formatted (CommonMark + GFM tables, strikethrough, task lists). Empty string when not provided on create.
+     */
     description: string;
+    /**
+     * ISO 8601 datetime with offset, or ISO date-only when `all_day` is true.
+     */
     start: string;
+    /**
+     * ISO 8601 datetime with offset, or ISO date-only when `all_day` is true. RFC 5545 exclusive end for all-day.
+     */
     end: string;
+    /**
+     * Free-text location. Absent when not set.
+     */
     location?: string;
+    /**
+     * Meeting link. Absent when not set.
+     */
     url?: string;
+    /**
+     * Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses.
+     */
     status: 'confirmed' | 'tentative' | 'cancelled';
+    /**
+     * Derived from the format of `start`/`end`. When `true`, both endpoints are ISO date-only (`YYYY-MM-DD`) and the event spans full calendar day(s) using RFC 5545 exclusive end.
+     */
     all_day: boolean;
+    /**
+     * Optimistic-lock version. Starts at 1 on create and increments on every mutation (PATCH, status change, attendee replacement, delete, restore). Use as `expected_version` on the next mutation to detect concurrent edits.
+     */
     version: number;
+    /**
+     * Creation time in Unix milliseconds.
+     */
     created_at: number;
+    /**
+     * Last mutation time in Unix milliseconds.
+     */
     updated_at: number;
+    /**
+     * Soft-delete time in Unix milliseconds. Absent for live events; present only when `include_deleted=true` is used.
+     */
     deleted_at?: number;
+    /**
+     * Current attendee list (may be empty).
+     */
     attendees: Array<{
+        /**
+         * Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out.
+         */
         email: string;
+        /**
+         * Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address.
+         */
         display_name?: string;
     }>;
 };
 
+/**
+ * Request body for DELETE `/calendar/events/{id}` and POST `/calendar/events/{id}/restore`. Carries only the optional optimistic-lock version.
+ */
 export type VersionBody = {
+    /**
+     * Optional optimistic lock. Omit to let the server use the current version; pass only to fail with 409 `VERSION_CONFLICT` if someone else has mutated the event since you last read.
+     */
     expected_version?: number;
 };
 
+/**
+ * Minimal response for DELETE `/calendar/events/{id}`. Use GET with `?include_deleted=true` to fetch the full soft-deleted row.
+ */
 export type DeleteEventResponse = {
+    /**
+     * The soft-deleted event id.
+     */
     id: string;
+    /**
+     * Soft-delete time in Unix milliseconds.
+     */
     deleted_at: number;
+    /**
+     * Version after the delete (incremented from the pre-delete value).
+     */
     version: number;
 };
 
+/**
+ * Query parameters for GET `/calendar/events`. Default behaviour hides soft-deleted events and events whose `end` is in the past; supply any explicit time bound or `include_past=true` to override.
+ */
 export type ListEventsQuery = {
+    /**
+     * Optional full-text search across title, description, and location (case-insensitive substring).
+     */
     q?: string;
+    /**
+     * Inclusive lower bound on the event `start` (ISO datetime with offset, or ISO date-only). When ANY of `start_from`/`start_to`/`end_from`/`end_to` is provided, the implicit past filter is disabled.
+     */
     start_from?: string;
+    /**
+     * Inclusive upper bound on the event `start`.
+     */
     start_to?: string;
+    /**
+     * Inclusive lower bound on the event `end`.
+     */
     end_from?: string;
+    /**
+     * Inclusive upper bound on the event `end`.
+     */
     end_to?: string;
+    /**
+     * Opaque pagination cursor returned in `next_cursor` of a previous response.
+     */
     cursor?: string;
+    /**
+     * Maximum number of events to return. Clamped to `[1, 200]`. Default is server-defined.
+     */
     limit?: string;
+    /**
+     * When `true`, include soft-deleted events. Default `false`.
+     */
     include_deleted?: string;
+    /**
+     * When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win.
+     */
     include_past?: string;
 };
 
+/**
+ * Paginated list response for GET `/calendar/events`.
+ */
 export type ListEventsResponse = {
+    /**
+     * Events matching the query, ordered by `start` ascending.
+     */
     events: Array<Event>;
+    /**
+     * Opaque cursor for the next page. Absent when the current page is the last.
+     */
     next_cursor?: string;
 };
 
+/**
+ * Request body for PATCH `/calendar/events/{id}`. All fields are optional partial updates. To CANCEL a meeting (preserve the record and notify attendees) set `status: cancelled`; to remove the event from default listings, call DELETE instead.
+ */
 export type UpdateEventBody = {
+    /**
+     * Optional optimistic lock. Omit to let the server use the current version; pass only to fail the call if someone else has mutated the event since you last read. On mismatch the server returns 409 `VERSION_CONFLICT` with `extra.expected_version` and `extra.actual_version`.
+     */
     expected_version?: number;
+    /**
+     * New event title. Omit to leave unchanged.
+     */
     title?: string;
+    /**
+     * New description. Markdown formatted (CommonMark + GFM tables, strikethrough, task lists). Pass an empty string to clear; omit to leave unchanged.
+     */
     description?: string;
+    /**
+     * Accepts ISO 8601 datetime with offset (e.g. `2026-06-01T12:30:00+08:00`) for timed events, or ISO date-only (e.g. `2026-06-01`) for all-day. The `wspc` CLI additionally accepts natural-language phrases (`tomorrow 12:30pm`, `next Monday 9am`) and resolves them to ISO before sending; the server itself only accepts ISO. All-day uses RFC 5545 exclusive end: a one-day event on 6/1 is `start=2026-06-01, end=2026-06-02`; both endpoints must be the same type.
+     */
     start?: string;
+    /**
+     * Accepts ISO 8601 datetime with offset (e.g. `2026-06-01T12:30:00+08:00`) for timed events, or ISO date-only (e.g. `2026-06-01`) for all-day. The `wspc` CLI additionally accepts natural-language phrases (`tomorrow 12:30pm`, `next Monday 9am`) and resolves them to ISO before sending; the server itself only accepts ISO. All-day uses RFC 5545 exclusive end: a one-day event on 6/1 is `start=2026-06-01, end=2026-06-02`; both endpoints must be the same type.
+     */
     end?: string;
+    /**
+     * New location. Pass an empty string to clear; omit to leave unchanged.
+     */
     location?: string;
+    /**
+     * New meeting link. Pass an empty string to clear; omit to leave unchanged.
+     */
     url?: string | '';
+    /**
+     * Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses.
+     */
     status?: 'confirmed' | 'tentative' | 'cancelled';
+    /**
+     * If provided, REPLACES the attendee list (after case-insensitive email dedupe, up to 50). Added attendees receive a fresh invitation, kept attendees receive an update email, removed attendees receive a cancellation.
+     */
     attendees?: Array<{
+        /**
+         * Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out.
+         */
         email: string;
+        /**
+         * Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address.
+         */
         display_name?: string;
     }>;
 };
 
 export type CreateAliasBody = {
+    /**
+     * Full alias address under @wspc.app, for example alice-shop@wspc.app.
+     */
     email: string;
 };
 
 export type Alias = {
+    /**
+     * Full wspc alias email address. This is the stable alias identifier.
+     */
     email: string;
+    /**
+     * Organization scope that owns the alias.
+     */
     org_id: string;
+    /**
+     * Owner of the alias.
+     */
     user_id: string;
+    /**
+     * Creation time as Unix epoch milliseconds.
+     */
     created_at: number;
+    /**
+     * If the alias has been soft-deleted, the Unix epoch milliseconds at which it stopped accepting new mail. Historical messages remain readable; calling `POST /email/aliases/{email}/restore` clears this field.
+     */
     deleted_at?: number;
 };
 
 export type BatchIdsBody = {
+    /**
+     * Email ids to act on. 1-100 ids per call. All bulk ops (read / unread / delete / restore) are idempotent: ids that are already in the target state are silently no-ops and ids that don't belong to the user (or don't exist) are reported in `not_found` rather than failing the call.
+     */
     ids: Array<string>;
 };
 
 export type DeleteBatchResponse = {
+    /**
+     * Number of emails actually soft-deleted (already-deleted ids do not count).
+     */
     deleted: number;
+    /**
+     * Ids missing, wrong user, or already soft-deleted.
+     */
     not_found: Array<string>;
 };
 
 export type GetAttachmentQuery = {
+    /**
+     * When `true`, allow downloading an attachment whose parent email is soft-deleted. Defaults to `false`.
+     */
     include_deleted?: string;
 };
 
 export type GetEmailQuery = {
+    /**
+     * When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text.
+     */
     include_html?: string;
+    /**
+     * When `true`, allow fetching a soft-deleted email. Defaults to `false` (returns 404 for soft-deleted rows).
+     */
     include_deleted?: string;
 };
 
 export type ListAliasesQuery = {
+    /**
+     * When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.
+     */
     include_deleted?: string;
 };
 
 export type ListEmailsQuery = {
+    /**
+     * Max items to return (clamped to 1-100). Defaults to 20 server-side.
+     */
     limit?: string;
+    /**
+     * If set, only return emails received on this full alias email address.
+     */
     alias_email?: string;
+    /**
+     * When `true`, only return emails with `is_read=false`.
+     */
     unread_only?: string;
+    /**
+     * Unix epoch milliseconds — only return emails with `received_at >= since`. Useful for incremental sync.
+     */
     since?: string;
+    /**
+     * Opaque pagination cursor returned in `next_cursor` of a previous response.
+     */
     cursor?: string;
+    /**
+     * When `true`, also return soft-deleted emails. Defaults to `false`.
+     */
     include_deleted?: string;
 };
 
 export type MarkBatchResponse = {
+    /**
+     * Number of emails whose state actually changed. Already-in-target-state ids do not count.
+     */
     marked: number;
+    /**
+     * Ids that were not found, belong to another user, or were soft-deleted (and therefore not eligible). The call still succeeds; surface these to the caller as needed.
+     */
     not_found: Array<string>;
 };
 
 export type RestoreBatchResponse = {
+    /**
+     * Number of emails actually un-deleted (already-active ids do not count).
+     */
     restored: number;
+    /**
+     * Ids missing, wrong user, or not currently soft-deleted.
+     */
     not_found: Array<string>;
 };
 
 export type SendEmailBody = {
+    /**
+     * Full active alias email address owned by the caller. Soft-deleted aliases are not allowed for sending.
+     */
     from_alias_email: string;
+    /**
+     * Recipient addresses. 1-10 entries. Required for a fresh send; may be omitted when `in_reply_to_email_id` is set (the server then reuses the original sender as the sole recipient).
+     */
     to?: Array<string>;
+    /**
+     * Outbound subject. Required for a fresh send; may be omitted on reply (the server prefixes the inbound subject with `Re: `).
+     */
     subject?: string;
+    /**
+     * Plain-text body. 1 byte to 100 KiB. HTML bodies are not exposed in the v1 send API — agents compose plain text and clients render as desired.
+     */
     text: string;
+    /**
+     * If set, sends as a threaded reply to the referenced inbound email. The outbound `In-Reply-To` / `References` headers and recipient default are derived from that message; the inbound email must belong to the caller.
+     */
     in_reply_to_email_id?: string;
+    /**
+     * Caller-chosen key (1-200 chars) that makes retries safe. The server hashes the full request and stores it under this key for the calling user: a second send with the same key and identical content returns the original result with `idempotent_replay: true`; the same key with different content returns 409 `IDEMPOTENCY_KEY_REUSED`.
+     */
     idempotency_key: string;
+    /**
+     * Optional outbound attachments. Each element is either an inline `{filename, content_type, content_base64}` blob OR a reference `{from_inbound_email_id, idx}` to an inbound email's existing attachment. Per-attachment ≤ 5 MiB; per-send total ≤ 25 MiB; max 10 attachments. Extensions in `[exe, bat, com, scr, cmd, jar, js]` are rejected.
+     */
     attachments?: Array<{
+        /**
+         * Filename as presented to the recipient. Must not contain `/` or NUL.
+         */
         filename: string;
+        /**
+         * MIME type as advertised in the outbound message Content-Type header.
+         */
         content_type: string;
+        /**
+         * Base64-encoded attachment bytes. Per-attachment ≤ 5 MiB; per-send total ≤ 25 MiB.
+         */
         content_base64: string;
     } | {
+        /**
+         * Id of an inbound email owned by the caller. Server reads its attachment at `idx` from R2 and re-attaches.
+         */
         from_inbound_email_id: string;
+        /**
+         * 0-based index into the inbound email's attachments array.
+         */
         idx: number;
     }>;
 };
 
 export type SendEmailResponse = {
     email: {
+        /**
+         * Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted).
+         */
         id: string;
+        /**
+         * Organization scope that owns the outbound email.
+         */
         org_id: string;
+        /**
+         * Sender (the authenticated user).
+         */
         user_id: string;
+        /**
+         * Full wspc alias email address the message was sent from.
+         */
         from_alias_email: string;
+        /**
+         * Materialized `From` address.
+         */
         from_addr: string;
+        /**
+         * Recipient addresses as actually submitted to the provider.
+         */
         to: Array<string>;
+        /**
+         * Outbound subject as sent (may include `Re: ` prefix for replies).
+         */
         subject?: string;
+        /**
+         * Plain-text body as sent.
+         */
         text_body: string;
+        /**
+         * Inbound email id this is a reply to, if applicable.
+         */
         in_reply_to_email_id?: string;
+        /**
+         * Outbound RFC 5322 `Message-ID` value generated by wspc.
+         */
         message_id: string;
+        /**
+         * Materialized `References` header for threaded replies.
+         */
         references_header?: string;
+        /**
+         * Send provider. Currently always `cloudflare-email-service`.
+         */
         provider: 'cloudflare-email-service';
+        /**
+         * Provider-side message id (after successful submission).
+         */
         provider_message_id?: string;
+        /**
+         * Hash of the canonicalized request body — used to enforce idempotency.
+         */
         request_hash: string;
+        /**
+         * Lifecycle status. `submitted`: the row is persisted; provider call is in flight. `sent`: provider accepted the message. `failed`: provider rejected; see `error_code`/`error_message`.
+         */
         status: 'submitted' | 'sent' | 'failed';
+        /**
+         * Provider error code on `status: failed`.
+         */
         error_code?: string;
+        /**
+         * Provider error message on `status: failed`.
+         */
         error_message?: string;
+        /**
+         * Echo of the idempotency key used for this send.
+         */
         idempotency_key: string;
+        /**
+         * Number of attachments on this outbound email. 0 when none.
+         */
         attachment_count: number;
+        /**
+         * Unix epoch milliseconds the provider accepted the message.
+         */
         submitted_at?: number;
+        /**
+         * Unix epoch milliseconds the outbound row was first written.
+         */
         created_at: number;
+        /**
+         * Unix epoch milliseconds the outbound row was last modified.
+         */
         updated_at: number;
     };
+    /**
+     * `true` if this response is a replay of an earlier send with the same `idempotency_key` + identical content; `false` if the message was newly submitted on this request.
+     */
     idempotent_replay: boolean;
 };
 
 export type SetPushConfigBody = {
+    /**
+     * Transport config to upsert. Each user holds at most one record per `transport` value; re-posting with the same `transport` refreshes `updated_at` and replaces the previous config in place.
+     */
     config: {
+        /**
+         * Transport discriminator. `telegram` is the only supported value today — push delivers via a Telegram bot DM. Future transports (web push, iOS/Android, generic webhook) will be added as additional discriminator values.
+         */
         transport: 'telegram';
+        /**
+         * Telegram bot username (with leading `@`, 5–32 alphanumeric/underscore characters). This is the bot the user has already started a chat with — wspc DMs notifications to it via the Telegram Bot API.
+         */
         target_bot_username: string;
     };
 };
@@ -344,28 +974,67 @@ export type ShowPushConfigResponse = {
      * All transport configs registered for the authenticated user.
      */
     configs: Array<{
+        /**
+         * Transport name for this row (matches `config.transport`). Acts as the stable key for delete and test operations.
+         */
         transport: string;
         config: {
+            /**
+             * Transport discriminator. `telegram` is the only supported value today — push delivers via a Telegram bot DM. Future transports (web push, iOS/Android, generic webhook) will be added as additional discriminator values.
+             */
             transport: 'telegram';
+            /**
+             * Telegram bot username (with leading `@`, 5–32 alphanumeric/underscore characters). This is the bot the user has already started a chat with — wspc DMs notifications to it via the Telegram Bot API.
+             */
             target_bot_username: string;
         };
+        /**
+         * Unix millisecond timestamp when this config was first registered.
+         */
         created_at: number;
+        /**
+         * Unix millisecond timestamp of the most recent upsert (re-`POST /push/config` for the same transport refreshes this).
+         */
         updated_at: number;
+        /**
+         * Unix millisecond timestamp of the most recent `POST /push/test` against this transport. Absent if never tested.
+         */
         last_test_at?: number;
+        /**
+         * Short status string from the most recent test. `ok` on success; otherwise a `telegram_4xx:` / `telegram_5xx:` / `transport_error:` / `send_terminal_<code>:` prefix followed by upstream detail. Absent if never tested.
+         */
         last_test_status?: string;
     }>;
 };
 
 export type TestPushBody = {
+    /**
+     * Which transport to send the test message through. Must match a transport the caller has already registered via `POST /push/config`; today only `telegram` is supported.
+     */
     transport: 'telegram';
 };
 
 export type TestPushResponse = {
+    /**
+     * `true` when the upstream transport accepted the test message.
+     */
     ok: true;
+    /**
+     * Wall-clock milliseconds between the wspc-push worker dispatching the request and receiving the upstream OK.
+     */
     durationMs: number;
 } | {
+    /**
+     * `false` when the test failed at the transport layer.
+     */
     ok: false;
+    /**
+     * Categorised failure kind. `telegram_4xx`: Telegram rejected the request (bad chat id, bot blocked by user, rate limited). `telegram_5xx`: Telegram had a server-side failure. `transport_error`: network / fetch failure before getting a response.
+     */
     status: 'telegram_4xx' | 'telegram_5xx' | 'transport_error';
+    /**
+     * Upstream description string, suitable for surfacing to a developer/operator (not necessarily an end user).
+     */
     detail: string;
 };
 
@@ -420,19 +1089,37 @@ export type RecurrenceRule = {
 };
 
 export type CreateTodoBody = {
+    /**
+     * Short human-readable summary of the work item. Required, non-empty. Shown as the primary label in CLI list output.
+     */
     title: string;
     /**
      * Project id to assign this todo to. It must be an active project in the caller's organization.
      */
     project_id: string;
+    /**
+     * Free-form details about the todo. Fully supports GFM Markdown (tables, strikethrough, task lists). Stored verbatim; client applications are responsible for rendering. Optional. Passing `null` is strictly rejected.
+     */
     description?: string;
+    /**
+     * Parent todo ID (`tod_<ULID>`) to attach this todo as a child under another todo. Omit or pass `null` to create a root-level todo. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`.
+     */
     parent_id?: string | null;
+    /**
+     * Initial status of the todo. Omit to default to `open`. Allowed values: `open`, `in_progress`, `done`, `cancelled`.
+     */
     status?: 'open' | 'in_progress' | 'done' | 'cancelled';
+    /**
+     * Optional calendar due date in ISO date-only format (`YYYY-MM-DD`). Stored without timezone offsets to represent the same local calendar day globally. Pass `""` or omit the field to skip setting a due date. Passing `null` is strictly rejected.
+     */
     due_at?: string;
     /**
      * Type id this todo belongs to. Omit to use the project's default type. When project_id is also supplied, the type must belong to the same project. New server-generated type ids use typ_<ULID>; legacy ids remain accepted.
      */
     type_id?: string;
+    /**
+     * Custom field values keyed by the field's immutable `key` (not the human `label`). Each value must match the declared field type: string fields require string values, and string_array fields require string arrays. Providing a key that is not declared on the resolved todo type is strictly rejected with `UNDECLARED_FIELD`. Missing required fields that lack a default value are rejected with `FIELD_REQUIRED`. Defaults declared on the type are auto-applied at create time.
+     */
     custom_fields?: {
         [key: string]: string | Array<string>;
     };
@@ -603,18 +1290,39 @@ export type UpdateRecurrenceRuleBody = {
 
 export type UpdateTodoBody = {
     expected_version?: number;
+    /**
+     * New title. Omit to leave the existing title unchanged. Must be non-empty when supplied.
+     */
     title?: string;
+    /**
+     * New description. Markdown formatted (CommonMark + GFM tables, strikethrough, task lists). Pass empty string `""` explicitly to clear an existing description, or omit to leave unchanged. Passing `null` is strictly rejected.
+     */
     description?: string;
+    /**
+     * Re-parent the todo. Pass a valid parent ID to attach under another todo, pass `null` to move it back to the root level, or omit to leave unchanged. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`.
+     */
     parent_id?: string | null;
+    /**
+     * New status of the todo. Allowed transitions: `open` ➔ `in_progress` ➔ `done`. `cancelled` represents a terminal state. Transitioning to `done` automatically emits a `captureTodoCompleted` analytics event. Omit to leave the existing status unchanged.
+     */
     status?: 'open' | 'in_progress' | 'done' | 'cancelled';
+    /**
+     * Update calendar due date in ISO date-only format (`YYYY-MM-DD`). Pass `""` explicitly to clear an existing due date, or omit to leave it unchanged. Passing `null` is strictly rejected.
+     */
     due_at?: string;
     /**
      * Re-assign this todo to a different active type. The new type must belong to the todo's same project; otherwise the request fails with TYPE_PROJECT_MISMATCH. New server-generated type ids use typ_<ULID>; legacy ids remain accepted.
      */
     type_id?: string;
+    /**
+     * PATCH semantics: only the keys present in this map change. Pass `null` for a key (e.g. `custom_fields: { priority: null }`) to explicitly delete that custom field value. Array values are replaced wholesale with no element-level diff. Providing a key that is not declared on the effective todo type is rejected with `UNDECLARED_FIELD`.
+     */
     custom_fields?: {
         [key: string]: string | Array<string> | null;
     };
+    /**
+     * Reassign the owner (assignee) user ID of this todo. Target user must belong to the same organization.
+     */
     user_id?: string;
 };
 
@@ -1138,7 +1846,13 @@ export type OrgMembersListData = {
     };
     path?: never;
     query?: {
+        /**
+         * Opaque pagination cursor. Pass the `next_cursor` returned by the previous page to fetch the next slice. Omit on the first call.
+         */
         cursor?: string;
+        /**
+         * Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response.
+         */
         limit?: number;
     };
     url: '/auth/me/org/members';
@@ -1516,6 +2230,9 @@ export type KeyRevokeData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path: {
+        /**
+         * Id of the API key to revoke, as returned by `GET /auth/keys` (`key_<ULID>`).
+         */
         id: string;
     };
     query?: never;
@@ -1849,14 +2566,41 @@ export type EventListData = {
     };
     path?: never;
     query?: {
+        /**
+         * Optional full-text search across title, description, and location (case-insensitive substring).
+         */
         q?: string;
+        /**
+         * Inclusive lower bound on the event `start` (ISO datetime with offset, or ISO date-only). When ANY of `start_from`/`start_to`/`end_from`/`end_to` is provided, the implicit past filter is disabled.
+         */
         start_from?: string;
+        /**
+         * Inclusive upper bound on the event `start`.
+         */
         start_to?: string;
+        /**
+         * Inclusive lower bound on the event `end`.
+         */
         end_from?: string;
+        /**
+         * Inclusive upper bound on the event `end`.
+         */
         end_to?: string;
+        /**
+         * Opaque pagination cursor returned in `next_cursor` of a previous response.
+         */
         cursor?: string;
+        /**
+         * Maximum number of events to return. Clamped to `[1, 200]`. Default is server-defined.
+         */
         limit?: string;
+        /**
+         * When `true`, include soft-deleted events. Default `false`.
+         */
         include_deleted?: string;
+        /**
+         * When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win.
+         */
         include_past?: string;
     };
     url: '/calendar/events';
@@ -2076,6 +2820,9 @@ export type EventDeleteData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path: {
+        /**
+         * Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
+         */
         id: string;
     };
     query?: never;
@@ -2187,9 +2934,15 @@ export type EventGetData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path: {
+        /**
+         * Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
+         */
         id: string;
     };
     query?: {
+        /**
+         * When `true`, return the row even if soft-deleted. Default `false` (returns 404).
+         */
         include_deleted?: string;
     };
     url: '/calendar/events/{id}';
@@ -2300,6 +3053,9 @@ export type EventUpdateData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path: {
+        /**
+         * Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
+         */
         id: string;
     };
     query?: never;
@@ -2411,6 +3167,9 @@ export type EventIcsDownloadData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path: {
+        /**
+         * `<event_id>.ics`. The `.ics` suffix is required so the router matches this endpoint ahead of the JSON detail route.
+         */
         filename: string;
     };
     query?: never;
@@ -2522,6 +3281,9 @@ export type EventRestoreData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path: {
+        /**
+         * Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
+         */
         id: string;
     };
     query?: never;
@@ -2634,6 +3396,9 @@ export type EmailAliasListData = {
     };
     path?: never;
     query?: {
+        /**
+         * When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.
+         */
         include_deleted?: string;
     };
     url: '/email/aliases';
@@ -2783,6 +3548,9 @@ export type EmailAliasDeleteData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path: {
+        /**
+         * Full alias email address. URL-encode @ as %40 in paths.
+         */
         email: string;
     };
     query?: never;
@@ -2935,6 +3703,9 @@ export type EmailAttachmentGetData = {
         idx: string;
     };
     query?: {
+        /**
+         * When `true`, allow downloading an attachment whose parent email is soft-deleted. Defaults to `false`.
+         */
         include_deleted?: string;
     };
     url: '/email/messages/{id}/attachments/{idx}';
@@ -3012,7 +3783,13 @@ export type EmailGetData = {
         id: string;
     };
     query?: {
+        /**
+         * When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text.
+         */
         include_html?: string;
+        /**
+         * When `true`, allow fetching a soft-deleted email. Defaults to `false` (returns 404 for soft-deleted rows).
+         */
         include_deleted?: string;
     };
     url: '/email/messages/{id}';
@@ -3077,36 +3854,123 @@ export type EmailGetResponses = {
      */
     200: {
         email: {
+            /**
+             * Server-assigned inbound email id (`eml_<ULID>` for new rows; legacy UUID ids remain accepted). Stable; safe to use as a key in your own storage.
+             */
             id: string;
+            /**
+             * Organization scope that owns the email.
+             */
             org_id: string;
+            /**
+             * Owner of the email. Always equals the authenticated user.
+             */
             user_id: string;
+            /**
+             * Full wspc alias email address the email was addressed to.
+             */
             alias_email: string;
+            /**
+             * Sender envelope/header address.
+             */
             from_addr: string;
+            /**
+             * Sender display name parsed from the `From` header, if present.
+             */
             from_name?: string;
+            /**
+             * Subject header. Absent if the sender omitted it.
+             */
             subject?: string;
+            /**
+             * Plain-text body. May be truncated in list views; use `GET /email/messages/{id}` for the full body.
+             */
             text_body?: string;
+            /**
+             * Internal R2 object key for the HTML body, if the email had one. Fetch the rendered HTML via `GET /email/messages/{id}?include_html=true` rather than reading this directly.
+             */
             html_body_r2_key?: string;
+            /**
+             * Internal R2 object key for the raw MIME source. Not directly fetchable.
+             */
             raw_r2_key: string;
+            /**
+             * Size of the raw MIME source in bytes.
+             */
             size_bytes: number;
+            /**
+             * Number of attachments parsed from the message. Index into them via `GET /email/messages/{id}/attachments/{idx}` (0-based).
+             */
             attachment_count: number;
+            /**
+             * Whether the inbound message passed SPF at ingest time.
+             */
             spf_pass: boolean;
+            /**
+             * Whether the inbound message passed DKIM at ingest time.
+             */
             dkim_pass: boolean;
+            /**
+             * Whether the inbound message passed DMARC at ingest time.
+             */
             dmarc_pass: boolean;
+            /**
+             * Raw `Authentication-Results` header for debugging, if present.
+             */
             auth_results_raw?: string;
+            /**
+             * Whether the user has marked the email as read.
+             */
             is_read: boolean;
+            /**
+             * Unix epoch milliseconds the email was first marked read; absent if unread.
+             */
             read_at?: number;
+            /**
+             * Unix epoch milliseconds the email was received by the inbound pipeline.
+             */
             received_at: number;
+            /**
+             * Unix epoch milliseconds the row was written to the database.
+             */
             created_at: number;
+            /**
+             * Unix epoch milliseconds the email was soft-deleted, if applicable. Soft-deleted emails are hidden from default list/get responses; pass `include_deleted=true` to surface them, then `POST /email/messages/restore` to undelete.
+             */
             deleted_at?: number;
         };
         attachments: Array<{
+            /**
+             * Owning email id.
+             */
             email_id: string;
+            /**
+             * Zero-based index into the email's attachments array, as seen during MIME parsing. Use this as the `{idx}` path parameter when fetching attachment bytes.
+             */
             idx: number;
+            /**
+             * Original filename from the `Content-Disposition` header.
+             */
             filename: string;
+            /**
+             * Parsed MIME type. Used as the `Content-Type` of the attachment download.
+             */
             mime_type: string;
+            /**
+             * Decoded size in bytes.
+             */
             size_bytes: number;
+            /**
+             * Hex SHA-256 of the attachment bytes; present for outbound attachments, NULL for inbound v1 (not computed at ingest).
+             */
             sha256?: string;
+            /**
+             * Internal R2 object key for the attachment body. Not directly fetchable.
+             */
             r2_key: string;
+            /**
+             * Unix epoch milliseconds the attachment row was written.
+             */
             created_at: number;
         }>;
         html_body?: string;
@@ -3123,11 +3987,29 @@ export type EmailListData = {
     };
     path?: never;
     query?: {
+        /**
+         * Max items to return (clamped to 1-100). Defaults to 20 server-side.
+         */
         limit?: string;
+        /**
+         * If set, only return emails received on this full alias email address.
+         */
         alias_email?: string;
+        /**
+         * When `true`, only return emails with `is_read=false`.
+         */
         unread_only?: string;
+        /**
+         * Unix epoch milliseconds — only return emails with `received_at >= since`. Useful for incremental sync.
+         */
         since?: string;
+        /**
+         * Opaque pagination cursor returned in `next_cursor` of a previous response.
+         */
         cursor?: string;
+        /**
+         * When `true`, also return soft-deleted emails. Defaults to `false`.
+         */
         include_deleted?: string;
     };
     url: '/email/messages';
@@ -3180,26 +4062,89 @@ export type EmailListResponses = {
      */
     200: {
         items: Array<{
+            /**
+             * Server-assigned inbound email id (`eml_<ULID>` for new rows; legacy UUID ids remain accepted). Stable; safe to use as a key in your own storage.
+             */
             id: string;
+            /**
+             * Organization scope that owns the email.
+             */
             org_id: string;
+            /**
+             * Owner of the email. Always equals the authenticated user.
+             */
             user_id: string;
+            /**
+             * Full wspc alias email address the email was addressed to.
+             */
             alias_email: string;
+            /**
+             * Sender envelope/header address.
+             */
             from_addr: string;
+            /**
+             * Sender display name parsed from the `From` header, if present.
+             */
             from_name?: string;
+            /**
+             * Subject header. Absent if the sender omitted it.
+             */
             subject?: string;
+            /**
+             * Plain-text body. May be truncated in list views; use `GET /email/messages/{id}` for the full body.
+             */
             text_body?: string;
+            /**
+             * Internal R2 object key for the HTML body, if the email had one. Fetch the rendered HTML via `GET /email/messages/{id}?include_html=true` rather than reading this directly.
+             */
             html_body_r2_key?: string;
+            /**
+             * Internal R2 object key for the raw MIME source. Not directly fetchable.
+             */
             raw_r2_key: string;
+            /**
+             * Size of the raw MIME source in bytes.
+             */
             size_bytes: number;
+            /**
+             * Number of attachments parsed from the message. Index into them via `GET /email/messages/{id}/attachments/{idx}` (0-based).
+             */
             attachment_count: number;
+            /**
+             * Whether the inbound message passed SPF at ingest time.
+             */
             spf_pass: boolean;
+            /**
+             * Whether the inbound message passed DKIM at ingest time.
+             */
             dkim_pass: boolean;
+            /**
+             * Whether the inbound message passed DMARC at ingest time.
+             */
             dmarc_pass: boolean;
+            /**
+             * Raw `Authentication-Results` header for debugging, if present.
+             */
             auth_results_raw?: string;
+            /**
+             * Whether the user has marked the email as read.
+             */
             is_read: boolean;
+            /**
+             * Unix epoch milliseconds the email was first marked read; absent if unread.
+             */
             read_at?: number;
+            /**
+             * Unix epoch milliseconds the email was received by the inbound pipeline.
+             */
             received_at: number;
+            /**
+             * Unix epoch milliseconds the row was written to the database.
+             */
             created_at: number;
+            /**
+             * Unix epoch milliseconds the email was soft-deleted, if applicable. Soft-deleted emails are hidden from default list/get responses; pass `include_deleted=true` to surface them, then `POST /email/messages/restore` to undelete.
+             */
             deleted_at?: number;
         }>;
         next_cursor?: string;
@@ -3361,6 +4306,9 @@ export type EmailAliasRestoreData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path: {
+        /**
+         * Full alias email address. URL-encode @ as %40 in paths.
+         */
         email: string;
     };
     query?: never;
@@ -3618,6 +4566,9 @@ export type PushConfigDeleteData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path: {
+        /**
+         * Transport name to delete (e.g. `telegram`). Only transports the caller has previously registered exist; unknown values return 400 `UNKNOWN_TRANSPORT`.
+         */
         transport: string;
     };
     query?: never;

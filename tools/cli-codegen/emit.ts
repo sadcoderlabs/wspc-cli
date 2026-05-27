@@ -6,6 +6,14 @@ export interface XCliDisplay {
   emptyMessage?: string
 }
 
+export interface XCliOption {
+  parser?: "datetime" | "attendee"
+  array?: boolean
+  mapsTo?: string
+  allDayFlag?: string
+  exclusive?: boolean
+}
+
 export interface XCli {
   command: string
   positional?: string[]
@@ -13,6 +21,7 @@ export interface XCli {
   examples?: string[]
   hidden?: boolean
   display?: XCliDisplay
+  options?: Record<string, XCliOption>
 }
 
 export interface BodyField {
@@ -52,6 +61,10 @@ function camelize(kebabStr: string): string {
   return kebabStr.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
 }
 
+function snakeToCamel(snake: string): string {
+  return snake.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+}
+
 export function emitCommand(input: EmitInput): string | null {
   if (input.xCli.hidden) return null
   const fnName = operationFnName(input.operationId)
@@ -69,6 +82,7 @@ export function emitCommand(input: EmitInput): string | null {
   const aliases = input.xCli.aliases ?? {}
   const pathParams = input.pathParams ?? []
   const queryFields = input.queryFields ?? []
+  const xCliOptions = input.xCli.options ?? {}
 
   // Find the alias entry for a field: alias key can be exact field name, its kebab,
   // or a prefix segment (e.g. alias key "project" covers field "project_id").
@@ -86,12 +100,47 @@ export function emitCommand(input: EmitInput): string | null {
     return { longFlag: flagName }
   }
 
+  // Map: API field name (body/query) → x-cli option key that takes over its emission.
+  // Built from xCliOptions[key].mapsTo (e.g. attendee → attendees) and from xCliOptions
+  // where the option key already matches a field name (e.g. start → start).
+  const fieldToOptionKey: Record<string, string> = {}
+  for (const [optKey, optDef] of Object.entries(xCliOptions)) {
+    const target = optDef.mapsTo ?? optKey
+    fieldToOptionKey[target] = optKey
+  }
+
+  // Set of x-cli option keys that are "virtual" — i.e. they don't correspond to
+  // any body/query field name on their own (they only reach the API via mapsTo).
+  // Also collect the set of allDayFlag names so we can emit them as boolean flags.
+  const allDayFlags = new Set<string>()
+  for (const optDef of Object.values(xCliOptions)) {
+    if (optDef.allDayFlag) allDayFlags.add(optDef.allDayFlag)
+  }
+
+  // Does this operation need a --tz flag and resolveTimezone() call?
+  const hasDatetimeParser = Object.values(xCliOptions).some((o) => o.parser === "datetime")
+  const hasAttendeeParser = Object.values(xCliOptions).some((o) => o.parser === "attendee")
+  const usesParseDateOnly = Object.values(xCliOptions).some(
+    (o) => o.parser === "datetime" && o.allDayFlag,
+  )
+  const usesInclusiveEndToExclusive = Object.values(xCliOptions).some(
+    (o) => o.parser === "datetime" && o.allDayFlag && o.exclusive,
+  )
+
   // All non-positional options: body fields + query fields (excluding path params, which are positional)
   // Path params that are positional are already handled via .argument()
   const positionalSet = new Set(positional)
   const pathParamSet = new Set(pathParams)
 
+  // Special case: event_ics_download takes a positional `id` but the underlying API
+  // path param is `filename` (which must be `<id>.ics`). The positional arg name we
+  // expose to users is `id`, not `filename`.
+  const isIcsDownload = input.operationId === "event_ics_download"
+
   const args: string[] = positional.map((name) => {
+    if (isIcsDownload && name === "id") {
+      return `.argument("<id>", "id")`
+    }
     // Check in pathParams first (always required), then bodyFields
     const isPathParam = pathParamSet.has(name)
     const field = isPathParam ? undefined : input.bodyFields.find((f) => f.name === name)
@@ -99,41 +148,120 @@ export function emitCommand(input: EmitInput): string | null {
     return `.argument("${required ? `<${name}>` : `[${name}]`}", "${name}")`
   })
 
+  function emitFieldOption(f: BodyField): string {
+    const optKey = fieldToOptionKey[f.name]
+    if (optKey !== undefined) {
+      // Field is owned by an x-cli option; emit under that option key (and its array shape).
+      const optDef = xCliOptions[optKey]!
+      const { longFlag, short } = resolveAlias(optKey)
+      const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
+      if (optDef.array) {
+        return `.option("${flagSpec}", "${optKey}", (val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[])`
+      }
+      return `.option("${flagSpec}", "${optKey}")`
+    }
+    const { longFlag, short } = resolveAlias(f.name)
+    const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
+    return `.option("${flagSpec}", "${f.name}")`
+  }
+
   // Options from body fields (skip positional and path params)
   const bodyOptions = input.bodyFields
     .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
-    .map((f) => {
-      const { longFlag, short } = resolveAlias(f.name)
-      const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
-      return `.option("${flagSpec}", "${f.name}")`
-    })
+    .map(emitFieldOption)
 
   // Options from query fields (skip positional and path params)
   const queryOptions = queryFields
     .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
-    .map((f) => {
-      const { longFlag, short } = resolveAlias(f.name)
-      const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
-      return `.option("${flagSpec}", "${f.name}")`
-    })
+    .map(emitFieldOption)
 
-  const options = [...bodyOptions, ...queryOptions]
+  // Virtual x-cli options: option keys that map to no existing body/query field
+  // (e.g. `attendee` mapping to `attendees` is NOT virtual; `all_day` mapping
+  // to itself, with no `all_day` field on the schema, IS virtual).
+  const bodyFieldNames = new Set(input.bodyFields.map((f) => f.name))
+  const queryFieldNames = new Set(queryFields.map((f) => f.name))
+  const virtualOptions: string[] = []
+  for (const [optKey, optDef] of Object.entries(xCliOptions)) {
+    const target = optDef.mapsTo ?? optKey
+    if (bodyFieldNames.has(target) || queryFieldNames.has(target)) continue
+    // Skip allDayFlag — emitted separately as a boolean flag below.
+    if (allDayFlags.has(optKey)) continue
+    const { longFlag, short } = resolveAlias(optKey)
+    if (optDef.array) {
+      const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
+      virtualOptions.push(
+        `.option("${flagSpec}", "${optKey}", (val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[])`,
+      )
+    } else {
+      const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
+      virtualOptions.push(`.option("${flagSpec}", "${optKey}")`)
+    }
+  }
+
+  // Boolean all-day style flags. Guard against an existing body/query field
+  // with the same name (would otherwise emit a duplicate `--<flag>` option).
+  const allDayFlagOptions: string[] = []
+  for (const flagName of allDayFlags) {
+    if (bodyFieldNames.has(flagName) || queryFieldNames.has(flagName)) continue
+    const flagKebab = kebab(flagName)
+    allDayFlagOptions.push(`.option("--${flagKebab}", "${flagName}")`)
+  }
+
+  // Implicit --tz flag when any datetime parser is present.
+  const tzOption = hasDatetimeParser ? [`.option("--tz <zone>", "IANA timezone for relative time parsing")`] : []
+
+  const options = [...bodyOptions, ...queryOptions, ...virtualOptions, ...allDayFlagOptions, ...tzOption]
 
   // Build action parameter list: positional args + "opts"
   const argNames = positional
 
   // Build path block (path params that are positional)
   const pathPositionals = positional.filter((p) => pathParamSet.has(p))
-  const pathBlock =
-    pathPositionals.length > 0
-      ? [`      path: {`, ...pathPositionals.map((p) => `        ${p},`), `      },`]
-      : []
+  let pathBlock: string[] = []
+  if (isIcsDownload) {
+    // Special-case: filename = `${id}.ics`
+    pathBlock = [`      path: {`, `        filename: \`\${id}.ics\`,`, `      },`]
+  } else if (pathPositionals.length > 0) {
+    pathBlock = [`      path: {`, ...pathPositionals.map((p) => `        ${p},`), `      },`]
+  }
 
-  // Build body block (body fields, positional non-path + options)
-  const bodyPositionals = positional.filter((p) => !pathParamSet.has(p))
+  // Determine option variable identifier in the action body for a given x-cli
+  // option key. For datetime parsers we emit a `<camel>Value` local var; for
+  // attendee array parsers we emit `<camel(target)>` local var; otherwise it
+  // is just `opts.<camel>`.
+  function valueExprForOption(optKey: string): string {
+    const optDef = xCliOptions[optKey]!
+    const camelKey = camelize(kebab(optKey))
+    if (optDef.parser === "datetime") {
+      return `${camelKey}Value`
+    }
+    if (optDef.parser === "attendee") {
+      const target = optDef.mapsTo ?? optKey
+      return snakeToCamel(target)
+    }
+    return `opts.${camelKey}`
+  }
+
+  // Build body block (body fields, positional non-path + options).
+  // For event_ics_download, the positional `id` is consumed by the path block
+  // (as `filename`), so it must not also leak into a body.
+  const bodyPositionals = isIcsDownload
+    ? []
+    : positional.filter((p) => !pathParamSet.has(p))
   const bodyOptLines = input.bodyFields
     .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
     .map((f) => {
+      const optKey = fieldToOptionKey[f.name]
+      if (optKey !== undefined) {
+        const expr = valueExprForOption(optKey)
+        // If the API field is required, the SDK type rejects undefined; the
+        // parser-produced local var is typed `string | undefined` because the
+        // user might omit the flag (commander has no way to mark required
+        // options for us). Cast to satisfy the SDK type — runtime validation
+        // server-side surfaces the missing-field error.
+        const suffix = f.required ? ` as string` : ""
+        return `        ${f.name}: ${expr}${suffix},`
+      }
       const { longFlag } = resolveAlias(f.name)
       return `        ${f.name}: opts.${camelize(longFlag)},`
     })
@@ -151,6 +279,10 @@ export function emitCommand(input: EmitInput): string | null {
   const queryOptLines = queryFields
     .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
     .map((f) => {
+      const optKey = fieldToOptionKey[f.name]
+      if (optKey !== undefined) {
+        return `        ${f.name}: ${valueExprForOption(optKey)},`
+      }
       const { longFlag } = resolveAlias(f.name)
       return `        ${f.name}: opts.${camelize(longFlag)},`
     })
@@ -166,18 +298,82 @@ export function emitCommand(input: EmitInput): string | null {
     ? JSON.stringify(input.xCli.display)
     : "undefined"
 
-  return [
-    `// AUTO-GENERATED — DO NOT EDIT (source: ${input.operationId})`,
+  // Emit parser conversion block at top of action body.
+  const conversionLines: string[] = []
+  if (hasDatetimeParser) {
+    conversionLines.push(`    const zone = resolveTimezone(opts.tz as string | undefined)`)
+  }
+  for (const [optKey, optDef] of Object.entries(xCliOptions)) {
+    if (optDef.parser === "datetime") {
+      const camelKey = camelize(kebab(optKey))
+      const valueVar = `${camelKey}Value`
+      conversionLines.push(`    let ${valueVar}: string | undefined`)
+      conversionLines.push(`    if (opts.${camelKey} !== undefined) {`)
+      if (optDef.allDayFlag) {
+        const camelAllDay = camelize(kebab(optDef.allDayFlag))
+        conversionLines.push(`      if (opts.${camelAllDay}) {`)
+        if (optDef.exclusive) {
+          conversionLines.push(`        ${valueVar} = inclusiveEndToExclusive(opts.${camelKey} as string)`)
+        } else {
+          conversionLines.push(`        ${valueVar} = parseDateOnly(opts.${camelKey} as string)`)
+        }
+        conversionLines.push(`      } else {`)
+        conversionLines.push(`        ${valueVar} = parseTimeInput(opts.${camelKey} as string, zone).toISO() ?? undefined`)
+        conversionLines.push(`      }`)
+      } else {
+        conversionLines.push(`      ${valueVar} = parseTimeInput(opts.${camelKey} as string, zone).toISO() ?? undefined`)
+      }
+      conversionLines.push(`    }`)
+    } else if (optDef.parser === "attendee") {
+      const camelKey = camelize(kebab(optKey))
+      const target = optDef.mapsTo ?? optKey
+      const targetVar = snakeToCamel(target)
+      // Array accumulator default is [], so the value is always a string[];
+      // no ?.length guard needed.
+      const rawVar = `${camelKey}Raw`
+      conversionLines.push(
+        `    const ${rawVar} = opts.${camelKey} as string[]`,
+        `    const ${targetVar} = ${rawVar}.length > 0 ? ${rawVar}.map(parseAttendee) : undefined`,
+      )
+    }
+  }
+
+  // Build import list — only include helpers actually used.
+  const imports: string[] = [
     `import { Command } from "commander"`,
     `import { ${fnName} } from "${sdkRelPrefix}sdk/index.js"`,
     `import { loadSdkClient } from "${handwrittenRelPrefix}handwritten/auth/load-sdk-client.js"`,
     `import { render } from "${handwrittenRelPrefix}handwritten/output/render.js"`,
+  ]
+  if (hasDatetimeParser) {
+    imports.push(
+      `import { parseTimeInput, resolveTimezone } from "${handwrittenRelPrefix}handwritten/utils/parse-time.js"`,
+    )
+  }
+  const dateImports: string[] = []
+  if (usesParseDateOnly) dateImports.push("parseDateOnly")
+  if (usesInclusiveEndToExclusive) dateImports.push("inclusiveEndToExclusive")
+  if (dateImports.length > 0) {
+    imports.push(
+      `import { ${dateImports.join(", ")} } from "${handwrittenRelPrefix}handwritten/utils/parse-date.js"`,
+    )
+  }
+  if (hasAttendeeParser) {
+    imports.push(
+      `import { parseAttendee } from "${handwrittenRelPrefix}handwritten/utils/parse-attendee.js"`,
+    )
+  }
+
+  return [
+    `// AUTO-GENERATED — DO NOT EDIT (source: ${input.operationId})`,
+    ...imports,
     ``,
     `export const ${fnName}Command = new Command(${JSON.stringify(cmdLeaf)})`,
     `  .description(${JSON.stringify(input.summary ?? input.xCli.command)})`,
     ...args.map((a) => `  ${a}`),
     ...options.map((o) => `  ${o}`),
     `  .action(async (${[...argNames, "opts"].join(", ")}) => {`,
+    ...conversionLines,
     `    const client = await loadSdkClient()`,
     `    const result = await ${fnName}({`,
     `      client: (client as unknown as { _rawClient: unknown })._rawClient as never,`,
