@@ -34,6 +34,13 @@ interface OperationLike {
   "x-cli"?: XCli
 }
 
+export function shouldSkipRoute(xCli: { command: string; hidden?: boolean }): boolean {
+  if (xCli.hidden) return true
+  if (xCli.command === "_internal") return true
+  if (xCli.command === "_handwritten") return true
+  return false
+}
+
 function camelize(snake: string): string {
   return snake.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
 }
@@ -161,7 +168,7 @@ async function main(): Promise<void> {
 
   for (const [routePath, methods] of Object.entries(spec.paths)) {
     for (const [method, op] of Object.entries(methods)) {
-      if (!op.operationId || !op["x-cli"] || op["x-cli"].hidden) continue
+      if (!op.operationId || !op["x-cli"] || shouldSkipRoute(op["x-cli"])) continue
       const bodyFields = extractBodyFields(op, spec)
       const pathParams = extractPathParams(op)
       const queryFields = extractQueryFields(op)
