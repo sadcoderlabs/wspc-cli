@@ -2,6 +2,7 @@
 import { Command } from "commander"
 import { todoGet } from "../../sdk/index.js"
 import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
+import { render } from "../../../handwritten/output/render.js"
 
 export const todoGetCommand = new Command("show")
   .description("Get a todo by id")
@@ -25,5 +26,5 @@ export const todoGetCommand = new Command("show")
       process.exitCode = 1
       return
     }
-    if (result.data !== undefined) console.log(JSON.stringify(result.data, null, 2))
+    render({ kind: "todo_get", display: {"shape":"object"} }, result.data)
   })

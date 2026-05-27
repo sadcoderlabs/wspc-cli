@@ -2,6 +2,7 @@
 import { Command } from "commander"
 import { todoList } from "../../sdk/index.js"
 import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
+import { render } from "../../../handwritten/output/render.js"
 
 export const todoListCommand = new Command("ls")
   .description("List todos with filters")
@@ -43,5 +44,5 @@ export const todoListCommand = new Command("ls")
       process.exitCode = 1
       return
     }
-    if (result.data !== undefined) console.log(JSON.stringify(result.data, null, 2))
+    render({ kind: "todo_list", display: {"shape":"list","columns":["id","status","title","due_at","project_id"],"format":{"id":"id-short","status":"status-badge","title":"truncate","due_at":"relative-time","project_id":"id-short"},"emptyMessage":"no todos"} }, result.data)
   })

@@ -13,6 +13,13 @@ function buildProgram(): Command {
     .name("wspc")
     .description("Official CLI for wspc.ai")
     .version(`wspc ${VERSION} (spec ${SPEC_SHA}, fetched ${SPEC_FETCHED_AT})`)
+    // Global output mode flag. Default is pretty when stdout is a TTY,
+    // JSON when piped (renderer enforces this). Pass `--json` to force JSON
+    // even in a TTY — useful for ad-hoc copy/paste into scripts.
+    .option("--json", "Output raw JSON (machine-readable)")
+    .hook("preAction", (thisCommand) => {
+      if (thisCommand.opts().json) process.env.WSPC_OUTPUT = "json"
+    })
 
   program.addCommand(loginCommand)
   program.addCommand(logoutCommand)

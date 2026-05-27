@@ -2,6 +2,7 @@
 import { Command } from "commander"
 import { projectList } from "../../../sdk/index.js"
 import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
+import { render } from "../../../../handwritten/output/render.js"
 
 export const projectListCommand = new Command("ls")
   .description("List projects")
@@ -21,5 +22,5 @@ export const projectListCommand = new Command("ls")
       process.exitCode = 1
       return
     }
-    if (result.data !== undefined) console.log(JSON.stringify(result.data, null, 2))
+    render({ kind: "project_list", display: {"shape":"list","columns":["id","name","default_todo_type_id"],"format":{"id":"id-short","name":"truncate","default_todo_type_id":"id-short"},"emptyMessage":"no projects"} }, result.data)
   })

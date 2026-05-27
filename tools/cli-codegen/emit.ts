@@ -1,9 +1,18 @@
+export interface XCliDisplay {
+  shape?: "list" | "object" | "scalar"
+  columns?: string[]
+  fields?: string[]
+  format?: Record<string, string>
+  emptyMessage?: string
+}
+
 export interface XCli {
   command: string
   positional?: string[]
   aliases?: Record<string, string>
   examples?: string[]
   hidden?: boolean
+  display?: XCliDisplay
 }
 
 export interface BodyField {
@@ -148,11 +157,21 @@ export function emitCommand(input: EmitInput): string | null {
   const queryBlock =
     queryOptLines.length > 0 ? [`      query: {`, ...queryOptLines, `      },`] : []
 
+  // `kind` is the renderer registry key. We use the operationId verbatim so
+  // every operation has a unique, stable identifier — handwritten renderers
+  // register under the same string. Embedding `display` inline keeps the
+  // generated file self-contained (no JSON-file reads at startup).
+  const kind = input.operationId
+  const displayLiteral = input.xCli.display
+    ? JSON.stringify(input.xCli.display)
+    : "undefined"
+
   return [
     `// AUTO-GENERATED — DO NOT EDIT (source: ${input.operationId})`,
     `import { Command } from "commander"`,
     `import { ${fnName} } from "${sdkRelPrefix}sdk/index.js"`,
     `import { loadSdkClient } from "${handwrittenRelPrefix}handwritten/auth/load-sdk-client.js"`,
+    `import { render } from "${handwrittenRelPrefix}handwritten/output/render.js"`,
     ``,
     `export const ${fnName}Command = new Command(${JSON.stringify(cmdLeaf)})`,
     `  .description(${JSON.stringify(input.summary ?? input.xCli.command)})`,
@@ -173,7 +192,7 @@ export function emitCommand(input: EmitInput): string | null {
     `      process.exitCode = 1`,
     `      return`,
     `    }`,
-    `    if (result.data !== undefined) console.log(JSON.stringify(result.data, null, 2))`,
+    `    render({ kind: ${JSON.stringify(kind)}, display: ${displayLiteral} }, result.data)`,
     `  })`,
     ``,
   ].join("\n")

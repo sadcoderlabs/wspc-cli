@@ -2,6 +2,7 @@
 import { Command } from "commander"
 import { todoCreate } from "../../sdk/index.js"
 import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
+import { render } from "../../../handwritten/output/render.js"
 
 export const todoCreateCommand = new Command("add")
   .description("Create a todo")
@@ -35,5 +36,5 @@ export const todoCreateCommand = new Command("add")
       process.exitCode = 1
       return
     }
-    if (result.data !== undefined) console.log(JSON.stringify(result.data, null, 2))
+    render({ kind: "todo_create", display: {"shape":"object"} }, result.data)
   })
