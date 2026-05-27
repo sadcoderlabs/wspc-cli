@@ -2,6 +2,7 @@
 import { Command } from "commander"
 import { recurrenceRuleList } from "../../../sdk/index.js"
 import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
+import { render } from "../../../../handwritten/output/render.js"
 
 export const recurrenceRuleListCommand = new Command("ls")
   .description("List recurring todo rules")
@@ -23,5 +24,5 @@ export const recurrenceRuleListCommand = new Command("ls")
       process.exitCode = 1
       return
     }
-    if (result.data !== undefined) console.log(JSON.stringify(result.data, null, 2))
+    render({ kind: "recurrence_rule_list", display: {"shape":"list","columns":["id","rrule","dtstart"],"format":{"id":"id-short","rrule":"truncate"},"emptyMessage":"no recurrence rules"} }, result.data)
   })

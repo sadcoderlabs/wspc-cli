@@ -1474,13 +1474,14 @@
           },
           "project_id": {
             "type": "string",
-            "description": "Project for the recurrence rule, its template todo, and all materialized instances. Omit to use the Default Project. When supplied, it must be an active project in the caller's organization."
+            "description": "Project for the recurrence rule, its template todo, and all materialized instances. Must be an active project in the caller's organization."
           }
         },
         "required": [
           "rrule",
           "dtstart",
-          "title"
+          "title",
+          "project_id"
         ]
       },
       "CreateRecurrenceRuleResponse": {
@@ -1557,7 +1558,7 @@
           "project_id": {
             "type": "string",
             "minLength": 1,
-            "description": "Optional project id to assign this todo to. Omit to assign to the Default Project. When supplied, it must be an active project in the caller's organization."
+            "description": "Project id to assign this todo to. It must be an active project in the caller's organization."
           },
           "description": {
             "type": "string"
@@ -1608,7 +1609,8 @@
           }
         },
         "required": [
-          "title"
+          "title",
+          "project_id"
         ]
       },
       "Todo": {
@@ -1709,7 +1711,7 @@
           "project_id": {
             "type": "string",
             "minLength": 1,
-            "description": "Project this type belongs to. Omit to create the type in the Default Project. When supplied, it must be an active project in the caller's organization."
+            "description": "Project this type belongs to. Required. It must be an active project in the caller's organization."
           },
           "hide_core_fields": {
             "type": "array",
@@ -1794,7 +1796,8 @@
           }
         },
         "required": [
-          "label"
+          "label",
+          "project_id"
         ]
       },
       "TodoType": {
@@ -2085,12 +2088,16 @@
         "properties": {
           "project_id": {
             "type": "string",
-            "description": "Project id filter. Omit to list rules in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND."
+            "minLength": 1,
+            "description": "Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND."
           },
           "user_id": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "project_id"
+        ]
       },
       "ListRecurrenceRulesResponse": {
         "type": "object",
@@ -3254,30 +3261,20 @@
             }
           },
           "400": {
-            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "description": "OAuth request error. `error` is a snake_case code from RFC 6749 §5.2 (e.g. `invalid_request`, `invalid_grant`, `unsupported_grant_type`) or RFC 8628 §3.5 (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`).",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -3285,13 +3282,18 @@
                   ]
                 },
                 "examples": {
-                  "validationError": {
-                    "summary": "Body failed schema validation",
+                  "pending": {
+                    "summary": "Device flow: user has not yet approved/denied",
                     "value": {
-                      "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "title must not be empty"
-                      }
+                      "error": "authorization_pending",
+                      "error_description": "AUTHORIZATION_PENDING"
+                    }
+                  },
+                  "invalidGrant": {
+                    "summary": "Refresh token rejected or device code consumed",
+                    "value": {
+                      "error": "invalid_grant",
+                      "error_description": "INVALID_GRANT"
                     }
                   }
                 }
@@ -3299,30 +3301,20 @@
             }
           },
           "401": {
-            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -3330,152 +3322,11 @@
                   ]
                 },
                 "examples": {
-                  "authRequired": {
-                    "summary": "Missing Authorization header",
+                  "invalidClient": {
+                    "summary": "Unknown client_id",
                     "value": {
-                      "error": {
-                        "code": "AUTH_REQUIRED",
-                        "message": "missing bearer token"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "forbidden": {
-                    "summary": "Caller does not own the resource",
-                    "value": {
-                      "error": {
-                        "code": "FORBIDDEN",
-                        "message": "not allowed"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "notFound": {
-                    "summary": "Resource id is unknown to the service",
-                    "value": {
-                      "error": {
-                        "code": "NOT_FOUND",
-                        "message": "todo not found"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "versionConflict": {
-                    "summary": "expected_version does not match server version",
-                    "value": {
-                      "error": {
-                        "code": "VERSION_CONFLICT",
-                        "message": "expected_version 3 but current is 4",
-                        "extra": {
-                          "expected_version": 3,
-                          "actual_version": 4
-                        }
-                      }
+                      "error": "invalid_client",
+                      "error_description": "INVALID_CLIENT"
                     }
                   }
                 }
@@ -3483,30 +3334,20 @@
             }
           },
           "429": {
-            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "description": "Rate limit exceeded.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -3515,16 +3356,10 @@
                 },
                 "examples": {
                   "rateLimited": {
-                    "summary": "Per-key rate limit hit",
+                    "summary": "Per-IP rate limit hit",
                     "value": {
-                      "error": {
-                        "code": "RATE_LIMITED",
-                        "message": "rate limit exceeded",
-                        "extra": {
-                          "retry_after_seconds": 60,
-                          "limit_kind": "authenticated_per_key"
-                        }
-                      }
+                      "error": "invalid_request",
+                      "error_description": "rate limit exceeded"
                     }
                   }
                 }
@@ -3532,30 +3367,20 @@
             }
           },
           "500": {
-            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "description": "Unhandled server error.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -3566,10 +3391,8 @@
                   "internalError": {
                     "summary": "Unhandled exception",
                     "value": {
-                      "error": {
-                        "code": "INTERNAL_ERROR",
-                        "message": "internal error"
-                      }
+                      "error": "server_error",
+                      "error_description": "internal error"
                     }
                   }
                 }
@@ -5288,30 +5111,20 @@
             }
           },
           "400": {
-            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "description": "OAuth request error. `error` is a snake_case code from RFC 6749 §5.2 (e.g. `invalid_request`, `invalid_grant`, `unsupported_grant_type`) or RFC 8628 §3.5 (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`).",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -5319,13 +5132,18 @@
                   ]
                 },
                 "examples": {
-                  "validationError": {
-                    "summary": "Body failed schema validation",
+                  "pending": {
+                    "summary": "Device flow: user has not yet approved/denied",
                     "value": {
-                      "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "title must not be empty"
-                      }
+                      "error": "authorization_pending",
+                      "error_description": "AUTHORIZATION_PENDING"
+                    }
+                  },
+                  "invalidGrant": {
+                    "summary": "Refresh token rejected or device code consumed",
+                    "value": {
+                      "error": "invalid_grant",
+                      "error_description": "INVALID_GRANT"
                     }
                   }
                 }
@@ -5333,30 +5151,20 @@
             }
           },
           "401": {
-            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -5364,152 +5172,11 @@
                   ]
                 },
                 "examples": {
-                  "authRequired": {
-                    "summary": "Missing Authorization header",
+                  "invalidClient": {
+                    "summary": "Unknown client_id",
                     "value": {
-                      "error": {
-                        "code": "AUTH_REQUIRED",
-                        "message": "missing bearer token"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "forbidden": {
-                    "summary": "Caller does not own the resource",
-                    "value": {
-                      "error": {
-                        "code": "FORBIDDEN",
-                        "message": "not allowed"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "notFound": {
-                    "summary": "Resource id is unknown to the service",
-                    "value": {
-                      "error": {
-                        "code": "NOT_FOUND",
-                        "message": "todo not found"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "versionConflict": {
-                    "summary": "expected_version does not match server version",
-                    "value": {
-                      "error": {
-                        "code": "VERSION_CONFLICT",
-                        "message": "expected_version 3 but current is 4",
-                        "extra": {
-                          "expected_version": 3,
-                          "actual_version": 4
-                        }
-                      }
+                      "error": "invalid_client",
+                      "error_description": "INVALID_CLIENT"
                     }
                   }
                 }
@@ -5517,30 +5184,20 @@
             }
           },
           "429": {
-            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "description": "Rate limit exceeded.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -5549,16 +5206,10 @@
                 },
                 "examples": {
                   "rateLimited": {
-                    "summary": "Per-key rate limit hit",
+                    "summary": "Per-IP rate limit hit",
                     "value": {
-                      "error": {
-                        "code": "RATE_LIMITED",
-                        "message": "rate limit exceeded",
-                        "extra": {
-                          "retry_after_seconds": 60,
-                          "limit_kind": "authenticated_per_key"
-                        }
-                      }
+                      "error": "invalid_request",
+                      "error_description": "rate limit exceeded"
                     }
                   }
                 }
@@ -5566,30 +5217,20 @@
             }
           },
           "500": {
-            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "description": "Unhandled server error.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -5600,10 +5241,8 @@
                   "internalError": {
                     "summary": "Unhandled exception",
                     "value": {
-                      "error": {
-                        "code": "INTERNAL_ERROR",
-                        "message": "internal error"
-                      }
+                      "error": "server_error",
+                      "error_description": "internal error"
                     }
                   }
                 }
@@ -6490,30 +6129,20 @@
             }
           },
           "400": {
-            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "description": "OAuth request error. `error` is a snake_case code from RFC 6749 §5.2 (e.g. `invalid_request`, `invalid_grant`, `unsupported_grant_type`) or RFC 8628 §3.5 (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`).",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -6521,13 +6150,18 @@
                   ]
                 },
                 "examples": {
-                  "validationError": {
-                    "summary": "Body failed schema validation",
+                  "pending": {
+                    "summary": "Device flow: user has not yet approved/denied",
                     "value": {
-                      "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "title must not be empty"
-                      }
+                      "error": "authorization_pending",
+                      "error_description": "AUTHORIZATION_PENDING"
+                    }
+                  },
+                  "invalidGrant": {
+                    "summary": "Refresh token rejected or device code consumed",
+                    "value": {
+                      "error": "invalid_grant",
+                      "error_description": "INVALID_GRANT"
                     }
                   }
                 }
@@ -6535,30 +6169,20 @@
             }
           },
           "401": {
-            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -6566,152 +6190,11 @@
                   ]
                 },
                 "examples": {
-                  "authRequired": {
-                    "summary": "Missing Authorization header",
+                  "invalidClient": {
+                    "summary": "Unknown client_id",
                     "value": {
-                      "error": {
-                        "code": "AUTH_REQUIRED",
-                        "message": "missing bearer token"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "forbidden": {
-                    "summary": "Caller does not own the resource",
-                    "value": {
-                      "error": {
-                        "code": "FORBIDDEN",
-                        "message": "not allowed"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "notFound": {
-                    "summary": "Resource id is unknown to the service",
-                    "value": {
-                      "error": {
-                        "code": "NOT_FOUND",
-                        "message": "todo not found"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "versionConflict": {
-                    "summary": "expected_version does not match server version",
-                    "value": {
-                      "error": {
-                        "code": "VERSION_CONFLICT",
-                        "message": "expected_version 3 but current is 4",
-                        "extra": {
-                          "expected_version": 3,
-                          "actual_version": 4
-                        }
-                      }
+                      "error": "invalid_client",
+                      "error_description": "INVALID_CLIENT"
                     }
                   }
                 }
@@ -6719,30 +6202,20 @@
             }
           },
           "429": {
-            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "description": "Rate limit exceeded.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -6751,16 +6224,10 @@
                 },
                 "examples": {
                   "rateLimited": {
-                    "summary": "Per-key rate limit hit",
+                    "summary": "Per-IP rate limit hit",
                     "value": {
-                      "error": {
-                        "code": "RATE_LIMITED",
-                        "message": "rate limit exceeded",
-                        "extra": {
-                          "retry_after_seconds": 60,
-                          "limit_kind": "authenticated_per_key"
-                        }
-                      }
+                      "error": "invalid_request",
+                      "error_description": "rate limit exceeded"
                     }
                   }
                 }
@@ -6768,30 +6235,20 @@
             }
           },
           "500": {
-            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "description": "Unhandled server error.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -6802,10 +6259,8 @@
                   "internalError": {
                     "summary": "Unhandled exception",
                     "value": {
-                      "error": {
-                        "code": "INTERNAL_ERROR",
-                        "message": "internal error"
-                      }
+                      "error": "server_error",
+                      "error_description": "internal error"
                     }
                   }
                 }
@@ -6924,30 +6379,20 @@
             }
           },
           "400": {
-            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "description": "OAuth request error. `error` is a snake_case code from RFC 6749 §5.2 (e.g. `invalid_request`, `invalid_grant`, `unsupported_grant_type`) or RFC 8628 §3.5 (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`).",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -6955,13 +6400,18 @@
                   ]
                 },
                 "examples": {
-                  "validationError": {
-                    "summary": "Body failed schema validation",
+                  "pending": {
+                    "summary": "Device flow: user has not yet approved/denied",
                     "value": {
-                      "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "title must not be empty"
-                      }
+                      "error": "authorization_pending",
+                      "error_description": "AUTHORIZATION_PENDING"
+                    }
+                  },
+                  "invalidGrant": {
+                    "summary": "Refresh token rejected or device code consumed",
+                    "value": {
+                      "error": "invalid_grant",
+                      "error_description": "INVALID_GRANT"
                     }
                   }
                 }
@@ -6969,30 +6419,20 @@
             }
           },
           "401": {
-            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -7000,152 +6440,11 @@
                   ]
                 },
                 "examples": {
-                  "authRequired": {
-                    "summary": "Missing Authorization header",
+                  "invalidClient": {
+                    "summary": "Unknown client_id",
                     "value": {
-                      "error": {
-                        "code": "AUTH_REQUIRED",
-                        "message": "missing bearer token"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "forbidden": {
-                    "summary": "Caller does not own the resource",
-                    "value": {
-                      "error": {
-                        "code": "FORBIDDEN",
-                        "message": "not allowed"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "notFound": {
-                    "summary": "Resource id is unknown to the service",
-                    "value": {
-                      "error": {
-                        "code": "NOT_FOUND",
-                        "message": "todo not found"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "versionConflict": {
-                    "summary": "expected_version does not match server version",
-                    "value": {
-                      "error": {
-                        "code": "VERSION_CONFLICT",
-                        "message": "expected_version 3 but current is 4",
-                        "extra": {
-                          "expected_version": 3,
-                          "actual_version": 4
-                        }
-                      }
+                      "error": "invalid_client",
+                      "error_description": "INVALID_CLIENT"
                     }
                   }
                 }
@@ -7153,30 +6452,20 @@
             }
           },
           "429": {
-            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "description": "Rate limit exceeded.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -7185,16 +6474,10 @@
                 },
                 "examples": {
                   "rateLimited": {
-                    "summary": "Per-key rate limit hit",
+                    "summary": "Per-IP rate limit hit",
                     "value": {
-                      "error": {
-                        "code": "RATE_LIMITED",
-                        "message": "rate limit exceeded",
-                        "extra": {
-                          "retry_after_seconds": 60,
-                          "limit_kind": "authenticated_per_key"
-                        }
-                      }
+                      "error": "invalid_request",
+                      "error_description": "rate limit exceeded"
                     }
                   }
                 }
@@ -7202,30 +6485,20 @@
             }
           },
           "500": {
-            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "description": "Unhandled server error.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "extra": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    },
+                    "error_uri": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -7236,10 +6509,8 @@
                   "internalError": {
                     "summary": "Unhandled exception",
                     "value": {
-                      "error": {
-                        "code": "INTERNAL_ERROR",
-                        "message": "internal error"
-                      }
+                      "error": "server_error",
+                      "error_description": "internal error"
                     }
                   }
                 }
@@ -15818,7 +15089,20 @@
           ],
           "examples": [
             "wspc todo project add \"Personal\""
-          ]
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "org_id": "id-short",
+              "creator_user_id": "id-short",
+              "default_todo_type_id": "id-short",
+              "name": "truncate",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "summary": "Create a project",
         "description": "Purpose: Create a project within the caller organization.\n\nWhen to use: Separate work areas that need their own default todo type and project-scoped todos.\n\nNotes: Project names are not required to be unique. Omit default_todo_type_id to inherit the Default Project's default type.",
@@ -16250,7 +15534,21 @@
           "command": "todo project ls",
           "examples": [
             "wspc todo project ls"
-          ]
+          ],
+          "display": {
+            "shape": "list",
+            "columns": [
+              "id",
+              "name",
+              "default_todo_type_id"
+            ],
+            "format": {
+              "id": "id-short",
+              "name": "truncate",
+              "default_todo_type_id": "id-short"
+            },
+            "emptyMessage": "no projects"
+          }
         },
         "summary": "List projects",
         "description": "Purpose: List projects in the caller organization.\n\nWhen to use: Populate project pickers or find project ids before listing todos, todo types, or recurrence rules.\n\nNotes: Omits soft-deleted projects by default. Set include_deleted=true when building restore or audit views.",
@@ -16725,17 +16023,17 @@
           {
             "lang": "shell",
             "label": "curl",
-            "source": "curl -X POST https://api.wspc.ai/todo/recurrence-rules \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"title\":\"Draft weekly review\",\"rrule\":\"FREQ=WEEKLY;BYDAY=MO\",\"dtstart\":\"2026-05-18\"}'"
+            "source": "curl -X POST https://api.wspc.ai/todo/recurrence-rules \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"title\":\"Draft weekly review\",\"rrule\":\"FREQ=WEEKLY;BYDAY=MO\",\"dtstart\":\"2026-05-18\",\"project_id\":\"prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\"}'"
           },
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc todo rrule add \"Draft weekly review\" --rrule \"FREQ=WEEKLY;BYDAY=MO\" --dtstart 2026-05-18"
+            "source": "wspc todo rrule add \"Draft weekly review\" --rrule \"FREQ=WEEKLY;BYDAY=MO\" --dtstart 2026-05-18 --project prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           },
           {
             "lang": "typescript",
             "label": "@wspc/client",
-            "source": "import { TodoClient } from \"@wspc/client\"\nconst todo = new TodoClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait todo.createRule({ title: \"Draft weekly review\", rrule: \"FREQ=WEEKLY;BYDAY=MO\", dtstart: \"2026-05-18\" })"
+            "source": "import { TodoClient } from \"@wspc/client\"\nconst todo = new TodoClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait todo.createRule({ title: \"Draft weekly review\", rrule: \"FREQ=WEEKLY;BYDAY=MO\", dtstart: \"2026-05-18\", project_id: \"prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\" })"
           }
         ],
         "parameters": [
@@ -16772,7 +16070,8 @@
                   "value": {
                     "rrule": "FREQ=WEEKLY;BYDAY=MO",
                     "dtstart": "2026-05-18",
-                    "title": "Draft weekly review"
+                    "title": "Draft weekly review",
+                    "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
                   }
                 },
                 "full": {
@@ -16782,7 +16081,8 @@
                     "dtstart": "2026-05-18",
                     "title": "Draft weekly review",
                     "description": "See PRD for context",
-                    "parent_id": "tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
+                    "parent_id": "tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                    "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
                   }
                 }
               }
@@ -17153,7 +16453,20 @@
           "command": "todo rule ls",
           "examples": [
             "wspc todo rule ls"
-          ]
+          ],
+          "display": {
+            "shape": "list",
+            "columns": [
+              "id",
+              "rrule",
+              "dtstart"
+            ],
+            "format": {
+              "id": "id-short",
+              "rrule": "truncate"
+            },
+            "emptyMessage": "no recurrence rules"
+          }
         },
         "summary": "List recurring todo rules",
         "description": "**Purpose**: Return all active recurrence rules owned by the caller.\n\n**When to use**: Render a settings page that lists recurring tasks, or inspect what rules will materialize todos in the next 14 days.\n\n**Notes**: Soft-deleted rules are excluded. Each rule's `dtstart` and `rrule` together describe its schedule; materialization happens server-side up to 14 days ahead.",
@@ -17183,10 +16496,11 @@
           {
             "schema": {
               "type": "string",
-              "description": "Project id filter. Omit to list rules in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND."
+              "minLength": 1,
+              "description": "Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND."
             },
-            "required": false,
-            "description": "Project id filter. Omit to list rules in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.",
+            "required": true,
+            "description": "Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.",
             "name": "project_id",
             "in": "query"
           },
@@ -17598,7 +16912,24 @@
           "examples": [
             "wspc todo add \"Buy milk\"",
             "wspc todo add \"Buy milk\" --project prj_xxx"
-          ]
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "project_id": "id-short",
+              "parent_id": "id-short",
+              "type_id": "id-short",
+              "title": "truncate",
+              "description": "truncate",
+              "status": "status-badge",
+              "due_at": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "summary": "Create a todo",
         "description": "**Purpose**: Create a new todo. Pass `parent_id` to attach it under another todo; omit `parent_id` to create a root-level todo.\n\n**When to use**: Capture a fresh work item, or break a larger todo into subtasks by creating children of an existing todo.\n\n**Side effects**: Emits the `captureTodoCreated` analytics event. Does not interact with recurrence rules.\n\n**Notes**: `description: \"\"` is allowed (stores empty); `description: null` is rejected. `due_at` accepts ISO date-only `YYYY-MM-DD`; omit or pass empty string for no due date.",
@@ -18043,7 +17374,23 @@
             "wspc todo ls",
             "wspc todo ls --status open",
             "wspc todo ls --project prj_xxx"
-          ]
+          ],
+          "display": {
+            "shape": "list",
+            "columns": [
+              "id",
+              "status",
+              "title",
+              "due_at"
+            ],
+            "format": {
+              "id": "id-short",
+              "status": "status-badge",
+              "title": "truncate",
+              "due_at": "relative-time"
+            },
+            "emptyMessage": "no todos"
+          }
         },
         "summary": "List todos with filters",
         "description": "**Purpose**: Return the caller's todos, optionally filtered by parent, status, due-date window, and soft-deleted / template visibility.\n\n**When to use**: Render the root todo list, look up root todos due in a window (`due_after` + `due_before`), or fetch direct children of a root todo with `parent_id=<root id>`.\n\n**Notes**: Omitting `parent_id` lists root-level todos; `parent_id=null` is the explicit root-level form. Pass a todo id to list direct children of that root todo. Multi-value `status` query repeats the parameter, e.g. `?status=open&status=in_progress`. `due_after` is inclusive; `due_before` is exclusive (half-open `[due_after, due_before)` window). `due_*` filters exclude todos with no due date. Soft-deleted todos are hidden unless `include_deleted=true`; template todos backing recurrence rules are hidden unless `include_templates=true`.",
@@ -18074,10 +17421,10 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "description": "Filter by project. Omit to list todos in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND."
+              "description": "Filter by project. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND."
             },
-            "required": false,
-            "description": "Filter by project. Omit to list todos in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.",
+            "required": true,
+            "description": "Filter by project. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.",
             "name": "project_id",
             "in": "query"
           },
@@ -19024,7 +18371,19 @@
           "command": "todo type ls",
           "examples": [
             "wspc todo type ls"
-          ]
+          ],
+          "display": {
+            "shape": "list",
+            "columns": [
+              "id",
+              "label"
+            ],
+            "format": {
+              "id": "id-short",
+              "label": "truncate"
+            },
+            "emptyMessage": "no todo types"
+          }
         },
         "summary": "List todo types",
         "description": "List the caller's todo types in the Default Project unless `project_id` is supplied. By default only active (non-deleted) types are returned. Pass `include_deleted=true` to surface soft-deleted rows for a restore UI.",
@@ -19055,10 +18414,10 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "description": "Project id filter. Omit to list types in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND."
+              "description": "Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND."
             },
-            "required": false,
-            "description": "Project id filter. Omit to list types in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.",
+            "required": true,
+            "description": "Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.",
             "name": "project_id",
             "in": "query"
           },
@@ -22046,7 +21405,24 @@
           ],
           "examples": [
             "wspc todo rm tod_xxx"
-          ]
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "project_id": "id-short",
+              "parent_id": "id-short",
+              "type_id": "id-short",
+              "title": "truncate",
+              "description": "truncate",
+              "status": "status-badge",
+              "due_at": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "summary": "Soft-delete a todo",
         "description": "**Purpose**: Soft-delete a todo so it stops appearing in default listings. Recoverable via `POST /todo/items/{id}/restore`.\n\n**When to use**: Hide an item from the active list without losing it. Pair with `cascade: true` to wipe an entire subtree at once.\n\n**Notes**: When `cascade` is `false` (default) and active children exist, the call fails with `HAS_CHILDREN`; retry with `cascade: true` to soft-delete the subtree. `expected_version` is optional optimistic concurrency.",
@@ -22488,7 +21864,24 @@
           ],
           "examples": [
             "wspc todo show tod_xxx"
-          ]
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "project_id": "id-short",
+              "parent_id": "id-short",
+              "type_id": "id-short",
+              "title": "truncate",
+              "description": "truncate",
+              "status": "status-badge",
+              "due_at": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "summary": "Get a todo by id",
         "description": "**Purpose**: Fetch a single todo by id.\n\n**When to use**: Confirm current state, read `version` for a follow-up PATCH with `expected_version`, or surface details after a partial CLI prefix match.\n\n**Notes**: Soft-deleted todos return 404 unless `?include_deleted=true` is supplied.",
@@ -22930,7 +22323,24 @@
           "examples": [
             "wspc todo update tod_xxx --status done",
             "wspc todo update tod_xxx --title \"New title\""
-          ]
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "project_id": "id-short",
+              "parent_id": "id-short",
+              "type_id": "id-short",
+              "title": "truncate",
+              "description": "truncate",
+              "status": "status-badge",
+              "due_at": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "summary": "Update a todo",
         "description": "**Purpose**: Update one or more fields of an existing todo.\n\n**When to use**: Change title, status, parent, due date, or description.\n\n**Side effects**: Transitioning `status` to `done` emits the `captureTodoCompleted` analytics event. No effect on recurrence rules.\n\n**Notes**: `expected_version` is optional optimistic concurrency — omit and the server uses the current version (recommended). To clear an existing description or due date, pass `\"\"`; `null` is rejected. Pass `parent_id: null` to move the todo back to root.",

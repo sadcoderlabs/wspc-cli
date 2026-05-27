@@ -17,6 +17,8 @@ import type {
   TodoListData,
   TodoUpdateData,
   ProjectCreateData,
+  TodoTypeListData,
+  RecurrenceRuleListData,
 } from "./generated/sdk/types.gen.js"
 import { API_BASE, VERSION, SPEC_SHA, SPEC_FETCHED_AT } from "./version.js"
 
@@ -93,7 +95,7 @@ class TodosResource {
     const res = await todoCreate({ client: this.client, body })
     return res.data
   }
-  async list(query?: TodoListData["query"]) {
+  async list(query: TodoListData["query"]) {
     const res = await todoList({ client: this.client, query })
     return res.data
   }
@@ -124,16 +126,16 @@ class TodoProjectsResource {
 
 class TodoTypesResource {
   constructor(private client: Client) {}
-  async list() {
-    const res = await todoTypeList({ client: this.client })
+  async list(query: TodoTypeListData["query"]) {
+    const res = await todoTypeList({ client: this.client, query })
     return res.data
   }
 }
 
 class TodoRulesResource {
   constructor(private client: Client) {}
-  async list() {
-    const res = await recurrenceRuleList({ client: this.client })
+  async list(query: RecurrenceRuleListData["query"]) {
+    const res = await recurrenceRuleList({ client: this.client, query })
     return res.data
   }
 }

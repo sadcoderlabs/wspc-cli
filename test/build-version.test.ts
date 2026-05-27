@@ -1,0 +1,49 @@
+import { describe, it, expect, beforeEach } from "vitest"
+import { promises as fs } from "node:fs"
+import { join } from "node:path"
+import { tmpdir } from "node:os"
+import { buildVersion } from "../scripts/build-version.js"
+
+/**
+ * Tests against a synthesized rootDir in tmp — never touches the real
+ * src/version.ts. The prior shape of this test mutated the real file, which
+ * raced with cli-root.test.ts's `npm run build` in CI and produced a binary
+ * baked with `undefined` for VERSION / SPEC_SHA. Same pattern as
+ * sync-spec.test.ts.
+ */
+describe("buildVersion", () => {
+  let workDir: string
+
+  beforeEach(async () => {
+    workDir = await fs.mkdtemp(join(tmpdir(), "wspc-build-version-"))
+    await fs.writeFile(join(workDir, "package.json"), JSON.stringify({ version: "1.2.3" }))
+  })
+
+  it("writes src/version.ts with SPEC_SHA derived from the local spec", async () => {
+    await fs.mkdir(join(workDir, "spec"), { recursive: true })
+    await fs.writeFile(join(workDir, "spec/openapi.json"), '{"openapi":"3.1.0"}')
+    const result = await buildVersion({
+      rootDir: workDir,
+      now: () => new Date("2026-05-26T10:00:00Z"),
+    })
+    expect(result.stubbed).toBe(false)
+    expect(result.sha).toMatch(/^[a-f0-9]{8}$/)
+
+    const body = await fs.readFile(join(workDir, "src/version.ts"), "utf8")
+    expect(body).toContain('export const VERSION = "1.2.3"')
+    expect(body).toContain(`export const SPEC_SHA = "${result.sha}"`)
+    expect(body).toContain('export const SPEC_FETCHED_AT = "2026-05-26T10:00:00.000Z"')
+    expect(body).toContain('export const API_BASE = "https://api.wspc.ai"')
+  })
+
+  it("writes a stub when spec/openapi.json is absent (first clone)", async () => {
+    const result = await buildVersion({
+      rootDir: workDir,
+      now: () => new Date("2026-05-26T10:00:00Z"),
+    })
+    expect(result.stubbed).toBe(true)
+    expect(result.sha).toBe("00000000")
+    const body = await fs.readFile(join(workDir, "src/version.ts"), "utf8")
+    expect(body).toContain('export const SPEC_SHA = "00000000"')
+  })
+})

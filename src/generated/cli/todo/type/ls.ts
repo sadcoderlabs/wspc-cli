@@ -2,6 +2,7 @@
 import { Command } from "commander"
 import { todoTypeList } from "../../../sdk/index.js"
 import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
+import { render } from "../../../../handwritten/output/render.js"
 
 export const todoTypeListCommand = new Command("ls")
   .description("List todo types")
@@ -25,5 +26,5 @@ export const todoTypeListCommand = new Command("ls")
       process.exitCode = 1
       return
     }
-    if (result.data !== undefined) console.log(JSON.stringify(result.data, null, 2))
+    render({ kind: "todo_type_list", display: {"shape":"list","columns":["id","label"],"format":{"id":"id-short","label":"truncate"},"emptyMessage":"no todo types"} }, result.data)
   })

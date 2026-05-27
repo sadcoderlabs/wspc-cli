@@ -723,7 +723,7 @@ export const projectCreate = <ThrowOnError extends boolean = false>(options?: Op
  *
  * **Notes**: Soft-deleted rules are excluded. Each rule's `dtstart` and `rrule` together describe its schedule; materialization happens server-side up to 14 days ahead.
  */
-export const recurrenceRuleList = <ThrowOnError extends boolean = false>(options?: Options<RecurrenceRuleListData, ThrowOnError>) => (options?.client ?? client).get<RecurrenceRuleListResponses, RecurrenceRuleListErrors, ThrowOnError>({
+export const recurrenceRuleList = <ThrowOnError extends boolean = false>(options: Options<RecurrenceRuleListData, ThrowOnError>) => (options.client ?? client).get<RecurrenceRuleListResponses, RecurrenceRuleListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/todo/recurrence-rules',
     ...options
@@ -759,7 +759,7 @@ export const recurrenceRuleCreate = <ThrowOnError extends boolean = false>(optio
  *
  * **Notes**: Omitting `parent_id` lists root-level todos; `parent_id=null` is the explicit root-level form. Pass a todo id to list direct children of that root todo. Multi-value `status` query repeats the parameter, e.g. `?status=open&status=in_progress`. `due_after` is inclusive; `due_before` is exclusive (half-open `[due_after, due_before)` window). `due_*` filters exclude todos with no due date. Soft-deleted todos are hidden unless `include_deleted=true`; template todos backing recurrence rules are hidden unless `include_templates=true`.
  */
-export const todoList = <ThrowOnError extends boolean = false>(options?: Options<TodoListData, ThrowOnError>) => (options?.client ?? client).get<TodoListResponses, TodoListErrors, ThrowOnError>({
+export const todoList = <ThrowOnError extends boolean = false>(options: Options<TodoListData, ThrowOnError>) => (options.client ?? client).get<TodoListResponses, TodoListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/todo/items',
     ...options
@@ -791,7 +791,7 @@ export const todoCreate = <ThrowOnError extends boolean = false>(options?: Optio
  *
  * List the caller's todo types in the Default Project unless `project_id` is supplied. By default only active (non-deleted) types are returned. Pass `include_deleted=true` to surface soft-deleted rows for a restore UI.
  */
-export const todoTypeList = <ThrowOnError extends boolean = false>(options?: Options<TodoTypeListData, ThrowOnError>) => (options?.client ?? client).get<TodoTypeListResponses, TodoTypeListErrors, ThrowOnError>({
+export const todoTypeList = <ThrowOnError extends boolean = false>(options: Options<TodoTypeListData, ThrowOnError>) => (options.client ?? client).get<TodoTypeListResponses, TodoTypeListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/todo/types',
     ...options

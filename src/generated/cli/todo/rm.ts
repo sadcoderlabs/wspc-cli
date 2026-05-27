@@ -2,6 +2,7 @@
 import { Command } from "commander"
 import { todoDelete } from "../../sdk/index.js"
 import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
+import { render } from "../../../handwritten/output/render.js"
 
 export const todoDeleteCommand = new Command("rm")
   .description("Soft-delete a todo")
@@ -27,5 +28,5 @@ export const todoDeleteCommand = new Command("rm")
       process.exitCode = 1
       return
     }
-    if (result.data !== undefined) console.log(JSON.stringify(result.data, null, 2))
+    render({ kind: "todo_delete", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","title":"truncate","description":"truncate","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
   })
