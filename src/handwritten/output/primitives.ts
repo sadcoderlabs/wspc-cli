@@ -119,6 +119,17 @@ export function statusBadge(s: string): string {
 }
 
 /**
+ * Render a boolean flag (e.g. `is_read`) as a dim "read" / bright "unread"
+ * badge. Accepts the raw boolean rather than a string so the format applies
+ * cleanly to JSON-shaped data.
+ */
+export function boolBadge(value: unknown): string {
+  if (value === true) return dim("✓ read")
+  if (value === false) return "● unread"
+  return String(value)
+}
+
+/**
  * Render a timestamp as relative time. Accepts epoch-ms numbers (preferred —
  * matches the wspc API convention), ISO 8601 strings, or date-only strings.
  * Returns the raw input on parse failure rather than throwing, so a bad cell

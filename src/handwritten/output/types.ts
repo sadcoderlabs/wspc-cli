@@ -17,7 +17,12 @@ export interface XCliDisplay {
  * Well-known formatter ids. Renderers must ignore unknown values (forward-
  * compat: spec may introduce new formats before CLI ships support).
  */
-export type XCliFormat = "id-short" | "status-badge" | "relative-time" | "truncate"
+export type XCliFormat =
+  | "id-short"
+  | "status-badge"
+  | "relative-time"
+  | "truncate"
+  | "bool-badge"
 
 /**
  * Stable identifier tying a generated CLI command to an output renderer.
