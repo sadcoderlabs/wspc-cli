@@ -216,6 +216,16 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
   for (const f of arrayFields) {
     renderArrayField(f, obj[f] as unknown[], labelWidth)
   }
+  if (hints?.secretField) {
+    const value = obj[hints.secretField]
+    if (value !== undefined) {
+      process.stdout.write("\n")
+      process.stdout.write(colorise("⚠  This is the only time you'll see this key. Save it now.", "yellow") + "\n")
+      process.stdout.write("\n")
+      process.stdout.write("   To use it as the active env credential:\n")
+      process.stdout.write(`     wspc env add <name> --api-key ${value}\n`)
+    }
+  }
 }
 
 const ARRAY_FIELD_MAX_ITEMS = 10

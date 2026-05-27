@@ -21,6 +21,7 @@ export interface XCliDisplay {
    */
   dataPath?: string
   enumColorMap?: Record<string, Record<string, { label: string; color: string }>>
+  secretField?: string
 }
 
 /**
