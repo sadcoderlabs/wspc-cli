@@ -1,5 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT
 import { Command } from "commander"
+import { orgGetCommand } from "./org/show.js"
+import { authMeCommand } from "./auth/me.js"
 import { projectCreateCommand } from "./todo/project/add.js"
 import { projectListCommand } from "./todo/project/ls.js"
 import { recurrenceRuleListCommand } from "./todo/rule/ls.js"
@@ -11,6 +13,10 @@ import { todoGetCommand } from "./todo/show.js"
 import { todoUpdateCommand } from "./todo/update.js"
 
 export function registerGeneratedCommands(root: Command): void {
+  const root_org = root.command("org").description("org commands")
+  root_org.addCommand(orgGetCommand)
+  const root_auth = root.command("auth").description("auth commands")
+  root_auth.addCommand(authMeCommand)
   const root_todo = root.command("todo").description("todo commands")
   const root_todo_project = root_todo.command("project").description("project commands")
   root_todo_project.addCommand(projectCreateCommand)

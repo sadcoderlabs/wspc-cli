@@ -141,7 +141,12 @@ function pickColumns(first: Record<string, unknown>, hint?: string[]): string[] 
   return ordered.slice(0, 5)
 }
 
-function renderObject(data: unknown, hints?: XCliDisplay): void {
+/**
+ * Render an object as key/value rows (two-space indent). Exported so
+ * handwritten renderers (e.g. `wspc whoami`) can compose multiple object
+ * sections without re-implementing the field/format pipeline.
+ */
+export function renderObject(data: unknown, hints?: XCliDisplay): void {
   if (typeof data !== "object" || data === null) {
     renderScalar(data)
     return
