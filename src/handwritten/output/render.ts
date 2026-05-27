@@ -45,6 +45,17 @@ export function registerRenderer(kind: string, renderer: Renderer): void {
 
 export function render(ctx: RenderContext, data: unknown): void {
   if (data === undefined) return
+  // `raw` shape is for passthrough payloads like `.ics` text where any
+  // wrapping (JSON quoting, table, key/value) would corrupt the content.
+  // It wins over both TTY auto-detection and explicit `--json`/WSPC_OUTPUT
+  // because the upstream HTTP body is already the user-facing artifact;
+  // re-encoding it as a JSON string is never what the caller wants.
+  if (ctx.display?.shape === "raw") {
+    const s = typeof data === "string" ? data : String(data)
+    process.stdout.write(s)
+    if (!s.endsWith("\n")) process.stdout.write("\n")
+    return
+  }
   if (shouldOutputJson()) {
     process.stdout.write(JSON.stringify(data, null, 2) + "\n")
     return
@@ -172,11 +183,70 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
     return
   }
   const format = hints?.format ?? {}
-  const maxKey = Math.max(...fields.map((f) => f.length))
+  // When user explicitly whitelisted fields, respect that and skip arrays.
+  // Otherwise show array fields as indented sub-lists after the scalar rows
+  // so users see attendees / tags / etc. without resorting to --json.
+  const arrayFields = hints?.fields
+    ? []
+    : Object.keys(obj).filter(
+        (k) => Array.isArray(obj[k]) && (obj[k] as unknown[]).length > 0,
+      )
+  const labelWidth = Math.max(
+    ...fields.map((f) => f.length),
+    ...arrayFields.map((f) => f.length),
+  )
   for (const f of fields) {
     const value = formatCell(obj[f], format[f])
-    process.stdout.write(`  ${dim(f.padEnd(maxKey))}  ${value}\n`)
+    process.stdout.write(`  ${dim(f.padEnd(labelWidth))}  ${value}\n`)
   }
+  for (const f of arrayFields) {
+    renderArrayField(f, obj[f] as unknown[], labelWidth)
+  }
+}
+
+const ARRAY_FIELD_MAX_ITEMS = 10
+
+function renderArrayField(
+  name: string,
+  items: unknown[],
+  labelWidth: number,
+): void {
+  const count = items.length
+  const header = `${count} ${count === 1 ? "item" : "items"}`
+  process.stdout.write(`  ${dim(name.padEnd(labelWidth))}  ${header}\n`)
+  const shown = items.slice(0, ARRAY_FIELD_MAX_ITEMS)
+  shown.forEach((item, i) => {
+    process.stdout.write(`    ${dim(`${i + 1}.`)} ${formatArrayItem(item)}\n`)
+  })
+  if (count > shown.length) {
+    process.stdout.write(`    ${dim(`... and ${count - shown.length} more`)}\n`)
+  }
+}
+
+function formatArrayItem(item: unknown): string {
+  if (item === null) return dim("null")
+  if (typeof item !== "object") return String(item)
+  const attendee = formatAttendeeLike(item)
+  if (attendee !== null) return attendee
+  return JSON.stringify(item)
+}
+
+/**
+ * Recognize the common `{ email, display_name? }` attendee shape and render
+ * it the way humans expect ("Alice <alice@example.com>"). Returns null when
+ * the input doesn't look like an attendee so the caller can fall back to
+ * compact JSON.
+ */
+function formatAttendeeLike(item: unknown): string | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null
+  const rec = item as Record<string, unknown>
+  const email = typeof rec.email === "string" ? rec.email : null
+  if (!email) return null
+  const name =
+    typeof rec.display_name === "string" && rec.display_name.length > 0
+      ? rec.display_name
+      : null
+  return name ? `${name} <${email}>` : `<${email}>`
 }
 
 function renderScalar(data: unknown): void {

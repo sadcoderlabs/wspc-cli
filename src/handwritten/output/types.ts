@@ -6,7 +6,7 @@
  * out of `openapi.json` and forwards it here verbatim.
  */
 export interface XCliDisplay {
-  shape?: "list" | "object" | "scalar"
+  shape?: "list" | "object" | "scalar" | "raw"
   columns?: string[]
   fields?: string[]
   format?: Record<string, XCliFormat>

@@ -21,11 +21,20 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * List active API keys
  *
- * **Purpose**: Return all active (non-revoked) API keys for the authenticated user, together with the `current_key_id` identifying which key made this request.
+ * ### Overview
+ * Returns a list of all active (non-revoked) API keys belonging to the authenticated user. It also includes the `current_key_id` identifying the specific key used to authenticate the current request.
  *
- * **When to use**: `wspc keys list` and any UI that displays or manages the user's API keys.
+ * ### When to Use
+ * - Use this endpoint to view active API keys (e.g., when running `wspc keys list` or displaying API key management screens in user profiles).
+ * - Use the `current_key_id` to identify which key is making the current call, facilitating self-rotation or auditing.
  *
- * **Notes**: Only active keys are returned; revoked keys are excluded. `key_last4` allows the user to identify a key without exposing the full secret.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Only active keys are returned; keys that have been revoked are filtered out and excluded from the response.
+ * - The full secret key is never returned; only the last 4 characters (`key_last4`) are provided for identification.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: The provided Bearer token is missing, expired, or invalid. Ensure you are passing a valid, active API key.
  */
 export const keyList = <ThrowOnError extends boolean = false>(options?: Options<KeyListData, ThrowOnError>) => (options?.client ?? client).get<KeyListResponses, KeyListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -36,11 +45,21 @@ export const keyList = <ThrowOnError extends boolean = false>(options?: Options<
 /**
  * Create a new API key (full value returned once)
  *
- * **Purpose**: Provision a new long-lived WSPC API key for the authenticated user. The full plaintext key is returned **only in this response** and cannot be retrieved again.
+ * ### Overview
+ * Creates and provisions a new long-lived API key for the authenticated user. The complete plaintext API key value (`api_key`) is returned **only once** in this endpoint's response and cannot be retrieved again.
  *
- * **When to use**: `wspc keys create` when the user wants a dedicated key per agent, machine, or environment.
+ * ### When to Use
+ * - Use this endpoint when a user requests a new API key (e.g., `wspc keys create --label "My Agent"`) to isolate access for specific environments, applications, or developers.
  *
- * **Notes**: A user may have at most 25 active keys (`KEY_LIMIT_EXCEEDED` at cap). `label` must be 1–60 characters after trimming (`INVALID_LABEL` otherwise).
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **Key Limit**: A user is limited to a maximum of 25 active API keys. Requesting a new key beyond this limit will result in a `KEY_LIMIT_EXCEEDED` error.
+ * - **Label Validation**: The `label` parameter must be between 1 and 60 characters after trimming whitespace. Failing to provide a valid label results in an `INVALID_LABEL` error.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: The Bearer token is missing or invalid.
+ * - **400 Bad Request**: The `label` parameter is empty, too long, or missing.
+ * - **400 Bad Request (Limit Exceeded)**: The user has hit the maximum limit of 25 active keys. An existing active key must be revoked before creating a new one.
  */
 export const keyCreate = <ThrowOnError extends boolean = false>(options: Options<KeyCreateData, ThrowOnError>) => (options.client ?? client).post<KeyCreateResponses, KeyCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -55,15 +74,19 @@ export const keyCreate = <ThrowOnError extends boolean = false>(options: Options
 /**
  * Start the device authorization grant
  *
- * **Purpose**: RFC 8628 §3.2 device authorization endpoint. Returns a `device_code` for the client to poll and a `user_code` + `verification_uri` for the user to approve on a second device.
+ * ### Overview
+ * Implements the RFC 8628 (§3.2) device authorization endpoint. It returns a `device_code` (for polling) and a `user_code` with a `verification_uri` for users to approve the client on another device.
  *
- * **When to use**: For OAuth clients running on input-constrained devices (CLI, IoT, headless agent) where redirecting a browser is impractical. Pair with `POST /auth/oauth/token` using the `urn:ietf:params:oauth:grant-type:device_code` grant.
+ * ### When to Use
+ * - Use this endpoint in input-constrained environments (like CLI tools, IoT devices, or headless scripts) where direct web browser redirects are impractical or impossible.
  *
- * **Typical sequence**: 1) `POST /auth/oauth/device` to obtain `device_code` + `user_code`. 2) Show the user `verification_uri` and `user_code` (or display a QR code with `verification_uri_complete`). 3) Poll `POST /auth/oauth/token` at most every `interval` seconds until the user approves or denies.
+ * ### Constraints
+ * - Public endpoint (no authentication required).
+ * - **Formats**: Accepts both `application/json` and `application/x-www-form-urlencoded` request formats (though OpenAPI documents JSON only).
  *
- * **Side effects**: Persists a pending device authorization record. Shares the registration rate-limit bucket per IP.
- *
- * **Notes**: This endpoint accepts both `application/json` and `application/x-www-form-urlencoded` (per RFC 8628). The OpenAPI schema documents JSON only.
+ * ### Troubleshooting
+ * - **400 Bad Request**: The `client_id` is missing, invalid, or does not exist.
+ * - **429 Too Many Requests**: Device code request rate has been exceeded.
  */
 export const oauthDeviceAuthorize = <ThrowOnError extends boolean = false>(options?: Options<OauthDeviceAuthorizeData, ThrowOnError>) => (options?.client ?? client).post<OauthDeviceAuthorizeResponses, OauthDeviceAuthorizeErrors, ThrowOnError>({
     url: '/auth/oauth/device',
@@ -77,11 +100,21 @@ export const oauthDeviceAuthorize = <ThrowOnError extends boolean = false>(optio
 /**
  * Get the authenticated user's organization
  *
- * **Purpose**: Return metadata for the authenticated user's organization (id, name, timestamps).
+ * ### Overview
+ * Returns the metadata of the organization owned by the authenticated user. In the current version, this represents the user's personal organization space containing all their projects and tokens.
  *
- * **When to use**: `wspc org show`, or any UI that displays the user's org context.
+ * ### When to Use
+ * - Use this endpoint to retrieve the organization ID and name for display or context setup (e.g., when running `wspc org show` or rendering user dashboards).
+ * - Use this to verify that the API token / credentials are linked to a valid organization.
  *
- * **Notes**: In v1, every user belongs to a single personal organization automatically created at signup. Multi-organization access will be introduced in future releases.
+ * ### Constraints
+ * - Requires a valid Bearer token (API Key or Session Token) in the `Authorization` header.
+ * - In the current API version (v1), every user is automatically provisioned a single personal organization. Selecting or switching organizations is not supported.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: The provided Bearer token is missing, expired, or invalid. Verify your `Authorization` header format (`Bearer <token>`).
+ * - **403 Forbidden**: The token does not have access to read organization metadata.
+ * - **404 Not Found**: The organization associated with this token could not be found or has been deactivated.
  */
 export const orgGet = <ThrowOnError extends boolean = false>(options?: Options<OrgGetData, ThrowOnError>) => (options?.client ?? client).get<OrgGetResponses, OrgGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -92,13 +125,19 @@ export const orgGet = <ThrowOnError extends boolean = false>(options?: Options<O
 /**
  * Fetch the user identified by the bearer token
  *
- * **Purpose**: Return the user record associated with the supplied bearer token. Works for both long-lived `wspc_*` API keys and OAuth access tokens.
+ * ### Overview
+ * Retrieves the stable identity profile (user ID, email, and optional display name) of the user associated with the active Bearer token. Works for both long-lived `wspc_*` API keys and OAuth access tokens.
  *
- * **When to use**: `wspc verify` calls this to confirm the active environment's API key still works. UIs use it to display the signed-in user's email / display name.
+ * ### When to Use
+ * - Use this endpoint (e.g., in `wspc verify` or `wspc whoami`) to confirm that the active environment's API key or OAuth access token remains valid.
+ * - Use it in UIs to display the logged-in user's profile details and retrieve the stable `user_id`.
  *
- * **Typical sequence**: Call after obtaining an API key via `POST /auth/verify-code` (or an OAuth access token via `POST /auth/oauth/token`). Authoritative for `user_id`; cheaper than refetching from each downstream service.
+ * ### Constraints
+ * - Requires a valid Bearer token (either a long-lived `wspc_*` API key or a temporary OAuth access token) in the `Authorization` header.
+ * - **Response Fields**: The `api_key_id` field is only returned if authenticated via a WSPC API key (prefixed with `wspc_`). OAuth access tokens will omit `api_key_id`. `display_name` is omitted if not configured.
  *
- * **Notes**: `api_key_id` is present only when the bearer token is a WSPC API key (prefix `wspc_`); OAuth access tokens omit this field. `display_name` is omitted entirely when unset.
+ * ### Troubleshooting
+ * - **401 Unauthorized**: The Bearer token is missing, malformed, or has been revoked. Ensure the `Authorization` header matches the `Bearer <token>` format.
  */
 export const authMe = <ThrowOnError extends boolean = false>(options?: Options<AuthMeData, ThrowOnError>) => (options?.client ?? client).get<AuthMeResponses, AuthMeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -109,11 +148,22 @@ export const authMe = <ThrowOnError extends boolean = false>(options?: Options<A
 /**
  * List members of the authenticated user's organization
  *
- * **Purpose**: Return a paginated list of members of the authenticated user's organization.
+ * ### Overview
+ * Retrieves a paginated list of all members belonging to the authenticated user's organization, including their basic profile information, emails, and roles.
  *
- * **When to use**: `wspc org members ls`, dashboards displaying org membership.
+ * ### When to Use
+ * - Use this endpoint to list members in command-line tools (e.g., `wspc org members ls`) or to display a team directory in a user dashboard.
+ * - Use this to paginate through large lists of organization members using cursor-based pagination.
  *
- * **Notes**: In v1 the list always contains exactly one entry (the caller); a future release will expand orgs to multiple members. Pagination is cursor-based: pass `cursor` from the previous response's `next_cursor` to fetch the next page. `limit` defaults to 50, max 100.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - In the current version (v1), organizations are single-user only, meaning this endpoint will always return exactly one member (the caller).
+ * - **Pagination**: Supports cursor-based pagination. The `limit` query parameter must be a positive integer, defaulting to 50 and capped at a maximum of 100. Pass `cursor` from the previous response's `next_cursor` to fetch subsequent pages.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: The Bearer token is invalid or has expired.
+ * - **400 Bad Request**: The query parameters `limit` or `cursor` are malformed. Ensure `limit` is an integer between 1 and 100.
+ * - **404 Not Found**: The organization associated with this user was not found.
  */
 export const orgMembersList = <ThrowOnError extends boolean = false>(options?: Options<OrgMembersListData, ThrowOnError>) => (options?.client ?? client).get<OrgMembersListResponses, OrgMembersListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -124,28 +174,38 @@ export const orgMembersList = <ThrowOnError extends boolean = false>(options?: O
 /**
  * Discover OAuth 2.1 authorization-server metadata
  *
- * **Purpose**: Return the RFC 8414 authorization-server metadata document. Agents and SDKs use it to discover the authorization, token, registration, device, and revocation endpoints without hard-coding URLs.
+ * ### Overview
+ * Exposes the RFC 8414 OAuth 2.1 authorization server metadata document. This enables clients (like MCP servers, custom GPTs, and SDKs) to dynamically discover authorization, token, registration, device, and revocation endpoints instead of hard-coding them.
  *
- * **When to use**: First call from any OAuth client (MCP, ChatGPT custom GPT, third-party agent). Cache the result; the document is stable per environment.
+ * ### When to Use
+ * - Use this endpoint on first boot or setup of any OAuth client. To optimize performance, clients should cache this metadata, as it is highly stable per deployment environment.
  *
- * **Typical sequence**: 1) `GET /.well-known/oauth-authorization-server`. 2) `POST /auth/oauth/register` to obtain a `client_id`. 3) Drive the authorization-code, device, or refresh flow against the discovered endpoints.
+ * ### Constraints
+ * - Public endpoint (no authentication required).
+ * - Currently advertises PKCE-only public clients (`token_endpoint_auth_methods_supported: ["none"]`, `code_challenge_methods_supported: ["S256"]`) and a single `wspc:full` scope.
  *
- * **Notes**: WSPC advertises PKCE-only public clients (`token_endpoint_auth_methods_supported: ["none"]`, `code_challenge_methods_supported: ["S256"]`) and a single `wspc:full` scope today.
+ * ### Troubleshooting
+ * - **500 Internal Server Error**: Constructed endpoint URLs are invalid due to server-side configuration issues.
  */
 export const oauthMetadata = <ThrowOnError extends boolean = false>(options?: Options<OauthMetadataData, ThrowOnError>) => (options?.client ?? client).get<OauthMetadataResponses, OauthMetadataErrors, ThrowOnError>({ url: '/.well-known/oauth-authorization-server', ...options });
 
 /**
  * Dynamically register an OAuth client
  *
- * **Purpose**: RFC 7591 dynamic client registration. Mints a fresh `client_id` for an OAuth client (MCP server, agent, third-party integration) so it can drive the authorization-code or device flow.
+ * ### Overview
+ * Implements RFC 7591 dynamic client registration. This endpoint mints a unique `client_id` for a public OAuth client (e.g., an MCP server or third-party integration), enabling it to initiate OAuth authorization or device flows.
  *
- * **When to use**: First-run setup for any OAuth client that does not already have a `client_id`. The returned `client_id` is reusable across sessions; persist it.
+ * ### When to Use
+ * - Use this endpoint during the first-run installation or setup of an integration to dynamically generate a client identity. Persist the generated `client_id` for subsequent sessions.
  *
- * **Typical sequence**: 1) Discover endpoints via `GET /.well-known/oauth-authorization-server`. 2) `POST /auth/oauth/register` with `client_name` + `redirect_uris`. 3) Use the returned `client_id` for subsequent authorization / device requests.
+ * ### Constraints
+ * - Public endpoint (no authentication required).
+ * - **Public Clients Only**: WSPC only supports public PKCE clients. Client secrets are not generated or returned.
+ * - **Redirect URI Matching**: All `redirect_uris` registered here must match exactly with those requested in the authorization endpoint later.
  *
- * **Side effects**: Creates a row in the OAuth clients table. Rate-limited per IP.
- *
- * **Notes**: WSPC only supports public PKCE clients today (`token_endpoint_auth_method: "none"`). Client secrets are not issued. `redirect_uris` must be exact-matched at the authorization endpoint.
+ * ### Troubleshooting
+ * - **400 Bad Request / invalid_client_metadata**: The request body is missing required fields like `client_name` or `redirect_uris`, or provides invalid parameters.
+ * - **429 Too Many Requests**: Dynamic registration requests from the requesting IP have exceeded the rate limit.
  */
 export const oauthClientRegister = <ThrowOnError extends boolean = false>(options?: Options<OauthClientRegisterData, ThrowOnError>) => (options?.client ?? client).post<OauthClientRegisterResponses, OauthClientRegisterErrors, ThrowOnError>({
     url: '/auth/oauth/register',
@@ -159,15 +219,21 @@ export const oauthClientRegister = <ThrowOnError extends boolean = false>(option
 /**
  * Request an email magic code
  *
- * **Purpose**: Start the email magic-code login flow. The service emails a short numeric code to the address you supply.
+ * ### Overview
+ * Initiates the passwordless email magic-code authentication flow by sending a short, time-limited numeric verification code to the specified email address.
  *
- * **When to use**: First step of `wspc login` and of any UI that exchanges email for an API key. Pair with `POST /auth/verify-code`.
+ * ### When to Use
+ * - Use this endpoint as the first step of the CLI login flow (`wspc login`) or any interactive UI where the user initiates authentication by inputting their email address.
+ * - Pair this request with `POST /auth/verify-code` once the user retrieves the code from their inbox.
  *
- * **Typical sequence**: 1) `POST /auth/request-code` with `email`. 2) The user receives the code by email. 3) `POST /auth/verify-code` with `email` + `code` to obtain an API key.
+ * ### Constraints
+ * - Does not require authentication (public endpoint).
+ * - **Security**: The same HTTP 200 response structure is returned regardless of whether the email address is already registered or not. This is an intentional security design to prevent account-existence disclosure (email harvesting).
+ * - **Rate Limiting**: This endpoint enforces strict rate limits based on both the requesting IP address and the target email address to prevent abuse. Too many consecutive requests will result in a `RATE_LIMITED` error.
  *
- * **Side effects**: Sends an email via the email service. Rate-limited per email and per IP; abusive callers get `RATE_LIMITED`.
- *
- * **Notes**: The same 200 response is returned whether or not the address is registered, to avoid disclosing account existence.
+ * ### Troubleshooting
+ * - **429 Too Many Requests**: The requesting IP or target email has exceeded the allowable request rate. Wait a few minutes before trying again.
+ * - **400 Bad Request**: The `email` payload is malformed or invalid. Verify that the email matches basic email formats.
  */
 export const authRequestCode = <ThrowOnError extends boolean = false>(options?: Options<AuthRequestCodeData, ThrowOnError>) => (options?.client ?? client).post<AuthRequestCodeResponses, AuthRequestCodeErrors, ThrowOnError>({
     url: '/auth/request-code',
@@ -181,11 +247,21 @@ export const authRequestCode = <ThrowOnError extends boolean = false>(options?: 
 /**
  * Soft-revoke an API key
  *
- * **Purpose**: Permanently revoke an active API key. After revocation the key is rejected by `verifyApiKey` and all services.
+ * ### Overview
+ * Permanently revokes an active API key by its unique ID. Once revoked, the key becomes immediately invalid and will be rejected by all services.
  *
- * **When to use**: `wspc keys revoke <id>` when decommissioning a machine, rotating credentials, or revoking a leaked key.
+ * ### When to Use
+ * - Use this endpoint to permanently deactivate an API key (e.g., when running `wspc keys revoke <id>`) due to token rotation, key leakage, or decommissioning of a machine/service.
  *
- * **Notes**: Revocation is permanent and cannot be undone. You can revoke any of your own keys, including the one you are currently using — after which subsequent requests with the revoked key return `401`. `KEY_NOT_FOUND` is returned when the key does not exist, belongs to another user, or was already revoked.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Revocation is permanent and cannot be undone.
+ * - A user can revoke any key they own, including the one they are currently using to make the call. If they revoke the current key, subsequent requests using that key will return `401 Unauthorized`.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: The active token is missing, expired, or invalid.
+ * - **404 Not Found**: The specified key ID does not exist, belongs to another user, or has already been revoked.
+ * - **400 Bad Request**: The `id` path parameter format is invalid. It must be in the format `key_<ULID>`.
  */
 export const keyRevoke = <ThrowOnError extends boolean = false>(options: Options<KeyRevokeData, ThrowOnError>) => (options.client ?? client).delete<KeyRevokeResponses, KeyRevokeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -196,15 +272,18 @@ export const keyRevoke = <ThrowOnError extends boolean = false>(options: Options
 /**
  * Revoke an access or refresh token
  *
- * **Purpose**: RFC 7009 token revocation endpoint. Invalidates an access token or refresh token so it can no longer be used.
+ * ### Overview
+ * Implements the RFC 7009 token revocation endpoint. It immediately and permanently invalidates a specific access or refresh token.
  *
- * **When to use**: When the user signs out of an OAuth-enabled client, or when the client detects a token leak. Always preferred over letting tokens expire naturally.
+ * ### When to Use
+ * - When the user signs out of an OAuth-enabled client, or when the client detects a token leak. Always preferred over letting tokens expire naturally.
  *
- * **Typical sequence**: 1) Client decides to revoke (logout, security incident). 2) `POST /auth/oauth/revoke` with the token and optional `token_type_hint`. 3) Discard the local copy.
+ * ### Constraints
+ * - Public endpoint (no authentication required).
+ * - **Privacy & Security**: To prevent token scanning/validation attacks, the server always returns a 200 OK with an empty object, regardless of whether the token actually existed. Do not infer token existence from the response status.
  *
- * **Side effects**: Marks the token (and, for refresh tokens, all access tokens descended from it) as invalid. Future calls authenticated with the revoked token return 401.
- *
- * **Notes**: Per RFC 7009 §2.2 this endpoint returns 200 with an empty body regardless of whether the token existed, to avoid disclosing token validity. Accepts both `application/json` and `application/x-www-form-urlencoded` bodies.
+ * ### Troubleshooting
+ * - **400 Bad Request / invalid_request**: The `token` parameter is missing from the payload.
  */
 export const oauthTokenRevoke = <ThrowOnError extends boolean = false>(options?: Options<OauthTokenRevokeData, ThrowOnError>) => (options?.client ?? client).post<OauthTokenRevokeResponses, OauthTokenRevokeErrors, ThrowOnError>({
     url: '/auth/oauth/revoke',
@@ -218,15 +297,22 @@ export const oauthTokenRevoke = <ThrowOnError extends boolean = false>(options?:
 /**
  * Exchange a grant for an access token
  *
- * **Purpose**: RFC 6749 token endpoint. Accepts three grant types: `authorization_code` (with PKCE), `refresh_token`, and `urn:ietf:params:oauth:grant-type:device_code`. Returns a fresh `access_token` + rotated `refresh_token`.
+ * ### Overview
+ * Implements the RFC 6749 OAuth 2.0 token endpoint. It processes token requests for three grant types: `authorization_code` (with PKCE), `refresh_token`, and `urn:ietf:params:oauth:grant-type:device_code` (device flow), issuing an access token and a rotated refresh token upon success.
  *
- * **When to use**: After the user approves an authorization request (code or device flow), or when refreshing an expiring access token. The exact body shape depends on `grant_type`.
+ * ### When to Use
+ * - Use this endpoint to redeem a temporary code or device code for a fresh token pair once the user has approved authentication.
+ * - Use this endpoint to rotate and refresh an expiring access token using a refresh token.
  *
- * **Typical sequence (authorization code)**: 1) Redirect user through the authorization endpoint with `code_challenge`. 2) Exchange the returned code here using the matching `code_verifier`. **Typical sequence (device)**: 1) `POST /auth/oauth/device`. 2) Poll this endpoint with `device_code` until the user approves. **Typical sequence (refresh)**: 1) Detect `access_token` expiry. 2) POST `refresh_token` to obtain a new pair; the old refresh token is invalidated.
+ * ### Constraints
+ * - Public endpoint (no authentication required).
+ * - **Refresh Token Rotation**: Old refresh tokens are invalidated immediately upon exchange, and a fresh refresh token is issued.
+ * - **PKCE**: For the `authorization_code` grant, a valid `code_verifier` matching the original `code_challenge` must be provided.
  *
- * **Side effects**: Refresh tokens are rotated on every successful call; the previously issued refresh token becomes unusable. Token endpoint is rate-limited per IP.
- *
- * **Notes**: Accepts both `application/json` and `application/x-www-form-urlencoded` (real MCP clients send form bodies). Returns `INVALID_GRANT` for bad / expired codes, `AUTHORIZATION_PENDING` while a device code is awaiting user approval, and `SLOW_DOWN` when the client polls faster than `interval`.
+ * ### Troubleshooting
+ * - **400 Bad Request / invalid_grant**: The authorization code, refresh token, or device code is expired, invalid, or belongs to a different client.
+ * - **400 Bad Request / authorization_pending**: Returned when polling for a device code that has not yet been approved by the user. Do not stop polling, but adhere to the polling interval.
+ * - **400 Bad Request / slow_down**: Returned when polling the device code faster than the negotiated `interval`. Reduce polling frequency.
  */
 export const oauthTokenExchange = <ThrowOnError extends boolean = false>(options?: Options<OauthTokenExchangeData, ThrowOnError>) => (options?.client ?? client).post<OauthTokenExchangeResponses, OauthTokenExchangeErrors, ThrowOnError>({
     url: '/auth/oauth/token',
@@ -240,15 +326,21 @@ export const oauthTokenExchange = <ThrowOnError extends boolean = false>(options
 /**
  * Verify a magic code and issue an API key
  *
- * **Purpose**: Complete the magic-code login. Exchanges a valid (email, code) pair for a long-lived WSPC API key.
+ * ### Overview
+ * Completes the passwordless login flow by verifying the magic code received via email. If the code is correct, it registers a new user (if not already registered) and issues a long-lived WSPC API key.
  *
- * **When to use**: Second step of `wspc login`. Call after `POST /auth/request-code` once the user has the code from their inbox.
+ * ### When to Use
+ * - Use this endpoint as the second step of the login flow, exchanging the user-provided code and email address for a valid credential.
+ * - Store the returned `api_key` securely client-side to authorize subsequent calls to all WSPC services.
  *
- * **Typical sequence**: 1) `POST /auth/request-code`. 2) User reads the code from email. 3) `POST /auth/verify-code` with `email` + `code`. 4) Store the returned `api_key` securely; send it as `Authorization: Bearer <api_key>` to every WSPC service.
+ * ### Constraints
+ * - Does not require authentication (public endpoint).
+ * - **One-time Use & Expiry**: The verification code is single-use and expires after a short period (typically a few minutes). Re-using a code or attempting to guess code values results in `INVALID_CODE` or `CODE_EXPIRED`.
+ * - **Account Creation**: If the email address is not linked to an existing account, a new user profile and personal organization are automatically provisioned (`created: true` in response).
  *
- * **Side effects**: Creates a new user row when the email is unknown (`created: true` in the response). Always provisions a fresh API key for the active environment; previous keys for the same user are not affected.
- *
- * **Notes**: The code is single-use and short-lived (a few minutes). Re-using or guessing returns `INVALID_CODE`; expired codes return `CODE_EXPIRED`.
+ * ### Troubleshooting
+ * - **400 Bad Request**: The code has expired (`CODE_EXPIRED`), is incorrect (`INVALID_CODE`), or has already been used. Request a fresh code via `POST /auth/request-code`.
+ * - **429 Too Many Requests**: The rate limit for verification attempts on this email address has been exceeded.
  */
 export const authVerifyCode = <ThrowOnError extends boolean = false>(options?: Options<AuthVerifyCodeData, ThrowOnError>) => (options?.client ?? client).post<AuthVerifyCodeResponses, AuthVerifyCodeErrors, ThrowOnError>({
     url: '/auth/verify-code',
@@ -262,11 +354,20 @@ export const authVerifyCode = <ThrowOnError extends boolean = false>(options?: O
 /**
  * List calendar events
  *
- * **Purpose**: Return the authenticated user's events, ordered by `start` ascending, with optional filters.
+ * ### Overview
+ * Return the authenticated user's events, ordered by `start` ascending, with cursor pagination.
  *
- * **When to use**: Render an upcoming events view, look up a window via `start_from`/`start_to`/`end_from`/`end_to`, or fetch the full history (including past events) for an export.
+ * ### When to Use
+ * Render calendar list/grid views, search for specific terms using full-text search, query events within a specific time window, or retrieve historically past events.
  *
- * **Notes**: By default, soft-deleted events are hidden and events whose `end` is before now are hidden. Pass `include_deleted=true` to surface soft-deleted rows; pass `include_past=true` (or any explicit time bound) to include events that have ended. When ANY of `start_from`/`start_to`/`end_from`/`end_to` is provided, the implicit past filter is disabled — explicit time bounds always win. `q` searches title / description / location case-insensitively.
+ * ### Constraints
+ * - **Default Visibility**: By default, soft-deleted events and past events (events where `end` is before the current time) are automatically hidden.
+ * - **Time Bounds Override**: Supplying any explicit time bound query parameter (`start_from`, `start_to`, `end_from`, `end_to`) or passing `include_past=true` overrides and disables the implicit past filter.
+ * - **Search Scope**: `q` performs a case-insensitive substring search across `title`, `description`, and `location`.
+ * - **Pagination**: The `limit` query parameter is clamped to `[1, 200]`; cursor pagination is enabled via the opaque `cursor` parameter.
+ *
+ * ### Troubleshooting
+ * - Returns 400 `VALIDATION_ERROR` if date query bounds are invalid (e.g. `start_from > start_to` or `end_from > end_to`).
  */
 export const eventList = <ThrowOnError extends boolean = false>(options?: Options<EventListData, ThrowOnError>) => (options?.client ?? client).get<EventListResponses, EventListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -277,15 +378,22 @@ export const eventList = <ThrowOnError extends boolean = false>(options?: Option
 /**
  * Schedule a calendar event
  *
- * **Purpose**: Create a new calendar event owned by the authenticated user.
+ * ### Overview
+ * Create a new calendar event owned by the authenticated user.
  *
- * **When to use**: Book a meeting, lunch, all-day trip, or any time-bound item. Pass `attendees` to fan out invitation emails as a side effect.
+ * ### When to Use
+ * Book a meeting, lunch, all-day trip, or any time-bound item. Optionally provide `attendees` to automatically dispatch invitation emails containing an `.ics` REQUEST attachment to each participant as a side effect.
  *
- * **Typical sequence**: Validate desired window client-side → POST here → on 201 surface the returned `id` and `version`; optionally GET `/calendar/events/{id}.ics` to forward an `.ics` file separately.
+ * ### Constraints
+ * - **Format Integrity**: `start` and `end` must be of the exact same type (both ISO 8601 datetimes with offset, or both ISO date-only for all-day).
+ * - **Chronological Order**: `end` must be strictly after `start`.
+ * - **All-Day boundary**: All-day events use RFC 5545 exclusive end (e.g., a one-day event on June 1st is specified as `start=2026-06-01` and `end=2026-06-02`).
+ * - **Attendee Limit**: Up to 50 unique attendees are supported after case-insensitive email address deduplication.
  *
- * **Side effects**: When `attendees` is non-empty, each attendee receives an invitation email with an `.ics` REQUEST attachment, sent single-send (one email per attendee — batch send is not used because Resend's batch API does not carry attachments). Emits the `event_created` analytics counter.
- *
- * **Notes**: `start` and `end` must be the same kind (both timed ISO datetimes with offset, or both ISO date-only). All-day uses RFC 5545 exclusive end. Up to 50 unique attendees after case-insensitive email dedupe.
+ * ### Troubleshooting
+ * - Returns 400 `VALIDATION_ERROR` if `start` and `end` format mismatch, or if `end <= start`.
+ * - Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if more than 50 unique attendees are supplied.
+ * - Invitation emails are processed and dispatched asynchronously via Cloudflare `waitUntil`; the analytics counter `event_created` is emitted automatically.
  */
 export const eventCreate = <ThrowOnError extends boolean = false>(options?: Options<EventCreateData, ThrowOnError>) => (options?.client ?? client).post<EventCreateResponses, EventCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -300,13 +408,20 @@ export const eventCreate = <ThrowOnError extends boolean = false>(options?: Opti
 /**
  * Soft-delete a calendar event
  *
- * **Purpose**: Soft-delete an event so it no longer appears in default list responses or detail fetches.
+ * ### Overview
+ * Soft-delete an existing calendar event, hiding it from default listings.
  *
- * **When to use**: Remove an event from the user's history. To CANCEL a meeting while keeping the record (and notify attendees that it was cancelled), use PATCH with `status: cancelled` instead.
+ * ### When to Use
+ * Remove an event entirely from the user's historical view and calendar client. If the meeting was cancelled but should remain in history (notifying participants of cancellation), use `PATCH /calendar/events/{id}` with `status: cancelled` instead.
  *
- * **Side effects**: When the event has attendees, each one receives a cancellation email with an `.ics` CANCEL attachment. Emails are sent asynchronously via `waitUntil`. The row is preserved in the database and can be recovered via POST `/calendar/events/{id}/restore`.
+ * ### Constraints
+ * - **Optimistic Locking**: Supports optional optimistic locking via `expected_version` in the request body.
+ * - **Side Effects**: When soft-deleting an event with attendees, all participants will asynchronously receive a cancellation email containing an `.ics` CANCEL attachment via Cloudflare `waitUntil`.
+ * - **Recovery**: The record is preserved in the database as a soft-deleted row and can be brought back using `POST /calendar/events/{id}/restore`.
  *
- * **Notes**: `expected_version` is optional optimistic lock; omit to let the server use the current version. Already-deleted events return 404 `NOT_FOUND`.
+ * ### Troubleshooting
+ * - Returns 404 `NOT_FOUND` if the event does not exist, or has already been soft-deleted.
+ * - Returns 409 `VERSION_CONFLICT` if `expected_version` does not match the database value.
  */
 export const eventDelete = <ThrowOnError extends boolean = false>(options: Options<EventDeleteData, ThrowOnError>) => (options.client ?? client).delete<EventDeleteResponses, EventDeleteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -321,11 +436,18 @@ export const eventDelete = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Get a calendar event by id
  *
- * **Purpose**: Fetch a single event by id, returning the full row including attendees and `version`.
+ * ### Overview
+ * Fetch a single calendar event by its unique ID, returning the complete record including all attendees.
  *
- * **When to use**: Confirm current state before showing details, or re-read after an external mutation to surface the latest `version`.
+ * ### When to Use
+ * Display a detailed view of an event, or read the latest database state (capturing `version`) prior to executing an optimistic-locked PATCH update.
  *
- * **Notes**: Soft-deleted events return 404 unless `?include_deleted=true` is supplied. For the `.ics` form of the same event, use GET `/calendar/events/{id}.ics`.
+ * ### Constraints
+ * - **Deleted Events**: Soft-deleted events return 404 `NOT_FOUND` by default. You must explicitly pass `include_deleted=true` in the query parameters to retrieve a soft-deleted row.
+ * - **ICS Format**: To download the RFC 5545 iCalendar text representation of this event, use `GET /calendar/events/{id}.ics` instead.
+ *
+ * ### Troubleshooting
+ * - Returns 404 `NOT_FOUND` if the event does not exist, is soft-deleted (without `include_deleted=true`), or is owned by another user.
  */
 export const eventGet = <ThrowOnError extends boolean = false>(options: Options<EventGetData, ThrowOnError>) => (options.client ?? client).get<EventGetResponses, EventGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -336,15 +458,24 @@ export const eventGet = <ThrowOnError extends boolean = false>(options: Options<
 /**
  * Update a calendar event
  *
- * **Purpose**: Partially update an event. All body fields are optional; omitted fields are left unchanged.
+ * ### Overview
+ * Partially update fields of an existing calendar event. All properties in the request body are optional.
  *
- * **When to use**: Reschedule (new `start`/`end`), change location, replace attendees, cancel (`status: cancelled`), or clear an optional field by passing empty string.
+ * ### When to Use
+ * Reschedule an event, update its location or notes, cancel the meeting (retaining the record but notifying participants), or replace/update the attendee list.
  *
- * **Typical sequence**: Optionally GET first to capture `version` → PATCH with `expected_version` to fail on conflict, or omit `expected_version` to let the server use the current version. To CANCEL a meeting (preserve the record and notify attendees) set `status: cancelled` — do NOT use DELETE.
+ * ### Constraints
+ * - **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.
+ * - **Field Clearing**: Pass an empty string `""` for `description`, `location`, or `url` to clear those fields in the database.
+ * - **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list. The server automatically diffs participants and asynchronously sends invitations (for newly added), updates (for kept), or cancellations (for removed) via Cloudflare `waitUntil`.
+ * - **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.
+ * - **Attendee Limit**: A maximum of 50 unique attendees is allowed.
  *
- * **Side effects**: When `attendees` is provided it REPLACES the existing list; the server diffs old vs new and fans out three categories of emails: added attendees receive a fresh invitation (`.ics` REQUEST), kept attendees receive an update email, removed attendees receive a cancellation (`.ics` CANCEL). When `attendees` is omitted but other relevant fields change, kept attendees receive an update email. Emails are sent asynchronously via `waitUntil`.
- *
- * **Notes**: `start`/`end` must be the same kind and `end` must be strictly after `start`. Pass empty string (`""`) on `description`, `location`, or `url` to clear them. Max 50 attendees after case-insensitive dedupe.
+ * ### Troubleshooting
+ * - Returns 404 `NOT_FOUND` if the event does not exist or is soft-deleted.
+ * - Returns 409 `VERSION_CONFLICT` if `expected_version` is provided but stale.
+ * - Returns 400 `VALIDATION_ERROR` if `start` and `end` kinds do not match, or if `end <= start`.
+ * - Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if unique attendees exceed 50.
  */
 export const eventUpdate = <ThrowOnError extends boolean = false>(options: Options<EventUpdateData, ThrowOnError>) => (options.client ?? client).patch<EventUpdateResponses, EventUpdateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -359,11 +490,19 @@ export const eventUpdate = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Download event as `.ics`
  *
- * **Purpose**: Return the event as an RFC 5545 `.ics` file suitable for importing into Apple Calendar / Google Calendar / Outlook / any calendar client.
+ * ### Overview
+ * Return a single event rendered as an RFC 5545 `.ics` file suitable for import into major calendar clients.
  *
- * **When to use**: Honor the `Save to my calendar` link in an invitation email, expose a download button in a UI, or programmatically forward an `.ics` to a third party.
+ * ### When to Use
+ * Expose a 'Save to my calendar' link in email notifications, show a download button in a UI, or programmatically forward raw iCalendar text to third parties.
  *
- * **Notes**: `filename` must be `<event_id>.ics` (the `.ics` suffix is what routes this endpoint ahead of the JSON detail route). Response Content-Type is `text/calendar; charset=utf-8` with `Content-Disposition: inline; filename="<event_id>.ics"`; the response body is the raw iCalendar text, NOT JSON. Soft-deleted events return 404. Auth is required (Bearer API key or OAuth access token) — this is the same link referenced in invitation emails.
+ * ### Constraints
+ * - **Router Match**: The path parameter `filename` must be exactly `<event_id>.ics`. The `.ics` suffix is strictly required for the router to match this endpoint ahead of the JSON detail endpoint.
+ * - **Response Payload**: The response is plain text containing the iCalendar specification, NOT JSON. The `Content-Type` is set to `text/calendar; charset=utf-8` with `Content-Disposition: inline; filename="<event_id>.ics"`.
+ * - **Authentication**: Standard authentication is required (Bearer API key or OAuth access token), as this endpoint is secure.
+ *
+ * ### Troubleshooting
+ * - Returns 404 `NOT_FOUND` if the event does not exist, is soft-deleted, or is owned by another user.
  */
 export const eventIcsDownload = <ThrowOnError extends boolean = false>(options: Options<EventIcsDownloadData, ThrowOnError>) => (options.client ?? client).get<EventIcsDownloadResponses, EventIcsDownloadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -374,13 +513,20 @@ export const eventIcsDownload = <ThrowOnError extends boolean = false>(options: 
 /**
  * Restore a soft-deleted event
  *
- * **Purpose**: Reverse a prior DELETE, making the event visible in default list responses again.
+ * ### Overview
+ * Restore a previously soft-deleted calendar event, making it active and visible in default list queries.
  *
- * **When to use**: Recover from an accidental DELETE, or surface a previously soft-deleted event back into the calendar.
+ * ### When to Use
+ * Recover an event that was accidentally soft-deleted.
  *
- * **Side effects**: When the restored event has attendees, each one receives a fresh invitation email with an `.ics` REQUEST attachment (mirrors the create-event fan-out). Emails are sent asynchronously via `waitUntil`.
+ * ### Constraints
+ * - **Optimistic Locking**: Supports optional optimistic locking via `expected_version` in the request body.
+ * - **Side Effects**: When restoring an event with attendees, all participants will asynchronously receive a new invitation email containing an `.ics` REQUEST attachment via Cloudflare `waitUntil`.
+ * - **State Integrity**: You cannot restore a live (non-deleted) event. Restoring a live event is treated as an error.
  *
- * **Notes**: `expected_version` is optional optimistic lock; omit to let the server use the current version. Restoring a non-deleted event is a no-op-shaped error: returns 404 if the event is not currently soft-deleted.
+ * ### Troubleshooting
+ * - Returns 404 `NOT_FOUND` if the event does not exist, or is NOT currently soft-deleted.
+ * - Returns 409 `VERSION_CONFLICT` if `expected_version` does not match the database value.
  */
 export const eventRestore = <ThrowOnError extends boolean = false>(options: Options<EventRestoreData, ThrowOnError>) => (options.client ?? client).post<EventRestoreResponses, EventRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -395,11 +541,18 @@ export const eventRestore = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * List the caller's aliases
  *
- * **Purpose**: Return all aliases owned by the authenticated user.
+ * ### Overview
+ * Retrieves a list of all email receiving aliases owned by the authenticated user.
  *
- * **When to use**: Render the user's alias list in a UI or pick a full alias email address before sending.
+ * ### When to Use
+ * - Use this endpoint to render an alias directory in user profiles or to provide a selection list of verified sender aliases in an email compose interface.
  *
- * **Notes**: By default only active aliases are returned. Pass `include_deleted=true` to also list soft-deleted entries (with `deleted_at` set). Soft-deleted aliases stop receiving new mail but their historical messages remain readable.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - By default, only active receiving aliases are returned. Pass `include_deleted=true` in the query to also fetch soft-deleted aliases (which have `deleted_at` timestamps set).
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Active token is missing, expired, or invalid.
  */
 export const emailAliasList = <ThrowOnError extends boolean = false>(options?: Options<EmailAliasListData, ThrowOnError>) => (options?.client ?? client).get<EmailAliasListResponses, EmailAliasListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -410,11 +563,22 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
 /**
  * Create a receiving alias
  *
- * **Purpose**: Reserve a full wspc alias email address that forwards inbound mail into the caller's wspc inbox.
+ * ### Overview
+ * Reserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain. All inbound emails received on this alias will be forwarded into the caller's inbox.
  *
- * **When to use**: Spin up a fresh disposable address for a signup, newsletter, or per-context routing (e.g. `alice-shop@wspc.app`, `alice-bills@wspc.app`).
+ * ### When to Use
+ * - Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.
  *
- * **Notes**: The full address must be under the configured wspc alias domain. Its local part is 6-32 chars, starts with a letter or number, and may contain letters, numbers, dots, underscores, and hyphens. Validation failures return 400 with `code: INVALID_CHARSET` or `RESERVED`; collisions with an existing alias slot (active or soft-deleted, any user) return 409 `ALIAS_CONFLICT`. Up to 10 active aliases per user — exceeding returns 429 `ALIAS_LIMIT_EXCEEDED`.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **Alias Formatting**: The local part must be between 6 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
+ * - **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Bearer token is missing, invalid, or expired.
+ * - **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.
+ * - **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).
+ * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.
  */
 export const emailAliasCreate = <ThrowOnError extends boolean = false>(options: Options<EmailAliasCreateData, ThrowOnError>) => (options.client ?? client).post<EmailAliasCreateResponses, EmailAliasCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -429,13 +593,21 @@ export const emailAliasCreate = <ThrowOnError extends boolean = false>(options: 
 /**
  * Soft-delete an alias
  *
- * **Purpose**: Stop accepting new mail at this alias while preserving historical messages.
+ * ### Overview
+ * Soft-deletes a specific active email receiving alias owned by the caller. Once soft-deleted, the alias stops accepting and forwarding any new inbound emails.
  *
- * **When to use**: Retire a disposable address that's been abused or no longer needed; the inbox history for messages already received remains readable.
+ * ### When to Use
+ * - Use this endpoint when decommissioning a disposable alias address that is no longer needed or is receiving excessive spam.
  *
- * **Side effects**: Forwarding into the inbox stops immediately. The alias email address remains reserved globally as long as the row exists; `POST /email/aliases/{email}/restore` reactivates it.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **Data Retention**: Soft-deletion is immediate. Inbound mail forwarding stops, but historical emails previously received on this alias remain fully readable in the inbox.
+ * - **Restoration**: The alias remains globally reserved and cannot be created fresh by anyone; use `POST /email/aliases/{email}/restore` to reactivate.
+ * - **Path Parameter**: The `@` character in the `{email}` path parameter must be URL-encoded as `%40`.
  *
- * **Notes**: Idempotent at the surface — a 404 is returned if the email doesn't belong to the caller. Already-deleted aliases also return 404. URL-encode `@` as `%40` in the path.
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Missing or invalid token.
+ * - **404 Not Found**: No active alias with this exact address was found for the authenticated user, or the alias is already deleted.
  */
 export const emailAliasDelete = <ThrowOnError extends boolean = false>(options: Options<EmailAliasDeleteData, ThrowOnError>) => (options.client ?? client).delete<EmailAliasDeleteResponses, EmailAliasDeleteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -446,11 +618,21 @@ export const emailAliasDelete = <ThrowOnError extends boolean = false>(options: 
 /**
  * Soft-delete inbound emails
  *
- * **Purpose**: Soft-delete a batch of inbound emails. Soft-deleted rows are hidden from default list / detail responses but persist in the database.
+ * ### Overview
+ * Soft-deletes a batch of inbound emails, moving them to the trash. Soft-deleted emails are immediately excluded from default inbox lists.
  *
- * **When to use**: Trash messages from the inbox view. Recover them via `POST /email/messages/restore` while the row exists.
+ * ### When to Use
+ * - Use this endpoint to trash one or more email messages from a user's inbox view.
  *
- * **Notes**: Idempotent — already-deleted ids are silent no-ops. 1-100 ids per call. Deletion does not free attachment bytes immediately; R2 cleanup happens out-of-band.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Accepts 1 to 100 email IDs per call.
+ * - Deletion is fully reversible: soft-deleted rows persist in the database and can be undeleted using the restore endpoint.
+ * - **Data Cleanup**: Out-of-band background processes eventually purge associated raw MIME source payloads and attachment bytes from R2; deletion does not immediately free storage.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Invalid Bearer token.
+ * - **400 Bad Request**: The request body is malformed or exceeds the maximum limit of 100 IDs.
  */
 export const emailDelete = <ThrowOnError extends boolean = false>(options: Options<EmailDeleteData, ThrowOnError>) => (options.client ?? client).post<EmailDeleteResponses, EmailDeleteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -465,11 +647,22 @@ export const emailDelete = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Download an attachment by index
  *
- * **Purpose**: Stream the raw bytes of one parsed attachment off an inbound email.
+ * ### Overview
+ * Streams the raw decoded bytes of a parsed attachment belonging to an inbound email. The response body is binary data instead of JSON.
  *
- * **When to use**: Save an `.pdf` / `.ics` / image to disk, or pipe an attachment to a downstream agent for processing.
+ * ### When to Use
+ * - Use this endpoint when a user clicks to download a file attachment (such as an invoice PDF or image) or when an automated agent needs to process a file payload.
  *
- * **Notes**: Response Content-Type is the attachment's parsed MIME type (e.g. `application/pdf`), with `Content-Disposition: attachment; filename="<filename>"`. Body is the raw bytes, NOT JSON. `idx` is the 0-based index into the email's attachments array; out-of-range returns 404 `ATTACHMENT_NOT_FOUND`. Soft-deleted parents return 404 unless `include_deleted=true`.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **Response Headers**: The server sets the HTTP `Content-Type` matching the attachment's parsed MIME format and provides a `Content-Disposition: attachment; filename="<filename>"` header.
+ * - **Soft-Deleted Parents**: Downloading files from soft-deleted emails is blocked with a 404 error, unless the query parameter `include_deleted=true` is provided.
+ * - **Path Parameter**: The `{idx}` must be a valid 0-based integer index pointing to the attachment list metadata.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Invalid Bearer token.
+ * - **404 Not Found / EMAIL_NOT_FOUND**: The specified email ID does not exist or belongs to another user.
+ * - **404 Not Found / ATTACHMENT_NOT_FOUND**: The index `{idx}` is out of range for the email's attachment array.
  */
 export const emailAttachmentGet = <ThrowOnError extends boolean = false>(options: Options<EmailAttachmentGetData, ThrowOnError>) => (options.client ?? client).get<EmailAttachmentGetResponses, EmailAttachmentGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -480,11 +673,21 @@ export const emailAttachmentGet = <ThrowOnError extends boolean = false>(options
 /**
  * Get an inbound email by id
  *
- * **Purpose**: Fetch a single email, its attachment metadata, and (optionally) the rendered HTML body.
+ * ### Overview
+ * Fetches the metadata and plain-text body of a single inbound email by its unique ID. It also returns metadata for all associated attachments and optionally resolves the rendered HTML content.
  *
- * **When to use**: Render the detail view, prefetch attachments by index, or pass HTML to an agent for parsing.
+ * ### When to Use
+ * - Use this endpoint to display the complete detail view of an email message.
+ * - Use it to extract attachment files or read complex HTML layouts.
  *
- * **Notes**: Soft-deleted emails return 404 unless `include_deleted=true` is set. `html_body` is only populated when `include_html=true` (costs one extra R2 read). Attachment bytes are NOT inlined — fetch them via `GET /email/messages/{id}/attachments/{idx}`.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **R2 HTML Read**: The HTML body is stored in Object Storage (R2). To fetch it, explicitly pass `include_html=true` (this incurs an extra R2 read charge; leave unset if only plain text is needed).
+ * - Returns a 404 error if the email has been soft-deleted, unless `include_deleted=true` is set.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Missing or expired token.
+ * - **404 Not Found**: The specified email ID does not exist, belongs to another user, or has been soft-deleted (without `include_deleted=true`).
  */
 export const emailGet = <ThrowOnError extends boolean = false>(options: Options<EmailGetData, ThrowOnError>) => (options.client ?? client).get<EmailGetResponses, EmailGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -495,11 +698,21 @@ export const emailGet = <ThrowOnError extends boolean = false>(options: Options<
 /**
  * List inbound emails
  *
- * **Purpose**: Page through the caller's inbound emails, newest first.
+ * ### Overview
+ * Retrieves a paginated directory list of all inbound emails received by the user's active aliases, sorted in descending order of ingestion time (newest first).
  *
- * **When to use**: Render an inbox view, filter by alias / read state / time window, or do incremental sync via `since`.
+ * ### When to Use
+ * - Use this endpoint to render mailbox dashboards or inbox streams.
+ * - Use query parameters to perform incremental syncs (via `since` timestamp) or to filter incoming mail by read state or target alias email.
  *
- * **Notes**: Defaults: 20 per page (clamped to 100), all aliases, both read and unread, active rows only. Use `cursor` from the previous response's `next_cursor` to fetch the next page; the cursor is opaque and tied to the same filter set. Pass `include_deleted=true` to also surface soft-deleted rows.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **Pagination**: Supports cursor-based pagination. Pass the returned `next_cursor` value back as the `cursor` query parameter to list subsequent pages. The `limit` is capped between 1 and 100, defaulting to 20.
+ * - By default, soft-deleted emails are hidden. Pass `include_deleted=true` to retrieve them.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Missing, invalid, or expired Bearer token.
+ * - **400 Bad Request**: Malformed pagination cursor or invalid query parameters (e.g., non-integer limit).
  */
 export const emailList = <ThrowOnError extends boolean = false>(options?: Options<EmailListData, ThrowOnError>) => (options?.client ?? client).get<EmailListResponses, EmailListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -510,11 +723,20 @@ export const emailList = <ThrowOnError extends boolean = false>(options?: Option
 /**
  * Mark inbound emails as read
  *
- * **Purpose**: Mark a batch of inbound emails as read in one round-trip.
+ * ### Overview
+ * Marks a batch of inbound emails as read. This batch operation is fully idempotent.
  *
- * **When to use**: After an agent or UI has surfaced the messages, or to reconcile read state from another client.
+ * ### When to Use
+ * - Use this endpoint when a user opens an email detail view or performs a bulk mark-read action in an inbox dashboard.
  *
- * **Notes**: Idempotent — already-read ids are silent no-ops and do not contribute to `marked`. Ids missing, wrong-user, or soft-deleted appear in `not_found`. 1-100 ids per call.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Accepts 1 to 100 email IDs in a single call.
+ * - **Idempotency**: Already-read IDs are silently processed without generating errors but do not count toward the returned `marked` value. Missing, unauthorized, or soft-deleted IDs will be logged in `not_found`.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Invalid or missing Bearer token.
+ * - **400 Bad Request**: The request body is malformed or exceeds the maximum limit of 100 IDs.
  */
 export const emailMarkRead = <ThrowOnError extends boolean = false>(options: Options<EmailMarkReadData, ThrowOnError>) => (options.client ?? client).post<EmailMarkReadResponses, EmailMarkReadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -529,11 +751,19 @@ export const emailMarkRead = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Mark inbound emails as unread
  *
- * **Purpose**: Reset a batch of inbound emails to unread.
+ * ### Overview
+ * Resets a batch of inbound emails back to an unread state.
  *
- * **When to use**: Undo an accidental mark-read, or surface a message again in unread views.
+ * ### When to Use
+ * - Use this endpoint to undo an accidental read marking or to mark messages for later review.
  *
- * **Notes**: Idempotent — already-unread ids are silent no-ops. 1-100 ids per call.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Accepts 1 to 100 email IDs per call. Already-unread IDs are silently ignored but do not contribute to `marked`.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Invalid Bearer token.
+ * - **400 Bad Request**: Malformed body or ID batch size limit exceeded.
  */
 export const emailMarkUnread = <ThrowOnError extends boolean = false>(options: Options<EmailMarkUnreadData, ThrowOnError>) => (options.client ?? client).post<EmailMarkUnreadResponses, EmailMarkUnreadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -548,13 +778,21 @@ export const emailMarkUnread = <ThrowOnError extends boolean = false>(options: O
 /**
  * Restore a soft-deleted alias
  *
- * **Purpose**: Reactivate a previously soft-deleted alias so it accepts new mail again.
+ * ### Overview
+ * Reactivates a previously soft-deleted email receiving alias, immediately resuming mail forwarding to the user's inbox.
  *
- * **When to use**: Recover an alias retired by mistake, or temporarily disabled.
+ * ### When to Use
+ * - Use this endpoint to re-enable a temporarily disabled alias or to recover one that was deleted by mistake.
  *
- * **Side effects**: Forwarding resumes immediately. The alias counts against the per-user active-alias limit again (10 active per user) — a restore that would push the user past that limit returns 429 `ALIAS_LIMIT_EXCEEDED`.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **Quota Check**: Reactivating an alias increases the active alias count towards the user's maximum quota of 10 active aliases. If the limit is exceeded, a `429 ALIAS_LIMIT_EXCEEDED` error is returned.
+ * - **Path Parameter**: The `@` character in the path parameter must be URL-encoded as `%40`.
  *
- * **Notes**: 404 if no row with this email address is owned by the caller. URL-encode `@` as `%40` in the path.
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Missing or invalid token.
+ * - **404 Not Found**: No soft-deleted alias with this exact address was found for the authenticated user.
+ * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: Reactivating this alias would exceed the per-user limit of 10 active aliases.
  */
 export const emailAliasRestore = <ThrowOnError extends boolean = false>(options: Options<EmailAliasRestoreData, ThrowOnError>) => (options.client ?? client).post<EmailAliasRestoreResponses, EmailAliasRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -565,11 +803,19 @@ export const emailAliasRestore = <ThrowOnError extends boolean = false>(options:
 /**
  * Restore soft-deleted inbound emails
  *
- * **Purpose**: Un-soft-delete a batch of inbound emails so they reappear in default list / detail responses.
+ * ### Overview
+ * Restores a batch of soft-deleted inbound emails from the trash, making them reappear in standard inbox lists.
  *
- * **When to use**: Recover messages trashed by mistake.
+ * ### When to Use
+ * - Use this endpoint to recover email messages that were trashed by mistake.
  *
- * **Notes**: Idempotent — already-active ids are silent no-ops. Ids missing or wrong-user appear in `not_found`. 1-100 ids per call.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Accepts 1 to 100 email IDs. Already-active IDs are silently ignored.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Invalid token.
+ * - **400 Bad Request**: Malformed request or batch limit exceeded.
  */
 export const emailRestore = <ThrowOnError extends boolean = false>(options: Options<EmailRestoreData, ThrowOnError>) => (options.client ?? client).post<EmailRestoreResponses, EmailRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -584,15 +830,26 @@ export const emailRestore = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Send an outbound email
  *
- * **Purpose**: Submit a single outbound email from one of the caller's active aliases. Body is plain text; `attachments[]` (optional, max 10) carries either inline base64 blobs or references to inbound attachments the caller already owns. Per-attachment ≤ 5 MiB; per-send total ≤ 25 MiB. There is no batch send endpoint — loop this for fan-out so each message can carry its own attachments.
+ * ### Overview
+ * Submits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified and sent using the Cloudflare email service provider.
  *
- * **When to use**: Agent-composed transactional sends (signup confirmation, agent replies, calendar invitations the calendar service builds internally) and CLI / API replies to inbound mail.
+ * ### When to Use
+ * - Use this endpoint to send new standalone emails or to reply to threaded inbound messages.
+ * - Use this in automated agent pipelines (like calendar invite generation or notifications) and CLI email send utilities.
  *
- * **Typical sequence**: Pick a full `from_alias_email` from `GET /email/aliases` → choose an `idempotency_key` you can repeat on retry → POST here. On 200 inspect `idempotent_replay` to tell a fresh submission from a replayed one.
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **Size Limits**: Individual attachments must not exceed 5 MiB, and the total size of all attachments per send must be 25 MiB or less.
+ * - **Security**: Up to 10 attachments are allowed. Outbound files with dangerous executable extensions (such as `.exe`, `.bat`, `.com`, `.scr`, `.cmd`, `.jar`, `.js`) are strictly blocked.
+ * - **Daily Quotas**: Sending is protected by per-user (100 sends/day) and per-alias (50 sends/day) daily quotas. Exceeding them triggers `RATE_LIMITED` or `QUOTA_EXCEEDED` errors.
+ * - **Idempotency**: A stable `idempotency_key` (1-200 characters) must be supplied. Retrying a send with identical content and the same key returns `idempotent_replay: true` without sending duplicates. Reusing the key with changed content returns 409 `IDEMPOTENCY_KEY_REUSED`.
  *
- * **Side effects**: The outbound row is persisted (`status: submitted`) before the provider call; on success it transitions to `sent` and the response carries the `provider_message_id`. The `From` is materialized as the requested alias email address.
- *
- * **Notes**: Idempotency — the request body is hashed and stored under `idempotency_key` per-user. Replaying with identical content returns the original result with `idempotent_replay: true`; replaying the same key with different content returns 409 `IDEMPOTENCY_KEY_REUSED`. Rate-limited at three layers: the high-cost middleware bucket (per credential / user), a soft per-user daily cap of 100 sends (`RATE_LIMITED`), and a per-alias daily cap of 50 sends (`QUOTA_EXCEEDED`). Replies (`in_reply_to_email_id`) may omit `to`/`subject` — they're derived from the original inbound message.
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Active Bearer token is invalid or has expired.
+ * - **404 Not Found**: The requested `from_alias_email` does not exist or has been soft-deleted, or the referenced `in_reply_to_email_id` is missing or belongs to a different user.
+ * - **409 Conflict / IDEMPOTENCY_KEY_REUSED**: An identical `idempotency_key` was reused with modified request payload. Use a fresh unique key.
+ * - **429 Too Many Requests / RATE_LIMITED**: The per-user rate limit or daily sending quota has been exceeded. Wait for quota reset.
+ * - **502 Bad Gateway**: The upstream Cloudflare email provider failed or rejected the message. The outbound row is persisted with `status: failed` along with provider-returned logs.
  */
 export const emailSend = <ThrowOnError extends boolean = false>(options: Options<EmailSendData, ThrowOnError>) => (options.client ?? client).post<EmailSendResponses, EmailSendErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -607,13 +864,19 @@ export const emailSend = <ThrowOnError extends boolean = false>(options: Options
 /**
  * Remove a push transport
  *
- * **Purpose**: Delete the caller's config for the given transport. After this call, product events for this user will no longer fan out to that transport.
+ * ### Overview
+ * Delete the configured push transport row, immediately halting push event dispatching for the caller.
  *
- * **When to use**: User disconnects their Telegram bot, switches transports, or wants to stop receiving notifications entirely.
+ * ### When to Use
+ * When a user disconnects their notification channel, turns off push preferences, or resets their transport target.
  *
- * **Side effects**: Hard-deletes the `(user_id, transport)` row from the push DB. Test history (`last_test_at` / `last_test_status`) is removed with the row.
+ * ### Constraints
+ * - **Idempotency**: Deleting a transport that has not been registered (or was already deleted) is handled as a no-op, returning 204 `No Content`.
+ * - **Side Effects**: Hard-deletes the `(user_id, transport)` configuration record and completely purges all associated test history (`last_test_at` and `last_test_status`).
+ * - **Transport Support**: The path parameter must be a recognized transport identifier.
  *
- * **Notes**: Idempotent — deleting a non-existent transport still returns 204. Unknown transport names (i.e. values wspc doesn't recognise at all, like `carrier_pigeon`) return 400 `UNKNOWN_TRANSPORT`.
+ * ### Troubleshooting
+ * - Returns 400 `UNKNOWN_TRANSPORT` if the transport parameter contains an unrecognized transport identifier.
  */
 export const pushConfigDelete = <ThrowOnError extends boolean = false>(options: Options<PushConfigDeleteData, ThrowOnError>) => (options.client ?? client).delete<PushConfigDeleteResponses, PushConfigDeleteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -624,11 +887,18 @@ export const pushConfigDelete = <ThrowOnError extends boolean = false>(options: 
 /**
  * List the caller's push transports
  *
- * **Purpose**: Return every push transport registered for the authenticated user.
+ * ### Overview
+ * Retrieve all active push transport configurations registered for the authenticated user.
  *
- * **When to use**: Render the user's push settings screen, check whether the user has any transport configured before relying on push delivery, or look up the most recent test outcome (`last_test_at` / `last_test_status`).
+ * ### When to Use
+ * Render settings page, determine if push notifications are enabled before prompting the user, or fetch historical health check results (`last_test_at` and `last_test_status`).
  *
- * **Notes**: One row per `(user, transport)`. Today the list is at most one row (`telegram`). The response includes the full config payload (e.g. `target_bot_username`) — treat the bot username as user secret-equivalent and avoid leaking it.
+ * ### Constraints
+ * - **List Limitations**: Currently returns at most one active registration row (`telegram`).
+ * - **Data Security**: Response payload contains sensitive data (e.g. `target_bot_username`). Callers must handle these values as user secret-equivalent and prevent leakage.
+ *
+ * ### Troubleshooting
+ * - Standard 401 Unauthorized or 403 Forbidden checks if authentication credentials are missing or invalid.
  */
 export const pushConfigGet = <ThrowOnError extends boolean = false>(options?: Options<PushConfigGetData, ThrowOnError>) => (options?.client ?? client).get<PushConfigGetResponses, PushConfigGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -639,15 +909,20 @@ export const pushConfigGet = <ThrowOnError extends boolean = false>(options?: Op
 /**
  * Register or update a push transport
  *
- * **Purpose**: Upsert a notification transport for the authenticated user. After this call wspc can DM (or otherwise reach) the user when product events fire (e.g. inbound email).
+ * ### Overview
+ * Upsert a notification transport configuration for the authenticated user. After registration, wspc can dispatch notifications to the user when registered product events fire.
  *
- * **When to use**: First-time setup, or whenever the user wants to point a transport at a different target (e.g. switching to a new Telegram bot username).
+ * ### When to Use
+ * First-time onboarding push configuration setup, or whenever the user updates their transport target details (e.g., pointing notifications to a new Telegram bot username).
  *
- * **Typical sequence**: `POST /push/config` → `POST /push/test` (verify the bot can DM the user) → product events start delivering via this transport.
+ * ### Constraints
+ * - **Supported Transports**: Currently only `transport: telegram` is supported.
+ * - **Target Validation**: `target_bot_username` must be a valid Telegram bot name starting with `@` followed by 5–32 alphanumeric/underscore characters (`^@[A-Za-z0-9_]{5,32}$`).
+ * - **Uniqueness**: Up to one registration row is saved per `(user_id, transport)`. Upserting replaces any existing target config, updating `updated_at` while retaining `created_at`.
+ * - **No Side-effect Messages**: Registering a transport does **not** send a test notification; clients should separately trigger `POST /push/test`.
  *
- * **Side effects**: Stores the config row keyed by `(user_id, transport)`. Existing row for the same transport is overwritten; `created_at` is preserved, `updated_at` is bumped. Does **not** send a test message — call `POST /push/test` separately.
- *
- * **Notes**: Only `transport: telegram` is supported today. Validation failure on `target_bot_username` (must match `^@[A-Za-z0-9_]{5,32}$`) returns 400.
+ * ### Troubleshooting
+ * - Returns 400 `INVALID_CONFIG` if payload structure is invalid or `target_bot_username` validation fails.
  */
 export const pushConfigSet = <ThrowOnError extends boolean = false>(options: Options<PushConfigSetData, ThrowOnError>) => (options.client ?? client).post<PushConfigSetResponses, PushConfigSetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -662,13 +937,20 @@ export const pushConfigSet = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Send a test push notification
  *
- * **Purpose**: Synchronously send a fixed test message via the requested transport so the user (or `wspc push test`) can confirm end-to-end delivery without triggering a real product event.
+ * ### Overview
+ * Synchronously dispatch a static test message via the requested transport target to verify delivery health.
  *
- * **When to use**: Right after `POST /push/config`, or whenever the user complains they aren't receiving notifications — exercises the same code path real notifications use and surfaces upstream errors verbatim.
+ * ### When to Use
+ * Immediately after executing `POST /push/config` to verify connection legitimacy, or when troubleshooting missing notification claims.
  *
- * **Side effects**: Issues a single send to the transport (Telegram Bot API today). Records the outcome on the config row (`last_test_at`, `last_test_status`) so subsequent `GET /push/config` reflects the latest health. Does **not** enqueue or write to product audit log — this is a probe, not a product event.
+ * ### Constraints
+ * - **Target Requirement**: You must have already successfully registered the targeted transport configuration.
+ * - **Side Effects**: Sends a single probe message to the upstream provider (e.g. Telegram Bot API). Test details are persisted to the configuration row under `last_test_at` and `last_test_status`.
+ * - **No Audit Footprint**: This operation is treated strictly as an integration probe and will not generate a product audit log footprint.
  *
- * **Notes**: Returns 200 even on transport failure — inspect `ok`/`status`/`detail` in the body. Returns 404 `NO_CONFIG` if the caller hasn't registered the requested transport.
+ * ### Troubleshooting
+ * - **Upstream Error Handling**: This endpoint returns an HTTP `200 OK` status even if the upstream dispatch fails. Callers must inspect `ok: false` and review `status` and `detail` in the response JSON to verify connection health.
+ * - Returns 404 `NO_CONFIG` if the user has not registered configuration details for the requested transport.
  */
 export const pushTest = <ThrowOnError extends boolean = false>(options: Options<PushTestData, ThrowOnError>) => (options.client ?? client).post<PushTestResponses, PushTestErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -683,11 +965,17 @@ export const pushTest = <ThrowOnError extends boolean = false>(options: Options<
 /**
  * List projects
  *
- * Purpose: List projects in the caller organization.
+ * ### 🎯 Overview & Purpose
+ * List all project workspaces available to the authenticated organization or user.
  *
- * When to use: Populate project pickers or find project ids before listing todos, todo types, or recurrence rules.
+ * ### 🔍 When to Use
+ * * Use this to populate project switcher dropdown menus, load side navigation views, or find valid project IDs before listing other scoped resources.
  *
- * Notes: Omits soft-deleted projects by default. Set include_deleted=true when building restore or audit views.
+ * ### 💡 Key Features & Constraints
+ * * **Archived Visibility**: Soft-deleted projects are omitted from default listings. Pass `include_deleted=true` to include them for auditing or recovery dashboards.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`AUTH_REQUIRED` (HTTP 401)**: Thrown if the caller is not authenticated.
  */
 export const projectList = <ThrowOnError extends boolean = false>(options?: Options<ProjectListData, ThrowOnError>) => (options?.client ?? client).get<ProjectListResponses, ProjectListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -698,11 +986,19 @@ export const projectList = <ThrowOnError extends boolean = false>(options?: Opti
 /**
  * Create a project
  *
- * Purpose: Create a project within the caller organization.
+ * ### 🎯 Overview & Purpose
+ * Establish a new isolated project workspace.
  *
- * When to use: Separate work areas that need their own default todo type and project-scoped todos.
+ * ### 🔍 When to Use
+ * * Use this to set up a new domain, team project, or separate workspace area to isolate tasks, custom types, and recurrence rules.
  *
- * Notes: Project names are not required to be unique. Omit default_todo_type_id to inherit the Default Project's default type.
+ * ### 💡 Key Features & Constraints
+ * * **Project Partitioning**: Projects act as strict boundaries. Custom todo types and recurrence rules created under this project are strictly confined to it.
+ * * **Name Uniqueness**: Project names are free-form and do not have to be unique.
+ * * **Default Type Inheritance**: Omit `default_todo_type_id` to automatically inherit the Default Project's default task type.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if required fields are missing, if name is empty, or if name length constraints are violated.
  */
 export const projectCreate = <ThrowOnError extends boolean = false>(options?: Options<ProjectCreateData, ThrowOnError>) => (options?.client ?? client).post<ProjectCreateResponses, ProjectCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -717,11 +1013,18 @@ export const projectCreate = <ThrowOnError extends boolean = false>(options?: Op
 /**
  * List recurring todo rules
  *
- * **Purpose**: Return all active recurrence rules owned by the caller.
+ * ### 🎯 Overview & Purpose
+ * Return all active recurrence rules within a specific project owned by the caller.
  *
- * **When to use**: Render a settings page that lists recurring tasks, or inspect what rules will materialize todos in the next 14 days.
+ * ### 🔍 When to Use
+ * * Use this to render rule management panels, list scheduled automation templates, or inspect active rules.
  *
- * **Notes**: Soft-deleted rules are excluded. Each rule's `dtstart` and `rrule` together describe its schedule; materialization happens server-side up to 14 days ahead.
+ * ### 💡 Key Features & Constraints
+ * * **Project Scope**: The `project_id` query parameter is strictly required.
+ * * **Exclusion**: Soft-deleted/archived rules are excluded from the response by default.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if `project_id` query filter is omitted.
  */
 export const recurrenceRuleList = <ThrowOnError extends boolean = false>(options: Options<RecurrenceRuleListData, ThrowOnError>) => (options.client ?? client).get<RecurrenceRuleListResponses, RecurrenceRuleListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -732,13 +1035,22 @@ export const recurrenceRuleList = <ThrowOnError extends boolean = false>(options
 /**
  * Create a recurring todo rule
  *
- * **Purpose**: Create a recurrence rule that materializes upcoming todo instances on a repeating schedule.
+ * ### 🎯 Overview & Purpose
+ * Create a recurrence rule that materializes upcoming todo instances on a repeating schedule.
  *
- * **When to use**: Set up recurring work like a weekly review or monthly close-out. The rule stores an RFC 5545 RRULE plus a template todo; the server then materializes upcoming instances on a 14-day horizon, each as an independent todo with its own status and `due_at`.
+ * ### 🔍 When to Use
+ * * Use this to set up recurring work like a weekly Standup, monthly reporting, or cyclical maintenance. The server automatically materializes upcoming todo instances on a 14-day rolling horizon.
  *
- * **Side effects**: Creates the template todo (hidden from default listings) and materializes occurrences up to 14 days ahead. Subsequent scheduled triggers extend the materialization window.
+ * ### 💡 Key Features & Constraints
+ * * **RFC-5545 Conformity**: The `rrule` parameter must be a valid RFC-5545 schedule string (e.g., `FREQ=WEEKLY;BYDAY=MO`) and must **not** include the `DTSTART` or `TZID` directive.
+ * * **Anchor Date**: `dtstart` specifies the local calendar starting date (`YYYY-MM-DD`) where the schedule rule is anchored.
+ * * **Nesting Constraints**: Recurrence rules can only be bound to root-level tasks. Child tasks (subtasks) cannot have recurrence rules. Setting a child task as a parent will trigger `PARENT_IS_CHILD`.
+ * * **Instance Independence**: Once materialized, each todo instance is fully independent with its own `status` and `due_at`.
  *
- * **Notes**: `rrule` must NOT include `DTSTART` or `TZID` — the server anchors the rule via `dtstart` (ISO date-only `YYYY-MM-DD`). Editing the rule later only affects future materializations; already-materialized instances are not retroactively touched.
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`RRULE_INVALID` (HTTP 400)**: Thrown if the `rrule` schedule string is broken or contains illegal `DTSTART` directives.
+ * * **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the specified `parent_id` points to a child task.
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if date format is invalid or required fields are missing.
  */
 export const recurrenceRuleCreate = <ThrowOnError extends boolean = false>(options?: Options<RecurrenceRuleCreateData, ThrowOnError>) => (options?.client ?? client).post<RecurrenceRuleCreateResponses, RecurrenceRuleCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -753,11 +1065,21 @@ export const recurrenceRuleCreate = <ThrowOnError extends boolean = false>(optio
 /**
  * List todos with filters
  *
- * **Purpose**: Return the caller's todos, optionally filtered by parent, status, due-date window, and soft-deleted / template visibility.
+ * ### 🎯 Overview & Purpose
+ * Return the caller's active or archived todos, with comprehensive options to filter by project, parent task, status, due-date window, and template visibility.
  *
- * **When to use**: Render the root todo list, look up root todos due in a window (`due_after` + `due_before`), or fetch direct children of a root todo with `parent_id=<root id>`.
+ * ### 🔍 When to Use
+ * * Use this to render the main todo board dashboard, query items due in a specific timeframe (using `due_after` and `due_before`), or lazy-load subtasks for an expanded parent todo by passing its ID.
  *
- * **Notes**: Omitting `parent_id` lists root-level todos; `parent_id=null` is the explicit root-level form. Pass a todo id to list direct children of that root todo. Multi-value `status` query repeats the parameter, e.g. `?status=open&status=in_progress`. `due_after` is inclusive; `due_before` is exclusive (half-open `[due_after, due_before)` window). `due_*` filters exclude todos with no due date. Soft-deleted todos are hidden unless `include_deleted=true`; template todos backing recurrence rules are hidden unless `include_templates=true`.
+ * ### 💡 Key Features & Constraints
+ * * **Required Parameter**: The `project_id` query parameter is strictly required and must match an active project.
+ * * **Parent Tasks**: Omitting `parent_id` lists root-level todos by default. Pass a todo id to list direct children of that specific task.
+ * * **Multi-Status Filters**: Multi-value `status` query is supported by repeating the parameter, e.g., `?status=open&status=in_progress`.
+ * * **Due-Date Windowing**: The `due_after` filter is inclusive, while `due_before` is exclusive, forming a half-open window `[due_after, due_before)`. Both parameters exclude todos with no due date.
+ * * **Template & Soft-Delete Visibility**: Soft-deleted todos are hidden unless `include_deleted=true`. Template todos backing recurrence rules are hidden unless `include_templates=true`.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if `project_id` is missing, or if query parameters fail schema validation.
  */
 export const todoList = <ThrowOnError extends boolean = false>(options: Options<TodoListData, ThrowOnError>) => (options.client ?? client).get<TodoListResponses, TodoListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -768,13 +1090,23 @@ export const todoList = <ThrowOnError extends boolean = false>(options: Options<
 /**
  * Create a todo
  *
- * **Purpose**: Create a new todo. Pass `parent_id` to attach it under another todo; omit `parent_id` to create a root-level todo.
+ * ### 🎯 Overview & Purpose
+ * Create a new todo item under a specified project. This can either be a standalone root-level todo or a nested subtask attached to an existing root todo.
  *
- * **When to use**: Capture a fresh work item, or break a larger todo into subtasks by creating children of an existing todo.
+ * ### 🔍 When to Use
+ * * Use this to capture a fresh work item, document an ongoing task, or break a larger root todo into subtasks by creating child todos under it.
  *
- * **Side effects**: Emits the `captureTodoCreated` analytics event. Does not interact with recurrence rules.
+ * ### 💡 Key Features & Constraints
+ * * **One-Level Nesting Limit**: WSPC supports a maximum of one level of task nesting (Root ➔ Child). A root-level todo can have children, but a child todo cannot have further subtasks. Setting a child todo as a parent will fail and trigger a `PARENT_IS_CHILD` error.
+ * * **Description Handling**: Passing a non-empty string stores the description; passing `""` explicitly stores an empty string. Passing `null` is strictly rejected.
+ * * **Due Date Format**: Accepts an ISO-8601 date-only format (`YYYY-MM-DD`). Pass `""` or omit the field to skip setting a due date.
+ * * **Project Binding**: Every todo must belong to a valid active project (`project_id`).
  *
- * **Notes**: `description: ""` is allowed (stores empty); `description: null` is rejected. `due_at` accepts ISO date-only `YYYY-MM-DD`; omit or pass empty string for no due date.
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if required fields are missing, if `due_at` violates the `YYYY-MM-DD` format, or if `title` exceeds 500 characters.
+ * * **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the target `parent_id` refers to a todo that is itself already a child todo.
+ * * **`WOULD_CREATE_CYCLE` (HTTP 400)**: Thrown if `parent_id` points to the todo's own ID.
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the specified `project_id` or `parent_id` does not exist or has been soft-deleted.
  */
 export const todoCreate = <ThrowOnError extends boolean = false>(options?: Options<TodoCreateData, ThrowOnError>) => (options?.client ?? client).post<TodoCreateResponses, TodoCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -789,7 +1121,18 @@ export const todoCreate = <ThrowOnError extends boolean = false>(options?: Optio
 /**
  * List todo types
  *
- * List the caller's todo types in the Default Project unless `project_id` is supplied. By default only active (non-deleted) types are returned. Pass `include_deleted=true` to surface soft-deleted rows for a restore UI.
+ * ### 🎯 Overview & Purpose
+ * List custom todo types defined within a project.
+ *
+ * ### 🔍 When to Use
+ * * Use this to populate task type selection dropdown elements or load category metadata for dynamic custom forms.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Required Parameter**: The `project_id` filter is strictly required and must match an active project.
+ * * **Exclusion**: Soft-deleted types are excluded by default. Pass `include_deleted=true` to surface archived rows for a recovery UI.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if `project_id` query parameter is omitted.
  */
 export const todoTypeList = <ThrowOnError extends boolean = false>(options: Options<TodoTypeListData, ThrowOnError>) => (options.client ?? client).get<TodoTypeListResponses, TodoTypeListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -800,7 +1143,18 @@ export const todoTypeList = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Create a todo type
  *
- * Create a new todo type for the caller. Types group todos under a label and optionally declare custom field schemas and hide-core-field overrides. The first call also lazily seeds a `Default Project` and `Default` type if missing.
+ * ### 🎯 Overview & Purpose
+ * Create a new custom todo type. This allows you to define specialized category schemas (e.g. "Bug Report") and configure custom field constraints.
+ *
+ * ### 🔍 When to Use
+ * * Use this to set up customized task behaviors (e.g. tracking choices, additional metadata, or enforcing hidden fields) tailored to a project.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Automatic Seeding**: The first project initialization will lazily seed a `Default Project` and a `Default` todo type if they do not already exist.
+ * * **Metadata Schema**: Custom field keys mapped here are evaluated during task creation/update.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if required fields are missing or schema constraints are violated.
  */
 export const todoTypeCreate = <ThrowOnError extends boolean = false>(options?: Options<TodoTypeCreateData, ThrowOnError>) => (options?.client ?? client).post<TodoTypeCreateResponses, TodoTypeCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -815,11 +1169,17 @@ export const todoTypeCreate = <ThrowOnError extends boolean = false>(options?: O
 /**
  * Soft-delete a project
  *
- * Purpose: Soft-delete a project.
+ * ### 🎯 Overview & Purpose
+ * Soft-delete/archive a project workspace.
  *
- * When to use: Hide a project from default lists without permanently removing its history.
+ * ### 🔍 When to Use
+ * * Use this to archive a completed project and hide it from default listings without losing historical metrics.
  *
- * Notes: Soft-deleted projects cannot be used for new todos, todo types, or recurrence rules until restored.
+ * ### 💡 Key Features & Constraints
+ * * **Cascading Effects**: Deleting a project automatically soft-deletes the project record and cascades to soft-delete all todos created under it.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the project ID does not exist or has already been archived.
  */
 export const projectDelete = <ThrowOnError extends boolean = false>(options: Options<ProjectDeleteData, ThrowOnError>) => (options.client ?? client).delete<ProjectDeleteResponses, ProjectDeleteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -830,11 +1190,17 @@ export const projectDelete = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Get a project by id
  *
- * Purpose: Retrieve one project by id.
+ * ### 🎯 Overview & Purpose
+ * Retrieve one project workspace by its unique identifier.
  *
- * When to use: Show project detail before creating todos, todo types, or recurrence rules under it.
+ * ### 🔍 When to Use
+ * * Use this to fetch the configuration details of a specific project, verify its version, or inspect its metadata before creating other scoped resources under it.
  *
- * Notes: Soft-deleted projects can still be read by id, but cannot be used for new child resources until restored.
+ * ### 💡 Key Features & Constraints
+ * * **Soft-Deleted Access**: Soft-deleted projects can still be retrieved directly by ID, but they cannot be used for creating new child resources (todos, todo types, or recurrence rules) until they are fully restored.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the specified project ID does not exist in the caller's organization.
  */
 export const projectGet = <ThrowOnError extends boolean = false>(options: Options<ProjectGetData, ThrowOnError>) => (options.client ?? client).get<ProjectGetResponses, ProjectGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -845,11 +1211,19 @@ export const projectGet = <ThrowOnError extends boolean = false>(options: Option
 /**
  * Update a project
  *
- * Purpose: Update project attributes.
+ * ### 🎯 Overview & Purpose
+ * Modify the name or default settings of an existing project.
  *
- * When to use: Rename a project, change its default todo type, or enforce optimistic locking with expected_version.
+ * ### 🔍 When to Use
+ * * Use this to rename a project workspace, switch its default task type, or change custom field defaults.
  *
- * Notes: Supplied default_todo_type_id must be active and visible in the caller organization.
+ * ### 💡 Key Features & Constraints
+ * * **Optimistic Locking (`expected_version`)**: Pass `expected_version` to enforce optimistic write control. If the database version mismatches, the request fails with `VERSION_CONFLICT`.
+ * * **Todo Type Binding**: If updating `default_todo_type_id`, the target type must be active and visible to the caller's organization.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VERSION_CONFLICT` (HTTP 409)**: Thrown if the provided `expected_version` does not match the database.
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the project ID does not exist or has been soft-deleted.
  */
 export const projectUpdate = <ThrowOnError extends boolean = false>(options: Options<ProjectUpdateData, ThrowOnError>) => (options.client ?? client).patch<ProjectUpdateResponses, ProjectUpdateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -864,11 +1238,19 @@ export const projectUpdate = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Delete a recurring todo rule
  *
- * **Purpose**: Soft-delete a recurrence rule. Future materializations stop immediately; already-materialized todo instances are unaffected and remain on the user's list.
+ * ### 🎯 Overview & Purpose
+ * Soft-delete/delete a recurrence rule to immediately halt future task materialization.
  *
- * **When to use**: End an ongoing recurrence (e.g. you no longer need the weekly review). To also remove existing materialized instances, soft-delete them through the todo endpoints.
+ * ### 🔍 When to Use
+ * * Use this to permanently end an ongoing cyclical schedule automation (e.g., when a weekly standby rotation is retired).
  *
- * **Notes**: `expected_version` is optional optimistic concurrency — omit to use the server's current version, or pass it to fail with `VERSION_CONFLICT` if the rule has been modified since you last observed it.
+ * ### 💡 Key Features & Constraints
+ * * **Historic Preservation**: Deleting a rule stops the rolling schedule generations, but **does not** delete or alter todo tasks that have already been materialized. They remain on the user's list.
+ * * **Optimistic Locking**: Supports optional `expected_version` checks.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` mismatches the database.
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target rule ID does not exist.
  */
 export const recurrenceRuleDelete = <ThrowOnError extends boolean = false>(options: Options<RecurrenceRuleDeleteData, ThrowOnError>) => (options.client ?? client).delete<RecurrenceRuleDeleteResponses, RecurrenceRuleDeleteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -883,11 +1265,17 @@ export const recurrenceRuleDelete = <ThrowOnError extends boolean = false>(optio
 /**
  * Get a recurring todo rule
  *
- * **Purpose**: Fetch a single recurrence rule along with its template todo snapshot and the count of materialized instances.
+ * ### 🎯 Overview & Purpose
+ * Fetch a single recurrence rule along with its template todo snapshot and the count of materialized instances.
  *
- * **When to use**: Inspect a rule before editing, preview the template that future instances will copy, or report current materialization state.
+ * ### 🔍 When to Use
+ * * Use this to inspect rule details before editing, preview the task template that future occurrences will copy, or check the current materialization metrics.
  *
- * **Notes**: The template returned here is a snapshot — editing the rule (PATCH) only affects future materializations and never mutates already-materialized instances. Materialization stays bounded to 14 days ahead.
+ * ### 💡 Key Features & Constraints
+ * * **Snapshot Integrity**: The returned template represents a schema template snapshot — modifying the rule (PATCH) only alters future occurrences; already-materialized tasks are never mutated retroactively.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the specified rule ID does not exist.
  */
 export const recurrenceRuleGet = <ThrowOnError extends boolean = false>(options: Options<RecurrenceRuleGetData, ThrowOnError>) => (options.client ?? client).get<RecurrenceRuleGetResponses, RecurrenceRuleGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -898,13 +1286,20 @@ export const recurrenceRuleGet = <ThrowOnError extends boolean = false>(options:
 /**
  * Update a recurring todo rule
  *
- * **Purpose**: Update the schedule (`rrule`, `dtstart`) or template fields (`title`, `description`, `parent_id`) of a recurrence rule.
+ * ### 🎯 Overview & Purpose
+ * Update the schedule parameters (`rrule`, `dtstart`) or task template attributes (`title`, `description`, `parent_id`) of a recurrence rule.
  *
- * **When to use**: Move a weekly rule to a different day, change the template description, or re-parent future materializations.
+ * 🔍 When to Use
+ * * Use this to shift standup schedules (e.g., from Monday to Friday), update template text details, or change the parent todo mapping for future generated tasks.
  *
- * **Side effects**: Only affects future materializations. Already-materialized todo instances are not retroactively edited. The 14-day materialization horizon is recomputed from the updated rule.
+ * ### 💡 Key Features & Constraints
+ * * **Future-Only Effect**: Modifying the rule only applies to future materialized todo tasks; previously generated tasks remain unaffected.
+ * * **Optimistic Locking**: Supports `expected_version` to prevent concurrent modifications from overwriting workspace rule parameters.
  *
- * **Notes**: `expected_version` is optional optimistic concurrency — omit to use the server's current version. `rrule` must NOT include `DTSTART` or `TZID`.
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VERSION_CONFLICT` (HTTP 409)**: Thrown if the provided `expected_version` mismatches the database.
+ * * **`RRULE_INVALID` (HTTP 400)**: Thrown if the updated schedule string contains illegal syntax or includes `DTSTART`.
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target rule ID does not exist.
  */
 export const recurrenceRuleUpdate = <ThrowOnError extends boolean = false>(options: Options<RecurrenceRuleUpdateData, ThrowOnError>) => (options.client ?? client).patch<RecurrenceRuleUpdateResponses, RecurrenceRuleUpdateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -919,11 +1314,22 @@ export const recurrenceRuleUpdate = <ThrowOnError extends boolean = false>(optio
 /**
  * Soft-delete a todo
  *
- * **Purpose**: Soft-delete a todo so it stops appearing in default listings. Recoverable via `POST /todo/items/{id}/restore`.
+ * ### 🎯 Overview & Purpose
+ * Soft-delete a todo item so that it no longer appears in active list queries. The record remains in the database and can be recovered later.
  *
- * **When to use**: Hide an item from the active list without losing it. Pair with `cascade: true` to wipe an entire subtree at once.
+ * ### 🔍 When to Use
+ * * Use this to hide an item from your active listings without permanently losing the history or metrics.
  *
- * **Notes**: When `cascade` is `false` (default) and active children exist, the call fails with `HAS_CHILDREN`; retry with `cascade: true` to soft-delete the subtree. `expected_version` is optional optimistic concurrency.
+ * ### 💡 Key Features & Constraints
+ * * **Cascading Delete (`cascade`)**: If the target todo has active child subtasks:
+ * - If `cascade: false` (default), the deletion will fail and throw a `HAS_CHILDREN` error to prevent accidental orphaned tasks.
+ * - If `cascade: true`, the target todo and all its nested child subtasks will be soft-deleted together.
+ * * **Optimistic Locking**: You may optionally pass `expected_version` to ensure the todo has not been modified since you last read it.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`HAS_CHILDREN` (HTTP 400)**: Thrown if you attempt to delete a parent todo that has active subtasks without explicitly setting `cascade: true`.
+ * * **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` is provided and mismatches the database.
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo `id` does not exist or has already been soft-deleted.
  */
 export const todoDelete = <ThrowOnError extends boolean = false>(options: Options<TodoDeleteData, ThrowOnError>) => (options.client ?? client).delete<TodoDeleteResponses, TodoDeleteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -938,11 +1344,17 @@ export const todoDelete = <ThrowOnError extends boolean = false>(options: Option
 /**
  * Get a todo by id
  *
- * **Purpose**: Fetch a single todo by id.
+ * ### 🎯 Overview & Purpose
+ * Fetch the full details of a single todo item by its unique identifier.
  *
- * **When to use**: Confirm current state, read `version` for a follow-up PATCH with `expected_version`, or surface details after a partial CLI prefix match.
+ * ### 🔍 When to Use
+ * * Use this to confirm the current state of a task, inspect nested field values, or retrieve its current `version` before issuing an optimistic update (PATCH).
  *
- * **Notes**: Soft-deleted todos return 404 unless `?include_deleted=true` is supplied.
+ * ### 💡 Key Features & Constraints
+ * * **Soft-Deleted Recovery**: A soft-deleted todo will return an HTTP 404 unless the query parameter `?include_deleted=true` is explicitly supplied.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the specified todo `id` does not exist, or has been soft-deleted and the request did not supply `include_deleted=true`.
  */
 export const todoGet = <ThrowOnError extends boolean = false>(options: Options<TodoGetData, ThrowOnError>) => (options.client ?? client).get<TodoGetResponses, TodoGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -953,13 +1365,23 @@ export const todoGet = <ThrowOnError extends boolean = false>(options: Options<T
 /**
  * Update a todo
  *
- * **Purpose**: Update one or more fields of an existing todo.
+ * ### 🎯 Overview & Purpose
+ * Update one or more fields of an existing todo item, such as its title, status, parent todo, due date, or description.
  *
- * **When to use**: Change title, status, parent, due date, or description.
+ * ### 🔍 When to Use
+ * * Use this to log progress by changing the status (e.g., to `in_progress` or `done`), reschedule due dates, edit title/description, or reassign/move a task by changing its `parent_id`.
  *
- * **Side effects**: Transitioning `status` to `done` emits the `captureTodoCompleted` analytics event. No effect on recurrence rules.
+ * ### 💡 Key Features & Constraints
+ * * **Optimistic Locking (`expected_version`)**: An optional integer representing the version you expect to update. If provided, the server matches it with the current database version. If they match, the update succeeds and increments the version; if they mismatch, a `VERSION_CONFLICT` error is thrown. Omit this field to skip version checking (Last-Write-Wins behavior).
+ * * **Parent Re-assignment**: Set `parent_id: null` to move a child todo back to the root level.
+ * * **Status Transitions**: Transitioning the `status` to `done` automatically emits a `captureTodoCompleted` analytics event.
+ * * **Clearing Fields**: To clear an existing description or due date, explicitly pass `""`. Passing `null` is rejected.
  *
- * **Notes**: `expected_version` is optional optimistic concurrency — omit and the server uses the current version (recommended). To clear an existing description or due date, pass `""`; `null` is rejected. Pass `parent_id: null` to move the todo back to root.
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` does not match the current database row version.
+ * * **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the new `parent_id` refers to a todo that is itself already a child todo.
+ * * **`WOULD_CREATE_CYCLE` (HTTP 400)**: Thrown if the update attempts to make a parent todo a child of its own descendant.
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the todo `id` or the new `parent_id` does not exist or has been soft-deleted.
  */
 export const todoUpdate = <ThrowOnError extends boolean = false>(options: Options<TodoUpdateData, ThrowOnError>) => (options.client ?? client).patch<TodoUpdateResponses, TodoUpdateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -974,7 +1396,18 @@ export const todoUpdate = <ThrowOnError extends boolean = false>(options: Option
 /**
  * Soft-delete a todo type
  *
- * Soft-delete a todo type. The current default type cannot be deleted; set another type as default first (409 `CANNOT_DELETE_DEFAULT_TYPE`). Restorable via `POST /todo/types/{id}/restore`.
+ * ### 🎯 Overview & Purpose
+ * Soft-delete/archive a custom todo type.
+ *
+ * ### 🔍 When to Use
+ * * Use this to retire a custom task category workspace that is no longer needed.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Default Type Protection**: The current active default type of a project cannot be deleted. You must assign another type as default first; otherwise the call fails with `CANNOT_DELETE_DEFAULT_TYPE`.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`CANNOT_DELETE_DEFAULT_TYPE` (HTTP 409)**: Thrown if the target todo type is currently the project's default type.
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target ID does not exist.
  */
 export const todoTypeDelete = <ThrowOnError extends boolean = false>(options: Options<TodoTypeDeleteData, ThrowOnError>) => (options.client ?? client).delete<TodoTypeDeleteResponses, TodoTypeDeleteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -985,7 +1418,17 @@ export const todoTypeDelete = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Get a todo type by id
  *
- * Fetch a single todo type by id. Returns 404 `TYPE_NOT_FOUND` when the id is unknown or belongs to another user.
+ * ### 🎯 Overview & Purpose
+ * Fetch a single custom todo type by its unique identifier.
+ *
+ * ### 🔍 When to Use
+ * * Use this to inspect custom fields schemas, verify type visibility, or validate active field constraints.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Isolation**: You can only fetch types that belong to your organization.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target ID is unknown or belongs to another organization.
  */
 export const todoTypeGet = <ThrowOnError extends boolean = false>(options: Options<TodoTypeGetData, ThrowOnError>) => (options.client ?? client).get<TodoTypeGetResponses, TodoTypeGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -996,7 +1439,18 @@ export const todoTypeGet = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Update a todo type
  *
- * Update a todo type's label, hidden core fields, or custom field schema. Changing the `type` of an existing custom field key is rejected with 422 `CANNOT_CHANGE_FIELD_TYPE`; remove the field and re-add it under a new key to migrate.
+ * ### 🎯 Overview & Purpose
+ * Update a custom todo type's label, core field overrides, or custom field schema definitions.
+ *
+ * ### 🔍 When to Use
+ * * Use this to rename a task category category, hide native todo attributes, or adjust custom data schemas.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Type Modification Constraints**: Changing the data `type` of an existing custom field key (e.g. converting a string field to a boolean field) is strictly rejected with `CANNOT_CHANGE_FIELD_TYPE`. To migrate, remove the key and re-add it under a brand new name.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`CANNOT_CHANGE_FIELD_TYPE` (HTTP 422)**: Thrown if you attempt to modify the declared data type of an existing custom field key.
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target ID does not exist.
  */
 export const todoTypeUpdate = <ThrowOnError extends boolean = false>(options: Options<TodoTypeUpdateData, ThrowOnError>) => (options.client ?? client).patch<TodoTypeUpdateResponses, TodoTypeUpdateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1011,11 +1465,17 @@ export const todoTypeUpdate = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Restore a soft-deleted project
  *
- * Purpose: Restore a soft-deleted project.
+ * ### 🎯 Overview & Purpose
+ * Restore a previously soft-deleted project workspace.
  *
- * When to use: Bring a project back into default lists and make it usable for new child resources.
+ * ### 🔍 When to Use
+ * * Use this to bring an archived project back into active listings and restore its capacity to host new child resources.
  *
- * Notes: Restoring does not change the project id.
+ * ### 💡 Key Features & Constraints
+ * * **No ID Alteration**: Restoring a project fully recovers the record without changing its stable ID or history.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the project ID does not exist.
  */
 export const projectRestore = <ThrowOnError extends boolean = false>(options: Options<ProjectRestoreData, ThrowOnError>) => (options.client ?? client).post<ProjectRestoreResponses, ProjectRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1026,11 +1486,19 @@ export const projectRestore = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Restore a soft-deleted todo
  *
- * **Purpose**: Reverse a previous soft-delete. The todo (and optionally its descendants) is moved back to the active list.
+ * ### 🎯 Overview & Purpose
+ * Reverse a previous soft-delete. The todo (and optionally its descendants) is recovered back to the active list.
  *
- * **When to use**: Recover an item that was deleted by mistake, or pull an item out of trash to continue working on it.
+ * ### 🔍 When to Use
+ * * Use this to recover a task deleted by mistake, or pull a task out of the trash to continue active work.
  *
- * **Notes**: `parent_in_trash_warning` flags the case where the restored todo's parent is itself still in trash, leaving the restored todo orphaned from a visible ancestor — surface this to the user. `cascade: true` also restores any descendants still in trash; otherwise their count is reported back in `descendants_in_trash_count` for follow-up.
+ * ### 💡 Key Features & Constraints
+ * * **Orphan Warning**: If the restored todo's parent is still in the trash, the call succeeds but returns `parent_in_trash_warning: true`, signaling that the restored todo is currently orphaned from a visible ancestor.
+ * * **Cascading Restore (`cascade`)**: If `cascade: true` is provided, all descendants still in the trash are also restored. Otherwise, descendants are left in the trash, and their count is reported back in `descendants_in_trash_count`.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` is supplied and mismatches the database.
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo `id` does not exist or has already been permanently purged.
  */
 export const todoRestore = <ThrowOnError extends boolean = false>(options: Options<TodoRestoreData, ThrowOnError>) => (options.client ?? client).post<TodoRestoreResponses, TodoRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1045,7 +1513,17 @@ export const todoRestore = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Restore a soft-deleted todo type
  *
- * Restore a soft-deleted todo type by clearing its `deleted_at`. Todos previously assigned to this type keep their `type_id` and become re-attached to the now-active type.
+ * ### 🎯 Overview & Purpose
+ * Restore a previously archived/soft-deleted custom todo type.
+ *
+ * ### 🔍 When to Use
+ * * Use this to bring a retired task category back into active status.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Task Re-Attachment**: Restoring a type clears its `deleted_at` timestamp. Todo items previously assigned to this type immediately become active and validated under this recovered category schema.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target ID does not exist.
  */
 export const todoTypeRestore = <ThrowOnError extends boolean = false>(options: Options<TodoTypeRestoreData, ThrowOnError>) => (options.client ?? client).post<TodoTypeRestoreResponses, TodoTypeRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
