@@ -8296,7 +8296,14 @@
           ],
           "examples": [
             "wspc event rm evt_xxx"
-          ]
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "summary": "Soft-delete a calendar event",
         "description": "### Overview\nSoft-delete an existing calendar event, hiding it from default listings.\n\n### When to Use\nRemove an event entirely from the user's historical view and calendar client. If the meeting was cancelled but should remain in history (notifying participants of cancellation), use `PATCH /calendar/events/{id}` with `status: cancelled` instead.\n\n### Constraints\n- **Optimistic Locking**: Supports optional optimistic locking via `expected_version` in the request body.\n- **Side Effects**: When soft-deleting an event with attendees, all participants will asynchronously receive a cancellation email containing an `.ics` CANCEL attachment via Cloudflare `waitUntil`.\n- **Recovery**: The record is preserved in the database as a soft-deleted row and can be brought back using `POST /calendar/events/{id}/restore`.\n\n### Troubleshooting\n- Returns 404 `NOT_FOUND` if the event does not exist, or has already been soft-deleted.\n- Returns 409 `VERSION_CONFLICT` if `expected_version` does not match the database value.",
@@ -9699,7 +9706,10 @@
           ],
           "examples": [
             "wspc event ics evt_xxx > event.ics"
-          ]
+          ],
+          "display": {
+            "shape": "raw"
+          }
         },
         "summary": "Download event as `.ics`",
         "description": "### Overview\nReturn a single event rendered as an RFC 5545 `.ics` file suitable for import into major calendar clients.\n\n### When to Use\nExpose a 'Save to my calendar' link in email notifications, show a download button in a UI, or programmatically forward raw iCalendar text to third parties.\n\n### Constraints\n- **Router Match**: The path parameter `filename` must be exactly `<event_id>.ics`. The `.ics` suffix is strictly required for the router to match this endpoint ahead of the JSON detail endpoint.\n- **Response Payload**: The response is plain text containing the iCalendar specification, NOT JSON. The `Content-Type` is set to `text/calendar; charset=utf-8` with `Content-Disposition: inline; filename=\"<event_id>.ics\"`.\n- **Authentication**: Standard authentication is required (Bearer API key or OAuth access token), as this endpoint is secure.\n\n### Troubleshooting\n- Returns 404 `NOT_FOUND` if the event does not exist, is soft-deleted, or is owned by another user.",
@@ -10116,11 +10126,6 @@
             "lang": "shell",
             "label": "curl",
             "source": "curl -X POST https://api.wspc.ai/calendar/events/evt_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc event restore evt_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           },
           {
             "lang": "typescript",
@@ -13482,11 +13487,6 @@
             "source": "curl -X POST https://api.wspc.ai/email/aliases/alice-shop%40wspc.app/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
           },
           {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc email alias restore alice-shop@wspc.app"
-          },
-          {
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "import { EmailClient } from \"@wspc/client\"\nconst email = new EmailClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait email.aliasRestore(\"alice-shop@wspc.app\")"
@@ -13707,11 +13707,6 @@
             "lang": "shell",
             "label": "curl",
             "source": "curl -X POST https://api.wspc.ai/email/messages/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"ids\":[\"eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\"]}'"
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc email restore eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           },
           {
             "lang": "typescript",
@@ -24579,11 +24574,6 @@
             "source": "curl -X POST https://api.wspc.ai/todo/projects/prj_01HW3K/restore -H \"Authorization: Bearer $WSPC_API_KEY\""
           },
           {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc project restore prj_01HW3K"
-          },
-          {
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "await todo.projects.restore(\"prj_01HW3K\")"
@@ -24996,11 +24986,6 @@
             "lang": "shell",
             "label": "curl",
             "source": "curl -X POST https://api.wspc.ai/todo/items/tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo restore tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           },
           {
             "lang": "typescript",
@@ -25437,11 +25422,6 @@
             "lang": "shell",
             "label": "curl",
             "source": "curl -X POST https://api.wspc.ai/todo/types/typ_01HW3K/restore -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo types restore typ_01HW3K"
           },
           {
             "lang": "typescript",

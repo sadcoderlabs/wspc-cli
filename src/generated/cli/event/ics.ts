@@ -22,5 +22,5 @@ export const eventIcsDownloadCommand = new Command("ics")
       process.exitCode = 1
       return
     }
-    render({ kind: "event_ics_download", display: undefined }, result.data)
+    render({ kind: "event_ics_download", display: {"shape":"raw"} }, result.data)
   })

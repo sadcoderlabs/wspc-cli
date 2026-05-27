@@ -26,5 +26,5 @@ export const eventDeleteCommand = new Command("rm")
       process.exitCode = 1
       return
     }
-    render({ kind: "event_delete", display: undefined }, result.data)
+    render({ kind: "event_delete", display: {"shape":"object","format":{"id":"id-short","deleted_at":"relative-time"}} }, result.data)
   })
