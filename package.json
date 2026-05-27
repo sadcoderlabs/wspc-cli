@@ -28,6 +28,7 @@
     "url": "git+https://github.com/sadcoderlabs/wspc-cli.git"
   },
   "scripts": {
+    "prepare": "tsx scripts/build-version.ts",
     "sync-spec": "tsx scripts/sync-spec.ts",
     "generate": "npm run generate:sdk && npm run generate:cli",
     "generate:sdk": "openapi-ts",
