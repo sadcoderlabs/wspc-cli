@@ -78,16 +78,23 @@ export function truncate(s: string, max = 50): string {
 }
 
 /**
- * Shorten an id like `tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F` to `tod_01HW3K4N`. We
- * keep the typed prefix so values are still scannable (`tod_` vs `prj_` vs
- * `usr_`); the suffix is enough to disambiguate in a list view. Strings
- * without an underscore fall through to first-12-chars.
+ * Render an id with visual emphasis on the scannable prefix while keeping
+ * the full id intact for copy-paste — `tod_01HW3K4N` shown normally,
+ * `9V5G6Z8C2Q7B1Y0M3F` dimmed. Terminal text selection still picks up the
+ * whole string so users can copy from the table directly and use it as a
+ * parameter to other commands.
+ *
+ * Naming note: the spec contract key is `"id-short"` for historical reasons
+ * (the original implementation truncated). The wire name is kept stable so
+ * the spec doesn't churn; the behaviour evolved when truncation turned out
+ * to bite users who copied the visible prefix and got a NOT_FOUND.
  */
 export function idShort(s: string): string {
   if (!s) return s
   const us = s.indexOf("_")
-  const head = us >= 0 ? s.slice(0, us + 9) : s.slice(0, 12)
-  return dim(head)
+  const prefixEnd = us >= 0 ? us + 9 : 12
+  if (s.length <= prefixEnd) return s
+  return s.slice(0, prefixEnd) + dim(s.slice(prefixEnd))
 }
 
 /**
