@@ -30,7 +30,7 @@ scopes todos per project. Run `wspc todo project ls` to discover ids.
 
 | Command | Notes |
 | --- | --- |
-| `wspc login` / `logout` / `whoami` | OAuth device-flow auth; tokens stored under your OS credential store. |
+| `wspc login` / `logout` / `whoami` | OAuth device-flow auth; tokens stored in your local configuration file (with strict file permissions). |
 | `wspc todo {add, ls, show, update, rm, done}` | Core todo CRUD. `done` is a sugar over `update --status done`. |
 | `wspc todo project {add, ls}` | Project scope. |
 | `wspc todo type ls` | List todo types. |
