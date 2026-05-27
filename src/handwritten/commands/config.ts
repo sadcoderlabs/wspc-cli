@@ -1,20 +1,65 @@
 import { Command } from "commander"
 import { ConfigStore } from "../config/index.js"
+import { render, registerRenderer } from "../output/render.js"
+import { dim, green, table } from "../output/primitives.js"
 
 export const configCommand = new Command("config").description("Manage wspc local config")
 
+/**
+ * Specific renderer for `config show`. The list-of-envs shape works fine
+ * with the generic table renderer, but we want a leading ✓ column for the
+ * current env that doesn't show up in JSON output — easier to do as a
+ * dedicated renderer than to thread a "current" marker through format hints.
+ */
+interface ConfigShowPayload {
+  current_env?: string
+  envs: Array<{
+    name: string
+    api_base: string
+    actor?: string
+    auth: "api_key" | "oauth" | "none"
+  }>
+}
+
+registerRenderer("config_show", (data) => {
+  const d = data as ConfigShowPayload
+  if (d.envs.length === 0) {
+    process.stdout.write(dim('  no envs configured. run "wspc login".') + "\n")
+    return
+  }
+  const headers = ["", "ENV", "API BASE", "ACTOR", "AUTH"]
+  const rows = d.envs.map((e) => [
+    e.name === d.current_env ? green("✓") : " ",
+    e.name,
+    e.api_base,
+    e.actor ?? dim("—"),
+    e.auth === "none" ? dim("none") : e.auth,
+  ])
+  process.stdout.write(table(headers, rows))
+})
+
 configCommand
   .command("show")
-  .description("Print current ~/.wspc/config.json (tokens redacted)")
+  .description("List configured envs (tokens redacted, current marked with ✓)")
   .action(async () => {
     const c = await new ConfigStore().read()
-    const redacted = JSON.parse(JSON.stringify(c))
-    for (const env of Object.values(redacted.envs ?? {}) as Record<string, unknown>[]) {
-      if (env.refresh_token) env.refresh_token = "<redacted>"
-      if (env.access_token) env.access_token = "<redacted>"
-      if (env.api_key) env.api_key = "<redacted>"
-    }
-    process.stdout.write(JSON.stringify(redacted, null, 2) + "\n")
+    const envs = Object.entries(c.envs ?? {}).map(([name, env]) => ({
+      name,
+      api_base: env.api_base,
+      ...(env.actor !== undefined ? { actor: env.actor } : {}),
+      auth: (env.api_key
+        ? "api_key"
+        : env.access_token
+          ? "oauth"
+          : "none") as "api_key" | "oauth" | "none",
+    }))
+    render(
+      { kind: "config_show" },
+      {
+        ...(c.current_env !== undefined ? { current_env: c.current_env } : {}),
+        envs,
+      },
+    )
   })
 
 configCommand
