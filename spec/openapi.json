@@ -15091,7 +15091,17 @@
             "wspc todo project add \"Personal\""
           ],
           "display": {
-            "shape": "object"
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "org_id": "id-short",
+              "creator_user_id": "id-short",
+              "default_todo_type_id": "id-short",
+              "name": "truncate",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
           }
         },
         "summary": "Create a project",
@@ -16904,7 +16914,21 @@
             "wspc todo add \"Buy milk\" --project prj_xxx"
           ],
           "display": {
-            "shape": "object"
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "project_id": "id-short",
+              "parent_id": "id-short",
+              "type_id": "id-short",
+              "title": "truncate",
+              "description": "truncate",
+              "status": "status-badge",
+              "due_at": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
           }
         },
         "summary": "Create a todo",
@@ -21383,7 +21407,21 @@
             "wspc todo rm tod_xxx"
           ],
           "display": {
-            "shape": "object"
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "project_id": "id-short",
+              "parent_id": "id-short",
+              "type_id": "id-short",
+              "title": "truncate",
+              "description": "truncate",
+              "status": "status-badge",
+              "due_at": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
           }
         },
         "summary": "Soft-delete a todo",
@@ -21828,7 +21866,21 @@
             "wspc todo show tod_xxx"
           ],
           "display": {
-            "shape": "object"
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "project_id": "id-short",
+              "parent_id": "id-short",
+              "type_id": "id-short",
+              "title": "truncate",
+              "description": "truncate",
+              "status": "status-badge",
+              "due_at": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
           }
         },
         "summary": "Get a todo by id",
@@ -22273,7 +22325,21 @@
             "wspc todo update tod_xxx --title \"New title\""
           ],
           "display": {
-            "shape": "object"
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "project_id": "id-short",
+              "parent_id": "id-short",
+              "type_id": "id-short",
+              "title": "truncate",
+              "description": "truncate",
+              "status": "status-badge",
+              "due_at": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
           }
         },
         "summary": "Update a todo",

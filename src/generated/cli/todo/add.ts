@@ -36,5 +36,5 @@ export const todoCreateCommand = new Command("add")
       process.exitCode = 1
       return
     }
-    render({ kind: "todo_create", display: {"shape":"object"} }, result.data)
+    render({ kind: "todo_create", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","title":"truncate","description":"truncate","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
   })

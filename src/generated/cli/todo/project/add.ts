@@ -24,5 +24,5 @@ export const projectCreateCommand = new Command("add")
       process.exitCode = 1
       return
     }
-    render({ kind: "project_create", display: {"shape":"object"} }, result.data)
+    render({ kind: "project_create", display: {"shape":"object","format":{"id":"id-short","org_id":"id-short","creator_user_id":"id-short","default_todo_type_id":"id-short","name":"truncate","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
   })
