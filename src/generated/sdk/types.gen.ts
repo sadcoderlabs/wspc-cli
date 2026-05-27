@@ -393,9 +393,9 @@ export type CreateRecurrenceRuleBody = {
     description?: string;
     parent_id?: string | null;
     /**
-     * Project for the recurrence rule, its template todo, and all materialized instances. Omit to use the Default Project. When supplied, it must be an active project in the caller's organization.
+     * Project for the recurrence rule, its template todo, and all materialized instances. Must be an active project in the caller's organization.
      */
-    project_id?: string;
+    project_id: string;
 };
 
 export type CreateRecurrenceRuleResponse = {
@@ -422,9 +422,9 @@ export type RecurrenceRule = {
 export type CreateTodoBody = {
     title: string;
     /**
-     * Optional project id to assign this todo to. Omit to assign to the Default Project. When supplied, it must be an active project in the caller's organization.
+     * Project id to assign this todo to. It must be an active project in the caller's organization.
      */
-    project_id?: string;
+    project_id: string;
     description?: string;
     parent_id?: string | null;
     status?: 'open' | 'in_progress' | 'done' | 'cancelled';
@@ -464,9 +464,9 @@ export type Todo = {
 export type CreateTodoTypeBody = {
     label: string;
     /**
-     * Project this type belongs to. Omit to create the type in the Default Project. When supplied, it must be an active project in the caller's organization.
+     * Project this type belongs to. Required. It must be an active project in the caller's organization.
      */
-    project_id?: string;
+    project_id: string;
     hide_core_fields?: Array<'description' | 'status' | 'due_at' | 'parent_id' | 'recurrence'>;
     custom_fields?: Array<{
         key: string;
@@ -561,9 +561,9 @@ export type GetTodoQuery = {
 
 export type ListRecurrenceRulesQuery = {
     /**
-     * Project id filter. Omit to list rules in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.
+     * Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.
      */
-    project_id?: string;
+    project_id: string;
     user_id?: string;
 };
 
@@ -868,88 +868,36 @@ export type OauthDeviceAuthorizeData = {
 
 export type OauthDeviceAuthorizeErrors = {
     /**
-     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     * OAuth request error. `error` is a snake_case code from RFC 6749 §5.2 (e.g. `invalid_request`, `invalid_grant`, `unsupported_grant_type`) or RFC 8628 §3.5 (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`).
      */
     400: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.
      */
     401: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * The caller is authenticated but not permitted to perform this operation on the target resource.
-     */
-    403: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
-     */
-    404: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
-     */
-    409: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded.
      */
     429: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     * Unhandled server error.
      */
     500: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
 };
 
@@ -1412,88 +1360,36 @@ export type OauthClientRegisterData = {
 
 export type OauthClientRegisterErrors = {
     /**
-     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     * OAuth request error. `error` is a snake_case code from RFC 6749 §5.2 (e.g. `invalid_request`, `invalid_grant`, `unsupported_grant_type`) or RFC 8628 §3.5 (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`).
      */
     400: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.
      */
     401: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * The caller is authenticated but not permitted to perform this operation on the target resource.
-     */
-    403: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
-     */
-    404: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
-     */
-    409: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded.
      */
     429: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     * Unhandled server error.
      */
     500: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
 };
 
@@ -1737,88 +1633,36 @@ export type OauthTokenRevokeData = {
 
 export type OauthTokenRevokeErrors = {
     /**
-     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     * OAuth request error. `error` is a snake_case code from RFC 6749 §5.2 (e.g. `invalid_request`, `invalid_grant`, `unsupported_grant_type`) or RFC 8628 §3.5 (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`).
      */
     400: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.
      */
     401: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * The caller is authenticated but not permitted to perform this operation on the target resource.
-     */
-    403: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
-     */
-    404: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
-     */
-    409: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded.
      */
     429: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     * Unhandled server error.
      */
     500: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
 };
 
@@ -1848,88 +1692,36 @@ export type OauthTokenExchangeData = {
 
 export type OauthTokenExchangeErrors = {
     /**
-     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     * OAuth request error. `error` is a snake_case code from RFC 6749 §5.2 (e.g. `invalid_request`, `invalid_grant`, `unsupported_grant_type`) or RFC 8628 §3.5 (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`).
      */
     400: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.
      */
     401: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * The caller is authenticated but not permitted to perform this operation on the target resource.
-     */
-    403: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
-     */
-    404: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
-     */
-    409: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
-    };
-    /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded.
      */
     429: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
     /**
-     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     * Unhandled server error.
      */
     500: {
-        error: {
-            code: string;
-            message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
-        };
+        error: string;
+        error_description?: string;
+        error_uri?: string;
     };
 };
 
@@ -4383,11 +4175,11 @@ export type RecurrenceRuleListData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path?: never;
-    query?: {
+    query: {
         /**
-         * Project id filter. Omit to list rules in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.
+         * Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.
          */
-        project_id?: string;
+        project_id: string;
         user_id?: string;
     };
     url: '/todo/recurrence-rules';
@@ -4607,11 +4399,11 @@ export type TodoListData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path?: never;
-    query?: {
+    query: {
         /**
-         * Filter by project. Omit to list todos in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.
+         * Filter by project. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.
          */
-        project_id?: string;
+        project_id: string;
         user_id?: string;
         parent_id?: string;
         status?: string | Array<string>;
@@ -4841,11 +4633,11 @@ export type TodoTypeListData = {
         'X-Wspc-Agent-Label'?: string;
     };
     path?: never;
-    query?: {
+    query: {
         /**
-         * Project id filter. Omit to list types in the Default Project. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.
+         * Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.
          */
-        project_id?: string;
+        project_id: string;
         user_id?: string;
         include_deleted?: string;
     };
