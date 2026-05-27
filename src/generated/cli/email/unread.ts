@@ -6,9 +6,9 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const emailMarkUnreadCommand = new Command("unread")
   .description("Mark inbound emails as unread")
-  .option("--id <value>", "id", (val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[])
-  .action(async (opts) => {
-    const idRaw = opts.id as string[]
+  .argument("<id...>", "id")
+  .action(async (id, opts) => {
+    const idRaw = id as string[]
     const ids = idRaw.length > 0 ? idRaw : undefined
     const client = await loadSdkClient()
     const result = await emailMarkUnread({

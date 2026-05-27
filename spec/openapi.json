@@ -11417,6 +11417,9 @@
         ],
         "x-cli": {
           "command": "email rm",
+          "positional": [
+            "id"
+          ],
           "options": {
             "id": {
               "array": true,
@@ -12992,6 +12995,9 @@
         ],
         "x-cli": {
           "command": "email read",
+          "positional": [
+            "id"
+          ],
           "options": {
             "id": {
               "array": true,
@@ -13303,6 +13309,9 @@
         ],
         "x-cli": {
           "command": "email unread",
+          "positional": [
+            "id"
+          ],
           "options": {
             "id": {
               "array": true,
