@@ -12011,7 +12011,8 @@
               "read_at": "relative-time",
               "deleted_at": "relative-time",
               "is_read": "bool-badge"
-            }
+            },
+            "dataPath": "email"
           }
         },
         "x-codeSamples": [

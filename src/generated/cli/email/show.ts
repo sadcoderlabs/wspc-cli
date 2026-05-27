@@ -28,5 +28,5 @@ export const emailGetCommand = new Command("show")
       process.exitCode = 1
       return
     }
-    render({ kind: "email_get", display: {"shape":"object","format":{"id":"id-short","org_id":"id-short","user_id":"id-short","received_at":"relative-time","created_at":"relative-time","read_at":"relative-time","deleted_at":"relative-time","is_read":"bool-badge"}} }, result.data)
+    render({ kind: "email_get", display: {"shape":"object","format":{"id":"id-short","org_id":"id-short","user_id":"id-short","received_at":"relative-time","created_at":"relative-time","read_at":"relative-time","deleted_at":"relative-time","is_read":"bool-badge"},"dataPath":"email"} }, result.data)
   })
