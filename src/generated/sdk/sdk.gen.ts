@@ -571,7 +571,7 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  *
  * ### Constraints
  * - Requires a valid Bearer token in the `Authorization` header.
- * - **Alias Formatting**: The local part must be between 6 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
+ * - **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
  * - **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.
  *
  * ### Troubleshooting
