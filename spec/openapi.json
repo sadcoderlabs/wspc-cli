@@ -5,6 +5,11 @@
     "version": "0.1.0",
     "description": "Merged OpenAPI document covering every wspc worker (auth, todo, calendar, email, push). For per-domain browsing use api.wspc.ai/<domain>/docs."
   },
+  "servers": [
+    {
+      "url": "https://api.wspc.ai"
+    }
+  ],
   "components": {
     "securitySchemes": {
       "bearerAuth": {
@@ -127,6 +132,7 @@
           },
           "name": {
             "type": "string",
+            "maxLength": 100,
             "description": "Human-readable organization name shown in dashboards and headers. Defaults to the owner's display name at signup; changeable via future org-admin endpoints."
           },
           "created_at": {
@@ -640,6 +646,64 @@
           "scope"
         ]
       },
+      "UpdateApiKeyBody": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Human-readable label for the key (1–60 chars after trimming)."
+          }
+        },
+        "required": [
+          "label"
+        ]
+      },
+      "UpdateApiKeyResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable API key id (`key_<ULID>`). Use this id to revoke the key via `DELETE /auth/keys/{id}`. The full plaintext key is never returned here — only at create time."
+          },
+          "label": {
+            "type": "string",
+            "description": "Caller-supplied label for distinguishing keys (e.g. machine, agent, or environment). Trimmed and validated to 1–60 chars at create time. Update support is not yet provided — pick a meaningful label up front."
+          },
+          "key_last4": {
+            "type": "string",
+            "description": "Last 4 characters of the plaintext key. Lets the user identify a key in lists without exposing the secret. Absent on legacy rows created before this field was tracked."
+          },
+          "created_at": {
+            "type": "number",
+            "description": "Unix epoch in milliseconds at which the key was created."
+          },
+          "last_used_at": {
+            "type": "number",
+            "description": "Unix epoch in milliseconds of the most recent successful authentication with this key. Absent if the key has never been used. Useful for spotting keys safe to revoke."
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "created_at"
+        ]
+      },
+      "UpdateOrgInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "The new name for the organization. Cannot be empty or purely whitespace."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
       "VerifyCodeBody": {
         "type": "object",
         "properties": {
@@ -685,10 +749,12 @@
           "title": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 500,
             "description": "Short human-readable summary of the event. Shown in list views and `.ics` SUMMARY."
           },
           "description": {
             "type": "string",
+            "maxLength": 10000,
             "description": "Free-form notes about the event (agenda, dial-in instructions, etc.). Markdown formatted (CommonMark + GFM tables, strikethrough, task lists); stored verbatim. Invitation emails include the raw source — most email clients display it as plain text."
           },
           "start": {
@@ -701,6 +767,7 @@
           },
           "location": {
             "type": "string",
+            "maxLength": 10000,
             "description": "Free-text location — physical address, room, or short note. Separate from `url` (meeting link)."
           },
           "url": {
@@ -958,10 +1025,12 @@
           "title": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 500,
             "description": "New event title. Omit to leave unchanged."
           },
           "description": {
             "type": "string",
+            "maxLength": 10000,
             "description": "New description. Markdown formatted (CommonMark + GFM tables, strikethrough, task lists). Pass an empty string to clear; omit to leave unchanged."
           },
           "start": {
@@ -974,6 +1043,7 @@
           },
           "location": {
             "type": "string",
+            "maxLength": 10000,
             "description": "New location. Pass an empty string to clear; omit to leave unchanged."
           },
           "url": {
@@ -1227,12 +1297,12 @@
           },
           "subject": {
             "type": "string",
+            "maxLength": 500,
             "description": "Outbound subject. Required for a fresh send; may be omitted on reply (the server prefixes the inbound subject with `Re: `)."
           },
           "text": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 102400,
             "description": "Plain-text body. 1 byte to 100 KiB. HTML bodies are not exposed in the v1 send API — agents compose plain text and clients render as desired."
           },
           "in_reply_to_email_id": {
@@ -1342,6 +1412,7 @@
               },
               "subject": {
                 "type": "string",
+                "maxLength": 500,
                 "description": "Outbound subject as sent (may include `Re: ` prefix for replies)."
               },
               "text_body": {
@@ -1618,7 +1689,8 @@
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 500
           },
           "default_todo_type_id": {
             "type": "string"
@@ -1682,10 +1754,12 @@
           },
           "title": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 500
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 10000
           },
           "parent_id": {
             "anyOf": [
@@ -1780,6 +1854,7 @@
           "title": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 500,
             "description": "Short human-readable summary of the work item. Required, non-empty. Shown as the primary label in CLI list output."
           },
           "project_id": {
@@ -1789,6 +1864,7 @@
           },
           "description": {
             "type": "string",
+            "maxLength": 10000,
             "description": "Free-form details about the todo. Fully supports GFM Markdown (tables, strikethrough, task lists). Stored verbatim; client applications are responsible for rendering. Optional. Passing `null` is strictly rejected."
           },
           "parent_id": {
@@ -1938,7 +2014,8 @@
         "properties": {
           "label": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 500
           },
           "project_id": {
             "type": "string",
@@ -2312,6 +2389,19 @@
                 }
               }
             ]
+          },
+          "include_orphan_fields": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
           }
         }
       },
@@ -2402,7 +2492,8 @@
           },
           "name": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 500
           },
           "default_todo_type_id": {
             "type": "string"
@@ -2426,10 +2517,12 @@
           },
           "title": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 500
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 10000
           },
           "parent_id": {
             "anyOf": [
@@ -2454,10 +2547,12 @@
           "title": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 500,
             "description": "New title. Omit to leave the existing title unchanged. Must be non-empty when supplied."
           },
           "description": {
             "type": "string",
+            "maxLength": 10000,
             "description": "New description. Markdown formatted (CommonMark + GFM tables, strikethrough, task lists). Pass empty string `\"\"` explicitly to clear an existing description, or omit to leave unchanged. Passing `null` is strictly rejected."
           },
           "parent_id": {
@@ -2527,7 +2622,8 @@
           },
           "label": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 500
           },
           "hide_core_fields": {
             "type": "array",
@@ -2661,28 +2757,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "import { AuthClient } from \"@wspc/client\"\nconst auth = new AuthClient({ baseUrl: \"https://api.wspc.ai\" })\nconst { api_key } = await auth.createKey(process.env.WSPC_API_KEY!, { label: \"Claude\" })"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -3080,28 +3154,6 @@
             "source": "import { AuthClient } from \"@wspc/client\"\nconst auth = new AuthClient({ baseUrl: \"https://api.wspc.ai\" })\nconst { keys } = await auth.listKeys(process.env.WSPC_API_KEY!)"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "responses": {
           "200": {
             "description": "List of active API keys and the id of the key used for this request.",
@@ -3447,7 +3499,7 @@
         ],
         "security": [],
         "summary": "Start the device authorization grant",
-        "description": "### Overview\nImplements the RFC 8628 (§3.2) device authorization endpoint. It returns a `device_code` (for polling) and a `user_code` with a `verification_uri` for users to approve the client on another device.\n\n### When to Use\n- Use this endpoint in input-constrained environments (like CLI tools, IoT devices, or headless scripts) where direct web browser redirects are impractical or impossible.\n\n### Constraints\n- Public endpoint (no authentication required).\n- **Formats**: Accepts both `application/json` and `application/x-www-form-urlencoded` request formats (though OpenAPI documents JSON only).\n\n### Troubleshooting\n- **400 Bad Request**: The `client_id` is missing, invalid, or does not exist.\n- **429 Too Many Requests**: Device code request rate has been exceeded.",
+        "description": "### Overview\nImplements the RFC 8628 (§3.2) device authorization endpoint. It returns a `device_code` (for polling) and a `user_code` with a `verification_uri` for users to approve the client on another device.\n\n### When to Use\n- Use this endpoint in input-constrained environments (like CLI tools, IoT devices, or headless scripts) where direct web browser redirects are impractical or impossible.\n\n### Constraints\n- Public endpoint (no authentication required).\n- **Formats**: Accepts both `application/json` and `application/x-www-form-urlencoded` request bodies. The body shape is identical in both encodings.\n\n### Troubleshooting\n- **400 Bad Request**: The `client_id` is missing, invalid, or does not exist.\n- **429 Too Many Requests**: Device code request rate has been exceeded.",
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -3463,28 +3515,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "// TODO: client method pending\n// Expected shape:\n// const dev = await fetch(\"https://api.wspc.ai/auth/oauth/device\", {\n//   method: \"POST\",\n//   headers: { \"Content-Type\": \"application/json\" },\n//   body: JSON.stringify({ client_id: \"oac_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\" }),\n// }).then(r => r.json())"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -3508,6 +3538,11 @@
                     "resource": "https://api.wspc.ai"
                   }
                 }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthDeviceBody"
               }
             }
           }
@@ -3730,31 +3765,405 @@
             "source": "import { AuthClient } from \"@wspc/client\"\nconst auth = new AuthClient({ baseUrl: \"https://api.wspc.ai\" })\nconst org = await auth.getOrg(process.env.WSPC_API_KEY!)"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "responses": {
           "200": {
             "description": "The authenticated user's organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Org"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4",
+                        "extra": {
+                          "expected_version": 3,
+                          "actual_version": 4
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "rate limit exceeded",
+                        "extra": {
+                          "retry_after_seconds": 60,
+                          "limit_kind": "authenticated_per_key"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "org_update",
+        "tags": [
+          "Org"
+        ],
+        "x-cli": {
+          "command": "org rename",
+          "examples": [
+            "wspc org rename \"New Name\"",
+            "wspc org rename \"New Name\" --json"
+          ],
+          "display": {
+            "shape": "object",
+            "fields": [
+              "id",
+              "name",
+              "created_at",
+              "updated_at"
+            ],
+            "format": {
+              "id": "id-short",
+              "name": "truncate",
+              "created_at": "relative-time",
+              "updated_at": "relative-time"
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update the authenticated user's organization",
+        "description": "### Overview\nUpdates the metadata (currently, the name) of the organization associated with the authenticated user.\n\n### Constraints\n- Requires a valid Bearer token.\n- The organization name cannot be empty or purely whitespace.\n- Maximum length is capped by `MAX_ORG_NAME_LEN`.",
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X PATCH https://api.wspc.ai/auth/me/org \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"name\": \"New Name\"}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc org rename \"New Name\""
+          },
+          {
+            "lang": "typescript",
+            "label": "@wspc/client",
+            "source": "import { AuthClient } from \"@wspc/client\"\nconst auth = new AuthClient({ baseUrl: \"https://api.wspc.ai\" })\nconst org = await auth.updateOrg(process.env.WSPC_API_KEY!, \"New Name\")"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrgInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated organization metadata.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4137,28 +4546,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "import { AuthClient } from \"@wspc/client\"\nconst auth = new AuthClient({ baseUrl: \"https://api.wspc.ai\" })\nconst me = await auth.getMe(process.env.WSPC_API_KEY!)"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -4585,26 +4972,6 @@
             "description": "Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response.",
             "name": "limit",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -4950,6 +5317,7 @@
         "tags": [
           "OAuth"
         ],
+        "excludeActorHeaders": true,
         "security": [],
         "summary": "Discover OAuth 2.1 authorization-server metadata",
         "description": "### Overview\nExposes the RFC 8414 OAuth 2.1 authorization server metadata document. This enables clients (like MCP servers, custom GPTs, and SDKs) to dynamically discover authorization, token, registration, device, and revocation endpoints instead of hard-coding them.\n\n### When to Use\n- Use this endpoint on first boot or setup of any OAuth client. To optimize performance, clients should cache this metadata, as it is highly stable per deployment environment.\n\n### Constraints\n- Public endpoint (no authentication required).\n- Currently advertises PKCE-only public clients (`token_endpoint_auth_methods_supported: [\"none\"]`, `code_challenge_methods_supported: [\"S256\"]`) and a single `wspc:full` scope.\n\n### Troubleshooting\n- **500 Internal Server Error**: Constructed endpoint URLs are invalid due to server-side configuration issues.",
@@ -5337,6 +5705,365 @@
         }
       }
     },
+    "/.well-known/openid-configuration": {
+      "get": {
+        "operationId": "oauth_metadata_openid_alias",
+        "tags": [
+          "OAuth"
+        ],
+        "excludeActorHeaders": true,
+        "security": [],
+        "summary": "Discover OAuth metadata (OIDC discovery alias)",
+        "description": "### Overview\nOIDC discovery alias that returns the **same payload** as `GET /.well-known/oauth-authorization-server` (RFC 8414). WSPC is not an OpenID Connect identity provider — it does not issue ID tokens or expose a `userinfo` endpoint — but several MCP SDKs probe `/.well-known/openid-configuration` before falling back to the RFC 8414 path, so this alias is provided to avoid that fallback round-trip.\n\n### When to Use\n- Prefer `GET /.well-known/oauth-authorization-server` for new clients. Use this alias only if your client library hard-codes the OIDC discovery path.\n\n### Constraints\n- Public endpoint (no authentication required).\n- Response is byte-for-byte identical to the RFC 8414 endpoint; OIDC-specific fields (`userinfo_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`, …) are intentionally absent.",
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/.well-known/openid-configuration"
+          },
+          {
+            "lang": "typescript",
+            "label": "@wspc/client",
+            "source": "// TODO: client method pending\n// Expected shape (identical to /.well-known/oauth-authorization-server):\n// const meta = await fetch(\"https://api.wspc.ai/.well-known/openid-configuration\").then(r => r.json())"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization-server metadata document. Identical payload to the RFC 8414 endpoint; safe to cache for the lifetime of the client process.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthAuthServerMetadata"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4",
+                        "extra": {
+                          "expected_version": 3,
+                          "actual_version": 4
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "rate limit exceeded",
+                        "extra": {
+                          "retry_after_seconds": 60,
+                          "limit_kind": "authenticated_per_key"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/oauth/register": {
       "post": {
         "operationId": "oauth_client_register",
@@ -5361,28 +6088,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "// TODO: client method pending\n// Expected shape:\n// const reg = await fetch(\"https://api.wspc.ai/auth/oauth/register\", {\n//   method: \"POST\",\n//   headers: { \"Content-Type\": \"application/json\" },\n//   body: JSON.stringify({ client_name: \"Acme MCP Agent\", redirect_uris: [\"http://localhost:3000/callback\"] }),\n// }).then(r => r.json())"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -5597,6 +6302,7 @@
         "tags": [
           "Auth"
         ],
+        "excludeActorHeaders": true,
         "security": [],
         "summary": "Request an email magic code",
         "description": "### Overview\nInitiates the passwordless email magic-code authentication flow by sending a short, time-limited numeric verification code to the specified email address.\n\n### When to Use\n- Use this endpoint as the first step of the CLI login flow (`wspc login`) or any interactive UI where the user initiates authentication by inputting their email address.\n- Pair this request with `POST /auth/verify-code` once the user retrieves the code from their inbox.\n\n### Constraints\n- Does not require authentication (public endpoint).\n- **Security**: The same HTTP 200 response structure is returned regardless of whether the email address is already registered or not. This is an intentional security design to prevent account-existence disclosure (email harvesting).\n- **Rate Limiting**: This endpoint enforces strict rate limits based on both the requesting IP address and the target email address to prevent abuse. Too many consecutive requests will result in a `RATE_LIMITED` error.\n\n### Troubleshooting\n- **429 Too Many Requests**: The requesting IP or target email has exceeded the allowable request rate. Wait a few minutes before trying again.\n- **400 Bad Request**: The `email` payload is malformed or invalid. Verify that the email matches basic email formats.",
@@ -6026,26 +6732,6 @@
             "description": "Id of the API key to revoke, as returned by `GET /auth/keys` (`key_<ULID>`).",
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -6055,6 +6741,399 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RevokeApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4",
+                        "extra": {
+                          "expected_version": 3,
+                          "actual_version": 4
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "rate limit exceeded",
+                        "extra": {
+                          "retry_after_seconds": 60,
+                          "limit_kind": "authenticated_per_key"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "key_update",
+        "tags": [
+          "Keys"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update an active API key's label",
+        "description": "### Overview\nUpdates the human-readable label of an active API key. Only active (non-revoked) keys owned by the authenticated user can be updated.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Label Validation**: The `label` parameter must be between 1 and 60 characters after trimming whitespace. Failing to provide a valid label results in an `INVALID_LABEL` error.",
+        "x-cli": {
+          "command": "keys edit",
+          "positional": [
+            "id"
+          ]
+        },
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X PATCH https://api.wspc.ai/auth/keys/key_01HW3K4N9V5G6Z8C2Q7B1Y0M3F \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"label\":\"New Label\"}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc keys edit key_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --label \"New Label\""
+          },
+          {
+            "lang": "typescript",
+            "label": "@wspc/client",
+            "source": "import { AuthClient } from \"@wspc/client\"\nconst auth = new AuthClient({ baseUrl: \"https://api.wspc.ai\" })\nawait auth.updateApiKeyLabel(process.env.WSPC_API_KEY!, \"key_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\", \"New Label\")"
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Id of the API key to update."
+            },
+            "required": true,
+            "description": "Id of the API key to update.",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApiKeyBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "API key label updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateApiKeyResponse"
                 }
               }
             }
@@ -6411,28 +7490,6 @@
             "source": "// TODO: client method pending\n// Expected shape:\n// await fetch(\"https://api.wspc.ai/auth/oauth/revoke\", {\n//   method: \"POST\",\n//   headers: { \"Content-Type\": \"application/json\" },\n//   body: JSON.stringify({ token: \"rt_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\", token_type_hint: \"refresh_token\" }),\n// })"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6453,6 +7510,11 @@
                     "token_type_hint": "refresh_token"
                   }
                 }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthRevokeBody"
               }
             }
           }
@@ -6643,28 +7705,6 @@
             "source": "// TODO: client method pending\n// Expected shape:\n// const tok = await fetch(\"https://api.wspc.ai/auth/oauth/token\", {\n//   method: \"POST\",\n//   headers: { \"Content-Type\": \"application/json\" },\n//   body: JSON.stringify({\n//     grant_type: \"refresh_token\",\n//     refresh_token: \"rt_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\",\n//     client_id: \"oac_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\",\n//   }),\n// }).then(r => r.json())"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6698,6 +7738,11 @@
                     "client_id": "oac_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
                   }
                 }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthTokenBody"
               }
             }
           }
@@ -6873,6 +7918,7 @@
         "tags": [
           "Auth"
         ],
+        "excludeActorHeaders": true,
         "security": [],
         "summary": "Verify a magic code and issue an API key",
         "description": "### Overview\nCompletes the passwordless login flow by verifying the magic code received via email. If the code is correct, it registers a new user (if not already registered) and issues a long-lived WSPC API key.\n\n### When to Use\n- Use this endpoint as the second step of the login flow, exchanging the user-provided code and email address for a valid credential.\n- Store the returned `api_key` securely client-side to authorize subsequent calls to all WSPC services.\n\n### Constraints\n- Does not require authentication (public endpoint).\n- **One-time Use & Expiry**: The verification code is single-use and expires after a short period (typically a few minutes). Re-using a code or attempting to guess code values results in `INVALID_CODE` or `CODE_EXPIRED`.\n- **Account Creation**: If the email address is not linked to an existing account, a new user profile and personal organization are automatically provisioned (`created: true` in response).\n\n### Troubleshooting\n- **400 Bad Request**: The code has expired (`CODE_EXPIRED`), is incorrect (`INVALID_CODE`), or has already been used. Request a fresh code via `POST /auth/request-code`.\n- **429 Too Many Requests**: The rate limit for verification attempts on this email address has been exceeded.",
@@ -7337,28 +8383,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "import { CalendarClient } from \"@wspc/client\"\nconst calendar = new CalendarClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait calendar.create({\n  title: \"Lunch with Alice\",\n  start: \"2026-06-01T12:30:00+08:00\",\n  end: \"2026-06-01T13:30:00+08:00\",\n  attendees: [{ email: \"alice@example.com\", display_name: \"Alice\" }],\n})"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -7934,26 +8958,6 @@
             "description": "When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win.",
             "name": "include_past",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -8399,26 +9403,6 @@
             "description": "Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).",
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -8859,26 +9843,6 @@
             "description": "When `true`, return the row even if soft-deleted. Default `false` (returns 404).",
             "name": "include_deleted",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -9324,26 +10288,6 @@
             "description": "Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).",
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -9805,26 +10749,6 @@
             "description": "`<event_id>.ics`. The `.ics` suffix is required so the router matches this endpoint ahead of the JSON detail route.",
             "name": "filename",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -10203,26 +11127,6 @@
             "description": "Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).",
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -10615,7 +11519,7 @@
           "EmailAliases"
         ],
         "summary": "Create a receiving alias",
-        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 6 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.",
+        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.",
         "security": [
           {
             "bearerAuth": []
@@ -10651,28 +11555,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "import { EmailClient } from \"@wspc/client\"\nconst email = new EmailClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait email.aliasCreate({ email: \"alice-shop@wspc.app\" })"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -10972,26 +11854,6 @@
             "description": "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.",
             "name": "include_deleted",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -11260,26 +12122,6 @@
             "description": "Full alias email address. URL-encode @ as %40 in paths.",
             "name": "email",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -11506,28 +12348,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "import { EmailClient } from \"@wspc/client\"\nconst email = new EmailClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait email.deleteMany([\"eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\", \"eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3G\"])"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -11836,26 +12656,6 @@
             "description": "When `true`, allow downloading an attachment whose parent email is soft-deleted. Defaults to `false`.",
             "name": "include_deleted",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -12123,26 +12923,6 @@
             "description": "When `true`, allow fetching a soft-deleted email. Defaults to `false` (returns 404 for soft-deleted rows).",
             "name": "include_deleted",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -12183,6 +12963,7 @@
                         },
                         "subject": {
                           "type": "string",
+                          "maxLength": 500,
                           "description": "Subject header. Absent if the sender omitted it."
                         },
                         "text_body": {
@@ -12693,26 +13474,6 @@
             "description": "When `true`, also return soft-deleted emails. Defaults to `false`.",
             "name": "include_deleted",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -12755,6 +13516,7 @@
                           },
                           "subject": {
                             "type": "string",
+                            "maxLength": 500,
                             "description": "Subject header. Absent if the sender omitted it."
                           },
                           "text_body": {
@@ -13086,28 +13848,6 @@
             "source": "import { EmailClient } from \"@wspc/client\"\nconst email = new EmailClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait email.markRead([\"eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\", \"eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3G\"])"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13400,28 +14140,6 @@
             "source": "import { EmailClient } from \"@wspc/client\"\nconst email = new EmailClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait email.markUnread([\"eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\"])"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13707,26 +14425,6 @@
             "description": "Full alias email address. URL-encode @ as %40 in paths.",
             "name": "email",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -13921,28 +14619,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "import { EmailClient } from \"@wspc/client\"\nconst email = new EmailClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait email.restoreMany([\"eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\"])"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -14223,28 +14899,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "import { EmailClient } from \"@wspc/client\"\nconst email = new EmailClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait email.send({\n  from_alias_email: \"alice-shop@wspc.app\",\n  to: [\"alice@example.com\"],\n  subject: \"Welcome to WSPC\",\n  text: \"Hi Alice — welcome aboard.\",\n  idempotency_key: \"retry-20260601-001\",\n})"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -14678,26 +15332,6 @@
             "description": "Transport name to delete (e.g. `telegram`). Only transports the caller has previously registered exist; unknown values return 400 `UNKNOWN_TRANSPORT`.",
             "name": "transport",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -14971,28 +15605,6 @@
             }
           }
         },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -15328,28 +15940,6 @@
             "emptyMessage": "(no push transports registered)"
           }
         },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "responses": {
           "200": {
             "description": "All push transports registered for the authenticated user.",
@@ -15624,28 +16214,6 @@
             }
           }
         },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -15971,28 +16539,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "await todo.projects.create({ name: \"Work\" })"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -16430,26 +16976,6 @@
             "description": "Set to `true` to include soft-deleted projects in the response.",
             "name": "include_deleted",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -16879,28 +17405,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "import { TodoClient } from \"@wspc/client\"\nconst todo = new TodoClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait todo.createRule({ title: \"Draft weekly review\", rrule: \"FREQ=WEEKLY;BYDAY=MO\", dtstart: \"2026-05-18\", project_id: \"prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\" })"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -17356,26 +17860,6 @@
             "required": false,
             "name": "user_id",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -17800,28 +18284,6 @@
             "source": "import { TodoClient } from \"@wspc/client\"\nconst todo = new TodoClient({ baseUrl: \"https://api.wspc.ai\", apiKey: process.env.WSPC_API_KEY! })\nawait todo.create({ title: \"Buy milk\", due_at: \"2026-06-01\" })"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -18238,7 +18700,7 @@
           }
         },
         "summary": "List todos with filters",
-        "description": "### 🎯 Overview & Purpose\nReturn the caller's active or archived todos, with comprehensive options to filter by project, parent task, status, due-date window, and template visibility.\n\n### 🔍 When to Use\n* Use this to render the main todo board dashboard, query items due in a specific timeframe (using `due_after` and `due_before`), or lazy-load subtasks for an expanded parent todo by passing its ID.\n\n### 💡 Key Features & Constraints\n* **Required Parameter**: The `project_id` query parameter is strictly required and must match an active project.\n* **Parent Tasks**: Omitting `parent_id` lists root-level todos by default. Pass a todo id to list direct children of that specific task.\n* **Multi-Status Filters**: Multi-value `status` query is supported by repeating the parameter, e.g., `?status=open&status=in_progress`.\n* **Due-Date Windowing**: The `due_after` filter is inclusive, while `due_before` is exclusive, forming a half-open window `[due_after, due_before)`. Both parameters exclude todos with no due date.\n* **Template & Soft-Delete Visibility**: Soft-deleted todos are hidden unless `include_deleted=true`. Template todos backing recurrence rules are hidden unless `include_templates=true`.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VALIDATION_ERROR` (HTTP 400)**: Thrown if `project_id` is missing, or if query parameters fail schema validation.",
+        "description": "### 🎯 Overview & Purpose\nReturn the caller's active or archived todos, with comprehensive options to filter by project, parent task, status, due-date window, and template visibility.\n\n### 🔍 When to Use\n* Use this to render the main todo board dashboard, query items due in a specific timeframe (using `due_after` and `due_before`), or lazy-load subtasks for an expanded parent todo by passing its ID.\n\n### 💡 Key Features & Constraints\n* **Required Parameter**: The `project_id` query parameter is strictly required and must match an active project.\n* **Parent Tasks**: Omitting `parent_id` lists root-level todos by default. Pass a todo id to list direct children of that specific task.\n* **Multi-Status Filters**: Multi-value `status` query is supported by repeating the parameter, e.g., `?status=open&status=in_progress`.\n* **Due-Date Windowing**: The `due_after` filter is inclusive, while `due_before` is exclusive, forming a half-open window `[due_after, due_before)`. Both parameters exclude todos with no due date.\n* **Template & Soft-Delete Visibility**: Soft-deleted todos are hidden unless `include_deleted=true`. Template todos backing recurrence rules are hidden unless `include_templates=true`.\n* **Custom-Field Filters (`cf.<key>=<value>`)**: Repeatable dynamic-prefix query parameters whose name follows the `cf.<key>` pattern (e.g. `?cf.priority=high&cf.team=eng`). Each pair is ANDed; for `string_array` custom fields the match is positive when the array contains the value. Keys must be declared on the project's todo type schema. Because the prefix is dynamic, these parameters cannot be expressed in the JSON Schema below — clients must construct them from the URL query string directly.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VALIDATION_ERROR` (HTTP 400)**: Thrown if `project_id` is missing, or if query parameters fail schema validation.",
         "security": [
           {
             "bearerAuth": []
@@ -18406,26 +18868,6 @@
             "required": false,
             "name": "include_orphan_fields",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -18838,28 +19280,6 @@
             "lang": "typescript",
             "label": "@wspc/client",
             "source": "await todo.types.create({ label: \"Task\" })"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -19282,26 +19702,6 @@
             "required": false,
             "name": "include_deleted",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -19697,26 +20097,6 @@
             "description": "Project id (`prj_<ULID>`).",
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -20115,26 +20495,6 @@
             "description": "Project id (`prj_<ULID>`).",
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -20532,26 +20892,6 @@
             "description": "Project id (`prj_<ULID>`).",
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -20978,26 +21318,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -21406,26 +21726,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -21835,26 +22135,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -22301,26 +22581,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -22781,23 +23041,21 @@
           },
           {
             "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
               ]
             },
             "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
+            "name": "include_orphan_fields",
+            "in": "query"
           }
         ],
         "responses": {
@@ -23219,26 +23477,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -23673,26 +23911,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -24072,26 +24290,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -24471,26 +24669,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -24879,26 +25057,6 @@
             "description": "Project id (`prj_<ULID>`).",
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {
@@ -25290,26 +25448,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "requestBody": {
@@ -25726,26 +25864,6 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "user",
-                "agent"
-              ]
-            },
-            "required": false,
-            "name": "X-Wspc-Actor",
-            "in": "header"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": false,
-            "name": "X-Wspc-Agent-Label",
-            "in": "header"
           }
         ],
         "responses": {

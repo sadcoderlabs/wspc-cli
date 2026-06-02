@@ -8,6 +8,7 @@ export const todoGetCommand = new Command("show")
   .description("Get a todo by id")
   .argument("<id>", "id")
   .option("--include-deleted <value>", "include_deleted")
+  .option("--include-orphan-fields <value>", "include_orphan_fields")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await todoGet({
@@ -17,6 +18,7 @@ export const todoGetCommand = new Command("show")
       },
       query: {
         include_deleted: opts.includeDeleted,
+        include_orphan_fields: opts.includeOrphanFields,
       },
     })
     if (result.error || !result.response?.ok) {

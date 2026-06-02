@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -82,7 +82,7 @@ export const keyCreate = <ThrowOnError extends boolean = false>(options: Options
  *
  * ### Constraints
  * - Public endpoint (no authentication required).
- * - **Formats**: Accepts both `application/json` and `application/x-www-form-urlencoded` request formats (though OpenAPI documents JSON only).
+ * - **Formats**: Accepts both `application/json` and `application/x-www-form-urlencoded` request bodies. The body shape is identical in both encodings.
  *
  * ### Troubleshooting
  * - **400 Bad Request**: The `client_id` is missing, invalid, or does not exist.
@@ -120,6 +120,27 @@ export const orgGet = <ThrowOnError extends boolean = false>(options?: Options<O
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/auth/me/org',
     ...options
+});
+
+/**
+ * Update the authenticated user's organization
+ *
+ * ### Overview
+ * Updates the metadata (currently, the name) of the organization associated with the authenticated user.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token.
+ * - The organization name cannot be empty or purely whitespace.
+ * - Maximum length is capped by `MAX_ORG_NAME_LEN`.
+ */
+export const orgUpdate = <ThrowOnError extends boolean = false>(options?: Options<OrgUpdateData, ThrowOnError>) => (options?.client ?? client).patch<OrgUpdateResponses, OrgUpdateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/me/org',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
 });
 
 /**
@@ -188,6 +209,21 @@ export const orgMembersList = <ThrowOnError extends boolean = false>(options?: O
  * - **500 Internal Server Error**: Constructed endpoint URLs are invalid due to server-side configuration issues.
  */
 export const oauthMetadata = <ThrowOnError extends boolean = false>(options?: Options<OauthMetadataData, ThrowOnError>) => (options?.client ?? client).get<OauthMetadataResponses, OauthMetadataErrors, ThrowOnError>({ url: '/.well-known/oauth-authorization-server', ...options });
+
+/**
+ * Discover OAuth metadata (OIDC discovery alias)
+ *
+ * ### Overview
+ * OIDC discovery alias that returns the **same payload** as `GET /.well-known/oauth-authorization-server` (RFC 8414). WSPC is not an OpenID Connect identity provider — it does not issue ID tokens or expose a `userinfo` endpoint — but several MCP SDKs probe `/.well-known/openid-configuration` before falling back to the RFC 8414 path, so this alias is provided to avoid that fallback round-trip.
+ *
+ * ### When to Use
+ * - Prefer `GET /.well-known/oauth-authorization-server` for new clients. Use this alias only if your client library hard-codes the OIDC discovery path.
+ *
+ * ### Constraints
+ * - Public endpoint (no authentication required).
+ * - Response is byte-for-byte identical to the RFC 8414 endpoint; OIDC-specific fields (`userinfo_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`, …) are intentionally absent.
+ */
+export const oauthMetadataOpenidAlias = <ThrowOnError extends boolean = false>(options?: Options<OauthMetadataOpenidAliasData, ThrowOnError>) => (options?.client ?? client).get<OauthMetadataOpenidAliasResponses, OauthMetadataOpenidAliasErrors, ThrowOnError>({ url: '/.well-known/openid-configuration', ...options });
 
 /**
  * Dynamically register an OAuth client
@@ -267,6 +303,26 @@ export const keyRevoke = <ThrowOnError extends boolean = false>(options: Options
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/auth/keys/{id}',
     ...options
+});
+
+/**
+ * Update an active API key's label
+ *
+ * ### Overview
+ * Updates the human-readable label of an active API key. Only active (non-revoked) keys owned by the authenticated user can be updated.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **Label Validation**: The `label` parameter must be between 1 and 60 characters after trimming whitespace. Failing to provide a valid label results in an `INVALID_LABEL` error.
+ */
+export const keyUpdate = <ThrowOnError extends boolean = false>(options: Options<KeyUpdateData, ThrowOnError>) => (options.client ?? client).patch<KeyUpdateResponses, KeyUpdateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/keys/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
@@ -571,7 +627,7 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  *
  * ### Constraints
  * - Requires a valid Bearer token in the `Authorization` header.
- * - **Alias Formatting**: The local part must be between 6 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
+ * - **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
  * - **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.
  *
  * ### Troubleshooting
@@ -1077,6 +1133,7 @@ export const recurrenceRuleCreate = <ThrowOnError extends boolean = false>(optio
  * * **Multi-Status Filters**: Multi-value `status` query is supported by repeating the parameter, e.g., `?status=open&status=in_progress`.
  * * **Due-Date Windowing**: The `due_after` filter is inclusive, while `due_before` is exclusive, forming a half-open window `[due_after, due_before)`. Both parameters exclude todos with no due date.
  * * **Template & Soft-Delete Visibility**: Soft-deleted todos are hidden unless `include_deleted=true`. Template todos backing recurrence rules are hidden unless `include_templates=true`.
+ * * **Custom-Field Filters (`cf.<key>=<value>`)**: Repeatable dynamic-prefix query parameters whose name follows the `cf.<key>` pattern (e.g. `?cf.priority=high&cf.team=eng`). Each pair is ANDed; for `string_array` custom fields the match is positive when the array contains the value. Keys must be declared on the project's todo type schema. Because the prefix is dynamic, these parameters cannot be expressed in the JSON Schema below — clients must construct them from the URL query string directly.
  *
  * ### ⚠️ Common Errors & Troubleshooting
  * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if `project_id` is missing, or if query parameters fail schema validation.
