@@ -3,9 +3,11 @@ import { Command } from "commander"
 import { keyCreateCommand } from "./keys/create.js"
 import { keyListCommand } from "./keys/ls.js"
 import { orgGetCommand } from "./org/show.js"
+import { orgUpdateCommand } from "./org/rename.js"
 import { authMeCommand } from "./auth/me.js"
 import { orgMembersListCommand } from "./org/members.js"
 import { keyRevokeCommand } from "./keys/rm.js"
+import { keyUpdateCommand } from "./keys/edit.js"
 import { eventCreateCommand } from "./event/add.js"
 import { eventListCommand } from "./event/ls.js"
 import { eventDeleteCommand } from "./event/rm.js"
@@ -39,8 +41,10 @@ export function registerGeneratedCommands(root: Command): void {
   root_keys.addCommand(keyCreateCommand)
   root_keys.addCommand(keyListCommand)
   root_keys.addCommand(keyRevokeCommand)
+  root_keys.addCommand(keyUpdateCommand)
   const root_org = root.command("org").description("org commands")
   root_org.addCommand(orgGetCommand)
+  root_org.addCommand(orgUpdateCommand)
   root_org.addCommand(orgMembersListCommand)
   const root_auth = root.command("auth").description("auth commands")
   root_auth.addCommand(authMeCommand)
