@@ -229,6 +229,10 @@ export type ListOrgMembersResponse = {
          * Unix epoch in milliseconds at which the user joined this organization. In v1 (personal orgs), equals the user's signup time.
          */
         joined_at: number;
+        /**
+         * True when this member created the organization. The creator cannot be removed or leave; clients should disable the remove/leave action for this member.
+         */
+        is_creator: boolean;
     }>;
     /**
      * Opaque cursor for the next page. Absent when this page is the last one (no more results).
@@ -3065,6 +3069,116 @@ export type InviteRejectResponses = {
 };
 
 export type InviteRejectResponse = InviteRejectResponses[keyof InviteRejectResponses];
+
+export type OrgMemberRemoveData = {
+    body?: never;
+    path: {
+        /**
+         * Id of the organization member to remove.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/auth/me/org/members/{id}';
+};
+
+export type OrgMemberRemoveErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type OrgMemberRemoveError = OrgMemberRemoveErrors[keyof OrgMemberRemoveErrors];
+
+export type OrgMemberRemoveResponses = {
+    /**
+     * Member removed successfully.
+     */
+    204: void;
+};
+
+export type OrgMemberRemoveResponse = OrgMemberRemoveResponses[keyof OrgMemberRemoveResponses];
 
 export type AuthRequestCodeData = {
     body?: RequestCodeBody;
