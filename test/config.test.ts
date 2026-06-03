@@ -180,4 +180,28 @@ describe("rekeyLegacyAccount", () => {
     expect(account!.email).toBe("real@x.com")
     expect(account!.user_id).toBeUndefined()
   })
+
+  it("drops (default) placeholder without clobbering an already-real account", () => {
+    const cfg: WspcConfig = {
+      schema_version: 2,
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          client_id: "client_X",
+          current_account: "real@x.com",
+          accounts: {
+            "(default)": { email: "(default)", access_token: "OLD", refresh_token: "rt_old" },
+            "real@x.com": { email: "real@x.com", access_token: "FRESH", refresh_token: "rt_fresh" },
+          },
+        },
+      },
+    }
+    const result = rekeyLegacyAccount(cfg, "prod", "real@x.com", "usr_1")
+    expect(result).toBe(true)
+    const prod = cfg.envs.prod!
+    expect(prod.accounts["(default)"]).toBeUndefined()
+    expect(prod.accounts["real@x.com"]?.access_token).toBe("FRESH")
+    expect(Object.keys(prod.accounts)).toEqual(["real@x.com"])
+  })
 })

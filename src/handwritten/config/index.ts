@@ -97,7 +97,11 @@ export function rekeyLegacyAccount(
   const legacy = env?.accounts?.[LEGACY_ACCOUNT_KEY]
   if (!env || !legacy) return false
   delete env.accounts[LEGACY_ACCOUNT_KEY]
-  env.accounts[email] = { ...legacy, email, ...(userId ? { user_id: userId } : {}) }
+  // Don't clobber an already-real account that shares this email (e.g. a login
+  // created it before the placeholder was cleaned up) — just drop the placeholder.
+  if (!env.accounts[email]) {
+    env.accounts[email] = { ...legacy, email, ...(userId ? { user_id: userId } : {}) }
+  }
   if (env.current_account === LEGACY_ACCOUNT_KEY) env.current_account = email
   return true
 }

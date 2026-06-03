@@ -31,7 +31,7 @@ export async function switchAccount(store: ConfigStore, email: string): Promise<
   if (!envName || !c.envs[envName]) throw new Error("no current env; run `wspc login` first")
   const env = c.envs[envName]
   if (!env.accounts?.[email]) {
-    throw new Error(`no account '${email}' in env '${envName}'. Run \`wspc account ls\`.`)
+    throw new Error(`no account '${email}' in env '${envName}'. Run \`wspc account ls\` or \`wspc login\`.`)
   }
   env.current_account = email
   await store.write(c)

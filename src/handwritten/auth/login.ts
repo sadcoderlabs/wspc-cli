@@ -1,4 +1,5 @@
 import type { ConfigStore, EnvConfig, WspcConfig } from "../config/index.js"
+import { LEGACY_ACCOUNT_KEY } from "../config/index.js"
 import { runDeviceFlow, type DeviceFlowResult } from "./device-flow.js"
 import { ensureClientId } from "./client-registration.js"
 import { fetchMe as defaultFetchMe } from "./fetch-me.js"
@@ -58,6 +59,7 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     delete acct.access_token
     delete acct.access_token_expires_at
     env.current_account = who.email
+    if (who.email !== LEGACY_ACCOUNT_KEY) delete env.accounts[LEGACY_ACCOUNT_KEY]
     c.current_env = envName
     await opts.store.write(c)
     opts.output.write(`✓ logged in (api key) as ${who.email} → env "${envName}"`)
@@ -101,6 +103,7 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
   // login is OAuth now — drop any stale api_key on this account.
   delete acct.api_key
   env.current_account = who.email
+  if (who.email !== LEGACY_ACCOUNT_KEY) delete env.accounts[LEGACY_ACCOUNT_KEY]
   c.current_env = envName
   await opts.store.write(c)
   opts.output.writeJson({ event: "login_success", email: who.email })

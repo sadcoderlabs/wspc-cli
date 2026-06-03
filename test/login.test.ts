@@ -118,6 +118,40 @@ describe("runLogin", () => {
     expect(deviceFlow).toHaveBeenCalledOnce()
   })
 
+  it("drops stale (default) orphan after OAuth login resolves real email", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-orphan-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      schema_version: 2,
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          client_id: "client_X",
+          current_account: "(default)",
+          accounts: { "(default)": { email: "(default)", access_token: "old", refresh_token: "old" } },
+        },
+      },
+    })
+    await runLogin({
+      store,
+      baseUrl: "https://api.wspc.ai",
+      clientId: "client_X",
+      deviceFlow: vi.fn().mockResolvedValue({
+        access_token: "wat_new",
+        refresh_token: "wrt_new",
+        expires_in: 900,
+        token_type: "Bearer",
+      }),
+      fetchMe: async () => ({ user_id: "usr_1", email: "a@x.com" }),
+      now: () => 1,
+      output: { write: () => {}, writeJson: () => {} },
+    })
+    const c = await store.read()
+    expect(Object.keys(c.envs.prod!.accounts)).toEqual(["a@x.com"])
+    expect(c.envs.prod?.current_account).toBe("a@x.com")
+  })
+
   it("writes api_key under accounts[email] in escape-hatch mode", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-key-"))
     const store = new ConfigStore({ configDir: dir })
