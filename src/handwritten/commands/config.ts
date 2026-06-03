@@ -1,22 +1,18 @@
 import { Command } from "commander"
 import { ConfigStore } from "../config/index.js"
+import { resolveAccount } from "../auth/resolve-account.js"
 import { render, registerRenderer } from "../output/render.js"
 import { dim, green, table } from "../output/primitives.js"
 
 export const configCommand = new Command("config").description("Manage wspc local config")
 
-/**
- * Specific renderer for `config show`. The list-of-envs shape works fine
- * with the generic table renderer, but we want a leading ✓ column for the
- * current env that doesn't show up in JSON output — easier to do as a
- * dedicated renderer than to thread a "current" marker through format hints.
- */
 interface ConfigShowPayload {
   current_env?: string
   envs: Array<{
     name: string
     api_base: string
-    actor?: string
+    active_account?: string
+    accounts: number
     auth: "api_key" | "oauth" | "none"
   }>
 }
@@ -27,62 +23,70 @@ registerRenderer("config_show", (data) => {
     process.stdout.write(dim('  no envs configured. run "wspc login".') + "\n")
     return
   }
-  const headers = ["", "ENV", "API BASE", "ACTOR", "AUTH"]
+  const headers = ["", "ENV", "API BASE", "ACTIVE ACCOUNT", "ACCOUNTS", "AUTH"]
   const rows = d.envs.map((e) => [
     e.name === d.current_env ? green("✓") : " ",
     e.name,
     e.api_base,
-    e.actor ?? dim("—"),
+    e.active_account ?? dim("—"),
+    String(e.accounts),
     e.auth === "none" ? dim("none") : e.auth,
   ])
   process.stdout.write(table(headers, rows))
 })
+
+/** Set a config field on the active account of the current env. Exported for tests. */
+export async function setConfigKey(store: ConfigStore, key: string, value: string): Promise<void> {
+  const c = await store.read()
+  const resolved = resolveAccount(c, { accountOverride: process.env.WSPC_ACCOUNT })
+  const env = c.envs[resolved.envName]
+  if (!env) throw new Error(`env "${resolved.envName}" not found`)
+  const acct = env.accounts[resolved.email]
+  if (!acct) throw new Error(`account "${resolved.email}" not found`)
+  switch (key) {
+    case "actor":
+      if (value !== "user" && value !== "agent") throw new Error("actor must be 'user' or 'agent'")
+      acct.actor = value
+      break
+    case "agent-label":
+      acct.agent_label = value
+      break
+    default:
+      throw new Error(`unknown config key: ${key}`)
+  }
+  await store.write(c)
+}
 
 configCommand
   .command("show")
   .description("List configured envs (tokens redacted, current marked with ✓)")
   .action(async () => {
     const c = await new ConfigStore().read()
-    const envs = Object.entries(c.envs ?? {}).map(([name, env]) => ({
-      name,
-      api_base: env.api_base,
-      ...(env.actor !== undefined ? { actor: env.actor } : {}),
-      auth: (env.api_key
-        ? "api_key"
-        : env.access_token
-          ? "oauth"
-          : "none") as "api_key" | "oauth" | "none",
-    }))
+    const envs = Object.entries(c.envs ?? {}).map(([name, env]) => {
+      const active = env.current_account ? env.accounts?.[env.current_account] : undefined
+      return {
+        name,
+        api_base: env.api_base,
+        ...(env.current_account !== undefined ? { active_account: env.current_account } : {}),
+        accounts: Object.keys(env.accounts ?? {}).length,
+        auth: (active?.api_key
+          ? "api_key"
+          : active?.access_token
+            ? "oauth"
+            : "none") as "api_key" | "oauth" | "none",
+      }
+    })
     render(
       { kind: "config_show" },
-      {
-        ...(c.current_env !== undefined ? { current_env: c.current_env } : {}),
-        envs,
-      },
+      { ...(c.current_env !== undefined ? { current_env: c.current_env } : {}), envs },
     )
   })
 
 configCommand
   .command("set <key> <value>")
-  .description("Set a config field on current env (actor, agent-label, ...)")
+  .description("Set a field on the active account (actor, agent-label, ...)")
   .action(async (key: string, value: string) => {
-    const store = new ConfigStore()
-    const c = await store.read()
-    if (!c.current_env) throw new Error("no current env; run `wspc login` first")
-    const env = c.envs[c.current_env]
-    if (!env) throw new Error(`env ${c.current_env} missing`)
-    switch (key) {
-      case "actor":
-        if (value !== "user" && value !== "agent") throw new Error("actor must be 'user' or 'agent'")
-        env.actor = value
-        break
-      case "agent-label":
-        env.agent_label = value
-        break
-      default:
-        throw new Error(`unknown config key: ${key}`)
-    }
-    await store.write(c)
+    await setConfigKey(new ConfigStore(), key, value)
     process.stdout.write(`✓ set ${key}=${value}\n`)
   })
 
