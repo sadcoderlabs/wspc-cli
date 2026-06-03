@@ -1,6 +1,55 @@
 import { describe, expect, it } from "vitest"
 import { emitCommand } from "./emit.js"
 
+describe("emitCommand: path params auto-positional", () => {
+  it("auto-adds a required path param as a positional argument when x-cli.positional omits it", () => {
+    const out = emitCommand({
+      operationId: "invite_accept",
+      method: "post",
+      path: "/auth/invites/{id}/accept",
+      xCli: { command: "invite accept", display: { shape: "object" } },
+      bodyFields: [],
+      pathParams: ["id"],
+    })
+    expect(out).not.toBeNull()
+    const code = out!
+    // The path param becomes a required positional and is wired into path:{}
+    expect(code).toContain('.argument("<id>", "id")')
+    expect(code).toContain("path: {")
+    expect(code).toContain("id,")
+    expect(code).toContain(".action(async (id, opts) =>")
+  })
+
+  it("does not duplicate a path param already listed in x-cli.positional", () => {
+    const out = emitCommand({
+      operationId: "todo_get",
+      method: "get",
+      path: "/todo/{id}",
+      xCli: { command: "todo show", positional: ["id"], display: { shape: "object" } },
+      bodyFields: [],
+      pathParams: ["id"],
+    })
+    const code = out!
+    const occurrences = code.split('.argument("<id>", "id")').length - 1
+    expect(occurrences).toBe(1)
+  })
+
+  it("does not auto-expose the ics filename path param (special-cased to id)", () => {
+    const out = emitCommand({
+      operationId: "event_ics_download",
+      method: "get",
+      path: "/calendar/events/{filename}",
+      xCli: { command: "event ics", positional: ["id"], display: { shape: "object" } },
+      bodyFields: [],
+      pathParams: ["filename"],
+    })
+    const code = out!
+    expect(code).not.toContain('.argument("<filename>"')
+    expect(code).toContain('.argument("<id>", "id")')
+    expect(code).toContain("filename: `${id}.ics`")
+  })
+})
+
 describe("emitCommand: array option without parser", () => {
   it("emits an accumulator option and passes string[] to mapsTo body field", () => {
     const out = emitCommand({

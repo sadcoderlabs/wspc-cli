@@ -89,9 +89,19 @@ export function emitCommand(input: EmitInput): string | null {
   const sdkRelPrefix = "../".repeat(depth)
   // The handwritten helpers live at src/handwritten/, which is one more level up from src/generated/.
   const handwrittenRelPrefix = "../".repeat(depth + 1)
-  const positional = input.xCli.positional ?? []
-  const aliases = input.xCli.aliases ?? {}
+  const explicitPositional = input.xCli.positional ?? []
   const pathParams = input.pathParams ?? []
+  // Required path params must always be exposed as positional arguments — otherwise
+  // the command compiles without a `path:` block while the SDK type requires one
+  // (silent drop → broken generated code). x-cli.positional already lists them for
+  // most commands; auto-append any it omits. event_ics_download is special-cased
+  // below (its `filename` path param is surfaced as `id`), so skip it here.
+  const autoPathPositional =
+    input.operationId === "event_ics_download"
+      ? []
+      : pathParams.filter((p) => !explicitPositional.includes(p))
+  const positional = [...explicitPositional, ...autoPathPositional]
+  const aliases = input.xCli.aliases ?? {}
   const queryFields = input.queryFields ?? []
   const xCliOptions = input.xCli.options ?? {}
 

@@ -5,8 +5,10 @@ import { tmpdir } from "node:os"
 import { runLogin } from "../src/handwritten/auth/login.js"
 import { ConfigStore } from "../src/handwritten/config/index.js"
 
+const me = async () => ({ user_id: "usr_1", email: "a@x.com" })
+
 describe("runLogin", () => {
-  it("writes refresh token to config under current_env=prod", async () => {
+  it("stores tokens under accounts[email] and sets it active", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-"))
     const store = new ConfigStore({ configDir: dir })
     const deviceFlow = vi.fn().mockResolvedValue({
@@ -15,24 +17,59 @@ describe("runLogin", () => {
       expires_in: 900,
       token_type: "Bearer",
     })
-    const now = () => 1748332800000
-
     await runLogin({
       store,
       baseUrl: "https://api.wspc.ai",
       clientId: "oac_wspc_cli",
       deviceFlow,
-      now,
+      fetchMe: me,
+      now: () => 1748332800000,
       output: { write: () => {}, writeJson: () => {} },
     })
     const c = await store.read()
     expect(c.current_env).toBe("prod")
-    expect(c.envs.prod).toMatchObject({
-      api_base: "https://api.wspc.ai",
+    expect(c.envs.prod?.current_account).toBe("a@x.com")
+    expect(c.envs.prod?.accounts["a@x.com"]).toMatchObject({
+      email: "a@x.com",
+      user_id: "usr_1",
       refresh_token: "wrt_x",
       access_token: "wat_x",
       access_token_expires_at: 1748332800000 + 900_000,
     })
+  })
+
+  it("does not overwrite a different existing account", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-multi-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      schema_version: 2,
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          client_id: "client_X",
+          current_account: "old@x.com",
+          accounts: { "old@x.com": { email: "old@x.com", access_token: "a", refresh_token: "r" } },
+        },
+      },
+    })
+    await runLogin({
+      store,
+      baseUrl: "https://api.wspc.ai",
+      clientId: "client_X",
+      deviceFlow: vi.fn().mockResolvedValue({
+        access_token: "wat_new",
+        refresh_token: "wrt_new",
+        expires_in: 900,
+        token_type: "Bearer",
+      }),
+      fetchMe: me, // returns a@x.com
+      now: () => 1,
+      output: { write: () => {}, writeJson: () => {} },
+    })
+    const c = await store.read()
+    expect(Object.keys(c.envs.prod!.accounts).sort()).toEqual(["a@x.com", "old@x.com"])
+    expect(c.envs.prod?.current_account).toBe("a@x.com")
   })
 
   it("forwards onPrompt from caller into device flow (no silent swallow)", async () => {
@@ -42,29 +79,20 @@ describe("runLogin", () => {
     const jsonEvents: Record<string, unknown>[] = []
     const deviceFlow = vi.fn().mockImplementation(async (o: { onPrompt: (p: unknown) => void }) => {
       o.onPrompt({ verification_uri: "https://app.wspc.ai/device", user_code: "ABCD-1234", expires_in: 600 })
-      return {
-        access_token: "wat_x",
-        refresh_token: "wrt_x",
-        expires_in: 900,
-        token_type: "Bearer",
-      }
+      return { access_token: "wat_x", refresh_token: "wrt_x", expires_in: 900, token_type: "Bearer" }
     })
     await runLogin({
       store,
       baseUrl: "https://api.wspc.ai",
       deviceFlow,
       ensureClient: async () => "client_TEST",
+      fetchMe: me,
       now: () => 1,
-      output: {
-        write: (s) => writes.push(s),
-        writeJson: (e) => jsonEvents.push(e),
-      },
+      output: { write: (s) => writes.push(s), writeJson: (e) => jsonEvents.push(e) },
     })
-    // The output side received the prompt event…
     expect(jsonEvents).toContainEqual(
       expect.objectContaining({ event: "device_code_issued", user_code: "ABCD-1234" }),
     )
-    // …and the human-readable verification_uri line landed in stdout.
     expect(writes.some((l) => l.includes("verification_uri:"))).toBe(true)
     expect(writes.some((l) => l.includes("ABCD-1234"))).toBe(true)
   })
@@ -74,20 +102,15 @@ describe("runLogin", () => {
     const store = new ConfigStore({ configDir: dir })
     const ensureClient = vi.fn().mockResolvedValue("client_ENSURED")
     const deviceFlow = vi.fn().mockImplementation(async (o: { clientId: string }) => {
-      // Verify ensureClient's id was forwarded into the device flow
       expect(o.clientId).toBe("client_ENSURED")
-      return {
-        access_token: "wat_x",
-        refresh_token: "wrt_x",
-        expires_in: 900,
-        token_type: "Bearer",
-      }
+      return { access_token: "wat_x", refresh_token: "wrt_x", expires_in: 900, token_type: "Bearer" }
     })
     await runLogin({
       store,
       baseUrl: "https://api.wspc.ai",
       ensureClient,
       deviceFlow,
+      fetchMe: me,
       now: () => 1,
       output: { write: () => {}, writeJson: () => {} },
     })
@@ -95,17 +118,53 @@ describe("runLogin", () => {
     expect(deviceFlow).toHaveBeenCalledOnce()
   })
 
-  it("writes api_key in escape-hatch mode", async () => {
-    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-"))
+  it("drops stale (default) orphan after OAuth login resolves real email", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-orphan-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      schema_version: 2,
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          client_id: "client_X",
+          current_account: "(default)",
+          accounts: { "(default)": { email: "(default)", access_token: "old", refresh_token: "old" } },
+        },
+      },
+    })
+    await runLogin({
+      store,
+      baseUrl: "https://api.wspc.ai",
+      clientId: "client_X",
+      deviceFlow: vi.fn().mockResolvedValue({
+        access_token: "wat_new",
+        refresh_token: "wrt_new",
+        expires_in: 900,
+        token_type: "Bearer",
+      }),
+      fetchMe: async () => ({ user_id: "usr_1", email: "a@x.com" }),
+      now: () => 1,
+      output: { write: () => {}, writeJson: () => {} },
+    })
+    const c = await store.read()
+    expect(Object.keys(c.envs.prod!.accounts)).toEqual(["a@x.com"])
+    expect(c.envs.prod?.current_account).toBe("a@x.com")
+  })
+
+  it("writes api_key under accounts[email] in escape-hatch mode", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-key-"))
     const store = new ConfigStore({ configDir: dir })
     await runLogin({
       store,
       apiKey: "wspc_test_key",
       baseUrl: "https://api.wspc.ai",
+      fetchMe: me,
       output: { write: () => {}, writeJson: () => {} },
     })
     const c = await store.read()
-    expect(c.envs.prod?.api_key).toBe("wspc_test_key")
-    expect(c.envs.prod?.refresh_token).toBeUndefined()
+    expect(c.envs.prod?.accounts["a@x.com"]?.api_key).toBe("wspc_test_key")
+    expect(c.envs.prod?.accounts["a@x.com"]?.refresh_token).toBeUndefined()
+    expect(c.envs.prod?.current_account).toBe("a@x.com")
   })
 })

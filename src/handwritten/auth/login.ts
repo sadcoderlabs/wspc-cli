@@ -1,6 +1,8 @@
-import type { ConfigStore } from "../config/index.js"
+import type { ConfigStore, EnvConfig, WspcConfig } from "../config/index.js"
+import { LEGACY_ACCOUNT_KEY } from "../config/index.js"
 import { runDeviceFlow, type DeviceFlowResult } from "./device-flow.js"
 import { ensureClientId } from "./client-registration.js"
+import { fetchMe as defaultFetchMe } from "./fetch-me.js"
 
 export interface LoginOutput {
   write(line: string): void
@@ -12,38 +14,62 @@ export interface RunLoginOptions {
   baseUrl: string
   output: LoginOutput
   envName?: string
-  // Device flow path:
-  /** Skip auto-registration and use this exact client_id instead. */
   clientId?: string
-  /** Override the default RFC 7591 register step (tests). */
   ensureClient?: (envName: string) => Promise<string>
-  deviceFlow?: (opts: { baseUrl: string; clientId: string; onPrompt: (p: unknown) => void }) => Promise<DeviceFlowResult>
+  deviceFlow?: (opts: {
+    baseUrl: string
+    clientId: string
+    onPrompt: (p: unknown) => void
+  }) => Promise<DeviceFlowResult>
   now?: () => number
-  // API key escape hatch:
   apiKey?: string
+  fetchMe?: (opts: { baseUrl: string; token: string }) => Promise<{ user_id: string; email: string }>
+}
+
+function getOrCreateEnv(c: WspcConfig, envName: string, apiBase: string): EnvConfig {
+  const existing = c.envs[envName]
+  if (existing) {
+    existing.api_base = apiBase
+    existing.accounts ??= {}
+    return existing
+  }
+  const fresh: EnvConfig = { api_base: apiBase, accounts: {} }
+  c.envs[envName] = fresh
+  return fresh
 }
 
 export async function runLogin(opts: RunLoginOptions): Promise<void> {
   const envName = opts.envName ?? "prod"
   const now = opts.now ?? Date.now
-  const c = await opts.store.read()
+  const me = opts.fetchMe ?? ((o: { baseUrl: string; token: string }) => defaultFetchMe(o))
 
   if (opts.apiKey) {
+    const who = await me({ baseUrl: opts.baseUrl, token: opts.apiKey })
+    const c = await opts.store.read()
+    const env = getOrCreateEnv(c, envName, opts.baseUrl)
+    const prev = env.accounts[who.email] ?? { email: who.email }
+    const acct = (env.accounts[who.email] = {
+      ...prev,
+      email: who.email,
+      user_id: who.user_id,
+      api_key: opts.apiKey,
+    })
+    // api-key login is mutually exclusive with stored OAuth tokens.
+    delete acct.refresh_token
+    delete acct.access_token
+    delete acct.access_token_expires_at
+    env.current_account = who.email
+    if (who.email !== LEGACY_ACCOUNT_KEY) delete env.accounts[LEGACY_ACCOUNT_KEY]
     c.current_env = envName
-    c.envs[envName] = { ...(c.envs[envName] ?? {}), api_base: opts.baseUrl, api_key: opts.apiKey }
     await opts.store.write(c)
-    opts.output.write(`✓ logged in (api key) → env "${envName}"`)
+    opts.output.write(`✓ logged in (api key) as ${who.email} → env "${envName}"`)
     return
   }
 
-  // Resolve a client_id: explicit override wins, then registered-on-disk,
-  // otherwise auto-register via RFC 7591 and persist.
   const ensureClient =
-    opts.ensureClient ?? ((env: string) => ensureClientId({ store: opts.store, envName: env, baseUrl: opts.baseUrl }))
+    opts.ensureClient ??
+    ((env: string) => ensureClientId({ store: opts.store, envName: env, baseUrl: opts.baseUrl }))
   const clientId = opts.clientId ?? (await ensureClient(envName))
-  // NB: default flow MUST pass o.onPrompt through verbatim. Earlier
-  // implementation did `...o, onPrompt: () => {}` which silently swallowed
-  // the real callback and left users staring at an empty terminal forever.
   const flow = opts.deviceFlow ?? runDeviceFlow
 
   const result = await flow({
@@ -60,21 +86,26 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     },
   })
 
-  // Re-read: ensureClient may have written a fresh client_id to disk while
-  // we held the stale `c` from line 29. Without re-reading we'd clobber it.
-  const cFinal = await opts.store.read()
-  cFinal.current_env = envName
-  cFinal.envs[envName] = {
-    ...(cFinal.envs[envName] ?? {}),
-    api_base: opts.baseUrl,
+  const who = await me({ baseUrl: opts.baseUrl, token: result.access_token })
+
+  // Re-read: ensureClient may have written client_id while we ran the flow.
+  const c = await opts.store.read()
+  const env = getOrCreateEnv(c, envName, opts.baseUrl)
+  const prev = env.accounts[who.email] ?? { email: who.email }
+  const acct = (env.accounts[who.email] = {
+    ...prev,
+    email: who.email,
+    user_id: who.user_id,
     refresh_token: result.refresh_token,
     access_token: result.access_token,
     access_token_expires_at: now() + result.expires_in * 1000,
-  }
-  // Strip any leftover api_key (login is OAuth now)
-  const env = cFinal.envs[envName] as unknown as Record<string, unknown>
-  if (env && "api_key" in env) delete env.api_key
-  await opts.store.write(cFinal)
-  opts.output.writeJson({ event: "login_success" })
-  opts.output.write(`✓ logged in → env "${envName}"`)
+  })
+  // login is OAuth now — drop any stale api_key on this account.
+  delete acct.api_key
+  env.current_account = who.email
+  if (who.email !== LEGACY_ACCOUNT_KEY) delete env.accounts[LEGACY_ACCOUNT_KEY]
+  c.current_env = envName
+  await opts.store.write(c)
+  opts.output.writeJson({ event: "login_success", email: who.email })
+  opts.output.write(`✓ logged in as ${who.email} → env "${envName}"`)
 }

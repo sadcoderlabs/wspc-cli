@@ -4,6 +4,25 @@ export type ClientOptions = {
     baseUrl: 'https://api.wspc.ai' | (string & {});
 };
 
+export type Org = {
+    /**
+     * Stable organization id. Every API key resolves to an org; cross-org data isolation is enforced by every worker.
+     */
+    id: string;
+    /**
+     * Human-readable organization name shown in dashboards and headers. Defaults to the owner's display name at signup; changeable via future org-admin endpoints.
+     */
+    name: string;
+    /**
+     * Unix epoch in milliseconds at which the organization was created.
+     */
+    created_at: number;
+    /**
+     * Unix epoch in milliseconds at which the organization's metadata was last mutated. Equals `created_at` until the org is renamed.
+     */
+    updated_at: number;
+};
+
 export type CreateApiKeyBody = {
     /**
      * Human-readable label for the new key (1–60 chars after trimming). Pick something that identifies where the key will live — agent name, machine, or environment — so you can recognise it later in `wspc keys list`.
@@ -32,6 +51,40 @@ export type CreateApiKeyResponse = {
      * Unix epoch in milliseconds at which the key was created.
      */
     created_at: number;
+};
+
+export type CreateOrgInviteInput = {
+    /**
+     * Email address to invite into the caller's organization.
+     */
+    email: string;
+};
+
+export type OrgInviteSummary = {
+    /**
+     * Unique identifier of the organization invitation (prefixed with inv_).
+     */
+    id: string;
+    /**
+     * Email address of the invitee.
+     */
+    email: string;
+    /**
+     * The current status/state of the organization invitation.
+     */
+    state: 'pending' | 'accepted' | 'rejected' | 'expired';
+    /**
+     * The Unix timestamp (in milliseconds) when the invitation expires.
+     */
+    expires_at: number;
+    /**
+     * The Unix timestamp (in milliseconds) when the invitation was created.
+     */
+    created_at: number;
+    /**
+     * Deep link the invitee opens; not a secret (accept is gated on email match).
+     */
+    invite_url: string;
 };
 
 export type OAuthDeviceBody = {
@@ -76,23 +129,39 @@ export type OAuthDeviceResponse = {
     interval: number;
 };
 
-export type Org = {
+export type OrgInviteView = {
     /**
-     * Stable organization id. Every API key resolves to an org; cross-org data isolation is enforced by every worker.
+     * Unique identifier of the organization invitation.
      */
     id: string;
     /**
-     * Human-readable organization name shown in dashboards and headers. Defaults to the owner's display name at signup; changeable via future org-admin endpoints.
+     * ID of the organization the user is invited to join.
      */
-    name: string;
+    org_id: string;
     /**
-     * Unix epoch in milliseconds at which the organization was created.
+     * Name of the organization the user is invited to join.
+     */
+    org_name: string;
+    /**
+     * Email address of the user who issued the invitation.
+     */
+    inviter_email: string;
+    /**
+     * Email address of the invitee.
+     */
+    invitee_email: string;
+    /**
+     * The current status/state of the organization invitation.
+     */
+    state: 'pending' | 'accepted' | 'rejected' | 'expired';
+    /**
+     * The Unix timestamp (in milliseconds) when the invitation expires.
+     */
+    expires_at: number;
+    /**
+     * The Unix timestamp (in milliseconds) when the invitation was created.
      */
     created_at: number;
-    /**
-     * Unix epoch in milliseconds at which the organization's metadata was last mutated. Equals `created_at` until the org is renamed.
-     */
-    updated_at: number;
 };
 
 export type GetMeResponse = {
@@ -112,6 +181,20 @@ export type GetMeResponse = {
      * Identifier of the API key used to authenticate this call. Omitted when the bearer token is an OAuth access token rather than a long-lived API key.
      */
     api_key_id?: string;
+};
+
+export type ListMyInvitesResponse = {
+    /**
+     * List of pending and past invitations addressed to the authenticated user.
+     */
+    invites: Array<OrgInviteView>;
+};
+
+export type ListOrgInvitesResponse = {
+    /**
+     * List of pending and past invitations issued by this organization.
+     */
+    invites: Array<OrgInviteSummary>;
 };
 
 export type ListOrgMembersQuery = {
@@ -298,7 +381,7 @@ export type RequestCodeResponse = {
 
 export type RevokeApiKeyResponse = {
     /**
-     * Always `true` on a successful revoke. Subsequent requests authenticating with the revoked key return `401 INVALID_API_KEY`.
+     * Always `true` on a successful revoke. Subsequent requests authenticating with the revoked key return `401 UNAUTHORIZED`.
      */
     ok: true;
 };
@@ -1383,6 +1466,116 @@ export type UpdateTodoTypeBody = {
     }>;
 };
 
+export type InviteAcceptData = {
+    body?: never;
+    path: {
+        /**
+         * The unique identifier of the invitation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/auth/invites/{id}/accept';
+};
+
+export type InviteAcceptErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type InviteAcceptError = InviteAcceptErrors[keyof InviteAcceptErrors];
+
+export type InviteAcceptResponses = {
+    /**
+     * The organization the caller now belongs to.
+     */
+    200: Org;
+};
+
+export type InviteAcceptResponse = InviteAcceptResponses[keyof InviteAcceptResponses];
+
 export type KeyListData = {
     body?: never;
     path?: never;
@@ -1592,6 +1785,216 @@ export type KeyCreateResponses = {
 };
 
 export type KeyCreateResponse = KeyCreateResponses[keyof KeyCreateResponses];
+
+export type OrgInvitesListData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/me/org/invites';
+};
+
+export type OrgInvitesListErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type OrgInvitesListError = OrgInvitesListErrors[keyof OrgInvitesListErrors];
+
+export type OrgInvitesListResponses = {
+    /**
+     * Invites for this org.
+     */
+    200: ListOrgInvitesResponse;
+};
+
+export type OrgInvitesListResponse = OrgInvitesListResponses[keyof OrgInvitesListResponses];
+
+export type OrgInviteCreateData = {
+    body?: CreateOrgInviteInput;
+    path?: never;
+    query?: never;
+    url: '/auth/me/org/invites';
+};
+
+export type OrgInviteCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type OrgInviteCreateError = OrgInviteCreateErrors[keyof OrgInviteCreateErrors];
+
+export type OrgInviteCreateResponses = {
+    /**
+     * The created (or existing pending) invite.
+     */
+    201: OrgInviteSummary;
+};
+
+export type OrgInviteCreateResponse = OrgInviteCreateResponses[keyof OrgInviteCreateResponses];
 
 export type OauthDeviceAuthorizeData = {
     body?: OAuthDeviceBody;
@@ -1856,6 +2259,116 @@ export type OrgUpdateResponses = {
 
 export type OrgUpdateResponse = OrgUpdateResponses[keyof OrgUpdateResponses];
 
+export type InviteGetData = {
+    body?: never;
+    path: {
+        /**
+         * The unique identifier of the invitation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/auth/invites/{id}';
+};
+
+export type InviteGetErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type InviteGetError = InviteGetErrors[keyof InviteGetErrors];
+
+export type InviteGetResponses = {
+    /**
+     * The invite.
+     */
+    200: OrgInviteView;
+};
+
+export type InviteGetResponse = InviteGetResponses[keyof InviteGetResponses];
+
 export type AuthMeData = {
     body?: never;
     path?: never;
@@ -1960,6 +2473,111 @@ export type AuthMeResponses = {
 };
 
 export type AuthMeResponse = AuthMeResponses[keyof AuthMeResponses];
+
+export type InvitesListData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/invites';
+};
+
+export type InvitesListErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type InvitesListError = InvitesListErrors[keyof InvitesListErrors];
+
+export type InvitesListResponses = {
+    /**
+     * Invites addressed to the caller.
+     */
+    200: ListMyInvitesResponse;
+};
+
+export type InvitesListResponse = InvitesListResponses[keyof InvitesListResponses];
 
 export type OrgMembersListData = {
     body?: never;
@@ -2337,6 +2955,116 @@ export type OauthClientRegisterResponses = {
 };
 
 export type OauthClientRegisterResponse = OauthClientRegisterResponses[keyof OauthClientRegisterResponses];
+
+export type InviteRejectData = {
+    body?: never;
+    path: {
+        /**
+         * The unique identifier of the invitation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/auth/invites/{id}/reject';
+};
+
+export type InviteRejectErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type InviteRejectError = InviteRejectErrors[keyof InviteRejectErrors];
+
+export type InviteRejectResponses = {
+    /**
+     * Invite rejected.
+     */
+    204: void;
+};
+
+export type InviteRejectResponse = InviteRejectResponses[keyof InviteRejectResponses];
 
 export type AuthRequestCodeData = {
     body?: RequestCodeBody;
@@ -2717,6 +3445,116 @@ export type OauthTokenRevokeResponses = {
 };
 
 export type OauthTokenRevokeResponse = OauthTokenRevokeResponses[keyof OauthTokenRevokeResponses];
+
+export type OrgInviteRevokeData = {
+    body?: never;
+    path: {
+        /**
+         * The unique identifier of the invitation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/auth/me/org/invites/{id}';
+};
+
+export type OrgInviteRevokeErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type OrgInviteRevokeError = OrgInviteRevokeErrors[keyof OrgInviteRevokeErrors];
+
+export type OrgInviteRevokeResponses = {
+    /**
+     * Invite revoked.
+     */
+    204: void;
+};
+
+export type OrgInviteRevokeResponse = OrgInviteRevokeResponses[keyof OrgInviteRevokeResponses];
 
 export type OauthTokenExchangeData = {
     body?: OAuthTokenBody;
