@@ -5,25 +5,66 @@ import { tmpdir } from "node:os"
 import { ConfigStore } from "../src/handwritten/config/index.js"
 import { runLogout } from "../src/handwritten/auth/logout.js"
 
-/**
- * `runWhoami` is gone — the `whoami` command now goes through `loadSdkClient`
- * + the auth interceptor so 401 → token refresh works (previously, raw
- * fetch was used and expired access tokens looked like "logged_out"). The
- * command's end-to-end behaviour is exercised via the SDK auth flow tests
- * in sdk-auth.test.ts; logout still owns its own unit test below.
- */
-describe("logout", () => {
-  it("clears tokens for current env", async () => {
+function twoAccounts() {
+  return {
+    schema_version: 2 as const,
+    current_env: "prod",
+    envs: {
+      prod: {
+        api_base: "https://api.wspc.ai",
+        client_id: "client_X",
+        current_account: "a@x.com",
+        accounts: {
+          "a@x.com": { email: "a@x.com", access_token: "at_a", refresh_token: "rt_a" },
+          "b@x.com": { email: "b@x.com", access_token: "at_b", refresh_token: "rt_b" },
+        },
+      },
+    },
+  }
+}
+
+describe("runLogout", () => {
+  it("removes the active account and promotes the sole remaining one", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-logout-"))
     const store = new ConfigStore({ configDir: dir })
-    await store.write({
-      current_env: "prod",
-      envs: { prod: { api_base: "https://api.wspc.ai", refresh_token: "wrt_x", access_token: "wat_x" } },
-    })
-    await runLogout({ store })
+    await store.write(twoAccounts())
+    const res = await runLogout({ store })
+    expect(res.removed).toEqual(["a@x.com"])
     const c = await store.read()
-    expect(c.envs.prod?.refresh_token).toBeUndefined()
-    expect(c.envs.prod?.access_token).toBeUndefined()
-    expect(c.envs.prod?.api_base).toBe("https://api.wspc.ai")
+    expect(Object.keys(c.envs.prod!.accounts)).toEqual(["b@x.com"])
+    expect(c.envs.prod!.current_account).toBe("b@x.com")
+  })
+
+  it("removes a specific account by email, leaving active untouched", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-logout-email-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write(twoAccounts())
+    await runLogout({ store, email: "b@x.com" })
+    const c = await store.read()
+    expect(Object.keys(c.envs.prod!.accounts)).toEqual(["a@x.com"])
+    expect(c.envs.prod!.current_account).toBe("a@x.com")
+  })
+
+  it("clears active (no auto-promote) when >1 remain after removing active", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-logout-many-"))
+    const store = new ConfigStore({ configDir: dir })
+    const c0 = twoAccounts()
+    c0.envs.prod.accounts["c@x.com"] = { email: "c@x.com", access_token: "at_c", refresh_token: "rt_c" }
+    await store.write(c0)
+    await runLogout({ store }) // removes active a@x.com, b & c remain
+    const c = await store.read()
+    expect(Object.keys(c.envs.prod!.accounts).sort()).toEqual(["b@x.com", "c@x.com"])
+    expect(c.envs.prod!.current_account).toBeUndefined()
+  })
+
+  it("--all clears every account in the env", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-logout-all-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write(twoAccounts())
+    await runLogout({ store, all: true })
+    const c = await store.read()
+    expect(c.envs.prod!.accounts).toEqual({})
+    expect(c.envs.prod!.current_account).toBeUndefined()
+    expect(c.envs.prod!.api_base).toBe("https://api.wspc.ai")
   })
 })
