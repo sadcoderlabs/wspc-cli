@@ -47,16 +47,16 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     const c = await opts.store.read()
     const env = getOrCreateEnv(c, envName, opts.baseUrl)
     const prev = env.accounts[who.email] ?? { email: who.email }
-    env.accounts[who.email] = {
+    const acct = (env.accounts[who.email] = {
       ...prev,
       email: who.email,
       user_id: who.user_id,
       api_key: opts.apiKey,
-    }
+    })
     // api-key login is mutually exclusive with stored OAuth tokens.
-    delete env.accounts[who.email].refresh_token
-    delete env.accounts[who.email].access_token
-    delete env.accounts[who.email].access_token_expires_at
+    delete acct.refresh_token
+    delete acct.access_token
+    delete acct.access_token_expires_at
     env.current_account = who.email
     c.current_env = envName
     await opts.store.write(c)
@@ -90,16 +90,16 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
   const c = await opts.store.read()
   const env = getOrCreateEnv(c, envName, opts.baseUrl)
   const prev = env.accounts[who.email] ?? { email: who.email }
-  env.accounts[who.email] = {
+  const acct = (env.accounts[who.email] = {
     ...prev,
     email: who.email,
     user_id: who.user_id,
     refresh_token: result.refresh_token,
     access_token: result.access_token,
     access_token_expires_at: now() + result.expires_in * 1000,
-  }
+  })
   // login is OAuth now — drop any stale api_key on this account.
-  delete env.accounts[who.email].api_key
+  delete acct.api_key
   env.current_account = who.email
   c.current_env = envName
   await opts.store.write(c)

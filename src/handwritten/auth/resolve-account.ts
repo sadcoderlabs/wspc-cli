@@ -48,7 +48,9 @@ export function resolveAccount(
     )
   }
 
+  if (email === undefined) throw new Error(NOT_LOGGED_IN)
   const creds = accounts[email]
+  if (!creds) throw new Error(NOT_LOGGED_IN)
   if (!creds.api_key && !(creds.access_token && creds.refresh_token)) {
     throw new Error(NOT_LOGGED_IN)
   }

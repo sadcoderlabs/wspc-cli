@@ -45,7 +45,7 @@ export async function ensureClientId(opts: EnsureClientIdOptions): Promise<strin
 
   // Re-read in case other fields were updated between read and now.
   const fresh = await opts.store.read()
-  const env = fresh.envs[opts.envName] ?? { api_base: opts.baseUrl }
+  const env = fresh.envs[opts.envName] ?? { api_base: opts.baseUrl, accounts: {} }
   env.client_id = body.client_id
   fresh.envs[opts.envName] = env
   await opts.store.write(fresh)

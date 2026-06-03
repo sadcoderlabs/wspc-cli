@@ -17,7 +17,7 @@ describe("loadSdkClient", () => {
     const store = new ConfigStore({ configDir: dir })
     await store.write({
       current_env: "prod",
-      envs: { prod: { api_base: "https://api.wspc.ai" } },
+      envs: { prod: { api_base: "https://api.wspc.ai", accounts: {} } },
     })
     await expect(loadSdkClient({ store })).rejects.toThrow(/not logged in/i)
   })
@@ -27,7 +27,7 @@ describe("loadSdkClient", () => {
     const store = new ConfigStore({ configDir: dir })
     await store.write({
       current_env: "prod",
-      envs: { prod: { api_base: "https://api.wspc.ai", api_key: "wspc_x" } },
+      envs: { prod: { api_base: "https://api.wspc.ai", current_account: "a@x.com", accounts: { "a@x.com": { email: "a@x.com", api_key: "wspc_x" } } } },
     })
     const client = await loadSdkClient({ store })
     expect(client).toBeDefined()
@@ -43,9 +43,9 @@ describe("loadSdkClient", () => {
       envs: {
         prod: {
           api_base: "https://api.wspc.ai",
-          access_token: "acc_token",
-          refresh_token: "ref_token",
           client_id: "client_PERSISTED",
+          current_account: "a@x.com",
+          accounts: { "a@x.com": { email: "a@x.com", access_token: "acc_token", refresh_token: "ref_token" } },
         },
       },
     })
@@ -62,8 +62,8 @@ describe("loadSdkClient", () => {
       envs: {
         prod: {
           api_base: "https://api.wspc.ai",
-          access_token: "acc_token",
-          refresh_token: "ref_token",
+          current_account: "a@x.com",
+          accounts: { "a@x.com": { email: "a@x.com", access_token: "acc_token", refresh_token: "ref_token" } },
         },
       },
     })

@@ -32,7 +32,7 @@ describe("ensureClientId", () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-register-existing-"))
     const store = new ConfigStore({ configDir: dir })
     await store.write({
-      envs: { prod: { api_base: "https://api.wspc.ai", client_id: "client_EXISTING" } },
+      envs: { prod: { api_base: "https://api.wspc.ai", client_id: "client_EXISTING", accounts: {} } },
     })
     const fetchMock = vi.fn()
     const id = await ensureClientId({

@@ -59,7 +59,7 @@ function migrateEnv(raw: Record<string, unknown>): EnvConfig {
   if (hasCreds) {
     const creds: AccountCreds = { email: LEGACY_ACCOUNT_KEY }
     for (const k of V1_CRED_KEYS) {
-      if (raw[k] !== undefined) (creds as Record<string, unknown>)[k] = raw[k]
+      if (raw[k] !== undefined) (creds as unknown as Record<string, unknown>)[k] = raw[k]
     }
     env.accounts[LEGACY_ACCOUNT_KEY] = creds
     env.current_account = LEGACY_ACCOUNT_KEY

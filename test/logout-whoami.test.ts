@@ -2,10 +2,11 @@ import { describe, it, expect } from "vitest"
 import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
+import type { WspcConfig } from "../src/handwritten/config/index.js"
 import { ConfigStore } from "../src/handwritten/config/index.js"
 import { runLogout } from "../src/handwritten/auth/logout.js"
 
-function twoAccounts() {
+function twoAccounts(): WspcConfig {
   return {
     schema_version: 2 as const,
     current_env: "prod",
@@ -49,7 +50,7 @@ describe("runLogout", () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-logout-many-"))
     const store = new ConfigStore({ configDir: dir })
     const c0 = twoAccounts()
-    c0.envs.prod.accounts["c@x.com"] = { email: "c@x.com", access_token: "at_c", refresh_token: "rt_c" }
+    c0.envs.prod!.accounts["c@x.com"] = { email: "c@x.com", access_token: "at_c", refresh_token: "rt_c" }
     await store.write(c0)
     await runLogout({ store }) // removes active a@x.com, b & c remain
     const c = await store.read()
