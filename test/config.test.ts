@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest"
 import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { ConfigStore } from "../src/handwritten/config/index.js"
+import { ConfigStore, rekeyLegacyAccount, type WspcConfig } from "../src/handwritten/config/index.js"
 
 describe("ConfigStore", () => {
   let dir: string
@@ -115,5 +115,69 @@ describe("ConfigStore", () => {
     )
     const c = await store.read()
     expect(c.envs.prod!.accounts["a@x.com"]).toMatchObject({ email: "a@x.com", api_key: "wspc_k" })
+  })
+})
+
+describe("rekeyLegacyAccount", () => {
+  function legacyCfg(): WspcConfig {
+    return {
+      schema_version: 2,
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          client_id: "client_X",
+          current_account: "(default)",
+          accounts: { "(default)": { email: "(default)", access_token: "at", refresh_token: "rt" } },
+        },
+      },
+    }
+  }
+
+  it("renames (default) to the real email and sets user_id", () => {
+    const cfg = legacyCfg()
+    const result = rekeyLegacyAccount(cfg, "prod", "real@x.com", "usr_1")
+    expect(result).toBe(true)
+    const prod = cfg.envs.prod!
+    expect(prod.accounts["real@x.com"]).toMatchObject({ email: "real@x.com", user_id: "usr_1" })
+    expect(prod.accounts["(default)"]).toBeUndefined()
+    expect(prod.current_account).toBe("real@x.com")
+  })
+
+  it("is a no-op when email === '(default)'", () => {
+    const cfg = legacyCfg()
+    const result = rekeyLegacyAccount(cfg, "prod", "(default)", "usr_1")
+    expect(result).toBe(false)
+    expect(cfg.envs.prod!.accounts["(default)"]).toBeDefined()
+    expect(cfg.envs.prod!.current_account).toBe("(default)")
+  })
+
+  it("is a no-op when there is no (default) placeholder", () => {
+    const cfg: WspcConfig = {
+      schema_version: 2,
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          client_id: "client_X",
+          current_account: "existing@x.com",
+          accounts: { "existing@x.com": { email: "existing@x.com", access_token: "at", refresh_token: "rt" } },
+        },
+      },
+    }
+    const result = rekeyLegacyAccount(cfg, "prod", "real@x.com", "usr_1")
+    expect(result).toBe(false)
+    expect(cfg.envs.prod!.accounts["existing@x.com"]).toBeDefined()
+    expect(cfg.envs.prod!.accounts["real@x.com"]).toBeUndefined()
+  })
+
+  it("renames without setting user_id when userId arg is omitted", () => {
+    const cfg = legacyCfg()
+    const result = rekeyLegacyAccount(cfg, "prod", "real@x.com")
+    expect(result).toBe(true)
+    const account = cfg.envs.prod!.accounts["real@x.com"]
+    expect(account).toBeDefined()
+    expect(account!.email).toBe("real@x.com")
+    expect(account!.user_id).toBeUndefined()
   })
 })
