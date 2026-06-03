@@ -20,19 +20,26 @@ describe("ConfigStore", () => {
 
   it("round-trips a written config", async () => {
     await store.write({
+      schema_version: 2,
       current_env: "prod",
       envs: {
         prod: {
           api_base: "https://api.wspc.ai",
-          refresh_token: "wrt_test",
-          access_token: "wat_test",
-          access_token_expires_at: 1748332800000,
+          current_account: "a@x.com",
+          accounts: {
+            "a@x.com": {
+              email: "a@x.com",
+              refresh_token: "wrt_test",
+              access_token: "wat_test",
+              access_token_expires_at: 1748332800000,
+            },
+          },
         },
       },
     })
     const c = await store.read()
     expect(c.current_env).toBe("prod")
-    expect(c.envs.prod?.refresh_token).toBe("wrt_test")
+    expect(c.envs.prod?.accounts["a@x.com"]?.refresh_token).toBe("wrt_test")
   })
 
   it("creates config dir with 0700 permissions", async () => {
@@ -41,5 +48,72 @@ describe("ConfigStore", () => {
     if (process.platform !== "win32") {
       expect(stat.mode & 0o777).toBe(0o700)
     }
+  })
+
+  it("migrates a v1 env (env-level creds) into accounts[(default)]", async () => {
+    // Write a legacy v1-shaped config by hand (creds at env level, no accounts).
+    await fs.writeFile(
+      join(dir, "config.json"),
+      JSON.stringify({
+        current_env: "prod",
+        envs: {
+          prod: {
+            api_base: "https://api.wspc.ai",
+            client_id: "client_X",
+            refresh_token: "wrt_legacy",
+            access_token: "wat_legacy",
+            access_token_expires_at: 1748332800000,
+            actor: "agent",
+            agent_label: "bot",
+          },
+        },
+      }),
+      "utf8",
+    )
+    const c = await store.read()
+    const prod = c.envs.prod!
+    expect(prod.api_base).toBe("https://api.wspc.ai")
+    expect(prod.client_id).toBe("client_X")
+    expect(prod.current_account).toBe("(default)")
+    expect(prod.accounts["(default)"]).toMatchObject({
+      email: "(default)",
+      refresh_token: "wrt_legacy",
+      access_token: "wat_legacy",
+      access_token_expires_at: 1748332800000,
+      actor: "agent",
+      agent_label: "bot",
+    })
+    // Env-level cred fields are stripped after migration.
+    expect((prod as unknown as Record<string, unknown>).refresh_token).toBeUndefined()
+  })
+
+  it("leaves an env with no creds as empty accounts map", async () => {
+    await fs.writeFile(
+      join(dir, "config.json"),
+      JSON.stringify({ current_env: "prod", envs: { prod: { api_base: "https://api.wspc.ai" } } }),
+      "utf8",
+    )
+    const c = await store.read()
+    expect(c.envs.prod!.accounts).toEqual({})
+  })
+
+  it("keeps an already-v2 env untouched", async () => {
+    await fs.writeFile(
+      join(dir, "config.json"),
+      JSON.stringify({
+        schema_version: 2,
+        current_env: "prod",
+        envs: {
+          prod: {
+            api_base: "https://api.wspc.ai",
+            current_account: "a@x.com",
+            accounts: { "a@x.com": { email: "a@x.com", api_key: "wspc_k" } },
+          },
+        },
+      }),
+      "utf8",
+    )
+    const c = await store.read()
+    expect(c.envs.prod!.accounts["a@x.com"]).toMatchObject({ email: "a@x.com", api_key: "wspc_k" })
   })
 })
