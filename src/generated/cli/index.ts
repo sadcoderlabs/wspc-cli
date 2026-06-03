@@ -1,13 +1,20 @@
 // AUTO-GENERATED — DO NOT EDIT
 import { Command } from "commander"
+import { inviteAcceptCommand } from "./invite/accept.js"
 import { keyCreateCommand } from "./keys/create.js"
 import { keyListCommand } from "./keys/ls.js"
+import { orgInviteCreateCommand } from "./org/invite.js"
+import { orgInvitesListCommand } from "./org/invites.js"
 import { orgGetCommand } from "./org/show.js"
 import { orgUpdateCommand } from "./org/rename.js"
+import { inviteGetCommand } from "./invite/show.js"
 import { authMeCommand } from "./auth/me.js"
+import { invitesListCommand } from "./invites.js"
 import { orgMembersListCommand } from "./org/members.js"
+import { inviteRejectCommand } from "./invite/reject.js"
 import { keyRevokeCommand } from "./keys/rm.js"
 import { keyUpdateCommand } from "./keys/edit.js"
+import { orgInviteRevokeCommand } from "./org/invite/revoke.js"
 import { eventCreateCommand } from "./event/add.js"
 import { eventListCommand } from "./event/ls.js"
 import { eventDeleteCommand } from "./event/rm.js"
@@ -37,17 +44,26 @@ import { todoGetCommand } from "./todo/show.js"
 import { todoUpdateCommand } from "./todo/update.js"
 
 export function registerGeneratedCommands(root: Command): void {
+  const root_invite = root.command("invite").description("invite commands")
+  root_invite.addCommand(inviteAcceptCommand)
+  root_invite.addCommand(inviteGetCommand)
+  root_invite.addCommand(inviteRejectCommand)
   const root_keys = root.command("keys").description("keys commands")
   root_keys.addCommand(keyCreateCommand)
   root_keys.addCommand(keyListCommand)
   root_keys.addCommand(keyRevokeCommand)
   root_keys.addCommand(keyUpdateCommand)
   const root_org = root.command("org").description("org commands")
+  const root_org_invite = root_org.command("invite").description("invite commands")
+  root_org_invite.addCommand(orgInviteCreateCommand)
+  root_org_invite.addCommand(orgInviteRevokeCommand)
+  root_org.addCommand(orgInvitesListCommand)
   root_org.addCommand(orgGetCommand)
   root_org.addCommand(orgUpdateCommand)
   root_org.addCommand(orgMembersListCommand)
   const root_auth = root.command("auth").description("auth commands")
   root_auth.addCommand(authMeCommand)
+  root.addCommand(invitesListCommand)
   const root_event = root.command("event").description("event commands")
   root_event.addCommand(eventCreateCommand)
   root_event.addCommand(eventListCommand)
