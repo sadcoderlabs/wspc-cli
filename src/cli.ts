@@ -5,6 +5,7 @@ import { loginCommand } from "./handwritten/commands/login.js"
 import { logoutCommand } from "./handwritten/commands/logout.js"
 import { whoamiCommand } from "./handwritten/commands/whoami.js"
 import { configCommand } from "./handwritten/commands/config.js"
+import { accountCommand } from "./handwritten/commands/account.js"
 import { todoDoneCommand } from "./handwritten/commands/todo-done.js"
 import { sendCommand } from "./handwritten/commands/email/send.js"
 import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
@@ -19,14 +20,20 @@ function buildProgram(): Command {
     // JSON when piped (renderer enforces this). Pass `--json` to force JSON
     // even in a TTY — useful for ad-hoc copy/paste into scripts.
     .option("--json", "Output raw JSON (machine-readable)")
-    .hook("preAction", (thisCommand) => {
-      if (thisCommand.opts().json) process.env.WSPC_OUTPUT = "json"
+    .option("--account <email>", "Run as a specific account (overrides the active account)")
+    .hook("preAction", (_thisCommand, actionCommand) => {
+      const globals = actionCommand.optsWithGlobals()
+      if (globals.json) process.env.WSPC_OUTPUT = "json"
+      // Flag beats WSPC_ACCOUNT env: overwriting process.env achieves the
+      // precedence (flag > env) because resolveAccount reads WSPC_ACCOUNT.
+      if (globals.account) process.env.WSPC_ACCOUNT = String(globals.account)
     })
 
   program.addCommand(loginCommand)
   program.addCommand(logoutCommand)
   program.addCommand(whoamiCommand)
   program.addCommand(configCommand)
+  program.addCommand(accountCommand)
 
   registerGeneratedCommands(program)
 
