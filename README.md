@@ -30,7 +30,11 @@ scopes todos per project. Run `wspc todo project ls` to discover ids.
 
 | Command | Notes |
 | --- | --- |
-| `wspc login` / `logout` / `whoami` | OAuth device-flow auth; tokens stored in your local configuration file (with strict file permissions). |
+| `wspc login` | OAuth device-flow auth. Multiple accounts can be logged in at once per environment; `login` adds a new account without overwriting an existing one. |
+| `wspc logout [email]` | Log out the active account, or a specific one by email. `--all` logs out every account in the current environment. |
+| `wspc whoami` | Show the active account. |
+| `wspc account ls` | List all logged-in accounts in the current environment; the active one is marked with ✓. |
+| `wspc account switch <email>` | Set the active account for subsequent commands. |
 | `wspc todo {add, ls, show, update, rm, done}` | Core todo CRUD. `done` is a sugar over `update --status done`. |
 | `wspc todo project {add, ls}` | Project scope. |
 | `wspc todo type ls` | List todo types. |
@@ -38,6 +42,17 @@ scopes todos per project. Run `wspc todo project ls` to discover ids.
 | `wspc config` | Inspect / clear local config. |
 
 Pass `--help` to any subcommand for flags, aliases, and examples.
+
+### Running a command as a specific account
+
+You can run any single command as a particular account without switching the active one:
+
+```bash
+wspc --account alice@example.com todo ls -p prj_xxx
+WSPC_ACCOUNT=alice@example.com wspc todo ls -p prj_xxx
+```
+
+Precedence: `--account` flag > `WSPC_ACCOUNT` env var > active account (set by `wspc account switch`).
 
 ## Output: pretty by default, JSON for scripts
 
