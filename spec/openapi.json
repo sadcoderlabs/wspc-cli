@@ -2598,8 +2598,111 @@
                 }
               }
             ]
+          },
+          "include": {
+            "type": "string"
           }
         }
+      },
+      "TodoWithRelations": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Project id this todo belongs to. Use /todo/projects/{id} to inspect the project."
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "done",
+              "cancelled"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "child_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "number"
+          },
+          "updated_at": {
+            "type": "number"
+          },
+          "deleted_at": {
+            "type": "number"
+          },
+          "due_at": {
+            "type": "string"
+          },
+          "type_id": {
+            "type": "string"
+          },
+          "custom_fields": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            }
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "project_id",
+          "title",
+          "status",
+          "parent_id",
+          "child_count",
+          "version",
+          "created_at",
+          "updated_at",
+          "type_id"
+        ]
       },
       "ListRecurrenceRulesQuery": {
         "type": "object",
@@ -2916,106 +3019,6 @@
             }
           }
         }
-      },
-      "TodoWithRelations": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
-          },
-          "project_id": {
-            "type": "string",
-            "description": "Project id this todo belongs to. Use /todo/projects/{id} to inspect the project."
-          },
-          "title": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "open",
-              "in_progress",
-              "done",
-              "cancelled"
-            ]
-          },
-          "parent_id": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "child_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "version": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "created_at": {
-            "type": "number"
-          },
-          "updated_at": {
-            "type": "number"
-          },
-          "deleted_at": {
-            "type": "number"
-          },
-          "due_at": {
-            "type": "string"
-          },
-          "type_id": {
-            "type": "string"
-          },
-          "custom_fields": {
-            "type": "object",
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ]
-            }
-          },
-          "children": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Todo"
-            }
-          },
-          "comments": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Comment"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "user_id",
-          "project_id",
-          "title",
-          "status",
-          "parent_id",
-          "child_count",
-          "version",
-          "created_at",
-          "updated_at",
-          "type_id"
-        ]
       }
     },
     "parameters": {}
@@ -22234,8 +22237,6 @@
               "project_id": "id-short",
               "parent_id": "id-short",
               "type_id": "id-short",
-              "title": "truncate",
-              "description": "truncate",
               "status": "status-badge",
               "due_at": "relative-time",
               "created_at": "relative-time",
@@ -27308,8 +27309,6 @@
               "project_id": "id-short",
               "parent_id": "id-short",
               "type_id": "id-short",
-              "title": "truncate",
-              "description": "truncate",
               "status": "status-badge",
               "due_at": "relative-time",
               "created_at": "relative-time",
@@ -27836,7 +27835,7 @@
                 },
                 "examples": {
                   "happyPath": {
-                    "summary": "Active todo with a due date",
+                    "summary": "Todo with first-level children and comments expanded",
                     "value": {
                       "id": "tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                       "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
@@ -27845,11 +27844,38 @@
                       "description": "Use refundable rate",
                       "status": "open",
                       "parent_id": null,
-                      "child_count": 0,
+                      "child_count": 1,
                       "version": 1,
                       "created_at": 1748736000000,
                       "updated_at": 1748736000000,
-                      "due_at": "2026-06-01"
+                      "due_at": "2026-06-01",
+                      "children": [
+                        {
+                          "id": "tod_child",
+                          "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "title": "Buy milk",
+                          "description": "Use refundable rate",
+                          "status": "open",
+                          "parent_id": "tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "child_count": 0,
+                          "version": 1,
+                          "created_at": 1748736000000,
+                          "updated_at": 1748736000000,
+                          "due_at": "2026-06-01"
+                        }
+                      ],
+                      "comments": [
+                        {
+                          "id": "tdc_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "todo_id": "tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "org_id": "org_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "content": "Looks good",
+                          "created_at": 1748736000000,
+                          "updated_at": 1748736000000
+                        }
+                      ]
                     }
                   }
                 }
@@ -28203,8 +28229,6 @@
               "project_id": "id-short",
               "parent_id": "id-short",
               "type_id": "id-short",
-              "title": "truncate",
-              "description": "truncate",
               "status": "status-badge",
               "due_at": "relative-time",
               "created_at": "relative-time",
