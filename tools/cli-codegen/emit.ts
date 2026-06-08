@@ -33,6 +33,7 @@ export interface XCli {
   options?: Record<string, XCliOption>
   body?: XCliBody
   exitOnField?: XCliExitOnField
+  fixedQuery?: Record<string, string>
 }
 
 export interface BodyField {
@@ -343,7 +344,7 @@ export function emitCommand(input: EmitInput): string | null {
     }
   }
 
-  // Build query block (query fields)
+  // Build query block (dynamic query fields + constant fixedQuery).
   const queryOptLines = queryFields
     .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
     .map((f) => {
@@ -354,8 +355,12 @@ export function emitCommand(input: EmitInput): string | null {
       const { longFlag } = resolveAlias(f.name)
       return `        ${f.name}: opts.${camelize(longFlag)},`
     })
+  const fixedQueryLines = Object.entries(input.xCli.fixedQuery ?? {}).map(
+    ([k, v]) => `        ${k}: ${JSON.stringify(v)},`,
+  )
+  const allQueryLines = [...queryOptLines, ...fixedQueryLines]
   const queryBlock =
-    queryOptLines.length > 0 ? [`      query: {`, ...queryOptLines, `      },`] : []
+    allQueryLines.length > 0 ? [`      query: {`, ...allQueryLines, `      },`] : []
 
   // `kind` is the renderer registry key. We use the operationId verbatim so
   // every operation has a unique, stable identifier — handwritten renderers
