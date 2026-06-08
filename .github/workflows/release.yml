@@ -39,15 +39,12 @@ jobs:
       - run: npm ci
       - name: Sync latest spec
         run: npm run sync-spec
-      - name: Check spec drift
-        # `npm version` below requires a clean tree; a drifted spec would also
-        # mean we'd ship something different from what's on main. Fail loudly
-        # and ask the operator to commit the refreshed spec first.
-        run: git diff --exit-code -- spec/openapi.json || (echo "spec/openapi.json drifted from main — commit the refreshed spec before releasing"; exit 1)
-      - name: Generate and check drift
-        run: |
-          npm run generate
-          git diff --exit-code -- src/generated || (echo "Generated drift detected"; exit 1)
+      - name: Generate
+        # Regenerate SDK + CLI from the freshly synced spec. Any drift is
+        # committed below (before the version bump) so a spec-only update ships
+        # via a plain release with no manual pre-commit. Typecheck/build/test
+        # still run before publish, so a broken regen aborts the release.
+        run: npm run generate
       - name: Typecheck
         run: npm run typecheck
       - name: Build
@@ -58,6 +55,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Commit spec + codegen drift (if any)
+        # Self-heal the drift that "Sync latest spec" + "Generate" may have
+        # produced, so a no-code-change release just works. No-op when the spec
+        # was already current. Must run before `npm version` (needs clean tree).
+        run: |
+          git add spec/openapi.json src/version.ts src/generated
+          if git diff --cached --quiet; then
+            echo "No drift — spec already current."
+          else
+            git commit -m "chore(spec): sync upstream openapi + regen"
+          fi
       - name: Bump version
         run: |
           npm version ${{ inputs.bump }} -m "chore(release): %s"
@@ -73,7 +81,7 @@ jobs:
           else
             npm publish --provenance
           fi
-      - name: Push tag
+      - name: Push commits + tag
         if: ${{ !inputs.dry_run }}
         run: git push --follow-tags
       - name: GitHub release
