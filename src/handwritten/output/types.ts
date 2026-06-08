@@ -32,6 +32,11 @@ export type XCliFormat =
   | "id-short"
   | "status-badge"
   | "relative-time"
+  /**
+   * Truncate long strings to a column-appropriate width. Applies in list /
+   * column rendering ONLY; object (single-item `show`) mode ignores it and
+   * renders the full value (long values become wrapped blocks).
+   */
   | "truncate"
   | "bool-badge"
   | "enum-badge"
