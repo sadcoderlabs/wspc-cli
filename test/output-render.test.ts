@@ -342,5 +342,38 @@ describe("render", () => {
     expect(out.startsWith("\n")).toBe(false)
     expect(out).toMatch(/^ {2}note\n {4}line one/)
   })
+
+  it("renders children as id-short + status badge + title items", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    render(
+      { kind: "todo_get", display: { shape: "object", format: { id: "id-short" } } },
+      {
+        id: "tod_parent", title: "parent", status: "open", child_count: 2,
+        children: [
+          { id: "tod_aaaaaaaa1", title: "first sub", status: "open" },
+          { id: "tod_bbbbbbbb2", title: "second sub", status: "done" },
+        ],
+      },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("children")
+    expect(out).toContain("first sub")
+    expect(out).toContain("second sub")
+    expect(out).not.toContain('{"id"')
+  })
+
+  it("lists all children without the 10-item array cap", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    const children = Array.from({ length: 14 }, (_, i) => ({
+      id: `tod_${String(i).padStart(8, "0")}`, title: `sub ${i}`, status: "open",
+    }))
+    render(
+      { kind: "todo_get", display: { shape: "object" } },
+      { id: "tod_parent", title: "p", status: "open", child_count: 14, children },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("sub 13")
+    expect(out).not.toContain("more")
+  })
 })
 

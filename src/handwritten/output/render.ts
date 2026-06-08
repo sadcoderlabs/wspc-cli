@@ -242,7 +242,8 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
     process.stdout.write(`  ${dim(f.padEnd(labelWidth))}  ${value}\n`)
   }
   for (const f of arrayFields) {
-    renderArrayField(f, obj[f] as unknown[], labelWidth)
+    const max = f === "children" ? Number.POSITIVE_INFINITY : ARRAY_FIELD_MAX_ITEMS
+    renderArrayField(f, obj[f] as unknown[], labelWidth, max)
   }
   const hadAbove = inlineFinal.length > 0 || arrayFields.length > 0
   blocks.forEach(([f, value], i) => {
@@ -270,11 +271,12 @@ function renderArrayField(
   name: string,
   items: unknown[],
   labelWidth: number,
+  max: number = ARRAY_FIELD_MAX_ITEMS,
 ): void {
   const count = items.length
   const header = `${count} ${count === 1 ? "item" : "items"}`
   process.stdout.write(`  ${dim(name.padEnd(labelWidth))}  ${header}\n`)
-  const shown = items.slice(0, ARRAY_FIELD_MAX_ITEMS)
+  const shown = items.slice(0, max)
   shown.forEach((item, i) => {
     process.stdout.write(`    ${dim(`${i + 1}.`)} ${formatArrayItem(item)}\n`)
   })
@@ -286,9 +288,25 @@ function renderArrayField(
 function formatArrayItem(item: unknown): string {
   if (item === null) return dim("null")
   if (typeof item !== "object") return String(item)
+  const todo = formatTodoLike(item)
+  if (todo !== null) return todo
   const attendee = formatAttendeeLike(item)
   if (attendee !== null) return attendee
   return JSON.stringify(item)
+}
+
+/**
+ * Recognize a child-todo shape ({ id, title, status }) and render it as a
+ * one-line subtask: short id, status badge, title. Returns null when the input
+ * isn't todo-like so the caller can fall back to compact JSON.
+ */
+function formatTodoLike(item: unknown): string | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null
+  const rec = item as Record<string, unknown>
+  if (typeof rec.id !== "string" || typeof rec.title !== "string") return null
+  const id = idShort(rec.id)
+  const status = typeof rec.status === "string" ? statusBadge(rec.status) : ""
+  return status ? `${id}  ${status}  ${rec.title}` : `${id}  ${rec.title}`
 }
 
 /**
