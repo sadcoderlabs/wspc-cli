@@ -19,6 +19,7 @@ export const todoGetCommand = new Command("show")
       query: {
         include_deleted: opts.includeDeleted,
         include_orphan_fields: opts.includeOrphanFields,
+        include: "children,comments",
       },
     })
     if (result.error || !result.response?.ok) {
@@ -28,5 +29,5 @@ export const todoGetCommand = new Command("show")
       process.exitCode = 1
       return
     }
-    render({ kind: "todo_get", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","title":"truncate","description":"truncate","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
+    render({ kind: "todo_get", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
   })

@@ -1489,6 +1489,31 @@ export type UpdateTodoTypeBody = {
     }>;
 };
 
+export type TodoWithRelations = {
+    id: string;
+    user_id: string;
+    /**
+     * Project id this todo belongs to. Use /todo/projects/{id} to inspect the project.
+     */
+    project_id: string;
+    title: string;
+    description?: string;
+    status: 'open' | 'in_progress' | 'done' | 'cancelled';
+    parent_id: string | null;
+    child_count: number;
+    version: number;
+    created_at: number;
+    updated_at: number;
+    deleted_at?: number;
+    due_at?: string;
+    type_id: string;
+    custom_fields?: {
+        [key: string]: string | Array<string>;
+    };
+    children?: Array<Todo>;
+    comments?: Array<Comment>;
+};
+
 export type InviteAcceptData = {
     body?: never;
     path: {
@@ -8180,6 +8205,7 @@ export type TodoGetData = {
     query?: {
         include_deleted?: string | Array<string>;
         include_orphan_fields?: string | Array<string>;
+        include?: string;
     };
     url: '/todo/items/{id}';
 };
@@ -8275,9 +8301,9 @@ export type TodoGetError = TodoGetErrors[keyof TodoGetErrors];
 
 export type TodoGetResponses = {
     /**
-     * The requested todo. Includes `deleted_at` only when fetched with `include_deleted=true` on a soft-deleted row.
+     * The requested todo. Includes `children` (first-level) when `include=children`, `comments` when `include=comments`, and `deleted_at` only when fetched with `include_deleted=true` on a soft-deleted row.
      */
-    200: Todo;
+    200: TodoWithRelations;
 };
 
 export type TodoGetResponse = TodoGetResponses[keyof TodoGetResponses];

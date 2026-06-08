@@ -26,5 +26,5 @@ export const todoCommentCreateCommand = new Command("add")
       process.exitCode = 1
       return
     }
-    render({ kind: "todo_comment_create", display: {"shape":"object","format":{"id":"id-short","todo_id":"id-short","user_id":"id-short","content":"truncate","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
+    render({ kind: "todo_comment_create", display: {"shape":"object","format":{"id":"id-short","todo_id":"id-short","user_id":"id-short","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
   })

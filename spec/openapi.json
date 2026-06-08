@@ -2916,6 +2916,106 @@
             }
           }
         }
+      },
+      "TodoWithRelations": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Project id this todo belongs to. Use /todo/projects/{id} to inspect the project."
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "done",
+              "cancelled"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "child_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "number"
+          },
+          "updated_at": {
+            "type": "number"
+          },
+          "deleted_at": {
+            "type": "number"
+          },
+          "due_at": {
+            "type": "string"
+          },
+          "type_id": {
+            "type": "string"
+          },
+          "custom_fields": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            }
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "project_id",
+          "title",
+          "status",
+          "parent_id",
+          "child_count",
+          "version",
+          "created_at",
+          "updated_at",
+          "type_id"
+        ]
       }
     },
     "parameters": {}
@@ -19545,7 +19645,6 @@
               "id": "id-short",
               "todo_id": "id-short",
               "user_id": "id-short",
-              "content": "truncate",
               "created_at": "relative-time",
               "updated_at": "relative-time",
               "deleted_at": "relative-time"
@@ -23937,7 +24036,6 @@
               "id": "id-short",
               "todo_id": "id-short",
               "user_id": "id-short",
-              "content": "truncate",
               "created_at": "relative-time",
               "updated_at": "relative-time",
               "deleted_at": "relative-time"
@@ -24347,7 +24445,6 @@
               "id": "id-short",
               "todo_id": "id-short",
               "user_id": "id-short",
-              "content": "truncate",
               "created_at": "relative-time",
               "updated_at": "relative-time",
               "deleted_at": "relative-time"
@@ -27645,14 +27742,15 @@
               "project_id": "id-short",
               "parent_id": "id-short",
               "type_id": "id-short",
-              "title": "truncate",
-              "description": "truncate",
               "status": "status-badge",
               "due_at": "relative-time",
               "created_at": "relative-time",
               "updated_at": "relative-time",
               "deleted_at": "relative-time"
             }
+          },
+          "fixedQuery": {
+            "include": "children,comments"
           }
         },
         "summary": "Get a todo by id",
@@ -27718,15 +27816,23 @@
             "required": false,
             "name": "include_orphan_fields",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "include",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "The requested todo. Includes `deleted_at` only when fetched with `include_deleted=true` on a soft-deleted row.",
+            "description": "The requested todo. Includes `children` (first-level) when `include=children`, `comments` when `include=comments`, and `deleted_at` only when fetched with `include_deleted=true` on a soft-deleted row.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Todo"
+                  "$ref": "#/components/schemas/TodoWithRelations"
                 },
                 "examples": {
                   "happyPath": {

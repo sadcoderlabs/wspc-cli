@@ -200,6 +200,57 @@ describe("emitCommand", () => {
     expect(code).not.toContain("inclusiveEndToExclusive")
   })
 
+  it("injects x-cli.fixedQuery constants into the SDK query block", () => {
+    const code = emitCommand({
+      operationId: "todo_get",
+      method: "get",
+      path: "/todo/items/{id}",
+      xCli: {
+        command: "todo show",
+        positional: ["id"],
+        fixedQuery: { include: "children" },
+      },
+      bodyFields: [],
+      pathParams: ["id"],
+      queryFields: [],
+      depth: 2,
+    })
+    expect(code).toContain("query: {")
+    expect(code).toContain('include: "children",')
+    // fixedQuery must NOT become a CLI option
+    expect(code).not.toContain('.option("--include')
+  })
+
+  it("fixedQuery wins over a same-named real query parameter (no dup key, no flag)", () => {
+    const code = emitCommand({
+      operationId: "todo_get",
+      method: "get",
+      path: "/todo/items/{id}",
+      xCli: {
+        command: "todo show",
+        positional: ["id"],
+        fixedQuery: { include: "children" },
+      },
+      bodyFields: [],
+      pathParams: ["id"],
+      queryFields: [
+        { name: "include", type: "string", required: false },
+        { name: "include_deleted", type: "string", required: false },
+      ],
+      depth: 2,
+    })
+    // include appears exactly once in the query block, as the constant
+    expect(code).toContain('include: "children",')
+    expect(code).not.toContain("include: opts.include")
+    // exactly one occurrence of an `include:` key (the constant). Count to be safe:
+    const includeKeyCount = (code!.match(/\n\s+include:\s/g) ?? []).length
+    expect(includeKeyCount).toBe(1)
+    // the dynamic, non-fixed query field still emits normally
+    expect(code).toContain("include_deleted: opts.includeDeleted,")
+    // include must NOT become a CLI option, but include_deleted still may
+    expect(code).not.toMatch(/\.option\("--include"[,)]/)
+  })
+
   it("does not emit a duplicate --all-day flag when body has an all_day field", () => {
     const code = emitCommand({
       operationId: "event_create",

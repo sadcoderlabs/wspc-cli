@@ -22,5 +22,5 @@ export const todoCommentDeleteCommand = new Command("rm")
       process.exitCode = 1
       return
     }
-    render({ kind: "todo_comment_delete", display: {"shape":"object","format":{"id":"id-short","todo_id":"id-short","user_id":"id-short","content":"truncate","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
+    render({ kind: "todo_comment_delete", display: {"shape":"object","format":{"id":"id-short","todo_id":"id-short","user_id":"id-short","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
   })

@@ -24,6 +24,8 @@ import {
   statusBadge,
   table,
   truncate,
+  visibleWidth,
+  wrapToWidth,
 } from "./primitives.js"
 import type {
   RenderContext,
@@ -97,6 +99,11 @@ function shouldOutputJson(): boolean {
 }
 
 // ---------- generic renderer ----------
+
+function termWidth(): number {
+  const c = process.stdout.columns
+  return typeof c === "number" && c > 0 ? c : 80
+}
 
 function renderGeneric(data: unknown, hints?: XCliDisplay): void {
   const shape = hints?.shape ?? detectShape(data)
@@ -205,17 +212,48 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
     : Object.keys(obj).filter(
         (k) => Array.isArray(obj[k]) && (obj[k] as unknown[]).length > 0,
       )
+
+  // Format every scalar field up front (object mode never truncates), then
+  // classify: short single-line values stay as aligned two-column rows; values
+  // with newlines or wider than the available column go to indented blocks
+  // rendered last, so the compact id/status/timestamp rows stay scannable.
+  const formatted: Array<[string, string]> = fields.map((f) => [
+    f,
+    formatCell(obj[f], format[f], hints?.enumColorMap?.[f], { noTruncate: true }),
+  ])
   const labelWidth = Math.max(
-    ...fields.map((f) => f.length),
+    ...formatted.map(([f]) => f.length),
     ...arrayFields.map((f) => f.length),
+    0,
   )
-  for (const f of fields) {
-    const value = formatCell(obj[f], format[f], hints?.enumColorMap?.[f])
+  const tw = termWidth()
+  const avail = tw - (2 + labelWidth + 2)
+  const inlineFinal: Array<[string, string]> = []
+  const blocks: Array<[string, string]> = []
+  for (const [f, value] of formatted) {
+    if (value.includes("\n") || visibleWidth(value) > avail) {
+      blocks.push([f, value])
+    } else {
+      inlineFinal.push([f, value])
+    }
+  }
+
+  for (const [f, value] of inlineFinal) {
     process.stdout.write(`  ${dim(f.padEnd(labelWidth))}  ${value}\n`)
   }
   for (const f of arrayFields) {
-    renderArrayField(f, obj[f] as unknown[], labelWidth)
+    const uncapped = f === "children" || f === "comments"
+    const max = uncapped ? Number.POSITIVE_INFINITY : ARRAY_FIELD_MAX_ITEMS
+    renderArrayField(f, obj[f] as unknown[], labelWidth, max)
   }
+  const hadAbove = inlineFinal.length > 0 || arrayFields.length > 0
+  blocks.forEach(([f, value], i) => {
+    if (hadAbove || i > 0) process.stdout.write("\n")
+    process.stdout.write(`  ${dim(f)}\n`)
+    for (const line of wrapToWidth(value, tw - 4)) {
+      process.stdout.write(`    ${line}\n`)
+    }
+  })
   if (hints?.secretField) {
     const value = obj[hints.secretField]
     if (value !== undefined) {
@@ -234,11 +272,12 @@ function renderArrayField(
   name: string,
   items: unknown[],
   labelWidth: number,
+  max: number = ARRAY_FIELD_MAX_ITEMS,
 ): void {
   const count = items.length
   const header = `${count} ${count === 1 ? "item" : "items"}`
   process.stdout.write(`  ${dim(name.padEnd(labelWidth))}  ${header}\n`)
-  const shown = items.slice(0, ARRAY_FIELD_MAX_ITEMS)
+  const shown = items.slice(0, max)
   shown.forEach((item, i) => {
     process.stdout.write(`    ${dim(`${i + 1}.`)} ${formatArrayItem(item)}\n`)
   })
@@ -250,9 +289,43 @@ function renderArrayField(
 function formatArrayItem(item: unknown): string {
   if (item === null) return dim("null")
   if (typeof item !== "object") return String(item)
+  const todo = formatTodoLike(item)
+  if (todo !== null) return todo
+  const comment = formatCommentLike(item)
+  if (comment !== null) return comment
   const attendee = formatAttendeeLike(item)
   if (attendee !== null) return attendee
   return JSON.stringify(item)
+}
+
+/**
+ * Recognize a child-todo shape ({ id, title, status }) and render it as a
+ * one-line subtask: short id, status badge, title. Returns null when the input
+ * isn't todo-like so the caller can fall back to compact JSON.
+ */
+function formatTodoLike(item: unknown): string | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null
+  const rec = item as Record<string, unknown>
+  if (typeof rec.id !== "string" || typeof rec.title !== "string") return null
+  const id = idShort(rec.id)
+  const status = typeof rec.status === "string" ? statusBadge(rec.status) : ""
+  return status ? `${id}  ${status}  ${rec.title}` : `${id}  ${rec.title}`
+}
+
+/**
+ * Recognize a comment shape ({ id, content }) and render it as a one-line row:
+ * short id, relative time, a truncated content snippet (the full body can be
+ * thousands of chars, so the inline list shows a preview only). Returns null
+ * when the input isn't comment-like so the caller can fall back.
+ */
+function formatCommentLike(item: unknown): string | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null
+  const rec = item as Record<string, unknown>
+  if (typeof rec.id !== "string" || typeof rec.content !== "string") return null
+  const id = idShort(rec.id)
+  const when = rec.created_at !== undefined ? `${relativeTime(rec.created_at)}  ` : ""
+  const snippet = truncate(rec.content, 60)
+  return `${id}  ${when}${snippet}`
 }
 
 /**
@@ -297,6 +370,7 @@ function formatCell(
   value: unknown,
   fmt?: XCliFormat,
   colorMap?: Record<string, { label: string; color: string }>,
+  opts?: { noTruncate?: boolean },
 ): string {
   if (fmt !== "enum-badge" && (value === undefined || value === null)) return dim("—")
   switch (fmt) {
@@ -307,7 +381,9 @@ function formatCell(
     case "relative-time":
       return relativeTime(value)
     case "truncate":
-      return truncate(String(value), 50)
+      // `truncate` is a list/column-width hint only. In object (`show`) mode the
+      // caller passes noTruncate so single-item views render the full value.
+      return opts?.noTruncate ? String(value) : truncate(String(value), 50)
     case "bool-badge":
       return boolBadge(value)
     case "enum-badge": {
