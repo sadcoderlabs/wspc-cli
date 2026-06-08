@@ -375,5 +375,48 @@ describe("render", () => {
     expect(out).toContain("sub 13")
     expect(out).not.toContain("more")
   })
+
+  it("renders comments as id-short + relative-time + truncated content", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    render(
+      { kind: "todo_get", display: { shape: "object" } },
+      {
+        id: "tod_parent", title: "p", status: "open",
+        comments: [
+          { id: "tdc_aaaaaaaa1", content: "first note", created_at: 1748736000000 },
+          { id: "tdc_bbbbbbbb2", content: "second note", created_at: 1748736000000 },
+        ],
+      },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("comments")
+    expect(out).toContain("first note")
+    expect(out).toContain("second note")
+    expect(out).not.toContain('{"id"')
+  })
+
+  it("truncates long comment content in the inline list", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    const long = "x".repeat(200)
+    render(
+      { kind: "todo_get", display: { shape: "object" } },
+      { id: "tod_p", title: "p", status: "open", comments: [{ id: "tdc_1", content: long, created_at: 1748736000000 }] },
+    )
+    const out = stripAnsi(cap.output())
+    // content is truncated to a snippet (ellipsis), NOT the full 200 chars
+    expect(out).toContain("…")
+    expect(out).not.toContain("x".repeat(200))
+  })
+
+  it("lists all comments without the 10-item cap", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    const comments = Array.from({ length: 13 }, (_, i) => ({
+      id: `tdc_${String(i).padStart(8, "0")}`, content: `note ${i}`, created_at: 1748736000000,
+    }))
+    render({ kind: "todo_get", display: { shape: "object" } }, { id: "tod_p", title: "p", status: "open", comments })
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("note 12")
+    expect(out).not.toContain("more")
+  })
 })
 

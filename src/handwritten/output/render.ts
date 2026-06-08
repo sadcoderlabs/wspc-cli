@@ -242,7 +242,8 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
     process.stdout.write(`  ${dim(f.padEnd(labelWidth))}  ${value}\n`)
   }
   for (const f of arrayFields) {
-    const max = f === "children" ? Number.POSITIVE_INFINITY : ARRAY_FIELD_MAX_ITEMS
+    const uncapped = f === "children" || f === "comments"
+    const max = uncapped ? Number.POSITIVE_INFINITY : ARRAY_FIELD_MAX_ITEMS
     renderArrayField(f, obj[f] as unknown[], labelWidth, max)
   }
   const hadAbove = inlineFinal.length > 0 || arrayFields.length > 0
@@ -290,6 +291,8 @@ function formatArrayItem(item: unknown): string {
   if (typeof item !== "object") return String(item)
   const todo = formatTodoLike(item)
   if (todo !== null) return todo
+  const comment = formatCommentLike(item)
+  if (comment !== null) return comment
   const attendee = formatAttendeeLike(item)
   if (attendee !== null) return attendee
   return JSON.stringify(item)
@@ -307,6 +310,22 @@ function formatTodoLike(item: unknown): string | null {
   const id = idShort(rec.id)
   const status = typeof rec.status === "string" ? statusBadge(rec.status) : ""
   return status ? `${id}  ${status}  ${rec.title}` : `${id}  ${rec.title}`
+}
+
+/**
+ * Recognize a comment shape ({ id, content }) and render it as a one-line row:
+ * short id, relative time, a truncated content snippet (the full body can be
+ * thousands of chars, so the inline list shows a preview only). Returns null
+ * when the input isn't comment-like so the caller can fall back.
+ */
+function formatCommentLike(item: unknown): string | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null
+  const rec = item as Record<string, unknown>
+  if (typeof rec.id !== "string" || typeof rec.content !== "string") return null
+  const id = idShort(rec.id)
+  const when = rec.created_at !== undefined ? `${relativeTime(rec.created_at)}  ` : ""
+  const snippet = truncate(rec.content, 60)
+  return `${id}  ${when}${snippet}`
 }
 
 /**
