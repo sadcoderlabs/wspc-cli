@@ -418,5 +418,81 @@ describe("render", () => {
     expect(out).toContain("note 12")
     expect(out).not.toContain("more")
   })
+
+  describe("pagination footer", () => {
+    it("pretty list with next_cursor → shows 'more results' and --cursor token", () => {
+      const display: XCliDisplay = { shape: "list", columns: ["id", "title"] }
+      render(
+        { kind: "todo.list", display },
+        {
+          todos: [{ id: "tod_1", title: "Buy milk" }],
+          next_cursor: "CURSORTOKEN",
+        },
+      )
+      const out = stripAnsi(cap.output())
+      expect(out).toContain("more results")
+      expect(out).toContain("--cursor CURSORTOKEN")
+    })
+
+    it("pretty list WITHOUT next_cursor → does NOT show 'more results'", () => {
+      const display: XCliDisplay = { shape: "list", columns: ["id", "title"] }
+      render(
+        { kind: "todo.list", display },
+        {
+          todos: [{ id: "tod_1", title: "Buy milk" }],
+        },
+      )
+      const out = stripAnsi(cap.output())
+      expect(out).not.toContain("more results")
+    })
+
+    it("JSON mode with next_cursor → does NOT show 'more results' (cursor is in JSON payload)", () => {
+      process.env.WSPC_OUTPUT = "json"
+      const display: XCliDisplay = { shape: "list", columns: ["id", "title"] }
+      render(
+        { kind: "todo.list", display },
+        {
+          todos: [{ id: "tod_1", title: "Buy milk" }],
+          next_cursor: "CURSORTOKEN",
+        },
+      )
+      const out = stripAnsi(cap.output())
+      expect(out).not.toContain("more results")
+    })
+
+    it("pretty todo show with children_next_cursor → shows 'more children' and wspc todo ls --parent <id>", () => {
+      Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+      render(
+        { kind: "todo_get", display: { shape: "object" } },
+        {
+          id: "tod_parent123",
+          title: "parent",
+          status: "open",
+          children: [{ id: "tod_child1", title: "sub", status: "open" }],
+          children_next_cursor: "CHILDCURSOR",
+        },
+      )
+      const out = stripAnsi(cap.output())
+      expect(out).toContain("more children")
+      expect(out).toContain("wspc todo ls --parent tod_parent123")
+    })
+
+    it("pretty todo show with comments_next_cursor → shows 'more comments' and wspc todo comment ls <id>", () => {
+      Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+      render(
+        { kind: "todo_get", display: { shape: "object" } },
+        {
+          id: "tod_parent123",
+          title: "parent",
+          status: "open",
+          comments: [{ id: "tdc_1", content: "note", created_at: 1748736000000 }],
+          comments_next_cursor: "COMMENTCURSOR",
+        },
+      )
+      const out = stripAnsi(cap.output())
+      expect(out).toContain("more comments")
+      expect(out).toContain("wspc todo comment ls tod_parent123")
+    })
+  })
 })
 
