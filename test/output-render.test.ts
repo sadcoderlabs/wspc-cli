@@ -306,5 +306,28 @@ describe("render", () => {
     expect(out).not.toContain("This is the only time you'll see this key")
     expect(out).not.toContain("wspc env add")
   })
+
+  it("renders a long description as an indented block, not truncated", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 40, configurable: true })
+    const longDesc = "x".repeat(120)
+    render(
+      { kind: "todo_get", display: { shape: "object", format: { description: "truncate" } } },
+      { id: "tod_1", title: "short", description: longDesc },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).not.toContain("…")
+    expect(out.replace(/\s/g, "")).toContain("x".repeat(120))
+    expect(out).toMatch(/\n {2}description\n {4}x/)
+  })
+
+  it("keeps short scalar fields as aligned two-column rows", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    render(
+      { kind: "todo_get", display: { shape: "object", format: { title: "truncate" } } },
+      { id: "tod_1", title: "Buy milk" },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toMatch(/ {2}title {2,}Buy milk/)
+  })
 })
 

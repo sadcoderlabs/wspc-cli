@@ -24,6 +24,8 @@ import {
   statusBadge,
   table,
   truncate,
+  visibleWidth,
+  wrapToWidth,
 } from "./primitives.js"
 import type {
   RenderContext,
@@ -97,6 +99,11 @@ function shouldOutputJson(): boolean {
 }
 
 // ---------- generic renderer ----------
+
+function termWidth(): number {
+  const c = process.stdout.columns
+  return typeof c === "number" && c > 0 ? c : 80
+}
 
 function renderGeneric(data: unknown, hints?: XCliDisplay): void {
   const shape = hints?.shape ?? detectShape(data)
@@ -205,16 +212,43 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
     : Object.keys(obj).filter(
         (k) => Array.isArray(obj[k]) && (obj[k] as unknown[]).length > 0,
       )
+
+  // Format every scalar field up front (object mode never truncates), then
+  // classify: short single-line values stay as aligned two-column rows; values
+  // with newlines or wider than the available column go to indented blocks
+  // rendered last, so the compact id/status/timestamp rows stay scannable.
+  const formatted: Array<[string, string]> = fields.map((f) => [
+    f,
+    formatCell(obj[f], format[f], hints?.enumColorMap?.[f], { noTruncate: true }),
+  ])
   const labelWidth = Math.max(
-    ...fields.map((f) => f.length),
+    ...formatted.map(([f]) => f.length),
     ...arrayFields.map((f) => f.length),
+    0,
   )
-  for (const f of fields) {
-    const value = formatCell(obj[f], format[f], hints?.enumColorMap?.[f])
+  const avail = termWidth() - (2 + labelWidth + 2)
+  const inlineFinal: Array<[string, string]> = []
+  const blocks: Array<[string, string]> = []
+  for (const [f, value] of formatted) {
+    if (value.includes("\n") || visibleWidth(value) > avail) {
+      blocks.push([f, value])
+    } else {
+      inlineFinal.push([f, value])
+    }
+  }
+
+  for (const [f, value] of inlineFinal) {
     process.stdout.write(`  ${dim(f.padEnd(labelWidth))}  ${value}\n`)
   }
   for (const f of arrayFields) {
     renderArrayField(f, obj[f] as unknown[], labelWidth)
+  }
+  for (const [f, value] of blocks) {
+    process.stdout.write("\n")
+    process.stdout.write(`  ${dim(f)}\n`)
+    for (const line of wrapToWidth(value, termWidth() - 4)) {
+      process.stdout.write(`    ${line}\n`)
+    }
   }
   if (hints?.secretField) {
     const value = obj[hints.secretField]
@@ -297,6 +331,7 @@ function formatCell(
   value: unknown,
   fmt?: XCliFormat,
   colorMap?: Record<string, { label: string; color: string }>,
+  opts?: { noTruncate?: boolean },
 ): string {
   if (fmt !== "enum-badge" && (value === undefined || value === null)) return dim("—")
   switch (fmt) {
@@ -307,7 +342,9 @@ function formatCell(
     case "relative-time":
       return relativeTime(value)
     case "truncate":
-      return truncate(String(value), 50)
+      // `truncate` is a list/column-width hint only. In object (`show`) mode the
+      // caller passes noTruncate so single-item views render the full value.
+      return opts?.noTruncate ? String(value) : truncate(String(value), 50)
     case "bool-badge":
       return boolBadge(value)
     case "enum-badge": {
