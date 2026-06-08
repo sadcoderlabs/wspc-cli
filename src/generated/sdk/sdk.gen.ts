@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -984,7 +984,7 @@ export const emailRestore = <ThrowOnError extends boolean = false>(options: Opti
  * Send an outbound email
  *
  * ### Overview
- * Submits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified and sent using the Cloudflare email service provider.
+ * Submits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified before sending. Platform-domain aliases use Cloudflare Email Service; verified custom-domain aliases use pete-mail.
  *
  * ### When to Use
  * - Use this endpoint to send new standalone emails or to reply to threaded inbound messages.
@@ -995,14 +995,16 @@ export const emailRestore = <ThrowOnError extends boolean = false>(options: Opti
  * - **Size Limits**: Individual attachments must not exceed 5 MiB, and the total size of all attachments per send must be 25 MiB or less.
  * - **Security**: Up to 10 attachments are allowed. Outbound files with dangerous executable extensions (such as `.exe`, `.bat`, `.com`, `.scr`, `.cmd`, `.jar`, `.js`) are strictly blocked.
  * - **Daily Quotas**: Sending is protected by per-user (100 sends/day) and per-alias (50 sends/day) daily quotas. Exceeding them triggers `RATE_LIMITED` or `QUOTA_EXCEEDED` errors.
+ * - **Custom Domains**: Platform-domain aliases use Cloudflare Email Service. Verified custom-domain aliases are routed through pete-mail. Custom domains must have `status = verified` and `sending_status = verified` or the send returns `CUSTOM_DOMAIN_NOT_READY`.
  * - **Idempotency**: A stable `idempotency_key` (1-200 characters) must be supplied. Retrying a send with identical content and the same key returns `idempotent_replay: true` without sending duplicates. Reusing the key with changed content returns 409 `IDEMPOTENCY_KEY_REUSED`.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Active Bearer token is invalid or has expired.
  * - **404 Not Found**: The requested `from_alias_email` does not exist or has been soft-deleted, or the referenced `in_reply_to_email_id` is missing or belongs to a different user.
  * - **409 Conflict / IDEMPOTENCY_KEY_REUSED**: An identical `idempotency_key` was reused with modified request payload. Use a fresh unique key.
+ * - **409 Conflict / CUSTOM_DOMAIN_NOT_READY**: The sender uses a custom domain that has not completed outbound sending verification.
  * - **429 Too Many Requests / RATE_LIMITED**: The per-user rate limit or daily sending quota has been exceeded. Wait for quota reset.
- * - **502 Bad Gateway**: The upstream Cloudflare email provider failed or rejected the message. The outbound row is persisted with `status: failed` along with provider-returned logs.
+ * - **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. The outbound row is persisted with `status: failed` along with provider-returned logs.
  */
 export const emailSend = <ThrowOnError extends boolean = false>(options: Options<EmailSendData, ThrowOnError>) => (options.client ?? client).post<EmailSendResponses, EmailSendErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1108,6 +1110,49 @@ export const pushConfigSet = <ThrowOnError extends boolean = false>(options: Opt
 export const pushTest = <ThrowOnError extends boolean = false>(options: Options<PushTestData, ThrowOnError>) => (options.client ?? client).post<PushTestResponses, PushTestErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/push/test',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List comments on a todo
+ *
+ * ### 🎯 Overview & Purpose
+ * List the comments attached to a todo, oldest-first by default.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Ordering**: Defaults to chronological (`asc`). Pass `order=desc` for newest-first.
+ * * **Soft-deleted**: Hidden by default; pass `include_deleted=true` to include them.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo does not exist or is soft-deleted.
+ */
+export const todoCommentList = <ThrowOnError extends boolean = false>(options: Options<TodoCommentListData, ThrowOnError>) => (options.client ?? client).get<TodoCommentListResponses, TodoCommentListErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/todo/items/{id}/comments',
+    ...options
+});
+
+/**
+ * Add a comment to a todo
+ *
+ * ### 🎯 Overview & Purpose
+ * Attach a free-text comment to a todo. Use this to record progress updates, notes, or remarks as a task moves along.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Free text**: Comments are plain text up to 10000 characters; there is no separate "progress" vs "remark" type.
+ * * **Authorship**: The author is recorded as the calling user (`user_id`).
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo does not exist or is soft-deleted.
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if content is empty or exceeds 10000 characters.
+ */
+export const todoCommentCreate = <ThrowOnError extends boolean = false>(options: Options<TodoCommentCreateData, ThrowOnError>) => (options.client ?? client).post<TodoCommentCreateResponses, TodoCommentCreateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/todo/items/{id}/comments',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1317,6 +1362,47 @@ export const todoTypeCreate = <ThrowOnError extends boolean = false>(options?: O
     headers: {
         'Content-Type': 'application/json',
         ...options?.headers
+    }
+});
+
+/**
+ * Soft-delete a comment
+ *
+ * ### 🎯 Overview & Purpose
+ * Soft-delete a comment.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Soft delete**: The comment is hidden from default listings but retained; there is no restore endpoint.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`COMMENT_NOT_FOUND` (HTTP 404)**: Thrown if the comment id is unknown, already deleted, or not in the caller's organization.
+ */
+export const todoCommentDelete = <ThrowOnError extends boolean = false>(options: Options<TodoCommentDeleteData, ThrowOnError>) => (options.client ?? client).delete<TodoCommentDeleteResponses, TodoCommentDeleteErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/todo/comments/{id}',
+    ...options
+});
+
+/**
+ * Edit a comment
+ *
+ * ### 🎯 Overview & Purpose
+ * Edit the body of an existing comment.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Last write wins**: There is no optimistic-lock version on comments; the latest edit replaces the content.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`COMMENT_NOT_FOUND` (HTTP 404)**: Thrown if the comment id is unknown, soft-deleted, or not in the caller's organization.
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if content is empty or exceeds 10000 characters.
+ */
+export const todoCommentUpdate = <ThrowOnError extends boolean = false>(options: Options<TodoCommentUpdateData, ThrowOnError>) => (options.client ?? client).patch<TodoCommentUpdateResponses, TodoCommentUpdateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/todo/comments/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
     }
 });
 

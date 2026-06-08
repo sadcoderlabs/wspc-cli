@@ -33,12 +33,16 @@ import { pushConfigDeleteCommand } from "./push/config/rm.js"
 import { pushConfigSetCommand } from "./push/config/set.js"
 import { pushConfigGetCommand } from "./push/config/show.js"
 import { pushTestCommand } from "./push/test.js"
+import { todoCommentCreateCommand } from "./todo/comment/add.js"
+import { todoCommentListCommand } from "./todo/comment/ls.js"
 import { projectCreateCommand } from "./todo/project/add.js"
 import { projectListCommand } from "./todo/project/ls.js"
 import { recurrenceRuleListCommand } from "./todo/rule/ls.js"
 import { todoCreateCommand } from "./todo/add.js"
 import { todoListCommand } from "./todo/ls.js"
 import { todoTypeListCommand } from "./todo/type/ls.js"
+import { todoCommentDeleteCommand } from "./todo/comment/rm.js"
+import { todoCommentUpdateCommand } from "./todo/comment/edit.js"
 import { todoDeleteCommand } from "./todo/rm.js"
 import { todoGetCommand } from "./todo/show.js"
 import { todoUpdateCommand } from "./todo/update.js"
@@ -88,6 +92,11 @@ export function registerGeneratedCommands(root: Command): void {
   root_push_config.addCommand(pushConfigGetCommand)
   root_push.addCommand(pushTestCommand)
   const root_todo = root.command("todo").description("todo commands")
+  const root_todo_comment = root_todo.command("comment").description("comment commands")
+  root_todo_comment.addCommand(todoCommentCreateCommand)
+  root_todo_comment.addCommand(todoCommentListCommand)
+  root_todo_comment.addCommand(todoCommentDeleteCommand)
+  root_todo_comment.addCommand(todoCommentUpdateCommand)
   const root_todo_project = root_todo.command("project").description("project commands")
   root_todo_project.addCommand(projectCreateCommand)
   root_todo_project.addCommand(projectListCommand)

@@ -1027,9 +1027,9 @@ export type SendEmailResponse = {
          */
         references_header?: string;
         /**
-         * Send provider. Currently always `cloudflare-email-service`.
+         * Send provider used for this outbound email.
          */
-        provider: 'cloudflare-email-service';
+        provider: 'cloudflare-email-service' | 'pete-mail';
         /**
          * Provider-side message id (after successful submission).
          */
@@ -1160,6 +1160,21 @@ export type TestPushResponse = {
      * Upstream description string, suitable for surfacing to a developer/operator (not necessarily an end user).
      */
     detail: string;
+};
+
+export type CreateCommentBody = {
+    content: string;
+};
+
+export type Comment = {
+    id: string;
+    todo_id: string;
+    user_id: string;
+    org_id: string;
+    content: string;
+    created_at: number;
+    updated_at: number;
+    deleted_at?: number;
 };
 
 export type CreateProjectBody = {
@@ -1396,6 +1411,10 @@ export type RestoreTodoResponse = {
     restored_count: number;
     parent_in_trash_warning: boolean;
     descendants_in_trash_count: number;
+};
+
+export type UpdateCommentBody = {
+    content: string;
 };
 
 export type UpdateProjectBody = {
@@ -5693,7 +5712,7 @@ export type EmailSendErrors = {
         };
     };
     /**
-     * An earlier send under this `idempotency_key` had different content. Pick a new key or repeat the original body byte-for-byte.
+     * Either an earlier send under this `idempotency_key` had different content, or the sender custom domain has not completed outbound sending verification.
      */
     409: {
         error: {
@@ -6071,6 +6090,231 @@ export type PushTestResponses = {
 };
 
 export type PushTestResponse = PushTestResponses[keyof PushTestResponses];
+
+export type TodoCommentListData = {
+    body?: never;
+    path: {
+        /**
+         * Todo id (`tod_<ULID>`).
+         */
+        id: string;
+    };
+    query?: {
+        order?: 'asc' | 'desc';
+        include_deleted?: string;
+    };
+    url: '/todo/items/{id}/comments';
+};
+
+export type TodoCommentListErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type TodoCommentListError = TodoCommentListErrors[keyof TodoCommentListErrors];
+
+export type TodoCommentListResponses = {
+    /**
+     * List
+     */
+    200: {
+        comments: Array<Comment>;
+    };
+};
+
+export type TodoCommentListResponse = TodoCommentListResponses[keyof TodoCommentListResponses];
+
+export type TodoCommentCreateData = {
+    body?: CreateCommentBody;
+    path: {
+        /**
+         * Todo id (`tod_<ULID>`).
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/todo/items/{id}/comments';
+};
+
+export type TodoCommentCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type TodoCommentCreateError = TodoCommentCreateErrors[keyof TodoCommentCreateErrors];
+
+export type TodoCommentCreateResponses = {
+    /**
+     * Created
+     */
+    201: Comment;
+};
+
+export type TodoCommentCreateResponse = TodoCommentCreateResponses[keyof TodoCommentCreateResponses];
 
 export type ProjectListData = {
     body?: never;
@@ -6949,6 +7193,226 @@ export type TodoTypeCreateResponses = {
 };
 
 export type TodoTypeCreateResponse = TodoTypeCreateResponses[keyof TodoTypeCreateResponses];
+
+export type TodoCommentDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Comment id (`tdc_<ULID>`).
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/todo/comments/{id}';
+};
+
+export type TodoCommentDeleteErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type TodoCommentDeleteError = TodoCommentDeleteErrors[keyof TodoCommentDeleteErrors];
+
+export type TodoCommentDeleteResponses = {
+    /**
+     * Soft-deleted
+     */
+    200: Comment;
+};
+
+export type TodoCommentDeleteResponse = TodoCommentDeleteResponses[keyof TodoCommentDeleteResponses];
+
+export type TodoCommentUpdateData = {
+    body?: UpdateCommentBody;
+    path: {
+        /**
+         * Comment id (`tdc_<ULID>`).
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/todo/comments/{id}';
+};
+
+export type TodoCommentUpdateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type TodoCommentUpdateError = TodoCommentUpdateErrors[keyof TodoCommentUpdateErrors];
+
+export type TodoCommentUpdateResponses = {
+    /**
+     * Updated
+     */
+    200: Comment;
+};
+
+export type TodoCommentUpdateResponse = TodoCommentUpdateResponses[keyof TodoCommentUpdateResponses];
 
 export type ProjectDeleteData = {
     body?: never;
