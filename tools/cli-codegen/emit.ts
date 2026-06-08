@@ -215,9 +215,16 @@ export function emitCommand(input: EmitInput): string | null {
     )
     .map(emitFieldOption)
 
-  // Options from query fields (skip positional and path params)
+  // fixedQuery keys win over same-named query fields — suppress the dynamic field
+  // from both the options list and the query block to avoid duplicate object keys.
+  const fixedQueryKeys = new Set(Object.keys(input.xCli.fixedQuery ?? {}))
+
+  // Options from query fields (skip positional, path params, and fixedQuery-shadowed fields)
   const queryOptions = queryFields
-    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
+    .filter(
+      (f) =>
+        !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name),
+    )
     .map(emitFieldOption)
 
   // Virtual x-cli options: option keys that map to no existing body/query field
@@ -346,7 +353,10 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Build query block (dynamic query fields + constant fixedQuery).
   const queryOptLines = queryFields
-    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
+    .filter(
+      (f) =>
+        !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name),
+    )
     .map((f) => {
       const optKey = fieldToOptionKey[f.name]
       if (optKey !== undefined) {
