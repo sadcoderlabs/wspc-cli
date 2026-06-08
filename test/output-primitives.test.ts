@@ -112,4 +112,13 @@ describe("wrapToWidth", () => {
     // "中" is width 2; at width 4 only two fit per line
     expect(wrapToWidth("中中中中中", 4)).toEqual(["中中", "中中", "中"])
   })
+
+  it("does not loop forever when width is smaller than one CJK char", () => {
+    // "中" is visible width 2; width 1 cannot fit it. Emit it intact rather than hang.
+    expect(wrapToWidth("中", 1)).toEqual(["中"])
+  })
+
+  it("emits an over-wide single char intact instead of hanging", () => {
+    expect(wrapToWidth("中文", 1)).toEqual(["中", "文"])
+  })
 })

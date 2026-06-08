@@ -207,6 +207,10 @@ export function relativeTime(value: unknown, now: number = Date.now()): string {
  * wider than `width` (long URLs, spaceless CJK runs) is hard-broken by visible
  * width using the same `visibleWidth` ruler the tables use, so CJK columns line
  * up the same way they do elsewhere. No external dependency by design.
+ *
+ * `width` is the visible-column budget; values <= 0 fall back to 80. A token
+ * wider than `width` is broken one max-fitting chunk at a time (at least one
+ * character per line, so wrapping always progresses).
  */
 export function wrapToWidth(text: string, width: number): string[] {
   const limit = width > 0 ? width : 80
@@ -222,8 +226,9 @@ export function wrapToWidth(text: string, width: number): string[] {
       while (visibleWidth(word) > limit) {
         let head = ""
         for (const ch of word) {
-          if (visibleWidth(head + ch) > limit) break
+          if (head && visibleWidth(head + ch) > limit) break
           head += ch
+          if (visibleWidth(head) >= limit) break
         }
         if (cur) {
           out.push(cur)
@@ -240,7 +245,7 @@ export function wrapToWidth(text: string, width: number): string[] {
         cur = cur + sep + word
       }
     }
-    out.push(cur)
+    if (cur) out.push(cur)
   }
   return out
 }
