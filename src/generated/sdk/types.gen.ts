@@ -203,9 +203,9 @@ export type ListOrgMembersQuery = {
      */
     cursor?: string;
     /**
-     * Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response.
+     * Maximum members to return. Clamped to [1, 100]. Defaults to 50.
      */
-    limit?: number;
+    limit?: string;
 };
 
 export type ListOrgMembersResponse = {
@@ -1410,6 +1410,8 @@ export type TodoWithRelations = {
     };
     children?: Array<Todo>;
     comments?: Array<Comment>;
+    children_next_cursor?: string;
+    comments_next_cursor?: string;
 };
 
 export type ListRecurrenceRulesQuery = {
@@ -1426,6 +1428,10 @@ export type ListRecurrenceRulesResponse = {
 
 export type ListTodosResponse = {
     todos: Array<Todo>;
+    /**
+     * Opaque cursor for the next page. Absent on the last page.
+     */
+    next_cursor?: string;
 };
 
 export type RestoreTodoBody = {
@@ -2637,9 +2643,9 @@ export type OrgMembersListData = {
          */
         cursor?: string;
         /**
-         * Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response.
+         * Maximum members to return. Clamped to [1, 100]. Defaults to 50.
          */
-        limit?: number;
+        limit?: string;
     };
     url: '/auth/me/org/members';
 };
@@ -6128,6 +6134,14 @@ export type TodoCommentListData = {
     query?: {
         order?: 'asc' | 'desc';
         include_deleted?: string;
+        /**
+         * Max comments to return. Clamped to [1, 200]. Default 50 server-side.
+         */
+        limit?: string;
+        /**
+         * Opaque pagination cursor returned in `next_cursor` of a previous response.
+         */
+        cursor?: string;
     };
     url: '/todo/items/{id}/comments';
 };
@@ -6227,6 +6241,10 @@ export type TodoCommentListResponses = {
      */
     200: {
         comments: Array<Comment>;
+        /**
+         * Opaque cursor for the next page. Absent on the last page.
+         */
+        next_cursor?: string;
     };
 };
 
@@ -6794,6 +6812,14 @@ export type TodoListData = {
         sort_by?: string;
         order?: 'asc' | 'desc';
         include_orphan_fields?: string | Array<string>;
+        /**
+         * Max todos to return. Clamped to [1, 200]. Default 50 server-side.
+         */
+        limit?: string;
+        /**
+         * Opaque pagination cursor returned in `next_cursor` of a previous response.
+         */
+        cursor?: string;
     };
     url: '/todo/items';
 };

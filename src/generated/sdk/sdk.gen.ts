@@ -1126,9 +1126,11 @@ export const pushTest = <ThrowOnError extends boolean = false>(options: Options<
  * ### 💡 Key Features & Constraints
  * * **Ordering**: Defaults to chronological (`asc`). Pass `order=desc` for newest-first.
  * * **Soft-deleted**: Hidden by default; pass `include_deleted=true` to include them.
+ * * **Pagination**: Use `limit` (max 200, default 50) and `cursor` (the `next_cursor` from a previous response) to page through results. When `next_cursor` is absent in the response, you are on the last page. Returns `{ comments, next_cursor? }`. Changing `order` invalidates a cursor.
  *
  * ### ⚠️ Common Errors & Troubleshooting
  * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo does not exist or is soft-deleted.
+ * * **`VALIDATION_ERROR`**: Thrown if a cursor was produced with a different `order` than the current request.
  */
 export const todoCommentList = <ThrowOnError extends boolean = false>(options: Options<TodoCommentListData, ThrowOnError>) => (options.client ?? client).get<TodoCommentListResponses, TodoCommentListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
