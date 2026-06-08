@@ -226,7 +226,8 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
     ...arrayFields.map((f) => f.length),
     0,
   )
-  const avail = termWidth() - (2 + labelWidth + 2)
+  const tw = termWidth()
+  const avail = tw - (2 + labelWidth + 2)
   const inlineFinal: Array<[string, string]> = []
   const blocks: Array<[string, string]> = []
   for (const [f, value] of formatted) {
@@ -243,13 +244,14 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
   for (const f of arrayFields) {
     renderArrayField(f, obj[f] as unknown[], labelWidth)
   }
-  for (const [f, value] of blocks) {
-    process.stdout.write("\n")
+  const hadAbove = inlineFinal.length > 0 || arrayFields.length > 0
+  blocks.forEach(([f, value], i) => {
+    if (hadAbove || i > 0) process.stdout.write("\n")
     process.stdout.write(`  ${dim(f)}\n`)
-    for (const line of wrapToWidth(value, termWidth() - 4)) {
+    for (const line of wrapToWidth(value, tw - 4)) {
       process.stdout.write(`    ${line}\n`)
     }
-  }
+  })
   if (hints?.secretField) {
     const value = obj[hints.secretField]
     if (value !== undefined) {

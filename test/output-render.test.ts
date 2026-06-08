@@ -27,6 +27,7 @@ function stripAnsi(s: string): string {
 
 describe("render", () => {
   const origTTY = process.stdout.isTTY
+  const origColumns = process.stdout.columns
   const origEnv = process.env.WSPC_OUTPUT
   let cap: ReturnType<typeof captureStdout>
 
@@ -40,6 +41,7 @@ describe("render", () => {
   afterEach(() => {
     cap.restore()
     Object.defineProperty(process.stdout, "isTTY", { value: origTTY, configurable: true })
+    Object.defineProperty(process.stdout, "columns", { value: origColumns, configurable: true })
     if (origEnv === undefined) delete process.env.WSPC_OUTPUT
     else process.env.WSPC_OUTPUT = origEnv
   })
@@ -328,6 +330,17 @@ describe("render", () => {
     )
     const out = stripAnsi(cap.output())
     expect(out).toMatch(/ {2}title {2,}Buy milk/)
+  })
+
+  it("does not emit a leading blank line when every field is a block", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 30, configurable: true })
+    render(
+      { kind: "x", display: { shape: "object" } },
+      { note: "line one\nline two that is fairly long here" },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out.startsWith("\n")).toBe(false)
+    expect(out).toMatch(/^ {2}note\n {4}line one/)
   })
 })
 
