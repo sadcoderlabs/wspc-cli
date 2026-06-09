@@ -2262,6 +2262,10 @@
           "project_id": {
             "type": "string",
             "description": "Project for the recurrence rule, its template todo, and all materialized instances. Must be an active project in the caller's organization."
+          },
+          "type_id": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
@@ -2303,6 +2307,9 @@
           "project_id": {
             "type": "string",
             "description": "Project id shared by the recurrence rule, its template todo, and materialized instances."
+          },
+          "type_id": {
+            "type": "string"
           },
           "rrule": {
             "type": "string"
@@ -2364,7 +2371,7 @@
                 "type": "null"
               }
             ],
-            "description": "Parent todo ID (`tod_<ULID>`) to attach this todo as a child under another todo. Omit or pass `null` to create a root-level todo. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`."
+            "description": "Parent todo ID (`tod_<ULID>`) to attach this todo as a child under another todo. Omit or pass `null` to create a root-level todo. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`. To make a subtask appear on every occurrence of a recurring rule, set this to that rule's template todo id (the template id returned when the rule is created); the server re-materializes future occurrences so each carries the subtask."
           },
           "status": {
             "type": "string",
@@ -22993,8 +23000,18 @@
           "RecurrenceRules"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "todo rule add",
+          "positional": [
+            "title"
+          ],
+          "aliases": {
+            "project": "p",
+            "type": "t"
+          },
+          "examples": [
+            "wspc todo rule add \"Weekly review\" --rrule \"FREQ=WEEKLY;BYDAY=MO\" --dtstart 2026-05-18 --project prj_xxx",
+            "wspc todo rule add \"Weekly review\" --rrule \"FREQ=WEEKLY;BYDAY=MO\" --dtstart 2026-05-18 --project prj_xxx --type typ_xxx"
+          ]
         },
         "summary": "Create a recurring todo rule",
         "description": "### 🎯 Overview & Purpose\nCreate a recurrence rule that materializes upcoming todo instances on a repeating schedule.\n\n### 🔍 When to Use\n* Use this to set up recurring work like a weekly Standup, monthly reporting, or cyclical maintenance. The server automatically materializes upcoming todo instances on a 14-day rolling horizon.\n\n### 💡 Key Features & Constraints\n* **RFC-5545 Conformity**: The `rrule` parameter must be a valid RFC-5545 schedule string (e.g., `FREQ=WEEKLY;BYDAY=MO`) and must **not** include the `DTSTART` or `TZID` directive.\n* **Anchor Date**: `dtstart` specifies the local calendar starting date (`YYYY-MM-DD`) where the schedule rule is anchored.\n* **Nesting Constraints**: Recurrence rules can only be bound to root-level tasks. Child tasks (subtasks) cannot have recurrence rules. Setting a child task as a parent will trigger `PARENT_IS_CHILD`.\n* **Instance Independence**: Once materialized, each todo instance is fully independent with its own `status` and `due_at`.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`RRULE_INVALID` (HTTP 400)**: Thrown if the `rrule` schedule string is broken or contains illegal `DTSTART` directives.\n* **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the specified `parent_id` points to a child task.\n* **`VALIDATION_ERROR` (HTTP 400)**: Thrown if date format is invalid or required fields are missing.",
@@ -23012,7 +23029,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc todo rrule add \"Draft weekly review\" --rrule \"FREQ=WEEKLY;BYDAY=MO\" --dtstart 2026-05-18 --project prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
+            "source": "wspc todo rule add \"Draft weekly review\" --rrule \"FREQ=WEEKLY;BYDAY=MO\" --dtstart 2026-05-18 --project prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --type typ_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           }
         ],
         "requestBody": {
@@ -23416,11 +23433,13 @@
             "columns": [
               "id",
               "rrule",
-              "dtstart"
+              "dtstart",
+              "type_id"
             ],
             "format": {
               "id": "id-short",
-              "rrule": "truncate"
+              "rrule": "truncate",
+              "type_id": "id-short"
             },
             "emptyMessage": "no recurrence rules"
           }
@@ -23441,7 +23460,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc todo rrule ls"
+            "source": "wspc todo rule ls"
           }
         ],
         "parameters": [
@@ -27704,8 +27723,14 @@
           "RecurrenceRules"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "todo rule rm",
+          "positional": [
+            "id"
+          ],
+          "examples": [
+            "wspc todo rule rm tdr_xxx",
+            "wspc todo rule rm tdr_xxx --expected-version 3"
+          ]
         },
         "summary": "Delete a recurring todo rule",
         "description": "### 🎯 Overview & Purpose\nSoft-delete/delete a recurrence rule to immediately halt future task materialization.\n\n### 🔍 When to Use\n* Use this to permanently end an ongoing cyclical schedule automation (e.g., when a weekly standby rotation is retired).\n\n### 💡 Key Features & Constraints\n* **Historic Preservation**: Deleting a rule stops the rolling schedule generations, but **does not** delete or alter todo tasks that have already been materialized. They remain on the user's list.\n* **Optimistic Locking**: Supports optional `expected_version` checks.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` mismatches the database.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target rule ID does not exist.",
@@ -27723,7 +27748,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc todo rrule rm tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
+            "source": "wspc todo rule rm tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           }
         ],
         "parameters": [
@@ -28107,8 +28132,20 @@
           "RecurrenceRules"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "todo rule show",
+          "positional": [
+            "id"
+          ],
+          "examples": [
+            "wspc todo rule show tdr_xxx"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "type_id": "id-short"
+            }
+          }
         },
         "summary": "Get a recurring todo rule",
         "description": "### 🎯 Overview & Purpose\nFetch a single recurrence rule along with its template todo snapshot and the count of materialized instances.\n\n### 🔍 When to Use\n* Use this to inspect rule details before editing, preview the task template that future occurrences will copy, or check the current materialization metrics.\n\n### 💡 Key Features & Constraints\n* **Snapshot Integrity**: The returned template represents a schema template snapshot — modifying the rule (PATCH) only alters future occurrences; already-materialized tasks are never mutated retroactively.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the specified rule ID does not exist.",
@@ -28126,7 +28163,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc todo rrule show tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
+            "source": "wspc todo rule show tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           }
         ],
         "parameters": [
@@ -28530,7 +28567,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc todo rrule set tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --rrule \"FREQ=WEEKLY;BYDAY=FR\""
+            "source": "wspc todo rule set tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --rrule \"FREQ=WEEKLY;BYDAY=FR\""
           }
         ],
         "parameters": [

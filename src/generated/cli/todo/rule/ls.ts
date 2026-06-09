@@ -24,5 +24,5 @@ export const recurrenceRuleListCommand = new Command("ls")
       process.exitCode = 1
       return
     }
-    render({ kind: "recurrence_rule_list", display: {"shape":"list","columns":["id","rrule","dtstart"],"format":{"id":"id-short","rrule":"truncate"},"emptyMessage":"no recurrence rules"} }, result.data)
+    render({ kind: "recurrence_rule_list", display: {"shape":"list","columns":["id","rrule","dtstart","type_id"],"format":{"id":"id-short","rrule":"truncate","type_id":"id-short"},"emptyMessage":"no recurrence rules"} }, result.data)
   })

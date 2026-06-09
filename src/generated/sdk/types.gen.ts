@@ -1358,6 +1358,7 @@ export type CreateRecurrenceRuleBody = {
      * Project for the recurrence rule, its template todo, and all materialized instances. Must be an active project in the caller's organization.
      */
     project_id: string;
+    type_id?: string;
 };
 
 export type CreateRecurrenceRuleResponse = {
@@ -1373,6 +1374,7 @@ export type RecurrenceRule = {
      * Project id shared by the recurrence rule, its template todo, and materialized instances.
      */
     project_id: string;
+    type_id?: string;
     rrule: string;
     dtstart: string;
     version: number;
@@ -1395,7 +1397,7 @@ export type CreateTodoBody = {
      */
     description?: string;
     /**
-     * Parent todo ID (`tod_<ULID>`) to attach this todo as a child under another todo. Omit or pass `null` to create a root-level todo. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`.
+     * Parent todo ID (`tod_<ULID>`) to attach this todo as a child under another todo. Omit or pass `null` to create a root-level todo. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`. To make a subtask appear on every occurrence of a recurring rule, set this to that rule's template todo id (the template id returned when the rule is created); the server re-materializes future occurrences so each carries the subtask.
      */
     parent_id?: string | null;
     /**
