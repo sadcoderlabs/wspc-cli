@@ -173,6 +173,67 @@ describe("emitCommand: body unwrap", () => {
   })
 })
 
+describe("emitCommand: JSON body fields", () => {
+  it("JSON.parses an object-typed body field instead of passing the raw string", () => {
+    const out = emitCommand({
+      operationId: "todo_create",
+      method: "post",
+      path: "/todo",
+      xCli: { command: "todo add", positional: ["title"], display: { shape: "object" } },
+      bodyFields: [
+        { name: "title", type: "string", required: true },
+        { name: "description", type: "string", required: false },
+        { name: "custom_fields", type: "object", required: false },
+      ],
+    })
+
+    expect(out).not.toBeNull()
+    const code = out!
+
+    // Object field is parsed via the handwritten helper, not passed as a raw string.
+    expect(code).toContain('custom_fields: parseJsonField(opts.customFields, "custom-fields"),')
+    expect(code).not.toContain("custom_fields: opts.customFields,")
+    // Helper is imported only because an object/array field is present.
+    expect(code).toContain(
+      'import { parseJsonField } from "../../../handwritten/utils/parse-json-field.js"',
+    )
+
+    // String fields are still passed through untouched.
+    expect(code).toContain("description: opts.description,")
+  })
+
+  it("JSON.parses an array-typed body field that has no x-cli option owner", () => {
+    const out = emitCommand({
+      operationId: "todo_type_create",
+      method: "post",
+      path: "/todo/types",
+      xCli: { command: "todo type add", display: { shape: "object" } },
+      bodyFields: [
+        { name: "name", type: "string", required: true },
+        { name: "custom_fields", type: "array", required: false },
+      ],
+    })
+
+    const code = out!
+    expect(code).toContain('custom_fields: parseJsonField(opts.customFields, "custom-fields"),')
+  })
+
+  it("does not import the helper when no object/array body field is present", () => {
+    const out = emitCommand({
+      operationId: "todo_update",
+      method: "patch",
+      path: "/todo/{id}",
+      xCli: { command: "todo set", positional: ["id"], display: { shape: "object" } },
+      bodyFields: [{ name: "title", type: "string", required: false }],
+      pathParams: ["id"],
+    })
+
+    const code = out!
+    expect(code).not.toContain("parse-json-field")
+    expect(code).toContain("title: opts.title,")
+  })
+})
+
 describe("emitCommand: exitOnField", () => {
   it("emits process.exit(1) check on specified response field", () => {
     const out = emitCommand({
