@@ -9,6 +9,8 @@ export const todoCommentListCommand = new Command("ls")
   .argument("<id>", "id")
   .option("--order <value>", "order")
   .option("--include-deleted <value>", "include_deleted")
+  .option("--limit <value>", "limit")
+  .option("--cursor <value>", "cursor")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await todoCommentList({
@@ -19,6 +21,8 @@ export const todoCommentListCommand = new Command("ls")
       query: {
         order: opts.order,
         include_deleted: opts.includeDeleted,
+        limit: opts.limit,
+        cursor: opts.cursor,
       },
     })
     if (result.error || !result.response?.ok) {

@@ -323,10 +323,8 @@
             "description": "Opaque pagination cursor. Pass the `next_cursor` returned by the previous page to fetch the next slice. Omit on the first call."
           },
           "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100,
-            "description": "Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response."
+            "type": "string",
+            "description": "Maximum members to return. Clamped to [1, 100]. Defaults to 50."
           }
         }
       },
@@ -1245,7 +1243,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "description": "Full alias address under @wspc.app, for example alice-shop@wspc.app."
+            "description": "Full alias address under the platform email domain or a fully verified organization custom domain, for example alice-shop@wspc.app or alice-shop@example.com."
           }
         },
         "required": [
@@ -2688,6 +2686,12 @@
             "items": {
               "$ref": "#/components/schemas/Comment"
             }
+          },
+          "children_next_cursor": {
+            "type": "string"
+          },
+          "comments_next_cursor": {
+            "type": "string"
           }
         },
         "required": [
@@ -2742,6 +2746,10 @@
             "items": {
               "$ref": "#/components/schemas/Todo"
             }
+          },
+          "next_cursor": {
+            "type": "string",
+            "description": "Opaque cursor for the next page. Absent on the last page."
           }
         },
         "required": [
@@ -7153,13 +7161,11 @@
           },
           {
             "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "description": "Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response."
+              "type": "string",
+              "description": "Maximum members to return. Clamped to [1, 100]. Defaults to 50."
             },
             "required": false,
-            "description": "Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response.",
+            "description": "Maximum members to return. Clamped to [1, 100]. Defaults to 50.",
             "name": "limit",
             "in": "query"
           }
@@ -14737,7 +14743,7 @@
           "EmailAliases"
         ],
         "summary": "Create a receiving alias",
-        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.",
+        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization and have `status = verified`, `sending_status = verified`, and `receiving_status = verified`.\n- **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **400 Bad Request / DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.\n- **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.\n- **400 Bad Request / CUSTOM_DOMAIN_NOT_READY**: The custom domain exists but has not completed sending or receiving verification.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.",
         "security": [
           {
             "bearerAuth": []
@@ -14789,6 +14795,12 @@
                   "value": {
                     "email": "alice-bills@wspc.app"
                   }
+                },
+                "customDomain": {
+                  "summary": "Fully verified custom domain alias",
+                  "value": {
+                    "email": "alice-shop@example.com"
+                  }
                 }
               }
             }
@@ -14817,7 +14829,7 @@
             }
           },
           "400": {
-            "description": "Invalid alias email address, local part, or reserved local part.",
+            "description": "Invalid alias email address, local part, reserved local part, missing custom domain, unverified custom domain, or custom domain that is not ready for both sending and receiving.",
             "content": {
               "application/json": {
                 "schema": {
@@ -20079,7 +20091,7 @@
           }
         },
         "summary": "List comments on a todo",
-        "description": "### 🎯 Overview & Purpose\nList the comments attached to a todo, oldest-first by default.\n\n### 💡 Key Features & Constraints\n* **Ordering**: Defaults to chronological (`asc`). Pass `order=desc` for newest-first.\n* **Soft-deleted**: Hidden by default; pass `include_deleted=true` to include them.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo does not exist or is soft-deleted.",
+        "description": "### 🎯 Overview & Purpose\nList the comments attached to a todo, oldest-first by default.\n\n### 💡 Key Features & Constraints\n* **Ordering**: Defaults to chronological (`asc`). Pass `order=desc` for newest-first.\n* **Soft-deleted**: Hidden by default; pass `include_deleted=true` to include them.\n* **Pagination**: Use `limit` (max 200, default 50) and `cursor` (the `next_cursor` from a previous response) to page through results. When `next_cursor` is absent in the response, you are on the last page. Returns `{ comments, next_cursor? }`. Changing `order` invalidates a cursor.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo does not exist or is soft-deleted.\n* **`VALIDATION_ERROR`**: Thrown if a cursor was produced with a different `order` than the current request.",
         "security": [
           {
             "bearerAuth": []
@@ -20128,6 +20140,26 @@
             "required": false,
             "name": "include_deleted",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Max comments to return. Clamped to [1, 200]. Default 50 server-side."
+            },
+            "required": false,
+            "description": "Max comments to return. Clamped to [1, 200]. Default 50 server-side.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque pagination cursor returned in `next_cursor` of a previous response."
+            },
+            "required": false,
+            "description": "Opaque pagination cursor returned in `next_cursor` of a previous response.",
+            "name": "cursor",
+            "in": "query"
           }
         ],
         "responses": {
@@ -20143,6 +20175,10 @@
                       "items": {
                         "$ref": "#/components/schemas/Comment"
                       }
+                    },
+                    "next_cursor": {
+                      "type": "string",
+                      "description": "Opaque cursor for the next page. Absent on the last page."
                     }
                   },
                   "required": [
@@ -22842,6 +22878,26 @@
             },
             "required": false,
             "name": "include_orphan_fields",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Max todos to return. Clamped to [1, 200]. Default 50 server-side."
+            },
+            "required": false,
+            "description": "Max todos to return. Clamped to [1, 200]. Default 50 server-side.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque pagination cursor returned in `next_cursor` of a previous response."
+            },
+            "required": false,
+            "description": "Opaque pagination cursor returned in `next_cursor` of a previous response.",
+            "name": "cursor",
             "in": "query"
           }
         ],
