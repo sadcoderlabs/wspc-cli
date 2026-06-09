@@ -6,7 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const projectListCommand = new Command("ls")
   .description("List projects")
-  .option("--include-deleted <value>", "include_deleted")
+  .option("--include-deleted <value>", "Set to `true` to include soft-deleted projects in the response.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await projectList({

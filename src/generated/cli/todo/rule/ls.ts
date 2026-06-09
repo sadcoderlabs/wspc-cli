@@ -6,7 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const recurrenceRuleListCommand = new Command("ls")
   .description("List recurring todo rules")
-  .option("--project-id <value>", "project_id")
+  .option("--project-id <value>", "Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.")
   .option("--user-id <value>", "user_id")
   .action(async (opts) => {
     const client = await loadSdkClient()

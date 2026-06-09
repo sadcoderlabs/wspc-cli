@@ -7,7 +7,7 @@ import { render } from "../../../handwritten/output/render.js"
 export const eventDeleteCommand = new Command("rm")
   .description("Soft-delete a calendar event")
   .argument("<id>", "id")
-  .option("--expected-version <value>", "expected_version")
+  .option("--expected-version <value>", "Optional optimistic lock. Omit to let the server use the current version; pass only to fail with 409 `VERSION_CONFLICT` if someone else has mutated the event since you last read.")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await eventDelete({

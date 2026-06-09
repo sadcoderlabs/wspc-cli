@@ -6,12 +6,12 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const emailListCommand = new Command("ls")
   .description("List inbound emails")
-  .option("--limit <value>", "limit")
-  .option("--alias-email <value>", "alias_email")
-  .option("--unread-only <value>", "unread_only")
-  .option("--since <value>", "since")
-  .option("--cursor <value>", "cursor")
-  .option("--include-deleted <value>", "include_deleted")
+  .option("--limit <value>", "Max items to return (clamped to 1-100). Defaults to 20 server-side.")
+  .option("--alias-email <value>", "If set, only return emails received on this full alias email address.")
+  .option("--unread-only <value>", "When `true`, only return emails with `is_read=false`.")
+  .option("--since <value>", "Unix epoch milliseconds — only return emails with `received_at >= since`. Useful for incremental sync.")
+  .option("--cursor <value>", "Opaque pagination cursor returned in `next_cursor` of a previous response.")
+  .option("--include-deleted <value>", "When `true`, also return soft-deleted emails. Defaults to `false`.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await emailList({

@@ -6,8 +6,8 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const pushConfigSetCommand = new Command("set")
   .description("Register or update a push transport")
-  .option("--transport <value>", "transport")
-  .option("--target-bot-username <value>", "target_bot_username")
+  .option("--transport <value>", "Transport discriminator. `telegram` is the only supported value today — push delivers via a Telegram bot DM. Future transports (web push, iOS/Android, generic webhook) will be added as additional discriminator values.")
+  .option("--target-bot-username <value>", "Telegram bot username (with leading `@`, 5–32 alphanumeric/underscore characters). This is the bot the user has already started a chat with — wspc DMs notifications to it via the Telegram Bot API.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await pushConfigSet({

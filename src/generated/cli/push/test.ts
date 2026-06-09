@@ -6,7 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const pushTestCommand = new Command("test")
   .description("Send a test push notification")
-  .option("--transport <value>", "transport")
+  .option("--transport <value>", "Which transport to send the test message through. Must match a transport the caller has already registered via `POST /push/config`; today only `telegram` is supported.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await pushTest({

@@ -9,8 +9,8 @@ export const todoCommentListCommand = new Command("ls")
   .argument("<id>", "id")
   .option("--order <value>", "order")
   .option("--include-deleted <value>", "include_deleted")
-  .option("--limit <value>", "limit")
-  .option("--cursor <value>", "cursor")
+  .option("--limit <value>", "Max comments to return. Clamped to [1, 200]. Default 50 server-side.")
+  .option("--cursor <value>", "Opaque pagination cursor returned in `next_cursor` of a previous response.")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await todoCommentList({

@@ -6,7 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const emailAliasListCommand = new Command("ls")
   .description("List the caller's aliases")
-  .option("--include-deleted <value>", "include_deleted")
+  .option("--include-deleted <value>", "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await emailAliasList({
