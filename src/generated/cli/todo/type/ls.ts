@@ -6,7 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const todoTypeListCommand = new Command("ls")
   .description("List todo types")
-  .option("--project-id <value>", "project_id")
+  .option("--project-id <value>", "Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.")
   .option("--user-id <value>", "user_id")
   .option("--include-deleted <value>", "include_deleted")
   .action(async (opts) => {

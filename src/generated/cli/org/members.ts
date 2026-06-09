@@ -6,8 +6,8 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const orgMembersListCommand = new Command("members")
   .description("List members of the authenticated user's organization")
-  .option("--cursor <value>", "cursor")
-  .option("--limit <value>", "limit")
+  .option("--cursor <value>", "Opaque pagination cursor. Pass the `next_cursor` returned by the previous page to fetch the next slice. Omit on the first call.")
+  .option("--limit <value>", "Maximum members to return. Clamped to [1, 100]. Defaults to 50.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await orgMembersList({

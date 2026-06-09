@@ -7,7 +7,7 @@ import { render } from "../../../handwritten/output/render.js"
 export const eventGetCommand = new Command("show")
   .description("Get a calendar event by id")
   .argument("<id>", "id")
-  .option("--include-deleted <value>", "include_deleted")
+  .option("--include-deleted <value>", "When `true`, return the row even if soft-deleted. Default `false` (returns 404).")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await eventGet({

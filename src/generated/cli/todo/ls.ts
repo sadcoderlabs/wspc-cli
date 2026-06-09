@@ -6,7 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const todoListCommand = new Command("ls")
   .description("List todos with filters")
-  .option("-p, --project <value>", "project_id")
+  .option("-p, --project <value>", "Filter by project. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.")
   .option("--user-id <value>", "user_id")
   .option("--parent-id <value>", "parent_id")
   .option("-s, --status <value>", "status")
@@ -18,8 +18,8 @@ export const todoListCommand = new Command("ls")
   .option("--sort-by <value>", "sort_by")
   .option("--order <value>", "order")
   .option("--include-orphan-fields <value>", "include_orphan_fields")
-  .option("--limit <value>", "limit")
-  .option("--cursor <value>", "cursor")
+  .option("--limit <value>", "Max todos to return. Clamped to [1, 200]. Default 50 server-side.")
+  .option("--cursor <value>", "Opaque pagination cursor returned in `next_cursor` of a previous response.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await todoList({
