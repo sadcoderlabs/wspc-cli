@@ -6,7 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const orgUpdateCommand = new Command("rename")
   .description("Update the authenticated user's organization")
-  .option("--name <value>", "name")
+  .option("--name <value>", "The new name for the organization. Cannot be empty or purely whitespace.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await orgUpdate({

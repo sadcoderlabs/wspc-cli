@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -717,7 +717,7 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  * Create a receiving alias
  *
  * ### Overview
- * Reserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain. All inbound emails received on this alias will be forwarded into the caller's inbox.
+ * Reserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.
  *
  * ### When to Use
  * - Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.
@@ -725,17 +725,73 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  * ### Constraints
  * - Requires a valid Bearer token in the `Authorization` header.
  * - **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
+ * - **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization and have `status = verified`, `sending_status = verified`, and `receiving_status = verified`.
  * - **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Bearer token is missing, invalid, or expired.
  * - **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.
+ * - **400 Bad Request / DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.
+ * - **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.
+ * - **400 Bad Request / CUSTOM_DOMAIN_NOT_READY**: The custom domain exists but has not completed sending or receiving verification.
  * - **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).
  * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.
  */
 export const emailAliasCreate = <ThrowOnError extends boolean = false>(options: Options<EmailAliasCreateData, ThrowOnError>) => (options.client ?? client).post<EmailAliasCreateResponses, EmailAliasCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/email/aliases',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List cached custom domains
+ *
+ * ### Overview
+ * Returns the caller organization's cached custom email domains from D1. This route does not call the upstream provider.
+ *
+ * ### When to Use
+ * - Use this to render an admin view of all registered domains and their latest known verification state.
+ * - Use it to inspect DNS records that were previously fetched during create or verify operations.
+ * - The cached state includes DNS ownership, sending readiness, and receiving readiness used by custom-domain alias creation.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Results are scoped to the caller organization and sorted newest-first by creation time.
+ */
+export const emailDomainList = <ThrowOnError extends boolean = false>(options?: Options<EmailDomainListData, ThrowOnError>) => (options?.client ?? client).get<EmailDomainListResponses, EmailDomainListErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/domains',
+    ...options
+});
+
+/**
+ * Register a custom email domain
+ *
+ * ### Overview
+ * Registers a new organization-owned custom email domain with the upstream provider and caches the returned DNS verification records in D1.
+ *
+ * ### When to Use
+ * - Use this endpoint when onboarding a new custom email domain such as `mail.example.com`.
+ * - The response contains the DNS records the organization must publish before the domain can be verified.
+ * - This route registers the domain and returns DNS records. Custom-domain aliases require `status`, `sending_status`, and `receiving_status` to all be `verified`.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Domain ownership is globally unique across the platform. Once any organization has reserved a domain, another org cannot register it.
+ * - This route requires custom domain provider credentials in production because it performs a live provider registration call.
+ *
+ * ### Troubleshooting
+ * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The hostname is malformed or belongs to the platform (`wspc.app`, `wspc.ai`, or their subdomains).
+ * - **409 Conflict / DOMAIN_CONFLICT**: The domain is already registered by some organization.
+ * - **502 Bad Gateway / DOMAIN_PROVIDER_ERROR**: The upstream provider request failed, timed out, or returned an unexpected shape.
+ */
+export const emailDomainCreate = <ThrowOnError extends boolean = false>(options: Options<EmailDomainCreateData, ThrowOnError>) => (options.client ?? client).post<EmailDomainCreateResponses, EmailDomainCreateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/domains',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -820,6 +876,30 @@ export const emailDelete = <ThrowOnError extends boolean = false>(options: Optio
 export const emailAttachmentGet = <ThrowOnError extends boolean = false>(options: Options<EmailAttachmentGetData, ThrowOnError>) => (options.client ?? client).get<EmailAttachmentGetResponses, EmailAttachmentGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/email/messages/{id}/attachments/{idx}',
+    ...options
+});
+
+/**
+ * Get one cached custom domain
+ *
+ * ### Overview
+ * Returns the caller organization's cached state for one custom email domain. This is a pure D1 read and never calls the upstream provider.
+ *
+ * ### When to Use
+ * - Use this to inspect the latest cached DNS records or verification status for a single domain.
+ * - This cached view includes ownership, sending readiness, and receiving readiness state for custom-domain alias decisions.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - The `{domain}` path parameter is normalized and validated server-side before lookup.
+ *
+ * ### Troubleshooting
+ * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The path hostname is malformed or reserved.
+ * - **404 Not Found / DOMAIN_NOT_FOUND**: The domain does not exist or belongs to another organization.
+ */
+export const emailDomainGet = <ThrowOnError extends boolean = false>(options: Options<EmailDomainGetData, ThrowOnError>) => (options.client ?? client).get<EmailDomainGetResponses, EmailDomainGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/domains/{domain}',
     ...options
 });
 
@@ -1014,6 +1094,34 @@ export const emailSend = <ThrowOnError extends boolean = false>(options: Options
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Verify a custom domain with the provider
+ *
+ * ### Overview
+ * Triggers an upstream provider verification attempt for one custom email domain, refreshes the cached DNS records/status in D1, and returns the updated row.
+ * This route refreshes DNS registration and verification state. Custom-domain aliases require `status`, `sending_status`, and `receiving_status` to all be `verified`.
+ *
+ * ### When to Use
+ * - Use this after publishing the required DNS records, or whenever you want to refresh cached provider state explicitly.
+ * - If the provider verify call returns incomplete DNS records, the worker performs a follow-up provider read before responding.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - This route requires custom domain provider credentials in production because it performs live provider calls.
+ * - Verification is asynchronous provider work; a successful response may still report `status: pending`.
+ * - `status: verified` plus `sending_status: verified` enables custom-domain outbound send for active aliases; `receiving_status: verified` is also required before new custom-domain aliases can be created.
+ *
+ * ### Troubleshooting
+ * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The path hostname is malformed or reserved.
+ * - **404 Not Found / DOMAIN_NOT_FOUND**: The domain does not exist or belongs to another organization.
+ * - **502 Bad Gateway / DOMAIN_PROVIDER_ERROR**: Provider verification failed, timed out, or credentials are missing.
+ */
+export const emailDomainVerify = <ThrowOnError extends boolean = false>(options: Options<EmailDomainVerifyData, ThrowOnError>) => (options.client ?? client).post<EmailDomainVerifyResponses, EmailDomainVerifyErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/domains/{domain}/verify',
+    ...options
 });
 
 /**

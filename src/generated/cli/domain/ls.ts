@@ -1,19 +1,15 @@
-// AUTO-GENERATED — DO NOT EDIT (source: org_invite_create)
+// AUTO-GENERATED — DO NOT EDIT (source: email_domain_list)
 import { Command } from "commander"
-import { orgInviteCreate } from "../../sdk/index.js"
+import { emailDomainList } from "../../sdk/index.js"
 import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 import { render } from "../../../handwritten/output/render.js"
 
-export const orgInviteCreateCommand = new Command("invite")
-  .description("Invite an email to join the caller's organization")
-  .option("--email <value>", "Email address to invite into the caller's organization.")
+export const emailDomainListCommand = new Command("ls")
+  .description("List cached custom domains")
   .action(async (opts) => {
     const client = await loadSdkClient()
-    const result = await orgInviteCreate({
+    const result = await emailDomainList({
       client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      body: {
-        email: opts.email,
-      },
     })
     if (result.error || !result.response?.ok) {
       process.stderr.write(
@@ -22,5 +18,5 @@ export const orgInviteCreateCommand = new Command("invite")
       process.exitCode = 1
       return
     }
-    render({ kind: "org_invite_create", display: {"shape":"object","fields":["id","email","state","expires_at","invite_url"]} }, result.data)
+    render({ kind: "email_domain_list", display: {"shape":"list","columns":["domain","status","sending_status","receiving_status","updated_at"],"format":{"updated_at":"relative-time","verified_at":"relative-time"},"emptyMessage":"no domains","dataPath":"domains"} }, result.data)
   })

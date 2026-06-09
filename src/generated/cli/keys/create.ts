@@ -6,7 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const keyCreateCommand = new Command("create")
   .description("Create a new API key (full value returned once)")
-  .option("--label <value>", "label")
+  .option("--label <value>", "Human-readable label for the new key (1–60 chars after trimming). Pick something that identifies where the key will live — agent name, machine, or environment — so you can recognise it later in `wspc keys list`.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await keyCreate({

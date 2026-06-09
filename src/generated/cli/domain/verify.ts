@@ -1,22 +1,18 @@
-// AUTO-GENERATED — DO NOT EDIT (source: key_update)
+// AUTO-GENERATED — DO NOT EDIT (source: email_domain_verify)
 import { Command } from "commander"
-import { keyUpdate } from "../../sdk/index.js"
+import { emailDomainVerify } from "../../sdk/index.js"
 import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 import { render } from "../../../handwritten/output/render.js"
 
-export const keyUpdateCommand = new Command("edit")
-  .description("Update an active API key's label")
-  .argument("<id>", "id")
-  .option("--label <value>", "Human-readable label for the key (1–60 chars after trimming).")
-  .action(async (id, opts) => {
+export const emailDomainVerifyCommand = new Command("verify")
+  .description("Verify a custom domain with the provider")
+  .argument("<domain>", "domain")
+  .action(async (domain, opts) => {
     const client = await loadSdkClient()
-    const result = await keyUpdate({
+    const result = await emailDomainVerify({
       client: (client as unknown as { _rawClient: unknown })._rawClient as never,
       path: {
-        id,
-      },
-      body: {
-        label: opts.label,
+        domain,
       },
     })
     if (result.error || !result.response?.ok) {
@@ -26,5 +22,5 @@ export const keyUpdateCommand = new Command("edit")
       process.exitCode = 1
       return
     }
-    render({ kind: "key_update", display: undefined }, result.data)
+    render({ kind: "email_domain_verify", display: {"shape":"object","format":{"created_at":"relative-time","updated_at":"relative-time","verified_at":"relative-time"},"dataPath":"domain"} }, result.data)
   })

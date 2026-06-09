@@ -1243,7 +1243,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "description": "Full alias address under @wspc.app, for example alice-shop@wspc.app."
+            "description": "Full alias address under the platform email domain or a fully verified organization custom domain, for example alice-shop@wspc.app or alice-shop@example.com."
           }
         },
         "required": [
@@ -1280,6 +1280,151 @@
           "org_id",
           "user_id",
           "created_at"
+        ]
+      },
+      "CreateDomainBody": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "Custom domain hostname to register with the provider, for example `mail.example.com`."
+          }
+        },
+        "required": [
+          "domain"
+        ]
+      },
+      "EmailDomainObjectResponse": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "object",
+            "properties": {
+              "domain": {
+                "type": "string",
+                "description": "Normalized lowercase ASCII hostname for the registered custom domain."
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "verified",
+                  "failed",
+                  "temporary_failure"
+                ],
+                "description": "Overall upstream provider status for DNS ownership verification."
+              },
+              "sending_status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "verified",
+                  "failed",
+                  "disabled"
+                ],
+                "description": "Provider-side sending readiness signal for this domain registration. Custom-domain aliases can send only when this value is `verified`."
+              },
+              "receiving_status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "verified",
+                  "failed",
+                  "disabled"
+                ],
+                "description": "Provider-side receiving readiness signal for this domain registration. Custom-domain aliases can be created only when this value is `verified`."
+              },
+              "records": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "TXT",
+                        "CNAME",
+                        "MX"
+                      ],
+                      "description": "DNS record type required by the upstream domain provider."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "DNS hostname to create or update."
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "Expected DNS record value."
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "verified",
+                        "failed"
+                      ],
+                      "description": "Latest provider verification status for this individual DNS record."
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "enum": [
+                        "identity_verification",
+                        "dkim",
+                        "mail_from",
+                        "receiving_mx"
+                      ],
+                      "description": "Why this DNS record is required, when the provider returns a purpose hint."
+                    },
+                    "ttl": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "description": "Requested TTL in seconds, if the provider specifies one."
+                    },
+                    "priority": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "MX priority, when applicable."
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "name",
+                    "value",
+                    "status"
+                  ]
+                },
+                "description": "DNS records currently cached from the provider for ownership verification."
+              },
+              "region": {
+                "type": "string",
+                "description": "Provider region hint, when returned by the upstream provider."
+              },
+              "created_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds when the local cache row was created."
+              },
+              "updated_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds when the local cache row was last refreshed."
+              },
+              "verified_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds when the domain last reached overall `verified` status. Omitted until the first successful verification."
+              }
+            },
+            "required": [
+              "domain",
+              "status",
+              "sending_status",
+              "receiving_status",
+              "records",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        },
+        "required": [
+          "domain"
         ]
       },
       "BatchIdsBody": {
@@ -1328,6 +1473,18 @@
           }
         }
       },
+      "EmailDomainParam": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "Custom domain hostname path parameter. URL-encode if your client requires it."
+          }
+        },
+        "required": [
+          "domain"
+        ]
+      },
       "GetEmailQuery": {
         "type": "object",
         "properties": {
@@ -1349,6 +1506,142 @@
             "description": "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`."
           }
         }
+      },
+      "EmailDomainListResponse": {
+        "type": "object",
+        "properties": {
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "domain": {
+                  "type": "string",
+                  "description": "Normalized lowercase ASCII hostname for the registered custom domain."
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "verified",
+                    "failed",
+                    "temporary_failure"
+                  ],
+                  "description": "Overall upstream provider status for DNS ownership verification."
+                },
+                "sending_status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "verified",
+                    "failed",
+                    "disabled"
+                  ],
+                  "description": "Provider-side sending readiness signal for this domain registration. Custom-domain aliases can send only when this value is `verified`."
+                },
+                "receiving_status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "verified",
+                    "failed",
+                    "disabled"
+                  ],
+                  "description": "Provider-side receiving readiness signal for this domain registration. Custom-domain aliases can be created only when this value is `verified`."
+                },
+                "records": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "TXT",
+                          "CNAME",
+                          "MX"
+                        ],
+                        "description": "DNS record type required by the upstream domain provider."
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "DNS hostname to create or update."
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "Expected DNS record value."
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "pending",
+                          "verified",
+                          "failed"
+                        ],
+                        "description": "Latest provider verification status for this individual DNS record."
+                      },
+                      "purpose": {
+                        "type": "string",
+                        "enum": [
+                          "identity_verification",
+                          "dkim",
+                          "mail_from",
+                          "receiving_mx"
+                        ],
+                        "description": "Why this DNS record is required, when the provider returns a purpose hint."
+                      },
+                      "ttl": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "description": "Requested TTL in seconds, if the provider specifies one."
+                      },
+                      "priority": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "MX priority, when applicable."
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "name",
+                      "value",
+                      "status"
+                    ]
+                  },
+                  "description": "DNS records currently cached from the provider for ownership verification."
+                },
+                "region": {
+                  "type": "string",
+                  "description": "Provider region hint, when returned by the upstream provider."
+                },
+                "created_at": {
+                  "type": "number",
+                  "description": "Unix epoch milliseconds when the local cache row was created."
+                },
+                "updated_at": {
+                  "type": "number",
+                  "description": "Unix epoch milliseconds when the local cache row was last refreshed."
+                },
+                "verified_at": {
+                  "type": "number",
+                  "description": "Unix epoch milliseconds when the domain last reached overall `verified` status. Omitted until the first successful verification."
+                }
+              },
+              "required": [
+                "domain",
+                "status",
+                "sending_status",
+                "receiving_status",
+                "records",
+                "created_at",
+                "updated_at"
+              ]
+            }
+          }
+        },
+        "required": [
+          "domains"
+        ]
       },
       "ListEmailsQuery": {
         "type": "object",
@@ -14743,7 +15036,7 @@
           "EmailAliases"
         ],
         "summary": "Create a receiving alias",
-        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.",
+        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization and have `status = verified`, `sending_status = verified`, and `receiving_status = verified`.\n- **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **400 Bad Request / DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.\n- **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.\n- **400 Bad Request / CUSTOM_DOMAIN_NOT_READY**: The custom domain exists but has not completed sending or receiving verification.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.",
         "security": [
           {
             "bearerAuth": []
@@ -14795,6 +15088,12 @@
                   "value": {
                     "email": "alice-bills@wspc.app"
                   }
+                },
+                "customDomain": {
+                  "summary": "Fully verified custom domain alias",
+                  "value": {
+                    "email": "alice-shop@example.com"
+                  }
                 }
               }
             }
@@ -14823,7 +15122,7 @@
             }
           },
           "400": {
-            "description": "Invalid alias email address, local part, or reserved local part.",
+            "description": "Invalid alias email address, local part, reserved local part, missing custom domain, unverified custom domain, or custom domain that is not ready for both sending and receiving.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15133,6 +15432,615 @@
                     "summary": "No aliases yet",
                     "value": {
                       "items": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "rate limit exceeded",
+                        "extra": {
+                          "retry_after_seconds": 60,
+                          "limit_kind": "authenticated_per_key"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/domains": {
+      "post": {
+        "operationId": "email_domain_create",
+        "tags": [
+          "EmailDomains"
+        ],
+        "summary": "Register a custom email domain",
+        "description": "### Overview\nRegisters a new organization-owned custom email domain with the upstream provider and caches the returned DNS verification records in D1.\n\n### When to Use\n- Use this endpoint when onboarding a new custom email domain such as `mail.example.com`.\n- The response contains the DNS records the organization must publish before the domain can be verified.\n- This route registers the domain and returns DNS records. Custom-domain aliases require `status`, `sending_status`, and `receiving_status` to all be `verified`.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- Domain ownership is globally unique across the platform. Once any organization has reserved a domain, another org cannot register it.\n- This route requires custom domain provider credentials in production because it performs a live provider registration call.\n\n### Troubleshooting\n- **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The hostname is malformed or belongs to the platform (`wspc.app`, `wspc.ai`, or their subdomains).\n- **409 Conflict / DOMAIN_CONFLICT**: The domain is already registered by some organization.\n- **502 Bad Gateway / DOMAIN_PROVIDER_ERROR**: The upstream provider request failed, timed out, or returned an unexpected shape.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cli": {
+          "command": "domain add",
+          "positional": [
+            "domain"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "verified_at": "relative-time"
+            },
+            "dataPath": "domain"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/email/domains \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"domain\":\"mail.example.com\"}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc email domain add mail.example.com"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDomainBody"
+              },
+              "examples": {
+                "minimal": {
+                  "summary": "Register one custom domain",
+                  "value": {
+                    "domain": "mail.example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Custom domain registered and DNS verification records returned. Custom-domain aliases require full domain readiness before use.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailDomainObjectResponse"
+                },
+                "examples": {
+                  "happyPath": {
+                    "summary": "Pending verification with DNS instructions",
+                    "value": {
+                      "domain": {
+                        "domain": "mail.example.com",
+                        "status": "pending",
+                        "sending_status": "pending",
+                        "receiving_status": "pending",
+                        "records": [
+                          {
+                            "type": "TXT",
+                            "name": "mail.example.com",
+                            "value": "pm-domain-verification=abc123",
+                            "status": "pending",
+                            "ttl": 3600,
+                            "purpose": "identity_verification"
+                          },
+                          {
+                            "type": "CNAME",
+                            "name": "selector1._domainkey.mail.example.com",
+                            "value": "selector1.domainkey.example.net",
+                            "status": "pending",
+                            "purpose": "dkim"
+                          }
+                        ],
+                        "region": "us-east-1",
+                        "created_at": 1780166400000,
+                        "updated_at": 1780166400000
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or platform-reserved domain hostname.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "This domain is already registered by an organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "rate limit exceeded",
+                        "extra": {
+                          "retry_after_seconds": 60,
+                          "limit_kind": "authenticated_per_key"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The upstream provider call failed or provider credentials are missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "email_domain_list",
+        "tags": [
+          "EmailDomains"
+        ],
+        "summary": "List cached custom domains",
+        "description": "### Overview\nReturns the caller organization's cached custom email domains from D1. This route does not call the upstream provider.\n\n### When to Use\n- Use this to render an admin view of all registered domains and their latest known verification state.\n- Use it to inspect DNS records that were previously fetched during create or verify operations.\n- The cached state includes DNS ownership, sending readiness, and receiving readiness used by custom-domain alias creation.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- Results are scoped to the caller organization and sorted newest-first by creation time.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cli": {
+          "command": "domain ls",
+          "display": {
+            "shape": "list",
+            "columns": [
+              "domain",
+              "status",
+              "sending_status",
+              "receiving_status",
+              "updated_at"
+            ],
+            "format": {
+              "updated_at": "relative-time",
+              "verified_at": "relative-time"
+            },
+            "emptyMessage": "no domains",
+            "dataPath": "domains"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/email/domains \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc email domain ls"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Custom domains cached for the caller organization, including ownership, sending readiness, and receiving readiness state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailDomainListResponse"
+                },
+                "examples": {
+                  "happyPath": {
+                    "summary": "Two cached domains",
+                    "value": {
+                      "domains": [
+                        {
+                          "domain": "mail.example.com",
+                          "status": "pending",
+                          "sending_status": "pending",
+                          "receiving_status": "pending",
+                          "records": [
+                            {
+                              "type": "TXT",
+                              "name": "mail.example.com",
+                              "value": "pm-domain-verification=abc123",
+                              "status": "pending",
+                              "ttl": 3600,
+                              "purpose": "identity_verification"
+                            },
+                            {
+                              "type": "CNAME",
+                              "name": "selector1._domainkey.mail.example.com",
+                              "value": "selector1.domainkey.example.net",
+                              "status": "pending",
+                              "purpose": "dkim"
+                            }
+                          ],
+                          "region": "us-east-1",
+                          "created_at": 1780166400000,
+                          "updated_at": 1780166400000
+                        },
+                        {
+                          "domain": "reply.example.com",
+                          "status": "verified",
+                          "sending_status": "verified",
+                          "receiving_status": "disabled",
+                          "records": [
+                            {
+                              "type": "TXT",
+                              "name": "mail.example.com",
+                              "value": "pm-domain-verification=abc123",
+                              "status": "verified",
+                              "ttl": 3600,
+                              "purpose": "identity_verification"
+                            },
+                            {
+                              "type": "CNAME",
+                              "name": "selector1._domainkey.mail.example.com",
+                              "value": "selector1.domainkey.example.net",
+                              "status": "verified",
+                              "purpose": "dkim"
+                            }
+                          ],
+                          "region": "us-east-1",
+                          "created_at": 1780166400000,
+                          "updated_at": 1780167000000,
+                          "verified_at": 1780167000000
+                        }
+                      ]
+                    }
+                  },
+                  "empty": {
+                    "summary": "No custom domains yet",
+                    "value": {
+                      "domains": []
                     }
                   }
                 }
@@ -15915,6 +16823,312 @@
           },
           "404": {
             "description": "Either the parent email is unknown / soft-deleted (`EMAIL_NOT_FOUND`) or `idx` is out of range (`ATTACHMENT_NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "rate limit exceeded",
+                        "extra": {
+                          "retry_after_seconds": 60,
+                          "limit_kind": "authenticated_per_key"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/domains/{domain}": {
+      "get": {
+        "operationId": "email_domain_get",
+        "tags": [
+          "EmailDomains"
+        ],
+        "summary": "Get one cached custom domain",
+        "description": "### Overview\nReturns the caller organization's cached state for one custom email domain. This is a pure D1 read and never calls the upstream provider.\n\n### When to Use\n- Use this to inspect the latest cached DNS records or verification status for a single domain.\n- This cached view includes ownership, sending readiness, and receiving readiness state for custom-domain alias decisions.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- The `{domain}` path parameter is normalized and validated server-side before lookup.\n\n### Troubleshooting\n- **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The path hostname is malformed or reserved.\n- **404 Not Found / DOMAIN_NOT_FOUND**: The domain does not exist or belongs to another organization.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cli": {
+          "command": "domain show",
+          "positional": [
+            "domain"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "verified_at": "relative-time"
+            },
+            "dataPath": "domain"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/email/domains/mail.example.com \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc email domain show mail.example.com"
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Custom domain hostname path parameter. URL-encode if your client requires it."
+            },
+            "required": true,
+            "description": "Custom domain hostname path parameter. URL-encode if your client requires it.",
+            "name": "domain",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One custom domain cached for the caller organization, including ownership, sending readiness, and receiving readiness state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailDomainObjectResponse"
+                },
+                "examples": {
+                  "happyPath": {
+                    "summary": "Pending domain cache row",
+                    "value": {
+                      "domain": {
+                        "domain": "mail.example.com",
+                        "status": "pending",
+                        "sending_status": "pending",
+                        "receiving_status": "pending",
+                        "records": [
+                          {
+                            "type": "TXT",
+                            "name": "mail.example.com",
+                            "value": "pm-domain-verification=abc123",
+                            "status": "pending",
+                            "ttl": 3600,
+                            "purpose": "identity_verification"
+                          },
+                          {
+                            "type": "CNAME",
+                            "name": "selector1._domainkey.mail.example.com",
+                            "value": "selector1.domainkey.example.net",
+                            "status": "pending",
+                            "purpose": "dkim"
+                          }
+                        ],
+                        "region": "us-east-1",
+                        "created_at": 1780166400000,
+                        "updated_at": 1780166400000
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or platform-reserved domain hostname.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The domain was not found for the caller organization.",
             "content": {
               "application/json": {
                 "schema": {
@@ -18415,6 +19629,378 @@
           },
           "502": {
             "description": "The upstream email provider rejected the message. The row is persisted with `status: failed` and `error_code` / `error_message` set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/domains/{domain}/verify": {
+      "post": {
+        "operationId": "email_domain_verify",
+        "tags": [
+          "EmailDomains"
+        ],
+        "summary": "Verify a custom domain with the provider",
+        "description": "### Overview\nTriggers an upstream provider verification attempt for one custom email domain, refreshes the cached DNS records/status in D1, and returns the updated row.\nThis route refreshes DNS registration and verification state. Custom-domain aliases require `status`, `sending_status`, and `receiving_status` to all be `verified`.\n\n### When to Use\n- Use this after publishing the required DNS records, or whenever you want to refresh cached provider state explicitly.\n- If the provider verify call returns incomplete DNS records, the worker performs a follow-up provider read before responding.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- This route requires custom domain provider credentials in production because it performs live provider calls.\n- Verification is asynchronous provider work; a successful response may still report `status: pending`.\n- `status: verified` plus `sending_status: verified` enables custom-domain outbound send for active aliases; `receiving_status: verified` is also required before new custom-domain aliases can be created.\n\n### Troubleshooting\n- **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The path hostname is malformed or reserved.\n- **404 Not Found / DOMAIN_NOT_FOUND**: The domain does not exist or belongs to another organization.\n- **502 Bad Gateway / DOMAIN_PROVIDER_ERROR**: Provider verification failed, timed out, or credentials are missing.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cli": {
+          "command": "domain verify",
+          "positional": [
+            "domain"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "verified_at": "relative-time"
+            },
+            "dataPath": "domain"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/email/domains/mail.example.com/verify \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc email domain verify mail.example.com"
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Custom domain hostname path parameter. URL-encode if your client requires it."
+            },
+            "required": true,
+            "description": "Custom domain hostname path parameter. URL-encode if your client requires it.",
+            "name": "domain",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated cached provider state after a verification attempt, including ownership, sending readiness, and receiving readiness.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailDomainObjectResponse"
+                },
+                "examples": {
+                  "happyPath": {
+                    "summary": "Domain ownership and sending verified; receiving is not ready yet",
+                    "value": {
+                      "domain": {
+                        "domain": "mail.example.com",
+                        "status": "verified",
+                        "sending_status": "verified",
+                        "receiving_status": "disabled",
+                        "records": [
+                          {
+                            "type": "TXT",
+                            "name": "mail.example.com",
+                            "value": "pm-domain-verification=abc123",
+                            "status": "verified",
+                            "ttl": 3600,
+                            "purpose": "identity_verification"
+                          },
+                          {
+                            "type": "CNAME",
+                            "name": "selector1._domainkey.mail.example.com",
+                            "value": "selector1.domainkey.example.net",
+                            "status": "verified",
+                            "purpose": "dkim"
+                          }
+                        ],
+                        "region": "us-east-1",
+                        "created_at": 1780166400000,
+                        "updated_at": 1780167000000,
+                        "verified_at": 1780167000000
+                      }
+                    }
+                  },
+                  "stillPending": {
+                    "summary": "Provider accepted verify request but DNS is not ready yet",
+                    "value": {
+                      "domain": {
+                        "domain": "mail.example.com",
+                        "status": "pending",
+                        "sending_status": "pending",
+                        "receiving_status": "pending",
+                        "records": [
+                          {
+                            "type": "TXT",
+                            "name": "mail.example.com",
+                            "value": "pm-domain-verification=abc123",
+                            "status": "pending",
+                            "ttl": 3600,
+                            "purpose": "identity_verification"
+                          },
+                          {
+                            "type": "CNAME",
+                            "name": "selector1._domainkey.mail.example.com",
+                            "value": "selector1.domainkey.example.net",
+                            "status": "pending",
+                            "purpose": "dkim"
+                          }
+                        ],
+                        "region": "us-east-1",
+                        "created_at": 1780166400000,
+                        "updated_at": 1780166400000
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or platform-reserved domain hostname.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The domain was not found for the caller organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "rate limit exceeded",
+                        "extra": {
+                          "retry_after_seconds": 60,
+                          "limit_kind": "authenticated_per_key"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The upstream provider call failed or provider credentials are missing.",
             "content": {
               "application/json": {
                 "schema": {
@@ -31024,6 +32610,10 @@
     {
       "name": "EmailAliases",
       "description": "User-managed @wspc.app email aliases that route inbound mail to the user's inbox."
+    },
+    {
+      "name": "EmailDomains",
+      "description": "EmailDomains endpoints."
     },
     {
       "name": "Emails",
