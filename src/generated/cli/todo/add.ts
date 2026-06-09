@@ -3,6 +3,7 @@ import { Command } from "commander"
 import { todoCreate } from "../../sdk/index.js"
 import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 import { render } from "../../../handwritten/output/render.js"
+import { parseJsonField } from "../../../handwritten/utils/parse-json-field.js"
 
 export const todoCreateCommand = new Command("add")
   .description("Create a todo")
@@ -26,7 +27,7 @@ export const todoCreateCommand = new Command("add")
         status: opts.status,
         due_at: opts.dueAt,
         type_id: opts.typeId,
-        custom_fields: opts.customFields,
+        custom_fields: parseJsonField(opts.customFields, "custom-fields"),
       },
     })
     if (result.error || !result.response?.ok) {

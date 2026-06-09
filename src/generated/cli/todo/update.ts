@@ -3,6 +3,7 @@ import { Command } from "commander"
 import { todoUpdate } from "../../sdk/index.js"
 import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 import { render } from "../../../handwritten/output/render.js"
+import { parseJsonField } from "../../../handwritten/utils/parse-json-field.js"
 
 export const todoUpdateCommand = new Command("update")
   .description("Update a todo")
@@ -31,7 +32,7 @@ export const todoUpdateCommand = new Command("update")
         status: opts.status,
         due_at: opts.dueAt,
         type_id: opts.typeId,
-        custom_fields: opts.customFields,
+        custom_fields: parseJsonField(opts.customFields, "custom-fields"),
         user_id: opts.userId,
       },
     })
