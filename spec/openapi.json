@@ -15617,7 +15617,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc email domain add mail.example.com"
+            "source": "wspc domain add mail.example.com"
           }
         ],
         "requestBody": {
@@ -15965,7 +15965,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc email domain ls"
+            "source": "wspc domain ls"
           }
         ],
         "responses": {
@@ -16989,7 +16989,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc email domain show mail.example.com"
+            "source": "wspc domain show mail.example.com"
           }
         ],
         "parameters": [
@@ -19701,7 +19701,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc email domain verify mail.example.com"
+            "source": "wspc domain verify mail.example.com"
           }
         ],
         "parameters": [
@@ -32609,11 +32609,11 @@
     },
     {
       "name": "EmailAliases",
-      "description": "User-managed @wspc.app email aliases that route inbound mail to the user's inbox."
+      "description": "User-managed platform-domain or fully verified custom-domain email aliases that route inbound mail to the user's inbox."
     },
     {
       "name": "EmailDomains",
-      "description": "EmailDomains endpoints."
+      "description": "Organization-managed custom email domains, including DNS verification records and cached provider status."
     },
     {
       "name": "Emails",
