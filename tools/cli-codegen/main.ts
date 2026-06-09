@@ -8,6 +8,7 @@ const OUT_DIR = "src/generated/cli"
 
 interface SchemaLike {
   type?: string
+  description?: string
   properties?: Record<string, SchemaLike>
   required?: string[]
   $ref?: string
@@ -18,6 +19,7 @@ interface ParameterLike {
   name: string
   in: "path" | "query" | "header" | "cookie"
   required?: boolean
+  description?: string
   schema?: SchemaLike
 }
 
@@ -100,6 +102,7 @@ function extractBodyFields(
         name,
         type: (def.type as BodyField["type"]) ?? "string",
         required: required.has(name),
+        description: def.description,
       }))
     }
   }
@@ -109,6 +112,7 @@ function extractBodyFields(
     name,
     type: (def.type as BodyField["type"]) ?? "string",
     required: required.has(name),
+    description: def.description,
   }))
 }
 
@@ -125,6 +129,7 @@ function extractQueryFields(op: OperationLike): BodyField[] {
       name: p.name,
       type: (p.schema?.type as BodyField["type"]) ?? "string",
       required: p.required ?? false,
+      description: p.description ?? p.schema?.description,
     }))
 }
 
