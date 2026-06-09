@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { idShort, truncate, statusBadge, relativeTime } from "../src/handwritten/output/primitives.js"
+import { idShort, truncate, statusBadge, relativeTime, wrapToWidth } from "../src/handwritten/output/primitives.js"
 
 function stripAnsi(s: string): string {
   return s.replace(/\x1b\[[0-9;]*m/g, "")
@@ -82,5 +82,43 @@ describe("relativeTime", () => {
 
   it("returns the raw value on parse failure", () => {
     expect(relativeTime("not-a-date", NOW)).toBe("not-a-date")
+  })
+})
+
+describe("wrapToWidth", () => {
+  it("keeps a short single line intact", () => {
+    expect(wrapToWidth("hello world", 80)).toEqual(["hello world"])
+  })
+
+  it("word-wraps English at spaces", () => {
+    expect(wrapToWidth("aaa bbb ccc ddd", 7)).toEqual(["aaa bbb", "ccc ddd"])
+  })
+
+  it("preserves existing newlines (one wrap per source line)", () => {
+    expect(wrapToWidth("para one\n\npara two", 80)).toEqual([
+      "para one",
+      "",
+      "para two",
+    ])
+  })
+
+  it("hard-breaks a long spaceless CJK run by visible width", () => {
+    // 6 full-width chars = width 12; wrap at 6 -> 3 chars per line
+    const lines = wrapToWidth("中文字測試串", 6)
+    expect(lines).toEqual(["中文字", "測試串"])
+  })
+
+  it("counts CJK as width 2 when packing", () => {
+    // "中" is width 2; at width 4 only two fit per line
+    expect(wrapToWidth("中中中中中", 4)).toEqual(["中中", "中中", "中"])
+  })
+
+  it("does not loop forever when width is smaller than one CJK char", () => {
+    // "中" is visible width 2; width 1 cannot fit it. Emit it intact rather than hang.
+    expect(wrapToWidth("中", 1)).toEqual(["中"])
+  })
+
+  it("emits an over-wide single char intact instead of hanging", () => {
+    expect(wrapToWidth("中文", 1)).toEqual(["中", "文"])
   })
 })

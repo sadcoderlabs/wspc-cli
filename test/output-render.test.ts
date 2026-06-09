@@ -27,6 +27,7 @@ function stripAnsi(s: string): string {
 
 describe("render", () => {
   const origTTY = process.stdout.isTTY
+  const origColumns = process.stdout.columns
   const origEnv = process.env.WSPC_OUTPUT
   let cap: ReturnType<typeof captureStdout>
 
@@ -40,6 +41,7 @@ describe("render", () => {
   afterEach(() => {
     cap.restore()
     Object.defineProperty(process.stdout, "isTTY", { value: origTTY, configurable: true })
+    Object.defineProperty(process.stdout, "columns", { value: origColumns, configurable: true })
     if (origEnv === undefined) delete process.env.WSPC_OUTPUT
     else process.env.WSPC_OUTPUT = origEnv
   })
@@ -305,6 +307,116 @@ describe("render", () => {
     const out = stripAnsi(cap.output())
     expect(out).not.toContain("This is the only time you'll see this key")
     expect(out).not.toContain("wspc env add")
+  })
+
+  it("renders a long description as an indented block, not truncated", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 40, configurable: true })
+    const longDesc = "x".repeat(120)
+    render(
+      { kind: "todo_get", display: { shape: "object", format: { description: "truncate" } } },
+      { id: "tod_1", title: "short", description: longDesc },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).not.toContain("…")
+    expect(out.replace(/\s/g, "")).toContain("x".repeat(120))
+    expect(out).toMatch(/\n {2}description\n {4}x/)
+  })
+
+  it("keeps short scalar fields as aligned two-column rows", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    render(
+      { kind: "todo_get", display: { shape: "object", format: { title: "truncate" } } },
+      { id: "tod_1", title: "Buy milk" },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toMatch(/ {2}title {2,}Buy milk/)
+  })
+
+  it("does not emit a leading blank line when every field is a block", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 30, configurable: true })
+    render(
+      { kind: "x", display: { shape: "object" } },
+      { note: "line one\nline two that is fairly long here" },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out.startsWith("\n")).toBe(false)
+    expect(out).toMatch(/^ {2}note\n {4}line one/)
+  })
+
+  it("renders children as id-short + status badge + title items", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    render(
+      { kind: "todo_get", display: { shape: "object", format: { id: "id-short" } } },
+      {
+        id: "tod_parent", title: "parent", status: "open", child_count: 2,
+        children: [
+          { id: "tod_aaaaaaaa1", title: "first sub", status: "open" },
+          { id: "tod_bbbbbbbb2", title: "second sub", status: "done" },
+        ],
+      },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("children")
+    expect(out).toContain("first sub")
+    expect(out).toContain("second sub")
+    expect(out).not.toContain('{"id"')
+  })
+
+  it("lists all children without the 10-item array cap", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    const children = Array.from({ length: 14 }, (_, i) => ({
+      id: `tod_${String(i).padStart(8, "0")}`, title: `sub ${i}`, status: "open",
+    }))
+    render(
+      { kind: "todo_get", display: { shape: "object" } },
+      { id: "tod_parent", title: "p", status: "open", child_count: 14, children },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("sub 13")
+    expect(out).not.toContain("more")
+  })
+
+  it("renders comments as id-short + relative-time + truncated content", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    render(
+      { kind: "todo_get", display: { shape: "object" } },
+      {
+        id: "tod_parent", title: "p", status: "open",
+        comments: [
+          { id: "tdc_aaaaaaaa1", content: "first note", created_at: 1748736000000 },
+          { id: "tdc_bbbbbbbb2", content: "second note", created_at: 1748736000000 },
+        ],
+      },
+    )
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("comments")
+    expect(out).toContain("first note")
+    expect(out).toContain("second note")
+    expect(out).not.toContain('{"id"')
+  })
+
+  it("truncates long comment content in the inline list", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    const long = "x".repeat(200)
+    render(
+      { kind: "todo_get", display: { shape: "object" } },
+      { id: "tod_p", title: "p", status: "open", comments: [{ id: "tdc_1", content: long, created_at: 1748736000000 }] },
+    )
+    const out = stripAnsi(cap.output())
+    // content is truncated to a snippet (ellipsis), NOT the full 200 chars
+    expect(out).toContain("…")
+    expect(out).not.toContain("x".repeat(200))
+  })
+
+  it("lists all comments without the 10-item cap", () => {
+    Object.defineProperty(process.stdout, "columns", { value: 80, configurable: true })
+    const comments = Array.from({ length: 13 }, (_, i) => ({
+      id: `tdc_${String(i).padStart(8, "0")}`, content: `note ${i}`, created_at: 1748736000000,
+    }))
+    render({ kind: "todo_get", display: { shape: "object" } }, { id: "tod_p", title: "p", status: "open", comments })
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("note 12")
+    expect(out).not.toContain("more")
   })
 })
 

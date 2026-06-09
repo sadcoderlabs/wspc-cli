@@ -203,9 +203,9 @@ export type ListOrgMembersQuery = {
      */
     cursor?: string;
     /**
-     * Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response.
+     * Maximum members to return. Clamped to [1, 100]. Defaults to 50.
      */
-    limit?: number;
+    limit?: string;
 };
 
 export type ListOrgMembersResponse = {
@@ -807,7 +807,7 @@ export type UpdateEventBody = {
 
 export type CreateAliasBody = {
     /**
-     * Full alias address under @wspc.app, for example alice-shop@wspc.app.
+     * Full alias address under the platform email domain or a fully verified organization custom domain, for example alice-shop@wspc.app or alice-shop@example.com.
      */
     email: string;
 };
@@ -835,6 +835,83 @@ export type Alias = {
     deleted_at?: number;
 };
 
+export type CreateDomainBody = {
+    /**
+     * Custom domain hostname to register with the provider, for example `mail.example.com`.
+     */
+    domain: string;
+};
+
+export type EmailDomainObjectResponse = {
+    domain: {
+        /**
+         * Normalized lowercase ASCII hostname for the registered custom domain.
+         */
+        domain: string;
+        /**
+         * Overall upstream provider status for DNS ownership verification.
+         */
+        status: 'pending' | 'verified' | 'failed' | 'temporary_failure';
+        /**
+         * Provider-side sending readiness signal for this domain registration. Custom-domain aliases can send only when this value is `verified`.
+         */
+        sending_status: 'pending' | 'verified' | 'failed' | 'disabled';
+        /**
+         * Provider-side receiving readiness signal for this domain registration. Custom-domain aliases can be created only when this value is `verified`.
+         */
+        receiving_status: 'pending' | 'verified' | 'failed' | 'disabled';
+        /**
+         * DNS records currently cached from the provider for ownership verification.
+         */
+        records: Array<{
+            /**
+             * DNS record type required by the upstream domain provider.
+             */
+            type: 'TXT' | 'CNAME' | 'MX';
+            /**
+             * DNS hostname to create or update.
+             */
+            name: string;
+            /**
+             * Expected DNS record value.
+             */
+            value: string;
+            /**
+             * Latest provider verification status for this individual DNS record.
+             */
+            status: 'pending' | 'verified' | 'failed';
+            /**
+             * Why this DNS record is required, when the provider returns a purpose hint.
+             */
+            purpose?: 'identity_verification' | 'dkim' | 'mail_from' | 'receiving_mx';
+            /**
+             * Requested TTL in seconds, if the provider specifies one.
+             */
+            ttl?: number;
+            /**
+             * MX priority, when applicable.
+             */
+            priority?: number;
+        }>;
+        /**
+         * Provider region hint, when returned by the upstream provider.
+         */
+        region?: string;
+        /**
+         * Unix epoch milliseconds when the local cache row was created.
+         */
+        created_at: number;
+        /**
+         * Unix epoch milliseconds when the local cache row was last refreshed.
+         */
+        updated_at: number;
+        /**
+         * Unix epoch milliseconds when the domain last reached overall `verified` status. Omitted until the first successful verification.
+         */
+        verified_at?: number;
+    };
+};
+
 export type BatchIdsBody = {
     /**
      * Email ids to act on. 1-100 ids per call. All bulk ops (read / unread / delete / restore) are idempotent: ids that are already in the target state are silently no-ops and ids that don't belong to the user (or don't exist) are reported in `not_found` rather than failing the call.
@@ -860,6 +937,13 @@ export type GetAttachmentQuery = {
     include_deleted?: string;
 };
 
+export type EmailDomainParam = {
+    /**
+     * Custom domain hostname path parameter. URL-encode if your client requires it.
+     */
+    domain: string;
+};
+
 export type GetEmailQuery = {
     /**
      * When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text.
@@ -876,6 +960,76 @@ export type ListAliasesQuery = {
      * When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.
      */
     include_deleted?: string;
+};
+
+export type EmailDomainListResponse = {
+    domains: Array<{
+        /**
+         * Normalized lowercase ASCII hostname for the registered custom domain.
+         */
+        domain: string;
+        /**
+         * Overall upstream provider status for DNS ownership verification.
+         */
+        status: 'pending' | 'verified' | 'failed' | 'temporary_failure';
+        /**
+         * Provider-side sending readiness signal for this domain registration. Custom-domain aliases can send only when this value is `verified`.
+         */
+        sending_status: 'pending' | 'verified' | 'failed' | 'disabled';
+        /**
+         * Provider-side receiving readiness signal for this domain registration. Custom-domain aliases can be created only when this value is `verified`.
+         */
+        receiving_status: 'pending' | 'verified' | 'failed' | 'disabled';
+        /**
+         * DNS records currently cached from the provider for ownership verification.
+         */
+        records: Array<{
+            /**
+             * DNS record type required by the upstream domain provider.
+             */
+            type: 'TXT' | 'CNAME' | 'MX';
+            /**
+             * DNS hostname to create or update.
+             */
+            name: string;
+            /**
+             * Expected DNS record value.
+             */
+            value: string;
+            /**
+             * Latest provider verification status for this individual DNS record.
+             */
+            status: 'pending' | 'verified' | 'failed';
+            /**
+             * Why this DNS record is required, when the provider returns a purpose hint.
+             */
+            purpose?: 'identity_verification' | 'dkim' | 'mail_from' | 'receiving_mx';
+            /**
+             * Requested TTL in seconds, if the provider specifies one.
+             */
+            ttl?: number;
+            /**
+             * MX priority, when applicable.
+             */
+            priority?: number;
+        }>;
+        /**
+         * Provider region hint, when returned by the upstream provider.
+         */
+        region?: string;
+        /**
+         * Unix epoch milliseconds when the local cache row was created.
+         */
+        created_at: number;
+        /**
+         * Unix epoch milliseconds when the local cache row was last refreshed.
+         */
+        updated_at: number;
+        /**
+         * Unix epoch milliseconds when the domain last reached overall `verified` status. Omitted until the first successful verification.
+         */
+        verified_at?: number;
+    }>;
 };
 
 export type ListEmailsQuery = {
@@ -1027,9 +1181,9 @@ export type SendEmailResponse = {
          */
         references_header?: string;
         /**
-         * Send provider. Currently always `cloudflare-email-service`.
+         * Send provider used for this outbound email.
          */
-        provider: 'cloudflare-email-service';
+        provider: 'cloudflare-email-service' | 'pete-mail';
         /**
          * Provider-side message id (after successful submission).
          */
@@ -1160,6 +1314,21 @@ export type TestPushResponse = {
      * Upstream description string, suitable for surfacing to a developer/operator (not necessarily an end user).
      */
     detail: string;
+};
+
+export type CreateCommentBody = {
+    content: string;
+};
+
+export type Comment = {
+    id: string;
+    todo_id: string;
+    user_id: string;
+    org_id: string;
+    content: string;
+    created_at: number;
+    updated_at: number;
+    deleted_at?: number;
 };
 
 export type CreateProjectBody = {
@@ -1369,6 +1538,34 @@ export type RecurrenceRuleDetail = {
 export type GetTodoQuery = {
     include_deleted?: string | Array<string>;
     include_orphan_fields?: string | Array<string>;
+    include?: string;
+};
+
+export type TodoWithRelations = {
+    id: string;
+    user_id: string;
+    /**
+     * Project id this todo belongs to. Use /todo/projects/{id} to inspect the project.
+     */
+    project_id: string;
+    title: string;
+    description?: string;
+    status: 'open' | 'in_progress' | 'done' | 'cancelled';
+    parent_id: string | null;
+    child_count: number;
+    version: number;
+    created_at: number;
+    updated_at: number;
+    deleted_at?: number;
+    due_at?: string;
+    type_id: string;
+    custom_fields?: {
+        [key: string]: string | Array<string>;
+    };
+    children?: Array<Todo>;
+    comments?: Array<Comment>;
+    children_next_cursor?: string;
+    comments_next_cursor?: string;
 };
 
 export type ListRecurrenceRulesQuery = {
@@ -1385,6 +1582,10 @@ export type ListRecurrenceRulesResponse = {
 
 export type ListTodosResponse = {
     todos: Array<Todo>;
+    /**
+     * Opaque cursor for the next page. Absent on the last page.
+     */
+    next_cursor?: string;
 };
 
 export type RestoreTodoBody = {
@@ -1396,6 +1597,10 @@ export type RestoreTodoResponse = {
     restored_count: number;
     parent_in_trash_warning: boolean;
     descendants_in_trash_count: number;
+};
+
+export type UpdateCommentBody = {
+    content: string;
 };
 
 export type UpdateProjectBody = {
@@ -2592,9 +2797,9 @@ export type OrgMembersListData = {
          */
         cursor?: string;
         /**
-         * Maximum number of members to return in this page (1–100). Defaults to 50. Larger values trade fewer round-trips for more bytes per response.
+         * Maximum members to return. Clamped to [1, 100]. Defaults to 50.
          */
-        limit?: number;
+        limit?: string;
     };
     url: '/auth/me/org/members';
 };
@@ -4703,7 +4908,7 @@ export type EmailAliasCreateData = {
 
 export type EmailAliasCreateErrors = {
     /**
-     * Invalid alias email address, local part, or reserved local part.
+     * Invalid alias email address, local part, reserved local part, missing custom domain, unverified custom domain, or custom domain that is not ready for both sending and receiving.
      */
     400: {
         error: {
@@ -4774,6 +4979,156 @@ export type EmailAliasCreateResponses = {
 };
 
 export type EmailAliasCreateResponse = EmailAliasCreateResponses[keyof EmailAliasCreateResponses];
+
+export type EmailDomainListData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/email/domains';
+};
+
+export type EmailDomainListErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type EmailDomainListError = EmailDomainListErrors[keyof EmailDomainListErrors];
+
+export type EmailDomainListResponses = {
+    /**
+     * Custom domains cached for the caller organization, including ownership, sending readiness, and receiving readiness state.
+     */
+    200: EmailDomainListResponse;
+};
+
+export type EmailDomainListResponse2 = EmailDomainListResponses[keyof EmailDomainListResponses];
+
+export type EmailDomainCreateData = {
+    body: CreateDomainBody;
+    path?: never;
+    query?: never;
+    url: '/email/domains';
+};
+
+export type EmailDomainCreateErrors = {
+    /**
+     * Malformed or platform-reserved domain hostname.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * This domain is already registered by an organization.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The upstream provider call failed or provider credentials are missing.
+     */
+    502: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type EmailDomainCreateError = EmailDomainCreateErrors[keyof EmailDomainCreateErrors];
+
+export type EmailDomainCreateResponses = {
+    /**
+     * Custom domain registered and DNS verification records returned. Custom-domain aliases require full domain readiness before use.
+     */
+    201: EmailDomainObjectResponse;
+};
+
+export type EmailDomainCreateResponse = EmailDomainCreateResponses[keyof EmailDomainCreateResponses];
 
 export type EmailAliasDeleteData = {
     body?: never;
@@ -4994,6 +5349,92 @@ export type EmailAttachmentGetResponses = {
 };
 
 export type EmailAttachmentGetResponse = EmailAttachmentGetResponses[keyof EmailAttachmentGetResponses];
+
+export type EmailDomainGetData = {
+    body?: never;
+    path: {
+        /**
+         * Custom domain hostname path parameter. URL-encode if your client requires it.
+         */
+        domain: string;
+    };
+    query?: never;
+    url: '/email/domains/{domain}';
+};
+
+export type EmailDomainGetErrors = {
+    /**
+     * Malformed or platform-reserved domain hostname.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The domain was not found for the caller organization.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type EmailDomainGetError = EmailDomainGetErrors[keyof EmailDomainGetErrors];
+
+export type EmailDomainGetResponses = {
+    /**
+     * One custom domain cached for the caller organization, including ownership, sending readiness, and receiving readiness state.
+     */
+    200: EmailDomainObjectResponse;
+};
+
+export type EmailDomainGetResponse = EmailDomainGetResponses[keyof EmailDomainGetResponses];
 
 export type EmailGetData = {
     body?: never;
@@ -5693,7 +6134,7 @@ export type EmailSendErrors = {
         };
     };
     /**
-     * An earlier send under this `idempotency_key` had different content. Pick a new key or repeat the original body byte-for-byte.
+     * Either an earlier send under this `idempotency_key` had different content, or the sender custom domain has not completed outbound sending verification.
      */
     409: {
         error: {
@@ -5752,6 +6193,104 @@ export type EmailSendResponses = {
 };
 
 export type EmailSendResponse = EmailSendResponses[keyof EmailSendResponses];
+
+export type EmailDomainVerifyData = {
+    body?: never;
+    path: {
+        /**
+         * Custom domain hostname path parameter. URL-encode if your client requires it.
+         */
+        domain: string;
+    };
+    query?: never;
+    url: '/email/domains/{domain}/verify';
+};
+
+export type EmailDomainVerifyErrors = {
+    /**
+     * Malformed or platform-reserved domain hostname.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The domain was not found for the caller organization.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The upstream provider call failed or provider credentials are missing.
+     */
+    502: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type EmailDomainVerifyError = EmailDomainVerifyErrors[keyof EmailDomainVerifyErrors];
+
+export type EmailDomainVerifyResponses = {
+    /**
+     * Updated cached provider state after a verification attempt, including ownership, sending readiness, and receiving readiness.
+     */
+    200: EmailDomainObjectResponse;
+};
+
+export type EmailDomainVerifyResponse = EmailDomainVerifyResponses[keyof EmailDomainVerifyResponses];
 
 export type PushConfigDeleteData = {
     body?: never;
@@ -6071,6 +6610,243 @@ export type PushTestResponses = {
 };
 
 export type PushTestResponse = PushTestResponses[keyof PushTestResponses];
+
+export type TodoCommentListData = {
+    body?: never;
+    path: {
+        /**
+         * Todo id (`tod_<ULID>`).
+         */
+        id: string;
+    };
+    query?: {
+        order?: 'asc' | 'desc';
+        include_deleted?: string;
+        /**
+         * Max comments to return. Clamped to [1, 200]. Default 50 server-side.
+         */
+        limit?: string;
+        /**
+         * Opaque pagination cursor returned in `next_cursor` of a previous response.
+         */
+        cursor?: string;
+    };
+    url: '/todo/items/{id}/comments';
+};
+
+export type TodoCommentListErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type TodoCommentListError = TodoCommentListErrors[keyof TodoCommentListErrors];
+
+export type TodoCommentListResponses = {
+    /**
+     * List
+     */
+    200: {
+        comments: Array<Comment>;
+        /**
+         * Opaque cursor for the next page. Absent on the last page.
+         */
+        next_cursor?: string;
+    };
+};
+
+export type TodoCommentListResponse = TodoCommentListResponses[keyof TodoCommentListResponses];
+
+export type TodoCommentCreateData = {
+    body?: CreateCommentBody;
+    path: {
+        /**
+         * Todo id (`tod_<ULID>`).
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/todo/items/{id}/comments';
+};
+
+export type TodoCommentCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type TodoCommentCreateError = TodoCommentCreateErrors[keyof TodoCommentCreateErrors];
+
+export type TodoCommentCreateResponses = {
+    /**
+     * Created
+     */
+    201: Comment;
+};
+
+export type TodoCommentCreateResponse = TodoCommentCreateResponses[keyof TodoCommentCreateResponses];
 
 export type ProjectListData = {
     body?: never;
@@ -6524,6 +7300,14 @@ export type TodoListData = {
         sort_by?: string;
         order?: 'asc' | 'desc';
         include_orphan_fields?: string | Array<string>;
+        /**
+         * Max todos to return. Clamped to [1, 200]. Default 50 server-side.
+         */
+        limit?: string;
+        /**
+         * Opaque pagination cursor returned in `next_cursor` of a previous response.
+         */
+        cursor?: string;
     };
     url: '/todo/items';
 };
@@ -6949,6 +7733,226 @@ export type TodoTypeCreateResponses = {
 };
 
 export type TodoTypeCreateResponse = TodoTypeCreateResponses[keyof TodoTypeCreateResponses];
+
+export type TodoCommentDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Comment id (`tdc_<ULID>`).
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/todo/comments/{id}';
+};
+
+export type TodoCommentDeleteErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type TodoCommentDeleteError = TodoCommentDeleteErrors[keyof TodoCommentDeleteErrors];
+
+export type TodoCommentDeleteResponses = {
+    /**
+     * Soft-deleted
+     */
+    200: Comment;
+};
+
+export type TodoCommentDeleteResponse = TodoCommentDeleteResponses[keyof TodoCommentDeleteResponses];
+
+export type TodoCommentUpdateData = {
+    body?: UpdateCommentBody;
+    path: {
+        /**
+         * Comment id (`tdc_<ULID>`).
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/todo/comments/{id}';
+};
+
+export type TodoCommentUpdateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type TodoCommentUpdateError = TodoCommentUpdateErrors[keyof TodoCommentUpdateErrors];
+
+export type TodoCommentUpdateResponses = {
+    /**
+     * Updated
+     */
+    200: Comment;
+};
+
+export type TodoCommentUpdateResponse = TodoCommentUpdateResponses[keyof TodoCommentUpdateResponses];
 
 export type ProjectDeleteData = {
     body?: never;
@@ -7716,6 +8720,7 @@ export type TodoGetData = {
     query?: {
         include_deleted?: string | Array<string>;
         include_orphan_fields?: string | Array<string>;
+        include?: string;
     };
     url: '/todo/items/{id}';
 };
@@ -7811,9 +8816,9 @@ export type TodoGetError = TodoGetErrors[keyof TodoGetErrors];
 
 export type TodoGetResponses = {
     /**
-     * The requested todo. Includes `deleted_at` only when fetched with `include_deleted=true` on a soft-deleted row.
+     * The requested todo. Includes `children` (first-level) when `include=children`, `comments` when `include=comments`, and `deleted_at` only when fetched with `include_deleted=true` on a soft-deleted row.
      */
-    200: Todo;
+    200: TodoWithRelations;
 };
 
 export type TodoGetResponse = TodoGetResponses[keyof TodoGetResponses];

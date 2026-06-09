@@ -33,6 +33,7 @@ export interface XCli {
   options?: Record<string, XCliOption>
   body?: XCliBody
   exitOnField?: XCliExitOnField
+  fixedQuery?: Record<string, string>
 }
 
 export interface BodyField {
@@ -218,9 +219,16 @@ export function emitCommand(input: EmitInput): string | null {
     )
     .map(emitFieldOption)
 
-  // Options from query fields (skip positional and path params)
+  // fixedQuery keys win over same-named query fields — suppress the dynamic field
+  // from both the options list and the query block to avoid duplicate object keys.
+  const fixedQueryKeys = new Set(Object.keys(input.xCli.fixedQuery ?? {}))
+
+  // Options from query fields (skip positional, path params, and fixedQuery-shadowed fields)
   const queryOptions = queryFields
-    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
+    .filter(
+      (f) =>
+        !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name),
+    )
     .map(emitFieldOption)
 
   // Virtual x-cli options: option keys that map to no existing body/query field
@@ -347,9 +355,12 @@ export function emitCommand(input: EmitInput): string | null {
     }
   }
 
-  // Build query block (query fields)
+  // Build query block (dynamic query fields + constant fixedQuery).
   const queryOptLines = queryFields
-    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
+    .filter(
+      (f) =>
+        !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name),
+    )
     .map((f) => {
       const optKey = fieldToOptionKey[f.name]
       if (optKey !== undefined) {
@@ -358,8 +369,12 @@ export function emitCommand(input: EmitInput): string | null {
       const { longFlag } = resolveAlias(f.name)
       return `        ${f.name}: opts.${camelize(longFlag)},`
     })
+  const fixedQueryLines = Object.entries(input.xCli.fixedQuery ?? {}).map(
+    ([k, v]) => `        ${k}: ${JSON.stringify(v)},`,
+  )
+  const allQueryLines = [...queryOptLines, ...fixedQueryLines]
   const queryBlock =
-    queryOptLines.length > 0 ? [`      query: {`, ...queryOptLines, `      },`] : []
+    allQueryLines.length > 0 ? [`      query: {`, ...allQueryLines, `      },`] : []
 
   // `kind` is the renderer registry key. We use the operationId verbatim so
   // every operation has a unique, stable identifier — handwritten renderers

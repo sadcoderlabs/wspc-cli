@@ -200,6 +200,56 @@ export function relativeTime(value: unknown, now: number = Date.now()): string {
   return future ? `in ${amount}${unit}` : `${amount}${unit} ago`
 }
 
+/**
+ * Wrap `text` to `width` visible columns, returning one string per output
+ * line. Existing newlines in `text` are preserved (each source line is wrapped
+ * independently, blank lines kept). English wraps at spaces; a single token
+ * wider than `width` (long URLs, spaceless CJK runs) is hard-broken by visible
+ * width using the same `visibleWidth` ruler the tables use, so CJK columns line
+ * up the same way they do elsewhere. No external dependency by design.
+ *
+ * `width` is the visible-column budget; values <= 0 fall back to 80. A token
+ * wider than `width` is broken one max-fitting chunk at a time (at least one
+ * character per line, so wrapping always progresses).
+ */
+export function wrapToWidth(text: string, width: number): string[] {
+  const limit = width > 0 ? width : 80
+  const out: string[] = []
+  for (const line of text.split("\n")) {
+    if (line.length === 0) {
+      out.push("")
+      continue
+    }
+    let cur = ""
+    for (let word of line.split(" ")) {
+      // Hard-break a word that cannot fit on a line by itself.
+      while (visibleWidth(word) > limit) {
+        let head = ""
+        for (const ch of word) {
+          if (head && visibleWidth(head + ch) > limit) break
+          head += ch
+          if (visibleWidth(head) >= limit) break
+        }
+        if (cur) {
+          out.push(cur)
+          cur = ""
+        }
+        out.push(head)
+        word = word.slice(head.length)
+      }
+      const sep = cur ? " " : ""
+      if (cur && visibleWidth(cur + sep + word) > limit) {
+        out.push(cur)
+        cur = word
+      } else {
+        cur = cur + sep + word
+      }
+    }
+    if (cur) out.push(cur)
+  }
+  return out
+}
+
 // ---------- table ----------
 
 /**
