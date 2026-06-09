@@ -18,6 +18,8 @@ export const todoListCommand = new Command("ls")
   .option("--sort-by <value>", "sort_by")
   .option("--order <value>", "order")
   .option("--include-orphan-fields <value>", "include_orphan_fields")
+  .option("--limit <value>", "limit")
+  .option("--cursor <value>", "cursor")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await todoList({
@@ -35,6 +37,8 @@ export const todoListCommand = new Command("ls")
         sort_by: opts.sortBy,
         order: opts.order,
         include_orphan_fields: opts.includeOrphanFields,
+        limit: opts.limit,
+        cursor: opts.cursor,
       },
     })
     if (result.error || !result.response?.ok) {

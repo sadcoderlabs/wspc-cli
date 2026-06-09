@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { shouldSkipRoute } from "./main.js"
+import { emitIndex, shouldSkipRoute } from "./main.js"
 
 describe("cli-codegen route skip predicate", () => {
   it("keeps regular CLI commands", () => {
@@ -19,5 +19,26 @@ describe("cli-codegen route skip predicate", () => {
   })
   it("skips _handwritten even without hidden flag", () => {
     expect(shouldSkipRoute({ command: "_handwritten" })).toBe(true)
+  })
+})
+
+describe("cli-codegen index emitter", () => {
+  it("uses a leaf command as the parent when it also has child commands", () => {
+    const out = emitIndex([
+      {
+        commandPath: ["org", "invite"],
+        filePath: "org/invite.ts",
+        varName: "orgInviteCreateCommand",
+      },
+      {
+        commandPath: ["org", "invite", "revoke"],
+        filePath: "org/invite/revoke.ts",
+        varName: "orgInviteRevokeCommand",
+      },
+    ])
+
+    expect(out).toContain("root_org.addCommand(orgInviteCreateCommand)")
+    expect(out).toContain("orgInviteCreateCommand.addCommand(orgInviteRevokeCommand)")
+    expect(out).not.toContain("root_org_invite.addCommand(orgInviteCreateCommand)")
   })
 })

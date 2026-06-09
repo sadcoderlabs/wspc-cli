@@ -124,6 +124,61 @@ describe("emitCommand: body unwrap", () => {
   })
 })
 
+describe("emitCommand: path params", () => {
+  it("promotes path params to positional arguments when x-cli omits them", () => {
+    const out = emitCommand({
+      operationId: "invite_accept",
+      method: "post",
+      path: "/auth/invites/{id}/accept",
+      xCli: {
+        command: "invite accept",
+        display: { shape: "object" },
+      },
+      bodyFields: [],
+      pathParams: ["id"],
+    })
+
+    expect(out).not.toBeNull()
+    const code = out!
+
+    expect(code).toContain('.argument("<id>", "id")')
+    expect(code).toContain(".action(async (id, opts) => {")
+    expect(code).toContain("path: {")
+    expect(code).toContain("id,")
+  })
+})
+
+describe("emitCommand: fixed query", () => {
+  it("emits fixed query values without exposing them as flags", () => {
+    const out = emitCommand({
+      operationId: "todo_get",
+      method: "get",
+      path: "/todo/items/{id}",
+      xCli: {
+        command: "todo show",
+        positional: ["id"],
+        fixedQuery: { include: "children,comments" },
+        display: { shape: "object" },
+      },
+      bodyFields: [],
+      pathParams: ["id"],
+      queryFields: [
+        { name: "include_deleted", type: "string", required: false },
+        { name: "include", type: "string", required: false },
+      ],
+    })
+
+    expect(out).not.toBeNull()
+    const code = out!
+
+    expect(code).toContain('.option("--include-deleted <value>", "include_deleted")')
+    expect(code).not.toContain('.option("--include <value>", "include")')
+    expect(code).toContain("include_deleted: opts.includeDeleted,")
+    expect(code).toContain('include: "children,comments",')
+    expect(code).not.toContain("include: opts.include")
+  })
+})
+
 describe("emitCommand: exitOnField", () => {
   it("emits process.exit(1) check on specified response field", () => {
     const out = emitCommand({
@@ -228,5 +283,3 @@ describe("emitCommand: exitOnField", () => {
     expect(outNull!).toContain("if (result.data === true) {")
   })
 })
-
-

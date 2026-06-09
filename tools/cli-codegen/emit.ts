@@ -32,6 +32,7 @@ export interface XCli {
   display?: XCliDisplay
   options?: Record<string, XCliOption>
   body?: XCliBody
+  fixedQuery?: Record<string, string>
   exitOnField?: XCliExitOnField
 }
 
@@ -89,11 +90,23 @@ export function emitCommand(input: EmitInput): string | null {
   const sdkRelPrefix = "../".repeat(depth)
   // The handwritten helpers live at src/handwritten/, which is one more level up from src/generated/.
   const handwrittenRelPrefix = "../".repeat(depth + 1)
-  const positional = input.xCli.positional ?? []
   const aliases = input.xCli.aliases ?? {}
   const pathParams = input.pathParams ?? []
   const queryFields = input.queryFields ?? []
   const xCliOptions = input.xCli.options ?? {}
+  const fixedQuery = input.xCli.fixedQuery ?? {}
+  const fixedQueryKeys = new Set(Object.keys(fixedQuery))
+  const explicitPositionals = input.xCli.positional ?? []
+
+  // Special case: event_ics_download takes a positional `id` but the underlying API
+  // path param is `filename` (which must be `<id>.ics`). The positional arg name we
+  // expose to users is `id`, not `filename`.
+  const isIcsDownload = input.operationId === "event_ics_download"
+
+  const implicitPathPositionals = pathParams.filter(
+    (p) => !explicitPositionals.includes(p) && !(isIcsDownload && p === "filename"),
+  )
+  const positional = [...implicitPathPositionals, ...explicitPositionals]
 
   // Find the alias entry for a field: alias key can be exact field name, its kebab,
   // or a prefix segment (e.g. alias key "project" covers field "project_id").
@@ -142,11 +155,6 @@ export function emitCommand(input: EmitInput): string | null {
   // Path params that are positional are already handled via .argument()
   const positionalSet = new Set(positional)
   const pathParamSet = new Set(pathParams)
-
-  // Special case: event_ics_download takes a positional `id` but the underlying API
-  // path param is `filename` (which must be `<id>.ics`). The positional arg name we
-  // expose to users is `id`, not `filename`.
-  const isIcsDownload = input.operationId === "event_ics_download"
 
   // A positional name that also appears as an array x-cli option becomes a
   // variadic positional (`<name...>`) bound to the option's body target via
@@ -206,7 +214,7 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Options from query fields (skip positional and path params)
   const queryOptions = queryFields
-    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
+    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name))
     .map(emitFieldOption)
 
   // Virtual x-cli options: option keys that map to no existing body/query field
@@ -335,7 +343,7 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Build query block (query fields)
   const queryOptLines = queryFields
-    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name))
+    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name))
     .map((f) => {
       const optKey = fieldToOptionKey[f.name]
       if (optKey !== undefined) {
@@ -344,8 +352,13 @@ export function emitCommand(input: EmitInput): string | null {
       const { longFlag } = resolveAlias(f.name)
       return `        ${f.name}: opts.${camelize(longFlag)},`
     })
+  const fixedQueryLines = Object.entries(fixedQuery).map(
+    ([name, value]) => `        ${name}: ${JSON.stringify(value)},`,
+  )
   const queryBlock =
-    queryOptLines.length > 0 ? [`      query: {`, ...queryOptLines, `      },`] : []
+    queryOptLines.length > 0 || fixedQueryLines.length > 0
+      ? [`      query: {`, ...queryOptLines, ...fixedQueryLines, `      },`]
+      : []
 
   // `kind` is the renderer registry key. We use the operationId verbatim so
   // every operation has a unique, stable identifier — handwritten renderers

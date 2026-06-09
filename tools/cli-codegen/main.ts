@@ -161,6 +161,9 @@ function emitTreeRegistration(node: TreeNode, parentVar: string, depth: number):
   for (const [seg, child] of node.children) {
     if (child.children.size === 0 && child.leafVarName) {
       out.push(`${indent}${parentVar}.addCommand(${child.leafVarName})`)
+    } else if (child.leafVarName) {
+      out.push(`${indent}${parentVar}.addCommand(${child.leafVarName})`)
+      out.push(...emitTreeRegistration(child, child.leafVarName, depth))
     } else {
       const subVar = `${parentVar}_${seg.replace(/[^a-zA-Z0-9]/g, "_")}`
       // Set a description on parent commands too — without one, commander
@@ -168,16 +171,13 @@ function emitTreeRegistration(node: TreeNode, parentVar: string, depth: number):
       out.push(
         `${indent}const ${subVar} = ${parentVar}.command(${JSON.stringify(seg)}).description(${JSON.stringify(`${seg} commands`)})`,
       )
-      if (child.leafVarName) {
-        out.push(`${indent}${subVar}.addCommand(${child.leafVarName})`)
-      }
       out.push(...emitTreeRegistration(child, subVar, depth))
     }
   }
   return out
 }
 
-function emitIndex(items: EmittedCmd[]): string {
+export function emitIndex(items: EmittedCmd[]): string {
   const imports = items.map(
     (it) => `import { ${it.varName} } from "./${it.filePath.replace(/\.ts$/, ".js")}"`,
   )

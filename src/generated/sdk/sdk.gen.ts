@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,17 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: Record<string, unknown>;
 };
+
+/**
+ * Accept an invite and switch into the inviting organization
+ *
+ * Switches the caller's org to the invite's org and records the previous org. The caller loses access to data scoped to their previous org.
+ */
+export const inviteAccept = <ThrowOnError extends boolean = false>(options: Options<InviteAcceptData, ThrowOnError>) => (options.client ?? client).post<InviteAcceptResponses, InviteAcceptErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/invites/{id}/accept',
+    ...options
+});
 
 /**
  * List active API keys
@@ -68,6 +79,32 @@ export const keyCreate = <ThrowOnError extends boolean = false>(options: Options
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
+    }
+});
+
+/**
+ * List invites issued by the caller's organization
+ *
+ * Retrieves a list of all active pending or expired organization invites issued by the caller's organization.
+ */
+export const orgInvitesList = <ThrowOnError extends boolean = false>(options?: Options<OrgInvitesListData, ThrowOnError>) => (options?.client ?? client).get<OrgInvitesListResponses, OrgInvitesListErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/me/org/invites',
+    ...options
+});
+
+/**
+ * Invite an email to join the caller's organization
+ *
+ * Creates a pending invite for `email` and sends an invite email. Idempotent for an existing pending invite. The invitee accepts after signing in with the invited email.
+ */
+export const orgInviteCreate = <ThrowOnError extends boolean = false>(options?: Options<OrgInviteCreateData, ThrowOnError>) => (options?.client ?? client).post<OrgInviteCreateResponses, OrgInviteCreateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/me/org/invites',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
     }
 });
 
@@ -144,6 +181,17 @@ export const orgUpdate = <ThrowOnError extends boolean = false>(options?: Option
 });
 
 /**
+ * Get a single invite addressed to the caller
+ *
+ * Retrieves the metadata of a specific organization invite addressed to the caller by its ID.
+ */
+export const inviteGet = <ThrowOnError extends boolean = false>(options: Options<InviteGetData, ThrowOnError>) => (options.client ?? client).get<InviteGetResponses, InviteGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/invites/{id}',
+    ...options
+});
+
+/**
  * Fetch the user identified by the bearer token
  *
  * ### Overview
@@ -163,6 +211,17 @@ export const orgUpdate = <ThrowOnError extends boolean = false>(options?: Option
 export const authMe = <ThrowOnError extends boolean = false>(options?: Options<AuthMeData, ThrowOnError>) => (options?.client ?? client).get<AuthMeResponses, AuthMeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/auth/me',
+    ...options
+});
+
+/**
+ * List invites addressed to the authenticated user's email
+ *
+ * Retrieves all pending or expired organization invites addressed to the caller's verified email address.
+ */
+export const invitesList = <ThrowOnError extends boolean = false>(options?: Options<InvitesListData, ThrowOnError>) => (options?.client ?? client).get<InvitesListResponses, InvitesListErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/invites',
     ...options
 });
 
@@ -250,6 +309,33 @@ export const oauthClientRegister = <ThrowOnError extends boolean = false>(option
         'Content-Type': 'application/json',
         ...options?.headers
     }
+});
+
+/**
+ * Reject an invite
+ *
+ * Rejects an organization invite addressed to the caller. The invite will be marked as rejected.
+ */
+export const inviteReject = <ThrowOnError extends boolean = false>(options: Options<InviteRejectData, ThrowOnError>) => (options.client ?? client).post<InviteRejectResponses, InviteRejectErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/invites/{id}/reject',
+    ...options
+});
+
+/**
+ * Remove a member from the organization
+ *
+ * ### Overview
+ * Removes a member from the authenticated user's organization by their user ID, restoring their original organization ID if applicable.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token.
+ * - Cannot remove the organization creator/owner.
+ */
+export const orgMemberRemove = <ThrowOnError extends boolean = false>(options: Options<OrgMemberRemoveData, ThrowOnError>) => (options.client ?? client).delete<OrgMemberRemoveResponses, OrgMemberRemoveErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/me/org/members/{id}',
+    ...options
 });
 
 /**
@@ -348,6 +434,17 @@ export const oauthTokenRevoke = <ThrowOnError extends boolean = false>(options?:
         'Content-Type': 'application/json',
         ...options?.headers
     }
+});
+
+/**
+ * Revoke a pending invite
+ *
+ * Permanently revokes a pending organization invite. The invitee will no longer be able to accept it.
+ */
+export const orgInviteRevoke = <ThrowOnError extends boolean = false>(options: Options<OrgInviteRevokeData, ThrowOnError>) => (options.client ?? client).delete<OrgInviteRevokeResponses, OrgInviteRevokeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/me/org/invites/{id}',
+    ...options
 });
 
 /**
@@ -620,7 +717,7 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  * Create a receiving alias
  *
  * ### Overview
- * Reserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain. All inbound emails received on this alias will be forwarded into the caller's inbox.
+ * Reserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.
  *
  * ### When to Use
  * - Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.
@@ -628,17 +725,73 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  * ### Constraints
  * - Requires a valid Bearer token in the `Authorization` header.
  * - **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
+ * - **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization and have `status = verified`, `sending_status = verified`, and `receiving_status = verified`.
  * - **Limit Check**: Each user is allowed a maximum of 10 active email aliases. Soft-deleted aliases do not count against this quota limit.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Bearer token is missing, invalid, or expired.
  * - **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.
+ * - **400 Bad Request / DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.
+ * - **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.
+ * - **400 Bad Request / CUSTOM_DOMAIN_NOT_READY**: The custom domain exists but has not completed sending or receiving verification.
  * - **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).
  * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.
  */
 export const emailAliasCreate = <ThrowOnError extends boolean = false>(options: Options<EmailAliasCreateData, ThrowOnError>) => (options.client ?? client).post<EmailAliasCreateResponses, EmailAliasCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/email/aliases',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List cached custom domains
+ *
+ * ### Overview
+ * Returns the caller organization's cached custom email domains from D1. This route does not call the upstream provider.
+ *
+ * ### When to Use
+ * - Use this to render an admin view of all registered domains and their latest known verification state.
+ * - Use it to inspect DNS records that were previously fetched during create or verify operations.
+ * - The cached state includes DNS ownership, sending readiness, and receiving readiness used by custom-domain alias creation.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Results are scoped to the caller organization and sorted newest-first by creation time.
+ */
+export const emailDomainList = <ThrowOnError extends boolean = false>(options?: Options<EmailDomainListData, ThrowOnError>) => (options?.client ?? client).get<EmailDomainListResponses, EmailDomainListErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/domains',
+    ...options
+});
+
+/**
+ * Register a custom email domain
+ *
+ * ### Overview
+ * Registers a new organization-owned custom email domain with the upstream provider and caches the returned DNS verification records in D1.
+ *
+ * ### When to Use
+ * - Use this endpoint when onboarding a new custom email domain such as `mail.example.com`.
+ * - The response contains the DNS records the organization must publish before the domain can be verified.
+ * - This route registers the domain and returns DNS records. Custom-domain aliases require `status`, `sending_status`, and `receiving_status` to all be `verified`.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - Domain ownership is globally unique across the platform. Once any organization has reserved a domain, another org cannot register it.
+ * - This route requires custom domain provider credentials in production because it performs a live provider registration call.
+ *
+ * ### Troubleshooting
+ * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The hostname is malformed or belongs to the platform (`wspc.app`, `wspc.ai`, or their subdomains).
+ * - **409 Conflict / DOMAIN_CONFLICT**: The domain is already registered by some organization.
+ * - **502 Bad Gateway / DOMAIN_PROVIDER_ERROR**: The upstream provider request failed, timed out, or returned an unexpected shape.
+ */
+export const emailDomainCreate = <ThrowOnError extends boolean = false>(options: Options<EmailDomainCreateData, ThrowOnError>) => (options.client ?? client).post<EmailDomainCreateResponses, EmailDomainCreateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/domains',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -723,6 +876,30 @@ export const emailDelete = <ThrowOnError extends boolean = false>(options: Optio
 export const emailAttachmentGet = <ThrowOnError extends boolean = false>(options: Options<EmailAttachmentGetData, ThrowOnError>) => (options.client ?? client).get<EmailAttachmentGetResponses, EmailAttachmentGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/email/messages/{id}/attachments/{idx}',
+    ...options
+});
+
+/**
+ * Get one cached custom domain
+ *
+ * ### Overview
+ * Returns the caller organization's cached state for one custom email domain. This is a pure D1 read and never calls the upstream provider.
+ *
+ * ### When to Use
+ * - Use this to inspect the latest cached DNS records or verification status for a single domain.
+ * - This cached view includes ownership, sending readiness, and receiving readiness state for custom-domain alias decisions.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - The `{domain}` path parameter is normalized and validated server-side before lookup.
+ *
+ * ### Troubleshooting
+ * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The path hostname is malformed or reserved.
+ * - **404 Not Found / DOMAIN_NOT_FOUND**: The domain does not exist or belongs to another organization.
+ */
+export const emailDomainGet = <ThrowOnError extends boolean = false>(options: Options<EmailDomainGetData, ThrowOnError>) => (options.client ?? client).get<EmailDomainGetResponses, EmailDomainGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/domains/{domain}',
     ...options
 });
 
@@ -887,7 +1064,7 @@ export const emailRestore = <ThrowOnError extends boolean = false>(options: Opti
  * Send an outbound email
  *
  * ### Overview
- * Submits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified and sent using the Cloudflare email service provider.
+ * Submits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified before sending. Platform-domain aliases use Cloudflare Email Service; verified custom-domain aliases use pete-mail.
  *
  * ### When to Use
  * - Use this endpoint to send new standalone emails or to reply to threaded inbound messages.
@@ -898,14 +1075,16 @@ export const emailRestore = <ThrowOnError extends boolean = false>(options: Opti
  * - **Size Limits**: Individual attachments must not exceed 5 MiB, and the total size of all attachments per send must be 25 MiB or less.
  * - **Security**: Up to 10 attachments are allowed. Outbound files with dangerous executable extensions (such as `.exe`, `.bat`, `.com`, `.scr`, `.cmd`, `.jar`, `.js`) are strictly blocked.
  * - **Daily Quotas**: Sending is protected by per-user (100 sends/day) and per-alias (50 sends/day) daily quotas. Exceeding them triggers `RATE_LIMITED` or `QUOTA_EXCEEDED` errors.
+ * - **Custom Domains**: Platform-domain aliases use Cloudflare Email Service. Verified custom-domain aliases are routed through pete-mail. Custom domains must have `status = verified` and `sending_status = verified` or the send returns `CUSTOM_DOMAIN_NOT_READY`.
  * - **Idempotency**: A stable `idempotency_key` (1-200 characters) must be supplied. Retrying a send with identical content and the same key returns `idempotent_replay: true` without sending duplicates. Reusing the key with changed content returns 409 `IDEMPOTENCY_KEY_REUSED`.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Active Bearer token is invalid or has expired.
  * - **404 Not Found**: The requested `from_alias_email` does not exist or has been soft-deleted, or the referenced `in_reply_to_email_id` is missing or belongs to a different user.
  * - **409 Conflict / IDEMPOTENCY_KEY_REUSED**: An identical `idempotency_key` was reused with modified request payload. Use a fresh unique key.
+ * - **409 Conflict / CUSTOM_DOMAIN_NOT_READY**: The sender uses a custom domain that has not completed outbound sending verification.
  * - **429 Too Many Requests / RATE_LIMITED**: The per-user rate limit or daily sending quota has been exceeded. Wait for quota reset.
- * - **502 Bad Gateway**: The upstream Cloudflare email provider failed or rejected the message. The outbound row is persisted with `status: failed` along with provider-returned logs.
+ * - **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. The outbound row is persisted with `status: failed` along with provider-returned logs.
  */
 export const emailSend = <ThrowOnError extends boolean = false>(options: Options<EmailSendData, ThrowOnError>) => (options.client ?? client).post<EmailSendResponses, EmailSendErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -915,6 +1094,34 @@ export const emailSend = <ThrowOnError extends boolean = false>(options: Options
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Verify a custom domain with the provider
+ *
+ * ### Overview
+ * Triggers an upstream provider verification attempt for one custom email domain, refreshes the cached DNS records/status in D1, and returns the updated row.
+ * This route refreshes DNS registration and verification state. Custom-domain aliases require `status`, `sending_status`, and `receiving_status` to all be `verified`.
+ *
+ * ### When to Use
+ * - Use this after publishing the required DNS records, or whenever you want to refresh cached provider state explicitly.
+ * - If the provider verify call returns incomplete DNS records, the worker performs a follow-up provider read before responding.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - This route requires custom domain provider credentials in production because it performs live provider calls.
+ * - Verification is asynchronous provider work; a successful response may still report `status: pending`.
+ * - `status: verified` plus `sending_status: verified` enables custom-domain outbound send for active aliases; `receiving_status: verified` is also required before new custom-domain aliases can be created.
+ *
+ * ### Troubleshooting
+ * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The path hostname is malformed or reserved.
+ * - **404 Not Found / DOMAIN_NOT_FOUND**: The domain does not exist or belongs to another organization.
+ * - **502 Bad Gateway / DOMAIN_PROVIDER_ERROR**: Provider verification failed, timed out, or credentials are missing.
+ */
+export const emailDomainVerify = <ThrowOnError extends boolean = false>(options: Options<EmailDomainVerifyData, ThrowOnError>) => (options.client ?? client).post<EmailDomainVerifyResponses, EmailDomainVerifyErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/domains/{domain}/verify',
+    ...options
 });
 
 /**
@@ -1011,6 +1218,51 @@ export const pushConfigSet = <ThrowOnError extends boolean = false>(options: Opt
 export const pushTest = <ThrowOnError extends boolean = false>(options: Options<PushTestData, ThrowOnError>) => (options.client ?? client).post<PushTestResponses, PushTestErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/push/test',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List comments on a todo
+ *
+ * ### 🎯 Overview & Purpose
+ * List the comments attached to a todo, oldest-first by default.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Ordering**: Defaults to chronological (`asc`). Pass `order=desc` for newest-first.
+ * * **Soft-deleted**: Hidden by default; pass `include_deleted=true` to include them.
+ * * **Pagination**: Use `limit` (max 200, default 50) and `cursor` (the `next_cursor` from a previous response) to page through results. When `next_cursor` is absent in the response, you are on the last page. Returns `{ comments, next_cursor? }`. Changing `order` invalidates a cursor.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo does not exist or is soft-deleted.
+ * * **`VALIDATION_ERROR`**: Thrown if a cursor was produced with a different `order` than the current request.
+ */
+export const todoCommentList = <ThrowOnError extends boolean = false>(options: Options<TodoCommentListData, ThrowOnError>) => (options.client ?? client).get<TodoCommentListResponses, TodoCommentListErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/todo/items/{id}/comments',
+    ...options
+});
+
+/**
+ * Add a comment to a todo
+ *
+ * ### 🎯 Overview & Purpose
+ * Attach a free-text comment to a todo. Use this to record progress updates, notes, or remarks as a task moves along.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Free text**: Comments are plain text up to 10000 characters; there is no separate "progress" vs "remark" type.
+ * * **Authorship**: The author is recorded as the calling user (`user_id`).
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo does not exist or is soft-deleted.
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if content is empty or exceeds 10000 characters.
+ */
+export const todoCommentCreate = <ThrowOnError extends boolean = false>(options: Options<TodoCommentCreateData, ThrowOnError>) => (options.client ?? client).post<TodoCommentCreateResponses, TodoCommentCreateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/todo/items/{id}/comments',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -1220,6 +1472,47 @@ export const todoTypeCreate = <ThrowOnError extends boolean = false>(options?: O
     headers: {
         'Content-Type': 'application/json',
         ...options?.headers
+    }
+});
+
+/**
+ * Soft-delete a comment
+ *
+ * ### 🎯 Overview & Purpose
+ * Soft-delete a comment.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Soft delete**: The comment is hidden from default listings but retained; there is no restore endpoint.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`COMMENT_NOT_FOUND` (HTTP 404)**: Thrown if the comment id is unknown, already deleted, or not in the caller's organization.
+ */
+export const todoCommentDelete = <ThrowOnError extends boolean = false>(options: Options<TodoCommentDeleteData, ThrowOnError>) => (options.client ?? client).delete<TodoCommentDeleteResponses, TodoCommentDeleteErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/todo/comments/{id}',
+    ...options
+});
+
+/**
+ * Edit a comment
+ *
+ * ### 🎯 Overview & Purpose
+ * Edit the body of an existing comment.
+ *
+ * ### 💡 Key Features & Constraints
+ * * **Last write wins**: There is no optimistic-lock version on comments; the latest edit replaces the content.
+ *
+ * ### ⚠️ Common Errors & Troubleshooting
+ * * **`COMMENT_NOT_FOUND` (HTTP 404)**: Thrown if the comment id is unknown, soft-deleted, or not in the caller's organization.
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if content is empty or exceeds 10000 characters.
+ */
+export const todoCommentUpdate = <ThrowOnError extends boolean = false>(options: Options<TodoCommentUpdateData, ThrowOnError>) => (options.client ?? client).patch<TodoCommentUpdateResponses, TodoCommentUpdateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/todo/comments/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
     }
 });
 
