@@ -23,12 +23,16 @@ import { eventUpdateCommand } from "./event/set.js"
 import { eventIcsDownloadCommand } from "./event/ics.js"
 import { emailAliasCreateCommand } from "./alias/add.js"
 import { emailAliasListCommand } from "./alias/ls.js"
+import { emailDomainCreateCommand } from "./domain/add.js"
+import { emailDomainListCommand } from "./domain/ls.js"
 import { emailAliasDeleteCommand } from "./alias/rm.js"
 import { emailDeleteCommand } from "./email/rm.js"
+import { emailDomainGetCommand } from "./domain/show.js"
 import { emailGetCommand } from "./email/show.js"
 import { emailListCommand } from "./email/ls.js"
 import { emailMarkReadCommand } from "./email/read.js"
 import { emailMarkUnreadCommand } from "./email/unread.js"
+import { emailDomainVerifyCommand } from "./domain/verify.js"
 import { pushConfigDeleteCommand } from "./push/config/rm.js"
 import { pushConfigSetCommand } from "./push/config/set.js"
 import { pushConfigGetCommand } from "./push/config/show.js"
@@ -79,6 +83,11 @@ export function registerGeneratedCommands(root: Command): void {
   root_alias.addCommand(emailAliasCreateCommand)
   root_alias.addCommand(emailAliasListCommand)
   root_alias.addCommand(emailAliasDeleteCommand)
+  const root_domain = root.command("domain").description("domain commands")
+  root_domain.addCommand(emailDomainCreateCommand)
+  root_domain.addCommand(emailDomainListCommand)
+  root_domain.addCommand(emailDomainGetCommand)
+  root_domain.addCommand(emailDomainVerifyCommand)
   const root_email = root.command("email").description("email commands")
   root_email.addCommand(emailDeleteCommand)
   root_email.addCommand(emailGetCommand)

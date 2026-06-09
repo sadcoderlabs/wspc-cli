@@ -835,6 +835,83 @@ export type Alias = {
     deleted_at?: number;
 };
 
+export type CreateDomainBody = {
+    /**
+     * Custom domain hostname to register with the provider, for example `mail.example.com`.
+     */
+    domain: string;
+};
+
+export type EmailDomainObjectResponse = {
+    domain: {
+        /**
+         * Normalized lowercase ASCII hostname for the registered custom domain.
+         */
+        domain: string;
+        /**
+         * Overall upstream provider status for DNS ownership verification.
+         */
+        status: 'pending' | 'verified' | 'failed' | 'temporary_failure';
+        /**
+         * Provider-side sending readiness signal for this domain registration. Custom-domain aliases can send only when this value is `verified`.
+         */
+        sending_status: 'pending' | 'verified' | 'failed' | 'disabled';
+        /**
+         * Provider-side receiving readiness signal for this domain registration. Custom-domain aliases can be created only when this value is `verified`.
+         */
+        receiving_status: 'pending' | 'verified' | 'failed' | 'disabled';
+        /**
+         * DNS records currently cached from the provider for ownership verification.
+         */
+        records: Array<{
+            /**
+             * DNS record type required by the upstream domain provider.
+             */
+            type: 'TXT' | 'CNAME' | 'MX';
+            /**
+             * DNS hostname to create or update.
+             */
+            name: string;
+            /**
+             * Expected DNS record value.
+             */
+            value: string;
+            /**
+             * Latest provider verification status for this individual DNS record.
+             */
+            status: 'pending' | 'verified' | 'failed';
+            /**
+             * Why this DNS record is required, when the provider returns a purpose hint.
+             */
+            purpose?: 'identity_verification' | 'dkim' | 'mail_from' | 'receiving_mx';
+            /**
+             * Requested TTL in seconds, if the provider specifies one.
+             */
+            ttl?: number;
+            /**
+             * MX priority, when applicable.
+             */
+            priority?: number;
+        }>;
+        /**
+         * Provider region hint, when returned by the upstream provider.
+         */
+        region?: string;
+        /**
+         * Unix epoch milliseconds when the local cache row was created.
+         */
+        created_at: number;
+        /**
+         * Unix epoch milliseconds when the local cache row was last refreshed.
+         */
+        updated_at: number;
+        /**
+         * Unix epoch milliseconds when the domain last reached overall `verified` status. Omitted until the first successful verification.
+         */
+        verified_at?: number;
+    };
+};
+
 export type BatchIdsBody = {
     /**
      * Email ids to act on. 1-100 ids per call. All bulk ops (read / unread / delete / restore) are idempotent: ids that are already in the target state are silently no-ops and ids that don't belong to the user (or don't exist) are reported in `not_found` rather than failing the call.
@@ -860,6 +937,13 @@ export type GetAttachmentQuery = {
     include_deleted?: string;
 };
 
+export type EmailDomainParam = {
+    /**
+     * Custom domain hostname path parameter. URL-encode if your client requires it.
+     */
+    domain: string;
+};
+
 export type GetEmailQuery = {
     /**
      * When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text.
@@ -876,6 +960,76 @@ export type ListAliasesQuery = {
      * When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.
      */
     include_deleted?: string;
+};
+
+export type EmailDomainListResponse = {
+    domains: Array<{
+        /**
+         * Normalized lowercase ASCII hostname for the registered custom domain.
+         */
+        domain: string;
+        /**
+         * Overall upstream provider status for DNS ownership verification.
+         */
+        status: 'pending' | 'verified' | 'failed' | 'temporary_failure';
+        /**
+         * Provider-side sending readiness signal for this domain registration. Custom-domain aliases can send only when this value is `verified`.
+         */
+        sending_status: 'pending' | 'verified' | 'failed' | 'disabled';
+        /**
+         * Provider-side receiving readiness signal for this domain registration. Custom-domain aliases can be created only when this value is `verified`.
+         */
+        receiving_status: 'pending' | 'verified' | 'failed' | 'disabled';
+        /**
+         * DNS records currently cached from the provider for ownership verification.
+         */
+        records: Array<{
+            /**
+             * DNS record type required by the upstream domain provider.
+             */
+            type: 'TXT' | 'CNAME' | 'MX';
+            /**
+             * DNS hostname to create or update.
+             */
+            name: string;
+            /**
+             * Expected DNS record value.
+             */
+            value: string;
+            /**
+             * Latest provider verification status for this individual DNS record.
+             */
+            status: 'pending' | 'verified' | 'failed';
+            /**
+             * Why this DNS record is required, when the provider returns a purpose hint.
+             */
+            purpose?: 'identity_verification' | 'dkim' | 'mail_from' | 'receiving_mx';
+            /**
+             * Requested TTL in seconds, if the provider specifies one.
+             */
+            ttl?: number;
+            /**
+             * MX priority, when applicable.
+             */
+            priority?: number;
+        }>;
+        /**
+         * Provider region hint, when returned by the upstream provider.
+         */
+        region?: string;
+        /**
+         * Unix epoch milliseconds when the local cache row was created.
+         */
+        created_at: number;
+        /**
+         * Unix epoch milliseconds when the local cache row was last refreshed.
+         */
+        updated_at: number;
+        /**
+         * Unix epoch milliseconds when the domain last reached overall `verified` status. Omitted until the first successful verification.
+         */
+        verified_at?: number;
+    }>;
 };
 
 export type ListEmailsQuery = {
@@ -4826,6 +4980,156 @@ export type EmailAliasCreateResponses = {
 
 export type EmailAliasCreateResponse = EmailAliasCreateResponses[keyof EmailAliasCreateResponses];
 
+export type EmailDomainListData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/email/domains';
+};
+
+export type EmailDomainListErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type EmailDomainListError = EmailDomainListErrors[keyof EmailDomainListErrors];
+
+export type EmailDomainListResponses = {
+    /**
+     * Custom domains cached for the caller organization, including ownership, sending readiness, and receiving readiness state.
+     */
+    200: EmailDomainListResponse;
+};
+
+export type EmailDomainListResponse2 = EmailDomainListResponses[keyof EmailDomainListResponses];
+
+export type EmailDomainCreateData = {
+    body: CreateDomainBody;
+    path?: never;
+    query?: never;
+    url: '/email/domains';
+};
+
+export type EmailDomainCreateErrors = {
+    /**
+     * Malformed or platform-reserved domain hostname.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * This domain is already registered by an organization.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The upstream provider call failed or provider credentials are missing.
+     */
+    502: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type EmailDomainCreateError = EmailDomainCreateErrors[keyof EmailDomainCreateErrors];
+
+export type EmailDomainCreateResponses = {
+    /**
+     * Custom domain registered and DNS verification records returned. Custom-domain aliases require full domain readiness before use.
+     */
+    201: EmailDomainObjectResponse;
+};
+
+export type EmailDomainCreateResponse = EmailDomainCreateResponses[keyof EmailDomainCreateResponses];
+
 export type EmailAliasDeleteData = {
     body?: never;
     path: {
@@ -5045,6 +5349,92 @@ export type EmailAttachmentGetResponses = {
 };
 
 export type EmailAttachmentGetResponse = EmailAttachmentGetResponses[keyof EmailAttachmentGetResponses];
+
+export type EmailDomainGetData = {
+    body?: never;
+    path: {
+        /**
+         * Custom domain hostname path parameter. URL-encode if your client requires it.
+         */
+        domain: string;
+    };
+    query?: never;
+    url: '/email/domains/{domain}';
+};
+
+export type EmailDomainGetErrors = {
+    /**
+     * Malformed or platform-reserved domain hostname.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The domain was not found for the caller organization.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type EmailDomainGetError = EmailDomainGetErrors[keyof EmailDomainGetErrors];
+
+export type EmailDomainGetResponses = {
+    /**
+     * One custom domain cached for the caller organization, including ownership, sending readiness, and receiving readiness state.
+     */
+    200: EmailDomainObjectResponse;
+};
+
+export type EmailDomainGetResponse = EmailDomainGetResponses[keyof EmailDomainGetResponses];
 
 export type EmailGetData = {
     body?: never;
@@ -5803,6 +6193,104 @@ export type EmailSendResponses = {
 };
 
 export type EmailSendResponse = EmailSendResponses[keyof EmailSendResponses];
+
+export type EmailDomainVerifyData = {
+    body?: never;
+    path: {
+        /**
+         * Custom domain hostname path parameter. URL-encode if your client requires it.
+         */
+        domain: string;
+    };
+    query?: never;
+    url: '/email/domains/{domain}/verify';
+};
+
+export type EmailDomainVerifyErrors = {
+    /**
+     * Malformed or platform-reserved domain hostname.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The domain was not found for the caller organization.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * The upstream provider call failed or provider credentials are missing.
+     */
+    502: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type EmailDomainVerifyError = EmailDomainVerifyErrors[keyof EmailDomainVerifyErrors];
+
+export type EmailDomainVerifyResponses = {
+    /**
+     * Updated cached provider state after a verification attempt, including ownership, sending readiness, and receiving readiness.
+     */
+    200: EmailDomainObjectResponse;
+};
+
+export type EmailDomainVerifyResponse = EmailDomainVerifyResponses[keyof EmailDomainVerifyResponses];
 
 export type PushConfigDeleteData = {
     body?: never;
