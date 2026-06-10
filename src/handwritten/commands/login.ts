@@ -13,6 +13,10 @@ export function resolveLoginTarget(
   return { baseUrl, envName }
 }
 
+export function wantsJson(opts: { json?: boolean }, env: NodeJS.ProcessEnv): boolean {
+  return opts.json === true || env.WSPC_OUTPUT === "json"
+}
+
 export const loginCommand = new Command("login")
   .description("Log in via OAuth device flow (default) or API key")
   .option("--api-key <key>", "Log in with a wspc API key (escape hatch)")
@@ -22,7 +26,7 @@ export const loginCommand = new Command("login")
   .action(async (opts: { apiKey?: string; apiBase?: string; env?: string; json?: boolean }) => {
     const store = new ConfigStore()
     const { baseUrl, envName } = resolveLoginTarget(opts, process.env)
-    const output = opts.json
+    const output = wantsJson(opts, process.env)
       ? { write: () => {}, writeJson: (e: Record<string, unknown>) => process.stdout.write(JSON.stringify(e) + "\n") }
       : {
           write: (s: string) => process.stdout.write(s + "\n"),

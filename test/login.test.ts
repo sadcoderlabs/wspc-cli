@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { runLogin } from "../src/handwritten/auth/login.js"
-import { resolveLoginTarget } from "../src/handwritten/commands/login.js"
+import { resolveLoginTarget, wantsJson } from "../src/handwritten/commands/login.js"
 import { API_BASE } from "../src/version.js"
 import { ConfigStore } from "../src/handwritten/config/index.js"
 
@@ -31,6 +31,14 @@ describe("resolveLoginTarget", () => {
       envName: "accept",
     })
   })
+})
+
+describe("wantsJson", () => {
+  it("false by default", () => expect(wantsJson({}, {})).toBe(false))
+  it("true when opts.json is set", () => expect(wantsJson({ json: true }, {})).toBe(true))
+  it("true when WSPC_OUTPUT=json (global --json preAction path)", () =>
+    expect(wantsJson({}, { WSPC_OUTPUT: "json" })).toBe(true))
+  it("false when WSPC_OUTPUT=pretty", () => expect(wantsJson({}, { WSPC_OUTPUT: "pretty" })).toBe(false))
 })
 
 describe("runLogin", () => {
