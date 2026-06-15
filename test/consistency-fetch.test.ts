@@ -118,6 +118,28 @@ describe("createConsistencyFetch", () => {
     expect(req.headers.get("x-consistency-bookmark")).toBeNull()
   })
 
+  it("strips caller-supplied bookmark from non-WSPC URLs", async () => {
+    const store = await seededStore("bookmark_old")
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }))
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://example.com/anything", {
+      headers: {
+        authorization: "Bearer token",
+        "x-consistency-bookmark": "caller_bookmark",
+      },
+    })
+
+    const req = fetchImpl.mock.calls[0]![0] as Request
+    expect(req.headers.get("authorization")).toBe("Bearer token")
+    expect(req.headers.get("x-consistency-bookmark")).toBeNull()
+  })
+
   it("does not send bookmark to sibling prefix paths", async () => {
     const store = await seededStore("bookmark_old")
     const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }))

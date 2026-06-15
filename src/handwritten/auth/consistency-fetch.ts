@@ -62,6 +62,12 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
       }
     }
 
+    if (!applies && outgoing.headers.has(HEADER)) {
+      const headers = new Headers(outgoing.headers)
+      headers.delete(HEADER)
+      outgoing = new Request(outgoing, { headers })
+    }
+
     const response = await fetchImpl(outgoing)
     if (!applies) return response
 
