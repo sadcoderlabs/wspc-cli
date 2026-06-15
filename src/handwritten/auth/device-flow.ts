@@ -1,3 +1,6 @@
+import type { ConfigStore } from "../config/index.js"
+import { createConsistencyFetch } from "./consistency-fetch.js"
+
 export interface DeviceFlowPrompt {
   verification_uri: string
   verification_uri_complete: string
@@ -17,13 +20,23 @@ export interface RunDeviceFlowOptions {
   clientId: string
   onPrompt: (prompt: DeviceFlowPrompt) => void
   fetchImpl?: typeof fetch
+  store?: ConfigStore
+  envName?: string
   sleepMs?: (ms: number) => Promise<void>
 }
 
 const DEFAULT_SLEEP = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 export async function runDeviceFlow(opts: RunDeviceFlowOptions): Promise<DeviceFlowResult> {
-  const fetchImpl = opts.fetchImpl ?? fetch
+  const fetchImpl =
+    opts.store && opts.envName
+      ? createConsistencyFetch({
+          store: opts.store,
+          envName: opts.envName,
+          apiBase: opts.baseUrl,
+          fetchImpl: opts.fetchImpl,
+        })
+      : (opts.fetchImpl ?? fetch)
   const sleep = opts.sleepMs ?? DEFAULT_SLEEP
 
   // 1. Request device code.

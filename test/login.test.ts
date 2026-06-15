@@ -167,4 +167,26 @@ describe("runLogin", () => {
     expect(c.envs.prod?.accounts["a@x.com"]?.refresh_token).toBeUndefined()
     expect(c.envs.prod?.current_account).toBe("a@x.com")
   })
+
+  it("passes store and envName to fetchMe during api-key login", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-key-fetch-me-"))
+    const store = new ConfigStore({ configDir: dir })
+    const fetchMe = vi.fn().mockResolvedValue({ user_id: "usr_1", email: "a@x.com" })
+
+    await runLogin({
+      store,
+      envName: "staging",
+      apiKey: "wspc_test_key",
+      baseUrl: "https://api.staging.wspc.ai",
+      fetchMe,
+      output: { write: () => {}, writeJson: () => {} },
+    })
+
+    expect(fetchMe).toHaveBeenCalledWith({
+      baseUrl: "https://api.staging.wspc.ai",
+      token: "wspc_test_key",
+      store,
+      envName: "staging",
+    })
+  })
 })

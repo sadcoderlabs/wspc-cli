@@ -9,11 +9,12 @@ describe("ensureClientId", () => {
   it("registers + persists when no client_id present", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-register-"))
     const store = new ConfigStore({ configDir: dir })
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ client_id: "client_NEW_ID" }),
-    })
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ client_id: "client_NEW_ID" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    )
     const id = await ensureClientId({
       store,
       envName: "prod",
@@ -22,10 +23,45 @@ describe("ensureClientId", () => {
     })
     expect(id).toBe("client_NEW_ID")
     expect(fetchMock).toHaveBeenCalledOnce()
-    const url = fetchMock.mock.calls[0]![0]
-    expect(url).toBe("https://api.wspc.ai/auth/oauth/register")
+    const req = fetchMock.mock.calls[0]![0] as Request
+    expect(req.url).toBe("https://api.wspc.ai/auth/oauth/register")
     const c = await store.read()
     expect(c.envs.prod?.client_id).toBe("client_NEW_ID")
+  })
+
+  it("sends stored bookmark and persists returned bookmark during registration", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-register-bookmark-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          consistency_bookmark: "bookmark_old",
+          accounts: {},
+        },
+      },
+    })
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ client_id: "client_NEW_ID" }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "x-consistency-bookmark": "bookmark_new",
+        },
+      }),
+    )
+
+    await ensureClientId({
+      store,
+      envName: "prod",
+      baseUrl: "https://api.wspc.ai",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    })
+
+    const req = fetchMock.mock.calls[0]![0] as Request
+    expect(req.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
+    const c = await store.read()
+    expect(c.envs.prod?.consistency_bookmark).toBe("bookmark_new")
   })
 
   it("returns existing client_id without re-registering", async () => {
@@ -48,7 +84,7 @@ describe("ensureClientId", () => {
   it("throws when register endpoint returns non-2xx", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-register-fail-"))
     const store = new ConfigStore({ configDir: dir })
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 })
+    const fetchMock = vi.fn().mockResolvedValue(new Response("nope", { status: 500 }))
     await expect(
       ensureClientId({
         store,
