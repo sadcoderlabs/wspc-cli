@@ -58,13 +58,12 @@ describe("createConsistencyFetch", () => {
 
   it("does not clear stored bookmark when caller-supplied bookmark is invalid", async () => {
     const store = await seededStore("bookmark_valid")
-    const fetchImpl = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
-          status: 400,
-          headers: { "content-type": "application/json" },
-        }),
-    )
+    const response = new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    })
+    const cloneSpy = vi.spyOn(response, "clone")
+    const fetchImpl = vi.fn(async () => response)
     const consistencyFetch = createConsistencyFetch({
       store,
       envName: "prod",
@@ -76,6 +75,7 @@ describe("createConsistencyFetch", () => {
       headers: { "x-consistency-bookmark": "caller_bad" },
     })
 
+    expect(cloneSpy).not.toHaveBeenCalled()
     const config = await store.read()
     expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_valid")
   })
@@ -98,6 +98,31 @@ describe("createConsistencyFetch", () => {
 
     await consistencyFetch("https://api.wspc.ai/todo/items")
 
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_new")
+  })
+
+  it("does not parse invalid bookmark body when response bookmark is present", async () => {
+    const store = await seededStore("bookmark_old")
+    const response = new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
+      status: 400,
+      headers: {
+        "content-type": "application/json",
+        "x-consistency-bookmark": "bookmark_new",
+      },
+    })
+    const cloneSpy = vi.spyOn(response, "clone")
+    const fetchImpl = vi.fn(async () => response)
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://api.wspc.ai/todo/items")
+
+    expect(cloneSpy).not.toHaveBeenCalled()
     const config = await store.read()
     expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_new")
   })

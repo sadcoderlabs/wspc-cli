@@ -72,8 +72,11 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
     if (!applies) return response
 
     const nextBookmark = response.headers.get(HEADER)
-    const invalidBookmark = await responseHasInvalidBookmark(response)
-    const shouldClearBookmark = invalidBookmark && injectedStoredBookmark
+    const shouldCheckInvalidBookmark = injectedStoredBookmark && !nextBookmark
+    const invalidBookmark = shouldCheckInvalidBookmark
+      ? await responseHasInvalidBookmark(response)
+      : false
+    const shouldClearBookmark = invalidBookmark
     if (!nextBookmark && !shouldClearBookmark) return response
 
     const config = await opts.store.read()
