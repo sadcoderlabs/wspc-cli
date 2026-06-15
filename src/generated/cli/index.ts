@@ -27,6 +27,7 @@ import { emailDomainCreateCommand } from "./domain/add.js"
 import { emailDomainListCommand } from "./domain/ls.js"
 import { emailAliasDeleteCommand } from "./alias/rm.js"
 import { emailDeleteCommand } from "./email/rm.js"
+import { emailDomainDeleteCommand } from "./domain/rm.js"
 import { emailDomainGetCommand } from "./domain/show.js"
 import { emailGetCommand } from "./email/show.js"
 import { emailListCommand } from "./email/ls.js"
@@ -89,6 +90,7 @@ export function registerGeneratedCommands(root: Command): void {
   const root_domain = root.command("domain").description("domain commands")
   root_domain.addCommand(emailDomainCreateCommand)
   root_domain.addCommand(emailDomainListCommand)
+  root_domain.addCommand(emailDomainDeleteCommand)
   root_domain.addCommand(emailDomainGetCommand)
   root_domain.addCommand(emailDomainVerifyCommand)
   const root_email = root.command("email").description("email commands")

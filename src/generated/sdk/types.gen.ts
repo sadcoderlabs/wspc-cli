@@ -759,7 +759,7 @@ export type ListEventsResponse = {
  */
 export type UpdateEventBody = {
     /**
-     * Optional optimistic lock. Omit to let the server use the current version; pass only to fail the call if someone else has mutated the event since you last read. On mismatch the server returns 409 `VERSION_CONFLICT` with `extra.expected_version` and `extra.actual_version`.
+     * Optional optimistic lock. Omit to let the server use the current version; pass only to fail the call if someone else has mutated the event since you last read. On mismatch the server returns 409 `VERSION_CONFLICT` and includes the current and sent versions in the message.
      */
     expected_version?: number;
     /**
@@ -883,7 +883,7 @@ export type EmailDomainObjectResponse = {
             /**
              * Why this DNS record is required, when the provider returns a purpose hint.
              */
-            purpose?: 'identity_verification' | 'dkim' | 'mail_from' | 'receiving_mx';
+            purpose?: 'identity_verification' | 'dkim' | 'mail_from' | 'receiving_mx' | 'dmarc';
             /**
              * Requested TTL in seconds, if the provider specifies one.
              */
@@ -930,18 +930,18 @@ export type DeleteBatchResponse = {
     not_found: Array<string>;
 };
 
-export type GetAttachmentQuery = {
-    /**
-     * When `true`, allow downloading an attachment whose parent email is soft-deleted. Defaults to `false`.
-     */
-    include_deleted?: string;
-};
-
 export type EmailDomainParam = {
     /**
      * Custom domain hostname path parameter. URL-encode if your client requires it.
      */
     domain: string;
+};
+
+export type GetAttachmentQuery = {
+    /**
+     * When `true`, allow downloading an attachment whose parent email is soft-deleted. Defaults to `false`.
+     */
+    include_deleted?: string;
 };
 
 export type GetEmailQuery = {
@@ -1003,7 +1003,7 @@ export type EmailDomainListResponse = {
             /**
              * Why this DNS record is required, when the provider returns a purpose hint.
              */
-            purpose?: 'identity_verification' | 'dkim' | 'mail_from' | 'receiving_mx';
+            purpose?: 'identity_verification' | 'dkim' | 'mail_from' | 'receiving_mx' | 'dmarc';
             /**
              * Requested TTL in seconds, if the provider specifies one.
              */
@@ -4037,6 +4037,12 @@ export type AuthVerifyCodeResponse = AuthVerifyCodeResponses[keyof AuthVerifyCod
 
 export type EventListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: {
         /**
@@ -4179,6 +4185,12 @@ export type EventListResponse = EventListResponses[keyof EventListResponses];
 
 export type EventCreateData = {
     body?: CreateEventBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/calendar/events';
@@ -4284,6 +4296,12 @@ export type EventCreateResponse = EventCreateResponses[keyof EventCreateResponse
 
 export type EventDeleteData = {
     body?: VersionBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
@@ -4394,6 +4412,12 @@ export type EventDeleteResponse = EventDeleteResponses[keyof EventDeleteResponse
 
 export type EventGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
@@ -4509,6 +4533,12 @@ export type EventGetResponse = EventGetResponses[keyof EventGetResponses];
 
 export type EventUpdateData = {
     body?: UpdateEventBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
@@ -4619,6 +4649,12 @@ export type EventUpdateResponse = EventUpdateResponses[keyof EventUpdateResponse
 
 export type EventIcsDownloadData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * `<event_id>.ics`. The `.ics` suffix is required so the router matches this endpoint ahead of the JSON detail route.
@@ -4729,6 +4765,12 @@ export type EventIcsDownloadResponse = EventIcsDownloadResponses[keyof EventIcsD
 
 export type EventRestoreData = {
     body?: VersionBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
@@ -4910,7 +4952,7 @@ export type EmailAliasCreateData = {
 
 export type EmailAliasCreateErrors = {
     /**
-     * Invalid alias email address, local part, reserved local part, missing custom domain, unverified custom domain, or custom domain that is not ready for both sending and receiving.
+     * Invalid alias email address, local part, reserved local part, missing custom domain (`ALIAS_DOMAIN_NOT_FOUND`), unverified custom domain, or custom domain that is not ready for both sending and receiving (`ALIAS_DOMAIN_NOT_READY`).
      */
     400: {
         error: {
@@ -5275,22 +5317,31 @@ export type EmailDeleteResponses = {
 
 export type EmailDeleteResponse = EmailDeleteResponses[keyof EmailDeleteResponses];
 
-export type EmailAttachmentGetData = {
+export type EmailDomainDeleteData = {
     body?: never;
     path: {
-        id: string;
-        idx: string;
-    };
-    query?: {
         /**
-         * When `true`, allow downloading an attachment whose parent email is soft-deleted. Defaults to `false`.
+         * Custom domain hostname path parameter. URL-encode if your client requires it.
          */
-        include_deleted?: string;
+        domain: string;
     };
-    url: '/email/messages/{id}/attachments/{idx}';
+    query?: never;
+    url: '/email/domains/{domain}';
 };
 
-export type EmailAttachmentGetErrors = {
+export type EmailDomainDeleteErrors = {
+    /**
+     * Malformed or platform-reserved domain hostname.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
     /**
      * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
      */
@@ -5304,9 +5355,21 @@ export type EmailAttachmentGetErrors = {
         };
     };
     /**
-     * Either the parent email is unknown / soft-deleted (`EMAIL_NOT_FOUND`) or `idx` is out of range (`ATTACHMENT_NOT_FOUND`).
+     * The domain was not found for the caller organization.
      */
     404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Active aliases still use this domain.
+     */
+    409: {
         error: {
             code: string;
             message: string;
@@ -5339,18 +5402,30 @@ export type EmailAttachmentGetErrors = {
             };
         };
     };
-};
-
-export type EmailAttachmentGetError = EmailAttachmentGetErrors[keyof EmailAttachmentGetErrors];
-
-export type EmailAttachmentGetResponses = {
     /**
-     * Raw attachment bytes. `Content-Type` matches the attachment's parsed MIME (often `application/pdf`, `image/jpeg`, `text/calendar`, or `application/octet-stream` when unknown). `Content-Disposition: attachment; filename="<filename>"`.
+     * The upstream provider delete failed or provider credentials are missing.
      */
-    200: Blob | File;
+    502: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
 };
 
-export type EmailAttachmentGetResponse = EmailAttachmentGetResponses[keyof EmailAttachmentGetResponses];
+export type EmailDomainDeleteError = EmailDomainDeleteErrors[keyof EmailDomainDeleteErrors];
+
+export type EmailDomainDeleteResponses = {
+    /**
+     * Custom domain deleted.
+     */
+    204: void;
+};
+
+export type EmailDomainDeleteResponse = EmailDomainDeleteResponses[keyof EmailDomainDeleteResponses];
 
 export type EmailDomainGetData = {
     body?: never;
@@ -5437,6 +5512,83 @@ export type EmailDomainGetResponses = {
 };
 
 export type EmailDomainGetResponse = EmailDomainGetResponses[keyof EmailDomainGetResponses];
+
+export type EmailAttachmentGetData = {
+    body?: never;
+    path: {
+        id: string;
+        idx: string;
+    };
+    query?: {
+        /**
+         * When `true`, allow downloading an attachment whose parent email is soft-deleted. Defaults to `false`.
+         */
+        include_deleted?: string;
+    };
+    url: '/email/messages/{id}/attachments/{idx}';
+};
+
+export type EmailAttachmentGetErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Either the parent email is unknown / soft-deleted (`EMAIL_NOT_FOUND`) or `idx` is out of range (`ATTACHMENT_NOT_FOUND`).
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type EmailAttachmentGetError = EmailAttachmentGetErrors[keyof EmailAttachmentGetErrors];
+
+export type EmailAttachmentGetResponses = {
+    /**
+     * Raw attachment bytes. `Content-Type` matches the attachment's parsed MIME (often `application/pdf`, `image/jpeg`, `text/calendar`, or `application/octet-stream` when unknown). `Content-Disposition: attachment; filename="<filename>"`.
+     */
+    200: Blob | File;
+};
+
+export type EmailAttachmentGetResponse = EmailAttachmentGetResponses[keyof EmailAttachmentGetResponses];
 
 export type EmailGetData = {
     body?: never;

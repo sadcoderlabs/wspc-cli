@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainDeleteData, EmailDomainDeleteErrors, EmailDomainDeleteResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -731,9 +731,9 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  * ### Troubleshooting
  * - **401 Unauthorized**: Bearer token is missing, invalid, or expired.
  * - **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.
- * - **400 Bad Request / DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.
+ * - **400 Bad Request / ALIAS_DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.
  * - **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.
- * - **400 Bad Request / CUSTOM_DOMAIN_NOT_READY**: The custom domain exists but has not completed sending or receiving verification.
+ * - **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain exists but has not completed sending or receiving verification.
  * - **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).
  * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The user has reached the active alias cap limit of 10. A previously deleted alias must be cleaned up or wait for quota availability.
  */
@@ -785,7 +785,7 @@ export const emailDomainList = <ThrowOnError extends boolean = false>(options?: 
  * - This route requires custom domain provider credentials in production because it performs a live provider registration call.
  *
  * ### Troubleshooting
- * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The hostname is malformed or belongs to the platform (`wspc.app`, `wspc.ai`, or their subdomains).
+ * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The hostname is malformed or belongs to the platform (`wspc.app` or its subdomains).
  * - **409 Conflict / DOMAIN_CONFLICT**: The domain is already registered by some organization.
  * - **502 Bad Gateway / DOMAIN_PROVIDER_ERROR**: The upstream provider request failed, timed out, or returned an unexpected shape.
  */
@@ -854,28 +854,30 @@ export const emailDelete = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
- * Download an attachment by index
+ * Delete a custom email domain
  *
  * ### Overview
- * Streams the raw decoded bytes of a parsed attachment belonging to an inbound email. The response body is binary data instead of JSON.
+ * Deletes one active custom email domain for the caller organization. The worker first confirms no active aliases use the domain, deletes the upstream provider resource, then soft-deletes the cached D1 row.
  *
  * ### When to Use
- * - Use this endpoint when a user clicks to download a file attachment (such as an invoice PDF or image) or when an automated agent needs to process a file payload.
+ * - Use this when an organization no longer wants WSPC to manage a custom email domain.
+ * - Delete is only allowed when no active aliases use the domain.
+ * - Deleted domains are hidden from active list/get/verify/delete surfaces and cannot be self-restored in this version.
  *
  * ### Constraints
  * - Requires a valid Bearer token in the `Authorization` header.
- * - **Response Headers**: The server sets the HTTP `Content-Type` matching the attachment's parsed MIME format and provides a `Content-Disposition: attachment; filename="<filename>"` header.
- * - **Soft-Deleted Parents**: Downloading files from soft-deleted emails is blocked with a 404 error, unless the query parameter `include_deleted=true` is provided.
- * - **Path Parameter**: The `{idx}` must be a valid 0-based integer index pointing to the attachment list metadata.
+ * - This route requires custom domain provider credentials in production because it performs a live provider delete call.
+ * - Provider identifiers and provider raw errors are never returned to the client.
  *
  * ### Troubleshooting
- * - **401 Unauthorized**: Invalid Bearer token.
- * - **404 Not Found / EMAIL_NOT_FOUND**: The specified email ID does not exist or belongs to another user.
- * - **404 Not Found / ATTACHMENT_NOT_FOUND**: The index `{idx}` is out of range for the email's attachment array.
+ * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The path hostname is malformed or reserved.
+ * - **404 Not Found / DOMAIN_NOT_FOUND**: The domain does not exist, belongs to another organization, or was already deleted.
+ * - **409 Conflict / DOMAIN_IN_USE**: Active aliases still use this domain.
+ * - **502 Bad Gateway / DOMAIN_PROVIDER_ERROR**: Provider delete failed, timed out, or credentials are missing.
  */
-export const emailAttachmentGet = <ThrowOnError extends boolean = false>(options: Options<EmailAttachmentGetData, ThrowOnError>) => (options.client ?? client).get<EmailAttachmentGetResponses, EmailAttachmentGetErrors, ThrowOnError>({
+export const emailDomainDelete = <ThrowOnError extends boolean = false>(options: Options<EmailDomainDeleteData, ThrowOnError>) => (options.client ?? client).delete<EmailDomainDeleteResponses, EmailDomainDeleteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/email/messages/{id}/attachments/{idx}',
+    url: '/email/domains/{domain}',
     ...options
 });
 
@@ -900,6 +902,32 @@ export const emailAttachmentGet = <ThrowOnError extends boolean = false>(options
 export const emailDomainGet = <ThrowOnError extends boolean = false>(options: Options<EmailDomainGetData, ThrowOnError>) => (options.client ?? client).get<EmailDomainGetResponses, EmailDomainGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/email/domains/{domain}',
+    ...options
+});
+
+/**
+ * Download an attachment by index
+ *
+ * ### Overview
+ * Streams the raw decoded bytes of a parsed attachment belonging to an inbound email. The response body is binary data instead of JSON.
+ *
+ * ### When to Use
+ * - Use this endpoint when a user clicks to download a file attachment (such as an invoice PDF or image) or when an automated agent needs to process a file payload.
+ *
+ * ### Constraints
+ * - Requires a valid Bearer token in the `Authorization` header.
+ * - **Response Headers**: The server sets the HTTP `Content-Type` matching the attachment's parsed MIME format and provides a `Content-Disposition: attachment; filename="<filename>"` header.
+ * - **Soft-Deleted Parents**: Downloading files from soft-deleted emails is blocked with a 404 error, unless the query parameter `include_deleted=true` is provided.
+ * - **Path Parameter**: The `{idx}` must be a valid 0-based integer index pointing to the attachment list metadata.
+ *
+ * ### Troubleshooting
+ * - **401 Unauthorized**: Invalid Bearer token.
+ * - **404 Not Found / EMAIL_NOT_FOUND**: The specified email ID does not exist or belongs to another user.
+ * - **404 Not Found / ATTACHMENT_NOT_FOUND**: The index `{idx}` is out of range for the email's attachment array.
+ */
+export const emailAttachmentGet = <ThrowOnError extends boolean = false>(options: Options<EmailAttachmentGetData, ThrowOnError>) => (options.client ?? client).get<EmailAttachmentGetResponses, EmailAttachmentGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/messages/{id}/attachments/{idx}',
     ...options
 });
 
