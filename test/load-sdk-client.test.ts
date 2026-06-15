@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { ConfigStore } from "../src/handwritten/config/index.js"
 import { loadSdkClient } from "../src/handwritten/auth/load-sdk-client.js"
+import { todoList } from "../src/generated/sdk/index.js"
 
 describe("loadSdkClient", () => {
   it("throws clear error if not logged in (empty config)", async () => {
@@ -33,6 +34,43 @@ describe("loadSdkClient", () => {
     expect(client).toBeDefined()
     expect(client).not.toBeNull()
     expect((client as { _rawClient: unknown })._rawClient).toBeDefined()
+  })
+
+  it("routes generated SDK requests through consistency fetch", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-load-bookmark-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          consistency_bookmark: "bookmark_old",
+          current_account: "a@x.com",
+          accounts: { "a@x.com": { email: "a@x.com", api_key: "wspc_x" } },
+        },
+      },
+    })
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const req = input as Request
+      expect(req.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
+      return new Response(JSON.stringify({ todos: [] }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "x-consistency-bookmark": "bookmark_new",
+        },
+      })
+    })
+
+    const client = await loadSdkClient({ store, fetchImpl: fetchImpl as unknown as typeof fetch })
+    await todoList({
+      client: client._rawClient,
+      query: { project_id: "prj_1" },
+    })
+
+    expect(fetchImpl).toHaveBeenCalledOnce()
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_new")
   })
 
   it("builds a client when OAuth tokens present in config", async () => {
