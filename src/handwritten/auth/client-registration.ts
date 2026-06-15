@@ -1,4 +1,5 @@
 import type { ConfigStore } from "../config/index.js"
+import { createConsistencyFetch } from "./consistency-fetch.js"
 
 const DEFAULT_CLIENT_NAME = "wspc CLI"
 // Device flow doesn't use redirect, but RFC 7591 requires a value.
@@ -22,10 +23,19 @@ interface RegisterResponse {
  * resulting id if none exists yet. Re-running is idempotent: stored id wins.
  */
 export async function ensureClientId(opts: EnsureClientIdOptions): Promise<string> {
-  const fetchImpl = opts.fetchImpl ?? fetch
+  const fetchImpl = createConsistencyFetch({
+    store: opts.store,
+    envName: opts.envName,
+    apiBase: opts.baseUrl,
+    fetchImpl: opts.fetchImpl,
+  })
   const c = await opts.store.read()
   const existing = c.envs[opts.envName]?.client_id
   if (existing) return existing
+  const targetEnv = (c.envs[opts.envName] ??= { api_base: opts.baseUrl, accounts: {} })
+  targetEnv.api_base = opts.baseUrl
+  targetEnv.accounts ??= {}
+  await opts.store.write(c)
 
   const res = await fetchImpl(`${opts.baseUrl}/auth/oauth/register`, {
     method: "POST",

@@ -10,7 +10,7 @@ import { parseAttendee } from "../../../handwritten/utils/parse-attendee.js"
 export const eventUpdateCommand = new Command("set")
   .description("Update a calendar event")
   .argument("<id>", "id")
-  .option("--expected-version <value>", "Optional optimistic lock. Omit to let the server use the current version; pass only to fail the call if someone else has mutated the event since you last read. On mismatch the server returns 409 `VERSION_CONFLICT` with `extra.expected_version` and `extra.actual_version`.")
+  .option("--expected-version <value>", "Optional optimistic lock. Omit to let the server use the current version; pass only to fail the call if someone else has mutated the event since you last read. On mismatch the server returns 409 `VERSION_CONFLICT` and includes the current and sent versions in the message.")
   .option("--title <value>", "New event title. Omit to leave unchanged.")
   .option("--description <value>", "New description. Markdown formatted (CommonMark + GFM tables, strikethrough, task lists). Pass an empty string to clear; omit to leave unchanged.")
   .option("--start <value>", "Accepts ISO 8601 datetime with offset (e.g. `2026-06-01T12:30:00+08:00`) for timed events, or ISO date-only (e.g. `2026-06-01`) for all-day. The `wspc` CLI additionally accepts natural-language phrases (`tomorrow 12:30pm`, `next Monday 9am`) and resolves them to ISO before sending; the server itself only accepts ISO. All-day uses RFC 5545 exclusive end: a one-day event on 6/1 is `start=2026-06-01, end=2026-06-02`; both endpoints must be the same type.")

@@ -1,5 +1,6 @@
 import { ConfigStore } from "../config/index.js"
 import { createClient, createConfig } from "../../generated/sdk/client/index.js"
+import { createConsistencyFetch } from "./consistency-fetch.js"
 import { createAuthInterceptor } from "./sdk-auth.js"
 import { resolveAccount } from "./resolve-account.js"
 
@@ -15,10 +16,11 @@ export interface LoadedClient {
 function buildInterceptor(
   store: ConfigStore,
   resolved: ReturnType<typeof resolveAccount>,
+  fetchImpl: typeof fetch,
 ): ReturnType<typeof createAuthInterceptor> {
   const { envName, apiBase, clientId, email, creds } = resolved
   if (creds.api_key) {
-    return createAuthInterceptor({ apiKey: creds.api_key })
+    return createAuthInterceptor({ apiKey: creds.api_key, fetchImpl })
   }
   if (!clientId) {
     throw new Error(
@@ -30,6 +32,7 @@ function buildInterceptor(
     refreshToken: creds.refresh_token!,
     baseUrl: apiBase,
     clientId,
+    fetchImpl,
     onTokenRefresh: async ({ accessToken, refreshToken, expiresAt }) => {
       const cfg = await store.read()
       const a = cfg.envs[envName]?.accounts?.[email]
@@ -42,11 +45,19 @@ function buildInterceptor(
   })
 }
 
-export async function loadSdkClient(opts: { store?: ConfigStore } = {}): Promise<LoadedClient> {
+export async function loadSdkClient(
+  opts: { store?: ConfigStore; fetchImpl?: typeof fetch } = {},
+): Promise<LoadedClient> {
   const store = opts.store ?? new ConfigStore()
   const config = await store.read()
   const resolved = resolveAccount(config, { accountOverride: process.env.WSPC_ACCOUNT })
-  const interceptor = buildInterceptor(store, resolved)
+  const consistencyFetch = createConsistencyFetch({
+    store,
+    envName: resolved.envName,
+    apiBase: resolved.apiBase,
+    fetchImpl: opts.fetchImpl,
+  })
+  const interceptor = buildInterceptor(store, resolved, consistencyFetch)
 
   const rawClient = createClient(
     createConfig({
@@ -58,11 +69,19 @@ export async function loadSdkClient(opts: { store?: ConfigStore } = {}): Promise
   return { _rawClient: rawClient }
 }
 
-export async function loadAuthedFetch(opts: { store?: ConfigStore } = {}): Promise<AuthedFetch> {
+export async function loadAuthedFetch(
+  opts: { store?: ConfigStore; fetchImpl?: typeof fetch } = {},
+): Promise<AuthedFetch> {
   const store = opts.store ?? new ConfigStore()
   const config = await store.read()
   const resolved = resolveAccount(config, { accountOverride: process.env.WSPC_ACCOUNT })
-  const interceptor = buildInterceptor(store, resolved)
+  const consistencyFetch = createConsistencyFetch({
+    store,
+    envName: resolved.envName,
+    apiBase: resolved.apiBase,
+    fetchImpl: opts.fetchImpl,
+  })
+  const interceptor = buildInterceptor(store, resolved, consistencyFetch)
 
   const authedFetch: typeof fetch = (input, init) =>
     interceptor.execute(new Request(input as RequestInfo, init))

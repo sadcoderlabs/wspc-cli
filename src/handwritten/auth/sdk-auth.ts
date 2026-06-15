@@ -1,7 +1,7 @@
 import { WspcAuthExpiredError } from "../../index.js"
 
 export type AuthMode =
-  | { apiKey: string }
+  | { apiKey: string; fetchImpl?: typeof fetch }
   | {
       accessToken: string
       refreshToken: string
@@ -20,6 +20,7 @@ export interface AuthInterceptor {
 export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
   if ("apiKey" in mode) {
     const apiKey = mode.apiKey
+    const fetchImpl = mode.fetchImpl ?? fetch
     return {
       async onRequest(req) {
         req.headers.set("authorization", `Bearer ${apiKey}`)
@@ -27,7 +28,7 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
       },
       async execute(req) {
         const out = await this.onRequest(req.clone())
-        return fetch(out)
+        return fetchImpl(out)
       },
     }
   }

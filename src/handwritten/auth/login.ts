@@ -19,11 +19,18 @@ export interface RunLoginOptions {
   deviceFlow?: (opts: {
     baseUrl: string
     clientId: string
+    store?: ConfigStore
+    envName?: string
     onPrompt: (p: unknown) => void
   }) => Promise<DeviceFlowResult>
   now?: () => number
   apiKey?: string
-  fetchMe?: (opts: { baseUrl: string; token: string }) => Promise<{ user_id: string; email: string }>
+  fetchMe?: (opts: {
+    baseUrl: string
+    token: string
+    store?: ConfigStore
+    envName?: string
+  }) => Promise<{ user_id: string; email: string }>
 }
 
 function getOrCreateEnv(c: WspcConfig, envName: string, apiBase: string): EnvConfig {
@@ -41,10 +48,23 @@ function getOrCreateEnv(c: WspcConfig, envName: string, apiBase: string): EnvCon
 export async function runLogin(opts: RunLoginOptions): Promise<void> {
   const envName = opts.envName ?? "prod"
   const now = opts.now ?? Date.now
-  const me = opts.fetchMe ?? ((o: { baseUrl: string; token: string }) => defaultFetchMe(o))
+  const me =
+    opts.fetchMe ??
+    ((o: { baseUrl: string; token: string; store?: ConfigStore; envName?: string }) =>
+      defaultFetchMe(o))
 
   if (opts.apiKey) {
-    const who = await me({ baseUrl: opts.baseUrl, token: opts.apiKey })
+    const initial = await opts.store.read()
+    getOrCreateEnv(initial, envName, opts.baseUrl)
+    initial.current_env = envName
+    await opts.store.write(initial)
+
+    const who = await me({
+      baseUrl: opts.baseUrl,
+      token: opts.apiKey,
+      store: opts.store,
+      envName,
+    })
     const c = await opts.store.read()
     const env = getOrCreateEnv(c, envName, opts.baseUrl)
     const prev = env.accounts[who.email] ?? { email: who.email }
@@ -75,6 +95,8 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
   const result = await flow({
     baseUrl: opts.baseUrl,
     clientId,
+    store: opts.store,
+    envName,
     onPrompt: (p) => {
       const prompt = p as { verification_uri: string; user_code: string; expires_in: number }
       opts.output.writeJson({ event: "device_code_issued", ...prompt })
@@ -86,7 +108,12 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     },
   })
 
-  const who = await me({ baseUrl: opts.baseUrl, token: result.access_token })
+  const who = await me({
+    baseUrl: opts.baseUrl,
+    token: result.access_token,
+    store: opts.store,
+    envName,
+  })
 
   // Re-read: ensureClient may have written client_id while we ran the flow.
   const c = await opts.store.read()

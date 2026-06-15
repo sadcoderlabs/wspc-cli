@@ -1,3 +1,6 @@
+import type { ConfigStore } from "../config/index.js"
+import { createConsistencyFetch } from "./consistency-fetch.js"
+
 export interface MeResult {
   user_id: string
   email: string
@@ -10,9 +13,19 @@ export interface MeResult {
 export async function fetchMe(opts: {
   baseUrl: string
   token: string
+  store?: ConfigStore
+  envName?: string
   fetchImpl?: typeof fetch
 }): Promise<MeResult> {
-  const f = opts.fetchImpl ?? fetch
+  const f =
+    opts.store && opts.envName
+      ? createConsistencyFetch({
+          store: opts.store,
+          envName: opts.envName,
+          apiBase: opts.baseUrl,
+          fetchImpl: opts.fetchImpl,
+        })
+      : (opts.fetchImpl ?? fetch)
   const res = await f(`${opts.baseUrl}/auth/me`, {
     headers: { authorization: `Bearer ${opts.token}` },
   })

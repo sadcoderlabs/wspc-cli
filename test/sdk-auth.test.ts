@@ -1,6 +1,10 @@
-import { describe, it, expect, vi } from "vitest"
+import { afterEach, describe, it, expect, vi } from "vitest"
 import { createAuthInterceptor } from "../src/handwritten/auth/sdk-auth.js"
 import { WspcAuthExpiredError } from "../src/index.js"
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe("createAuthInterceptor", () => {
   it("attaches bearer header (apiKey mode)", async () => {
@@ -8,6 +12,22 @@ describe("createAuthInterceptor", () => {
     const req = new Request("https://api.wspc.ai/todo/items")
     const out = await interceptor.onRequest(req)
     expect(out.headers.get("authorization")).toBe("Bearer wspc_x")
+  })
+
+  it("uses injected fetch in apiKey mode", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    const globalFetch = vi.fn()
+    vi.stubGlobal("fetch", globalFetch)
+
+    const interceptor = createAuthInterceptor({
+      apiKey: "wspc_x",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    })
+
+    const finalRes = await interceptor.execute(new Request("https://api.wspc.ai/todo/items"))
+    expect(finalRes.ok).toBe(true)
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(globalFetch).not.toHaveBeenCalled()
   })
 
   it("refreshes on 401 with refresh_token mode and retries", async () => {

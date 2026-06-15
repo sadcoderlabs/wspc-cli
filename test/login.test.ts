@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { runLogin } from "../src/handwritten/auth/login.js"
+import { fetchMe as realFetchMe } from "../src/handwritten/auth/fetch-me.js"
 import { resolveLoginTarget, wantsJson } from "../src/handwritten/commands/login.js"
 import { API_BASE } from "../src/version.js"
 import { ConfigStore } from "../src/handwritten/config/index.js"
@@ -152,6 +153,44 @@ describe("runLogin", () => {
     expect(deviceFlow).toHaveBeenCalledOnce()
   })
 
+  it("passes store and envName to deviceFlow and post-flow fetchMe during OAuth login", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-oauth-bootstrap-"))
+    const store = new ConfigStore({ configDir: dir })
+    const deviceFlow = vi.fn().mockResolvedValue({
+      access_token: "wat_x",
+      refresh_token: "wrt_x",
+      expires_in: 900,
+      token_type: "Bearer",
+    })
+    const fetchMe = vi.fn().mockResolvedValue({ user_id: "usr_1", email: "a@x.com" })
+
+    await runLogin({
+      store,
+      envName: "staging",
+      baseUrl: "https://api.staging.wspc.ai",
+      clientId: "client_X",
+      deviceFlow,
+      fetchMe,
+      now: () => 1,
+      output: { write: () => {}, writeJson: () => {} },
+    })
+
+    expect(deviceFlow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: "https://api.staging.wspc.ai",
+        clientId: "client_X",
+        store,
+        envName: "staging",
+      }),
+    )
+    expect(fetchMe).toHaveBeenCalledWith({
+      baseUrl: "https://api.staging.wspc.ai",
+      token: "wat_x",
+      store,
+      envName: "staging",
+    })
+  })
+
   it("drops stale (default) orphan after OAuth login resolves real email", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-orphan-"))
     const store = new ConfigStore({ configDir: dir })
@@ -200,5 +239,56 @@ describe("runLogin", () => {
     expect(c.envs.prod?.accounts["a@x.com"]?.api_key).toBe("wspc_test_key")
     expect(c.envs.prod?.accounts["a@x.com"]?.refresh_token).toBeUndefined()
     expect(c.envs.prod?.current_account).toBe("a@x.com")
+  })
+
+  it("preserves api-key login bookmark returned by auth/me on empty config", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-key-bookmark-"))
+    const store = new ConfigStore({ configDir: dir })
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const req = input instanceof Request ? input : new Request(input)
+      expect(req.url).toBe("https://api.wspc.ai/auth/me")
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_test_key")
+      return new Response(JSON.stringify({ user_id: "usr_1", email: "a@x.com" }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "x-consistency-bookmark": "bookmark_after_me",
+        },
+      })
+    })
+
+    await runLogin({
+      store,
+      apiKey: "wspc_test_key",
+      baseUrl: "https://api.wspc.ai",
+      fetchMe: (opts) => realFetchMe({ ...opts, fetchImpl: fetchImpl as typeof fetch }),
+      output: { write: () => {}, writeJson: () => {} },
+    })
+
+    const c = await store.read()
+    expect(c.envs.prod?.consistency_bookmark).toBe("bookmark_after_me")
+    expect(c.envs.prod?.accounts["a@x.com"]?.api_key).toBe("wspc_test_key")
+  })
+
+  it("passes store and envName to fetchMe during api-key login", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-key-fetch-me-"))
+    const store = new ConfigStore({ configDir: dir })
+    const fetchMe = vi.fn().mockResolvedValue({ user_id: "usr_1", email: "a@x.com" })
+
+    await runLogin({
+      store,
+      envName: "staging",
+      apiKey: "wspc_test_key",
+      baseUrl: "https://api.staging.wspc.ai",
+      fetchMe,
+      output: { write: () => {}, writeJson: () => {} },
+    })
+
+    expect(fetchMe).toHaveBeenCalledWith({
+      baseUrl: "https://api.staging.wspc.ai",
+      token: "wspc_test_key",
+      store,
+      envName: "staging",
+    })
   })
 })
