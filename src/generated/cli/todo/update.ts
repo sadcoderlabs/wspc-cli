@@ -3,19 +3,20 @@ import { Command } from "commander"
 import { todoUpdate } from "../../sdk/index.js"
 import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
 import { render } from "../../../handwritten/output/render.js"
+import { parseJsonField } from "../../../handwritten/utils/parse-json-field.js"
 
 export const todoUpdateCommand = new Command("update")
   .description("Update a todo")
   .argument("<id>", "id")
   .option("--expected-version <value>", "expected_version")
-  .option("--title <value>", "title")
-  .option("--description <value>", "description")
-  .option("--parent-id <value>", "parent_id")
-  .option("--status <value>", "status")
-  .option("--due-at <value>", "due_at")
-  .option("--type-id <value>", "type_id")
-  .option("--custom-fields <value>", "custom_fields")
-  .option("--user-id <value>", "user_id")
+  .option("--title <value>", "New title. Omit to leave the existing title unchanged. Must be non-empty when supplied.")
+  .option("--description <value>", "New description. Markdown formatted (CommonMark + GFM tables, strikethrough, task lists). Pass empty string `\"\"` explicitly to clear an existing description, or omit to leave unchanged. Passing `null` is strictly rejected.")
+  .option("--parent-id <value>", "Re-parent the todo. Pass a valid parent ID to attach under another todo, pass `null` to move it back to the root level, or omit to leave unchanged. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`.")
+  .option("--status <value>", "New status of the todo. Allowed transitions: `open` ➔ `in_progress` ➔ `done`. `cancelled` represents a terminal state. Transitioning to `done` automatically emits a `captureTodoCompleted` analytics event. Omit to leave the existing status unchanged.")
+  .option("--due-at <value>", "Update calendar due date in ISO date-only format (`YYYY-MM-DD`). Pass `\"\"` explicitly to clear an existing due date, or omit to leave it unchanged. Passing `null` is strictly rejected.")
+  .option("--type-id <value>", "Re-assign this todo to a different active type. The new type must belong to the todo's same project; otherwise the request fails with TYPE_PROJECT_MISMATCH. New server-generated type ids use typ_<ULID>; legacy ids remain accepted.")
+  .option("--custom-fields <value>", "PATCH semantics: only the keys present in this map change. Pass `null` for a key (e.g. `custom_fields: { priority: null }`) to explicitly delete that custom field value. Array values are replaced wholesale with no element-level diff. Providing a key that is not declared on the effective todo type is rejected with `UNDECLARED_FIELD`.")
+  .option("--user-id <value>", "Reassign the owner (assignee) user ID of this todo. Target user must belong to the same organization.")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await todoUpdate({
@@ -31,7 +32,7 @@ export const todoUpdateCommand = new Command("update")
         status: opts.status,
         due_at: opts.dueAt,
         type_id: opts.typeId,
-        custom_fields: opts.customFields,
+        custom_fields: parseJsonField(opts.customFields, "custom-fields"),
         user_id: opts.userId,
       },
     })

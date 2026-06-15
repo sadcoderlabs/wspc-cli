@@ -7,7 +7,7 @@ import { render } from "../../../handwritten/output/render.js"
 export const keyUpdateCommand = new Command("edit")
   .description("Update an active API key's label")
   .argument("<id>", "id")
-  .option("--label <value>", "label")
+  .option("--label <value>", "Human-readable label for the key (1–60 chars after trimming).")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await keyUpdate({

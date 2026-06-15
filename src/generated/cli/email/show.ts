@@ -7,8 +7,8 @@ import { render } from "../../../handwritten/output/render.js"
 export const emailGetCommand = new Command("show")
   .description("Get an inbound email by id")
   .argument("<id>", "id")
-  .option("--include-html <value>", "include_html")
-  .option("--include-deleted <value>", "include_deleted")
+  .option("--include-html <value>", "When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text.")
+  .option("--include-deleted <value>", "When `true`, allow fetching a soft-deleted email. Defaults to `false` (returns 404 for soft-deleted rows).")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await emailGet({

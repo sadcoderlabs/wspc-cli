@@ -40,6 +40,7 @@ export interface BodyField {
   name: string
   type: "string" | "number" | "boolean" | "array" | "object"
   required: boolean
+  description?: string
 }
 
 export interface EmitInput {
@@ -188,14 +189,17 @@ export function emitCommand(input: EmitInput): string | null {
       const optDef = xCliOptions[optKey]!
       const { longFlag, short } = resolveAlias(optKey)
       const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
+      const optLabel = JSON.stringify(f.description ?? optKey)
       if (optDef.array) {
-        return `.option("${flagSpec}", "${optKey}", (val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[])`
+        return `.option("${flagSpec}", ${optLabel}, (val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[])`
       }
-      return `.option("${flagSpec}", "${optKey}")`
+      return `.option("${flagSpec}", ${optLabel})`
     }
     const { longFlag, short } = resolveAlias(f.name)
     const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
-    return `.option("${flagSpec}", "${f.name}")`
+    // Prefer the field's OpenAPI description so `--help` carries real guidance;
+    // fall back to the field name. JSON.stringify keeps quotes/newlines safe.
+    return `.option("${flagSpec}", ${JSON.stringify(f.description ?? f.name)})`
   }
 
   // Skip body fields whose x-cli option key has been promoted to a variadic
@@ -326,8 +330,21 @@ export function emitCommand(input: EmitInput): string | null {
         return `        ${f.name}: ${expr}${suffix},`
       }
       const { longFlag } = resolveAlias(f.name)
+      // Object/array body fields arrive from commander as raw strings; JSON.parse
+      // them so the SDK receives a record/array rather than a string (otherwise
+      // the server rejects with e.g. "expected record, received string").
+      if (f.type === "object" || f.type === "array") {
+        return `        ${f.name}: parseJsonField(opts.${camelize(longFlag)}, ${JSON.stringify(longFlag)}),`
+      }
       return `        ${f.name}: opts.${camelize(longFlag)},`
     })
+  const usesJsonField = input.bodyFields.some(
+    (f) =>
+      !positionalSet.has(f.name) &&
+      !pathParamSet.has(f.name) &&
+      fieldToOptionKey[f.name] === undefined &&
+      (f.type === "object" || f.type === "array"),
+  )
   const bodyHasContent = bodyPositionals.length > 0 || bodyOptLines.length > 0
   const unwrapKey = input.xCli.body?.unwrap
   let bodyBlock: string[] = []
@@ -468,6 +485,11 @@ export function emitCommand(input: EmitInput): string | null {
   if (hasAttendeeParser) {
     imports.push(
       `import { parseAttendee } from "${handwrittenRelPrefix}handwritten/utils/parse-attendee.js"`,
+    )
+  }
+  if (usesJsonField) {
+    imports.push(
+      `import { parseJsonField } from "${handwrittenRelPrefix}handwritten/utils/parse-json-field.js"`,
     )
   }
 

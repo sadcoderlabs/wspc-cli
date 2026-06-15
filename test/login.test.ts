@@ -4,9 +4,43 @@ import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { runLogin } from "../src/handwritten/auth/login.js"
 import { fetchMe as realFetchMe } from "../src/handwritten/auth/fetch-me.js"
+import { resolveLoginTarget, wantsJson } from "../src/handwritten/commands/login.js"
+import { API_BASE } from "../src/version.js"
 import { ConfigStore } from "../src/handwritten/config/index.js"
 
 const me = async () => ({ user_id: "usr_1", email: "a@x.com" })
+
+describe("resolveLoginTarget", () => {
+  it("defaults to prod API_BASE and prod env", () => {
+    expect(resolveLoginTarget({}, {})).toEqual({ baseUrl: API_BASE, envName: "prod" })
+  })
+  it("uses --api-base and defaults env to local", () => {
+    expect(resolveLoginTarget({ apiBase: "http://127.0.0.1:8780" }, {})).toEqual({
+      baseUrl: "http://127.0.0.1:8780",
+      envName: "local",
+    })
+  })
+  it("honors WSPC_API_BASE env var", () => {
+    expect(resolveLoginTarget({}, { WSPC_API_BASE: "http://localhost:9000" })).toEqual({
+      baseUrl: "http://localhost:9000",
+      envName: "local",
+    })
+  })
+  it("explicit --env wins over the default", () => {
+    expect(resolveLoginTarget({ apiBase: "http://127.0.0.1:8780", env: "accept" }, {})).toEqual({
+      baseUrl: "http://127.0.0.1:8780",
+      envName: "accept",
+    })
+  })
+})
+
+describe("wantsJson", () => {
+  it("false by default", () => expect(wantsJson({}, {})).toBe(false))
+  it("true when opts.json is set", () => expect(wantsJson({ json: true }, {})).toBe(true))
+  it("true when WSPC_OUTPUT=json (global --json preAction path)", () =>
+    expect(wantsJson({}, { WSPC_OUTPUT: "json" })).toBe(true))
+  it("false when WSPC_OUTPUT=pretty", () => expect(wantsJson({}, { WSPC_OUTPUT: "pretty" })).toBe(false))
+})
 
 describe("runLogin", () => {
   it("stores tokens under accounts[email] and sets it active", async () => {

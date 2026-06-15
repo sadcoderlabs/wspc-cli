@@ -6,7 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const orgInviteCreateCommand = new Command("invite")
   .description("Invite an email to join the caller's organization")
-  .option("--email <value>", "email")
+  .option("--email <value>", "Email address to invite into the caller's organization.")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await orgInviteCreate({

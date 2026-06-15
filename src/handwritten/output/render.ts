@@ -70,9 +70,27 @@ export function render(ctx: RenderContext, data: unknown): void {
   const specific = SPECIFIC_RENDERERS[ctx.kind]
   if (specific) {
     specific(target, ctx.display)
-    return
+  } else {
+    renderGeneric(target, ctx.display)
   }
-  renderGeneric(target, ctx.display)
+  // Pass original `data` (the full response wrapper) so top-level
+  // next_cursor / children_next_cursor / comments_next_cursor are visible.
+  renderPaginationFooter(data)
+}
+
+function renderPaginationFooter(data: unknown): void {
+  if (data === null || typeof data !== "object") return
+  const d = data as Record<string, unknown>
+  if (typeof d.next_cursor === "string" && d.next_cursor.length > 0) {
+    process.stdout.write(dim(`  … more results — re-run with --cursor ${d.next_cursor}`) + "\n")
+  }
+  const id = typeof d.id === "string" ? d.id : "<id>"
+  if (typeof d.children_next_cursor === "string" && d.children_next_cursor.length > 0) {
+    process.stdout.write(dim(`  … more children — wspc todo ls --parent ${id}`) + "\n")
+  }
+  if (typeof d.comments_next_cursor === "string" && d.comments_next_cursor.length > 0) {
+    process.stdout.write(dim(`  … more comments — wspc todo comment ls ${id}`) + "\n")
+  }
 }
 
 function drillDataPath(data: unknown, dataPath: string | undefined): unknown {
