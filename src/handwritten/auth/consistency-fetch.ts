@@ -12,7 +12,11 @@ export interface ConsistencyFetchOptions {
 
 function isUnderApiBase(url: URL, apiBase: string): boolean {
   const base = new URL(apiBase)
-  return url.origin === base.origin && url.pathname.startsWith(base.pathname)
+  const basePath = base.pathname.endsWith("/") ? base.pathname : `${base.pathname}/`
+  return (
+    url.origin === base.origin &&
+    (base.pathname === "/" || url.pathname === base.pathname || url.pathname.startsWith(basePath))
+  )
 }
 
 async function responseHasInvalidBookmark(response: Response): Promise<boolean> {

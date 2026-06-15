@@ -94,6 +94,22 @@ describe("createConsistencyFetch", () => {
     expect(req.headers.get("x-consistency-bookmark")).toBeNull()
   })
 
+  it("does not send bookmark to sibling prefix paths", async () => {
+    const store = await seededStore("bookmark_old")
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }))
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai/v1",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://api.wspc.ai/v10/todo/items")
+
+    const req = fetchImpl.mock.calls[0]![0] as Request
+    expect(req.headers.get("x-consistency-bookmark")).toBeNull()
+  })
+
   it("clears env bookmark on invalid bookmark errors without retrying", async () => {
     const store = await seededStore("bookmark_bad")
     const fetchImpl = vi.fn(
