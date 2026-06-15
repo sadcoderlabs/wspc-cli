@@ -102,6 +102,30 @@ describe("createConsistencyFetch", () => {
     expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_new")
   })
 
+  it("does not create missing env when response bookmark is returned", async () => {
+    const store = await seededStore()
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "x-consistency-bookmark": "bookmark_new" },
+        }),
+    )
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "staging",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://api.wspc.ai/todo/items")
+
+    const config = await store.read()
+    expect(config.current_env).toBe("prod")
+    expect(config.envs.prod).toBeDefined()
+    expect(config.envs.staging).toBeUndefined()
+  })
+
   it("does not parse invalid bookmark body when response bookmark is present", async () => {
     const store = await seededStore("bookmark_old")
     const response = new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
@@ -226,6 +250,32 @@ describe("createConsistencyFetch", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const config = await store.read()
     expect(config.envs.prod).not.toHaveProperty("consistency_bookmark")
+  })
+
+  it("does not create missing env when invalid bookmark response would clear", async () => {
+    const store = await seededStore()
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }),
+    )
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "staging",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    const response = await consistencyFetch("https://api.wspc.ai/todo/items")
+
+    expect(response.status).toBe(400)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const config = await store.read()
+    expect(config.current_env).toBe("prod")
+    expect(config.envs.prod).toBeDefined()
+    expect(config.envs.staging).toBeUndefined()
   })
 
   it("clears injected env bookmark on problem+json invalid bookmark errors", async () => {
