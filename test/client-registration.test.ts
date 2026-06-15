@@ -64,6 +64,32 @@ describe("ensureClientId", () => {
     expect(c.envs.prod?.consistency_bookmark).toBe("bookmark_new")
   })
 
+  it("persists returned bookmark when registering into an empty config", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-register-empty-bookmark-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({ envs: {} })
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ client_id: "client_NEW_ID" }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "x-consistency-bookmark": "bookmark_new",
+        },
+      }),
+    )
+
+    await ensureClientId({
+      store,
+      envName: "prod",
+      baseUrl: "https://api.wspc.ai",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    })
+
+    const c = await store.read()
+    expect(c.envs.prod?.client_id).toBe("client_NEW_ID")
+    expect(c.envs.prod?.consistency_bookmark).toBe("bookmark_new")
+  })
+
   it("returns existing client_id without re-registering", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-register-existing-"))
     const store = new ConfigStore({ configDir: dir })

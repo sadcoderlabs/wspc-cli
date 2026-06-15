@@ -118,6 +118,44 @@ describe("runLogin", () => {
     expect(deviceFlow).toHaveBeenCalledOnce()
   })
 
+  it("passes store and envName to deviceFlow and post-flow fetchMe during OAuth login", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-oauth-bootstrap-"))
+    const store = new ConfigStore({ configDir: dir })
+    const deviceFlow = vi.fn().mockResolvedValue({
+      access_token: "wat_x",
+      refresh_token: "wrt_x",
+      expires_in: 900,
+      token_type: "Bearer",
+    })
+    const fetchMe = vi.fn().mockResolvedValue({ user_id: "usr_1", email: "a@x.com" })
+
+    await runLogin({
+      store,
+      envName: "staging",
+      baseUrl: "https://api.staging.wspc.ai",
+      clientId: "client_X",
+      deviceFlow,
+      fetchMe,
+      now: () => 1,
+      output: { write: () => {}, writeJson: () => {} },
+    })
+
+    expect(deviceFlow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: "https://api.staging.wspc.ai",
+        clientId: "client_X",
+        store,
+        envName: "staging",
+      }),
+    )
+    expect(fetchMe).toHaveBeenCalledWith({
+      baseUrl: "https://api.staging.wspc.ai",
+      token: "wat_x",
+      store,
+      envName: "staging",
+    })
+  })
+
   it("drops stale (default) orphan after OAuth login resolves real email", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-orphan-"))
     const store = new ConfigStore({ configDir: dir })
