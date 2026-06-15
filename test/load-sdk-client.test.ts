@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { ConfigStore } from "../src/handwritten/config/index.js"
-import { loadSdkClient } from "../src/handwritten/auth/load-sdk-client.js"
+import { loadAuthedFetch, loadSdkClient } from "../src/handwritten/auth/load-sdk-client.js"
 import { todoList } from "../src/generated/sdk/index.js"
 
 describe("loadSdkClient", () => {
@@ -67,6 +67,41 @@ describe("loadSdkClient", () => {
       client: client._rawClient,
       query: { project_id: "prj_1" },
     })
+
+    expect(fetchImpl).toHaveBeenCalledOnce()
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_new")
+  })
+
+  it("routes direct authenticated fetch through consistency fetch", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-load-authed-bookmark-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          consistency_bookmark: "bookmark_old",
+          current_account: "a@x.com",
+          accounts: { "a@x.com": { email: "a@x.com", api_key: "wspc_x" } },
+        },
+      },
+    })
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const req = input as Request
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_x")
+      expect(req.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
+      return new Response("{}", {
+        status: 200,
+        headers: { "x-consistency-bookmark": "bookmark_new" },
+      })
+    })
+
+    const { fetch: authedFetch } = await loadAuthedFetch({
+      store,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    })
+    await authedFetch("https://api.wspc.ai/auth/me")
 
     expect(fetchImpl).toHaveBeenCalledOnce()
     const config = await store.read()
