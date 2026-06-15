@@ -56,6 +56,30 @@ describe("createConsistencyFetch", () => {
     expect(req.headers.get("x-consistency-bookmark")).toBe("caller_bookmark")
   })
 
+  it("does not clear stored bookmark when caller-supplied bookmark is invalid", async () => {
+    const store = await seededStore("bookmark_valid")
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }),
+    )
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://api.wspc.ai/todo/items", {
+      headers: { "x-consistency-bookmark": "caller_bad" },
+    })
+
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_valid")
+  })
+
   it("persists a returned bookmark", async () => {
     const store = await seededStore("bookmark_old")
     const fetchImpl = vi.fn(
@@ -110,6 +134,28 @@ describe("createConsistencyFetch", () => {
     expect(req.headers.get("x-consistency-bookmark")).toBeNull()
   })
 
+  it("matches trailing slash API base by path segment", async () => {
+    const store = await seededStore("bookmark_old")
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }))
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai/v1/",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://api.wspc.ai/v1")
+    await consistencyFetch("https://api.wspc.ai/v1/todo/items")
+    await consistencyFetch("https://api.wspc.ai/v10/todo/items")
+
+    const exactReq = fetchImpl.mock.calls[0]![0] as Request
+    const childReq = fetchImpl.mock.calls[1]![0] as Request
+    const siblingReq = fetchImpl.mock.calls[2]![0] as Request
+    expect(exactReq.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
+    expect(childReq.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
+    expect(siblingReq.headers.get("x-consistency-bookmark")).toBeNull()
+  })
+
   it("clears env bookmark on invalid bookmark errors without retrying", async () => {
     const store = await seededStore("bookmark_bad")
     const fetchImpl = vi.fn(
@@ -131,6 +177,28 @@ describe("createConsistencyFetch", () => {
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } })
     expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const config = await store.read()
+    expect(config.envs.prod).not.toHaveProperty("consistency_bookmark")
+  })
+
+  it("clears injected env bookmark on problem+json invalid bookmark errors", async () => {
+    const store = await seededStore("bookmark_bad")
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
+          status: 400,
+          headers: { "content-type": "Application/Problem+Json" },
+        }),
+    )
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://api.wspc.ai/todo/items")
+
     const config = await store.read()
     expect(config.envs.prod).not.toHaveProperty("consistency_bookmark")
   })

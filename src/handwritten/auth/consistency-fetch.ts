@@ -10,18 +10,28 @@ export interface ConsistencyFetchOptions {
   fetchImpl?: typeof fetch
 }
 
+function normalizeBasePath(pathname: string): string {
+  const trimmed = pathname.replace(/\/+$/, "")
+  return trimmed === "" ? "/" : trimmed
+}
+
 function isUnderApiBase(url: URL, apiBase: string): boolean {
   const base = new URL(apiBase)
-  const basePath = base.pathname.endsWith("/") ? base.pathname : `${base.pathname}/`
+  const basePath = normalizeBasePath(base.pathname)
   return (
     url.origin === base.origin &&
-    (base.pathname === "/" || url.pathname === base.pathname || url.pathname.startsWith(basePath))
+    (basePath === "/" || url.pathname === basePath || url.pathname.startsWith(`${basePath}/`))
   )
+}
+
+function isJsonContentType(contentType: string): boolean {
+  const mediaType = contentType.toLowerCase().split(";")[0]?.trim() ?? ""
+  return mediaType === "application/json" || mediaType.endsWith("+json")
 }
 
 async function responseHasInvalidBookmark(response: Response): Promise<boolean> {
   const contentType = response.headers.get("content-type") ?? ""
-  if (!contentType.includes("application/json")) return false
+  if (!isJsonContentType(contentType)) return false
 
   try {
     const body = (await response.clone().json()) as { error?: { code?: string } }
@@ -39,6 +49,7 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
     const url = new URL(request.url)
     const applies = isUnderApiBase(url, opts.apiBase)
     let outgoing = request
+    let injectedStoredBookmark = false
 
     if (applies && !outgoing.headers.has(HEADER)) {
       const config = await opts.store.read()
@@ -47,6 +58,7 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
         const headers = new Headers(outgoing.headers)
         headers.set(HEADER, bookmark)
         outgoing = new Request(outgoing, { headers })
+        injectedStoredBookmark = true
       }
     }
 
@@ -55,16 +67,17 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
 
     const nextBookmark = response.headers.get(HEADER)
     const invalidBookmark = await responseHasInvalidBookmark(response)
-    if (!nextBookmark && !invalidBookmark) return response
+    const shouldClearBookmark = invalidBookmark && injectedStoredBookmark
+    if (!nextBookmark && !shouldClearBookmark) return response
 
     const config = await opts.store.read()
     const env = config.envs[opts.envName]
     if (!env) return response
 
-    if (invalidBookmark) {
-      delete env.consistency_bookmark
-    } else if (nextBookmark) {
+    if (nextBookmark) {
       env.consistency_bookmark = nextBookmark
+    } else if (shouldClearBookmark) {
+      delete env.consistency_bookmark
     }
     await opts.store.write(config)
 
