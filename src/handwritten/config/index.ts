@@ -17,6 +17,8 @@ export interface AccountCreds {
 
 export interface EnvConfig {
   api_base: string
+  // Last observed server consistency bookmark for read-your-writes behavior.
+  consistency_bookmark?: string
   // RFC 7591 dynamically registered OAuth public client — server-level app
   // identity, shared by every account on this env. Kept across logout.
   client_id?: string
@@ -45,6 +47,7 @@ const V1_CRED_KEYS = [
 function migrateEnv(raw: Record<string, unknown>): EnvConfig {
   const api_base = typeof raw.api_base === "string" ? raw.api_base : ""
   const env: EnvConfig = { api_base, accounts: {} }
+  if (typeof raw.consistency_bookmark === "string") env.consistency_bookmark = raw.consistency_bookmark
   if (typeof raw.client_id === "string") env.client_id = raw.client_id
 
   // Already v2: trust its accounts/current_account as-is.
