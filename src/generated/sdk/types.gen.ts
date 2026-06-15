@@ -4881,6 +4881,12 @@ export type EventRestoreResponse = EventRestoreResponses[keyof EventRestoreRespo
 
 export type EmailAliasListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: {
         /**
@@ -4945,6 +4951,12 @@ export type EmailAliasListResponse = EmailAliasListResponses[keyof EmailAliasLis
 
 export type EmailAliasCreateData = {
     body: CreateAliasBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/email/aliases';
@@ -5026,6 +5038,12 @@ export type EmailAliasCreateResponse = EmailAliasCreateResponses[keyof EmailAlia
 
 export type EmailDomainListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/email/domains';
@@ -5083,6 +5101,12 @@ export type EmailDomainListResponse2 = EmailDomainListResponses[keyof EmailDomai
 
 export type EmailDomainCreateData = {
     body: CreateDomainBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/email/domains';
@@ -5515,6 +5539,12 @@ export type EmailDomainGetResponse = EmailDomainGetResponses[keyof EmailDomainGe
 
 export type EmailAttachmentGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
         idx: string;
@@ -5592,6 +5622,12 @@ export type EmailAttachmentGetResponse = EmailAttachmentGetResponses[keyof Email
 
 export type EmailGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -5794,6 +5830,12 @@ export type EmailGetResponse = EmailGetResponses[keyof EmailGetResponses];
 
 export type EmailListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: {
         /**
@@ -6245,6 +6287,12 @@ export type EmailRestoreResponse = EmailRestoreResponses[keyof EmailRestoreRespo
 
 export type EmailSendData = {
     body: SendEmailBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/email/messages/send';

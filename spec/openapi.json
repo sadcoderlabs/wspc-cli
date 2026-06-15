@@ -15179,6 +15179,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-cli": {
           "command": "alias add",
           "positional": [
@@ -15239,6 +15251,14 @@
         "responses": {
           "201": {
             "description": "Alias created. The requested address is live immediately.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -15464,6 +15484,28 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`."
+            },
+            "required": false,
+            "description": "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.",
+            "name": "include_deleted",
+            "in": "query"
+          }
+        ],
         "x-cli": {
           "command": "alias ls",
           "display": {
@@ -15494,21 +15536,17 @@
             "source": "wspc email alias ls"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`."
-            },
-            "required": false,
-            "description": "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.",
-            "name": "include_deleted",
-            "in": "query"
-          }
-        ],
         "responses": {
           "200": {
             "description": "Aliases owned by the caller, including soft-deleted entries when requested.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -15730,6 +15768,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-cli": {
           "command": "domain add",
           "positional": [
@@ -15778,6 +15828,14 @@
         "responses": {
           "201": {
             "description": "Custom domain registered and DNS verification records returned. Custom-domain aliases require full domain readiness before use.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -16074,6 +16132,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-cli": {
           "command": "domain ls",
           "display": {
@@ -16108,6 +16178,14 @@
         "responses": {
           "200": {
             "description": "Custom domains cached for the caller organization, including ownership, sending readiness, and receiving readiness state.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -17487,23 +17565,17 @@
             "bearerAuth": []
           }
         ],
-        "x-cli": {
-          "command": "_handwritten",
-          "hidden": true
-        },
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl https://api.wspc.ai/email/messages/eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/attachments/0 \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -o invoice.pdf"
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc email attachment eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F 0 --output invoice.pdf"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string"
@@ -17531,9 +17603,33 @@
             "in": "query"
           }
         ],
+        "x-cli": {
+          "command": "_handwritten",
+          "hidden": true
+        },
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/email/messages/eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/attachments/0 \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -o invoice.pdf"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc email attachment eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F 0 --output invoice.pdf"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Raw attachment bytes. `Content-Type` matches the attachment's parsed MIME (often `application/pdf`, `image/jpeg`, `text/calendar`, or `application/octet-stream` when unknown). `Content-Disposition: attachment; filename=\"<filename>\"`.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/octet-stream": {
                 "schema": {
@@ -17731,6 +17827,46 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text."
+            },
+            "required": false,
+            "description": "When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text.",
+            "name": "include_html",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "When `true`, allow fetching a soft-deleted email. Defaults to `false` (returns 404 for soft-deleted rows)."
+            },
+            "required": false,
+            "description": "When `true`, allow fetching a soft-deleted email. Defaults to `false` (returns 404 for soft-deleted rows).",
+            "name": "include_deleted",
+            "in": "query"
+          }
+        ],
         "x-cli": {
           "command": "email show",
           "positional": [
@@ -17763,39 +17899,17 @@
             "source": "wspc email show eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text."
-            },
-            "required": false,
-            "description": "When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text.",
-            "name": "include_html",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "When `true`, allow fetching a soft-deleted email. Defaults to `false` (returns 404 for soft-deleted rows)."
-            },
-            "required": false,
-            "description": "When `true`, allow fetching a soft-deleted email. Defaults to `false` (returns 404 for soft-deleted rows).",
-            "name": "include_deleted",
-            "in": "query"
-          }
-        ],
         "responses": {
           "200": {
             "description": "The email row, attachment metadata, and (when requested) the HTML body.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -18243,40 +18357,17 @@
             "bearerAuth": []
           }
         ],
-        "x-cli": {
-          "command": "email ls",
-          "display": {
-            "shape": "list",
-            "columns": [
-              "id",
-              "from_addr",
-              "subject",
-              "is_read",
-              "received_at"
-            ],
-            "format": {
-              "id": "id-short",
-              "from_addr": "truncate",
-              "subject": "truncate",
-              "is_read": "bool-badge",
-              "received_at": "relative-time"
-            },
-            "emptyMessage": "no emails"
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -G https://api.wspc.ai/email/messages \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  --data-urlencode \"limit=20\" --data-urlencode \"unread_only=true\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc email ls --unread --limit 20"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -18339,9 +18430,50 @@
             "in": "query"
           }
         ],
+        "x-cli": {
+          "command": "email ls",
+          "display": {
+            "shape": "list",
+            "columns": [
+              "id",
+              "from_addr",
+              "subject",
+              "is_read",
+              "received_at"
+            ],
+            "format": {
+              "id": "id-short",
+              "from_addr": "truncate",
+              "subject": "truncate",
+              "is_read": "bool-badge",
+              "received_at": "relative-time"
+            },
+            "emptyMessage": "no emails"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -G https://api.wspc.ai/email/messages \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  --data-urlencode \"limit=20\" --data-urlencode \"unread_only=true\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc email ls --unread --limit 20"
+          }
+        ],
         "responses": {
           "200": {
             "description": "A page of inbound emails. `next_cursor` is present iff there is another page; pass it back as `cursor` to continue.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -19723,6 +19855,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-cli": {
           "command": "_handwritten",
           "hidden": true
@@ -19788,6 +19932,14 @@
         "responses": {
           "200": {
             "description": "The send was accepted. Response `email.id` uses `out_<ULID>` for new outbound rows; legacy UUID ids remain accepted. Inspect `idempotent_replay`: `false` means the provider was invoked on this request, `true` means an earlier identical send was replayed.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
