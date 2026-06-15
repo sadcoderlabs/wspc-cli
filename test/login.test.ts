@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { runLogin } from "../src/handwritten/auth/login.js"
+import { fetchMe as realFetchMe } from "../src/handwritten/auth/fetch-me.js"
 import { ConfigStore } from "../src/handwritten/config/index.js"
 
 const me = async () => ({ user_id: "usr_1", email: "a@x.com" })
@@ -204,6 +205,35 @@ describe("runLogin", () => {
     expect(c.envs.prod?.accounts["a@x.com"]?.api_key).toBe("wspc_test_key")
     expect(c.envs.prod?.accounts["a@x.com"]?.refresh_token).toBeUndefined()
     expect(c.envs.prod?.current_account).toBe("a@x.com")
+  })
+
+  it("preserves api-key login bookmark returned by auth/me on empty config", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-login-key-bookmark-"))
+    const store = new ConfigStore({ configDir: dir })
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const req = input instanceof Request ? input : new Request(input)
+      expect(req.url).toBe("https://api.wspc.ai/auth/me")
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_test_key")
+      return new Response(JSON.stringify({ user_id: "usr_1", email: "a@x.com" }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "x-consistency-bookmark": "bookmark_after_me",
+        },
+      })
+    })
+
+    await runLogin({
+      store,
+      apiKey: "wspc_test_key",
+      baseUrl: "https://api.wspc.ai",
+      fetchMe: (opts) => realFetchMe({ ...opts, fetchImpl: fetchImpl as typeof fetch }),
+      output: { write: () => {}, writeJson: () => {} },
+    })
+
+    const c = await store.read()
+    expect(c.envs.prod?.consistency_bookmark).toBe("bookmark_after_me")
+    expect(c.envs.prod?.accounts["a@x.com"]?.api_key).toBe("wspc_test_key")
   })
 
   it("passes store and envName to fetchMe during api-key login", async () => {

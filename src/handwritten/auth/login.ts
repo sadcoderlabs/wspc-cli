@@ -54,6 +54,11 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
       defaultFetchMe(o))
 
   if (opts.apiKey) {
+    const initial = await opts.store.read()
+    getOrCreateEnv(initial, envName, opts.baseUrl)
+    initial.current_env = envName
+    await opts.store.write(initial)
+
     const who = await me({
       baseUrl: opts.baseUrl,
       token: opts.apiKey,
