@@ -32,9 +32,9 @@ export async function ensureClientId(opts: EnsureClientIdOptions): Promise<strin
   const c = await opts.store.read()
   const existing = c.envs[opts.envName]?.client_id
   if (existing) return existing
-  c.envs[opts.envName] ??= { api_base: opts.baseUrl, accounts: {} }
-  c.envs[opts.envName].api_base = opts.baseUrl
-  c.envs[opts.envName].accounts ??= {}
+  const targetEnv = (c.envs[opts.envName] ??= { api_base: opts.baseUrl, accounts: {} })
+  targetEnv.api_base = opts.baseUrl
+  targetEnv.accounts ??= {}
   await opts.store.write(c)
 
   const res = await fetchImpl(`${opts.baseUrl}/auth/oauth/register`, {

@@ -21,6 +21,10 @@ async function seededStore(bookmark?: string): Promise<ConfigStore> {
   return store
 }
 
+function fetchRequest(fetchImpl: ReturnType<typeof vi.fn>, index = 0): Request {
+  return (fetchImpl.mock.calls as unknown as Array<[Request]>)[index]![0]
+}
+
 describe("createConsistencyFetch", () => {
   it("sends a stored bookmark to WSPC API requests", async () => {
     const store = await seededStore("bookmark_old")
@@ -34,7 +38,7 @@ describe("createConsistencyFetch", () => {
 
     await consistencyFetch("https://api.wspc.ai/todo/items")
 
-    const req = fetchImpl.mock.calls[0]![0] as Request
+    const req = fetchRequest(fetchImpl)
     expect(req.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
   })
 
@@ -52,7 +56,7 @@ describe("createConsistencyFetch", () => {
       headers: { "x-consistency-bookmark": "caller_bookmark" },
     })
 
-    const req = fetchImpl.mock.calls[0]![0] as Request
+    const req = fetchRequest(fetchImpl)
     expect(req.headers.get("x-consistency-bookmark")).toBe("caller_bookmark")
   })
 
@@ -163,7 +167,7 @@ describe("createConsistencyFetch", () => {
 
     await consistencyFetch("https://example.com/anything")
 
-    const req = fetchImpl.mock.calls[0]![0] as Request
+    const req = fetchRequest(fetchImpl)
     expect(req.headers.get("x-consistency-bookmark")).toBeNull()
   })
 
@@ -184,7 +188,7 @@ describe("createConsistencyFetch", () => {
       },
     })
 
-    const req = fetchImpl.mock.calls[0]![0] as Request
+    const req = fetchRequest(fetchImpl)
     expect(req.headers.get("authorization")).toBe("Bearer token")
     expect(req.headers.get("x-consistency-bookmark")).toBeNull()
   })
@@ -201,7 +205,7 @@ describe("createConsistencyFetch", () => {
 
     await consistencyFetch("https://api.wspc.ai/v10/todo/items")
 
-    const req = fetchImpl.mock.calls[0]![0] as Request
+    const req = fetchRequest(fetchImpl)
     expect(req.headers.get("x-consistency-bookmark")).toBeNull()
   })
 
@@ -219,9 +223,9 @@ describe("createConsistencyFetch", () => {
     await consistencyFetch("https://api.wspc.ai/v1/todo/items")
     await consistencyFetch("https://api.wspc.ai/v10/todo/items")
 
-    const exactReq = fetchImpl.mock.calls[0]![0] as Request
-    const childReq = fetchImpl.mock.calls[1]![0] as Request
-    const siblingReq = fetchImpl.mock.calls[2]![0] as Request
+    const exactReq = fetchRequest(fetchImpl, 0)
+    const childReq = fetchRequest(fetchImpl, 1)
+    const siblingReq = fetchRequest(fetchImpl, 2)
     expect(exactReq.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
     expect(childReq.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
     expect(siblingReq.headers.get("x-consistency-bookmark")).toBeNull()
