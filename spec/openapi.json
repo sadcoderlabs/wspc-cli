@@ -3363,10 +3363,10 @@
         "summary": "Accept an invite and switch into the inviting organization",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -3400,7 +3400,7 @@
           "200": {
             "description": "The organization the caller now belongs to.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -3755,10 +3755,10 @@
         "summary": "Create a new API key (full value returned once)",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -3809,7 +3809,7 @@
           "200": {
             "description": "New key created. Store `api_key` securely — the full value is not available after this response.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -4162,10 +4162,10 @@
         "summary": "List active API keys",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -4209,7 +4209,7 @@
           "200": {
             "description": "List of active API keys and the id of the key used for this request.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -4580,10 +4580,10 @@
         "summary": "Invite an email to join the caller's organization",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -4616,7 +4616,7 @@
           "201": {
             "description": "The created (or existing pending) invite.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -4986,10 +4986,10 @@
         "summary": "List invites issued by the caller's organization",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -5013,7 +5013,7 @@
           "200": {
             "description": "Invites for this org.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -5607,10 +5607,10 @@
         "summary": "Get the authenticated user's organization",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -5634,7 +5634,7 @@
           "200": {
             "description": "The authenticated user's organization.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -6009,10 +6009,10 @@
         "summary": "Update the authenticated user's organization",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -6045,7 +6045,7 @@
           "200": {
             "description": "The updated organization metadata.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -6406,10 +6406,10 @@
         "summary": "Get a single invite addressed to the caller",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -6443,7 +6443,7 @@
           "200": {
             "description": "The invite.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -6818,10 +6818,10 @@
         "summary": "Fetch the user identified by the bearer token",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -6845,7 +6845,7 @@
           "200": {
             "description": "The bearer token is valid. The response carries the stable `user_id`, the user's email, and — for `wspc_*` API keys only — the `api_key_id` that authenticated the call.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -7236,10 +7236,10 @@
         "summary": "List invites addressed to the authenticated user's email",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -7263,7 +7263,7 @@
           "200": {
             "description": "Invites addressed to the caller.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -7635,10 +7635,10 @@
         "summary": "List members of the authenticated user's organization",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -7682,7 +7682,7 @@
           "200": {
             "description": "List of organization members and optional cursor for next page.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -9013,10 +9013,10 @@
         "summary": "Reject an invite",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -9050,7 +9050,7 @@
           "204": {
             "description": "Invite rejected.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -9398,10 +9398,10 @@
         "summary": "Remove a member from the organization",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -9430,7 +9430,7 @@
           "204": {
             "description": "Member removed successfully.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -9775,10 +9775,10 @@
         "summary": "Request an email magic code",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -9819,7 +9819,7 @@
           "200": {
             "description": "The magic code was generated and an email was dispatched. The same response shape is returned for registered and unregistered addresses to avoid account-existence disclosure.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -10183,10 +10183,10 @@
         "summary": "Soft-revoke an API key",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -10226,7 +10226,7 @@
           "200": {
             "description": "Key revoked successfully.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -10579,10 +10579,10 @@
         "summary": "Update an active API key's label",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -10632,7 +10632,7 @@
           "200": {
             "description": "API key label updated successfully.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -11203,10 +11203,10 @@
         "summary": "Revoke a pending invite",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -11240,7 +11240,7 @@
           "204": {
             "description": "Invite revoked.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -11813,10 +11813,10 @@
         "summary": "Verify a magic code and issue an API key",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-auth",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
             "schema": {
               "type": "string"
             },
@@ -11858,7 +11858,7 @@
           "200": {
             "description": "Code accepted. The response carries a fresh API key for the active environment plus the user's stable id. Persist these client-side.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-auth": {
                 "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -12269,10 +12269,10 @@
         "summary": "Schedule a calendar event",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-cal",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
             "schema": {
               "type": "string"
             },
@@ -12356,7 +12356,7 @@
           "201": {
             "description": "The event was created. Response carries the full row including server-assigned `id`, `version: 1`, derived `all_day`, and (if applicable) `attendees`. Invitation emails are sent asynchronously via `waitUntil`.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -12767,10 +12767,10 @@
         "summary": "List calendar events",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-cal",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
             "schema": {
               "type": "string"
             },
@@ -12889,7 +12889,7 @@
           "200": {
             "description": "Events matching the filters. Empty `events` array when nothing matches. `next_cursor` is present iff there is another page.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -13305,10 +13305,10 @@
         "summary": "Soft-delete a calendar event",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-cal",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
             "schema": {
               "type": "string"
             },
@@ -13368,7 +13368,7 @@
           "200": {
             "description": "The event was soft-deleted. Response carries `id`, `deleted_at`, and the post-delete `version`. Cancellation emails are sent asynchronously.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -13748,10 +13748,10 @@
         "summary": "Get a calendar event by id",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-cal",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
             "schema": {
               "type": "string"
             },
@@ -13800,7 +13800,7 @@
           "200": {
             "description": "The requested event. Includes `deleted_at` only when fetched with `include_deleted=true` on a soft-deleted row.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -14216,10 +14216,10 @@
         "summary": "Update a calendar event",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-cal",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
             "schema": {
               "type": "string"
             },
@@ -14303,7 +14303,7 @@
           "200": {
             "description": "The updated event with `version` incremented. Attendee diff emails are sent asynchronously.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -14690,10 +14690,10 @@
         "summary": "Download event as `.ics`",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-cal",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
             "schema": {
               "type": "string"
             },
@@ -14732,7 +14732,7 @@
           "200": {
             "description": "RFC 5545 iCalendar payload as plain text. Content-Type `text/calendar; charset=utf-8`. Body begins with `BEGIN:VCALENDAR` and contains a single `VEVENT` for this event.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -15086,10 +15086,10 @@
         "summary": "Restore a soft-deleted event",
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-cal",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
             "schema": {
               "type": "string"
             },
@@ -15144,7 +15144,7 @@
           "200": {
             "description": "The restored event with `version` incremented and `deleted_at` cleared. Re-invitation emails are sent asynchronously to attendees.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -15525,7 +15525,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-email",
             "in": "header",
             "required": false,
             "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
@@ -15596,7 +15596,7 @@
           "201": {
             "description": "Alias created. The requested address is live immediately.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-email": {
                 "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -15830,7 +15830,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-email",
             "in": "header",
             "required": false,
             "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
@@ -15884,7 +15884,7 @@
           "200": {
             "description": "Aliases owned by the caller, including soft-deleted entries when requested.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-email": {
                 "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -16114,7 +16114,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-email",
             "in": "header",
             "required": false,
             "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
@@ -16173,7 +16173,7 @@
           "201": {
             "description": "Custom domain registered and DNS verification records returned. Custom-domain aliases require full domain readiness before use.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-email": {
                 "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -16478,7 +16478,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-email",
             "in": "header",
             "required": false,
             "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
@@ -16523,7 +16523,7 @@
           "200": {
             "description": "Custom domains cached for the caller organization, including ownership, sending readiness, and receiving readiness state.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-email": {
                 "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -17911,7 +17911,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-email",
             "in": "header",
             "required": false,
             "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
@@ -17967,7 +17967,7 @@
           "200": {
             "description": "Raw attachment bytes. `Content-Type` matches the attachment's parsed MIME (often `application/pdf`, `image/jpeg`, `text/calendar`, or `application/octet-stream` when unknown). `Content-Disposition: attachment; filename=\"<filename>\"`.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-email": {
                 "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -18173,7 +18173,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-email",
             "in": "header",
             "required": false,
             "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
@@ -18247,7 +18247,7 @@
           "200": {
             "description": "The email row, attachment metadata, and (when requested) the HTML body.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-email": {
                 "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -18703,7 +18703,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-email",
             "in": "header",
             "required": false,
             "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
@@ -18811,7 +18811,7 @@
           "200": {
             "description": "A page of inbound emails. `next_cursor` is present iff there is another page; pass it back as `cursor` to continue.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-email": {
                 "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -20201,7 +20201,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-email",
             "in": "header",
             "required": false,
             "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
@@ -20277,7 +20277,7 @@
           "200": {
             "description": "The send was accepted. Response `email.id` uses `out_<ULID>` for new outbound rows; legacy UUID ids remain accepted. Inspect `idempotent_replay`: `false` means the provider was invoked on this request, `true` means an earlier identical send was replayed.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-email": {
                 "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -21007,7 +21007,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-push",
             "in": "header",
             "required": false,
             "schema": {
@@ -21049,7 +21049,7 @@
           "204": {
             "description": "Config deleted (or no config existed — the call is idempotent).",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-push": {
                 "description": "Opaque consistency bookmark for the latest push database position observed by this request. Store and send it on the next push request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -21293,7 +21293,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-push",
             "in": "header",
             "required": false,
             "schema": {
@@ -21356,7 +21356,7 @@
           "201": {
             "description": "Config stored. The transport is now eligible to receive product notifications for this user.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-push": {
                 "description": "Opaque consistency bookmark for the latest push database position observed by this request. Store and send it on the next push request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -21624,7 +21624,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-push",
             "in": "header",
             "required": false,
             "schema": {
@@ -21685,7 +21685,7 @@
           "200": {
             "description": "All push transports registered for the authenticated user.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-push": {
                 "description": "Opaque consistency bookmark for the latest push database position observed by this request. Store and send it on the next push request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -21929,7 +21929,7 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-push",
             "in": "header",
             "required": false,
             "schema": {
@@ -21992,7 +21992,7 @@
           "200": {
             "description": "Test attempted. Inspect `ok` to discriminate success from a transport-layer failure (network, upstream 4xx/5xx).",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-push": {
                 "description": "Opaque consistency bookmark for the latest push database position observed by this request. Store and send it on the next push request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -22289,10 +22289,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -22343,7 +22343,7 @@
           "201": {
             "description": "Created",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -22731,10 +22731,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -22808,7 +22808,7 @@
           "200": {
             "description": "List",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -23219,10 +23219,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -23269,7 +23269,7 @@
           "201": {
             "description": "Created",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -23658,10 +23658,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -23695,7 +23695,7 @@
           "200": {
             "description": "List",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -24123,10 +24123,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -24180,7 +24180,7 @@
           "201": {
             "description": "The rule was created. `materialized_instance_count` reports how many todo instances were materialized immediately within the 14-day horizon.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -24574,10 +24574,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -24619,7 +24619,7 @@
           "200": {
             "description": "Active recurrence rules for the caller. Empty `rules` array when none are configured.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -25028,10 +25028,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -25081,7 +25081,7 @@
           "201": {
             "description": "The todo was created. The response carries the full row including server-assigned `id`, `version`, and `created_at`.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -25482,10 +25482,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -25673,7 +25673,7 @@
           "200": {
             "description": "List of todos matching the filters. Empty `todos` array when nothing matches.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -26074,10 +26074,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -26109,7 +26109,7 @@
           "201": {
             "description": "Created",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -26481,10 +26481,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -26535,7 +26535,7 @@
           "200": {
             "description": "List",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -26922,10 +26922,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -26959,7 +26959,7 @@
           "200": {
             "description": "Soft-deleted",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -27349,10 +27349,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -27403,7 +27403,7 @@
           "200": {
             "description": "Updated",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -27777,10 +27777,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -27814,7 +27814,7 @@
           "200": {
             "description": "Soft-deleted",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -28188,10 +28188,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -28225,7 +28225,7 @@
           "200": {
             "description": "OK",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -28598,10 +28598,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -28665,7 +28665,7 @@
           "200": {
             "description": "Updated",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -29046,10 +29046,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -29101,7 +29101,7 @@
           "200": {
             "description": "The rule was soft-deleted; future materializations stop. Already-materialized todo instances remain on the user's list.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -29479,10 +29479,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -29513,7 +29513,7 @@
           "200": {
             "description": "The requested rule along with its template todo snapshot and the count of todo instances currently materialized from it.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -29901,10 +29901,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -29963,7 +29963,7 @@
           "200": {
             "description": "The rule was updated. Returns the post-update rule with a bumped `version` and refreshed `updated_at`. Future materializations follow the new schedule; existing instances are untouched.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -30358,10 +30358,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -30414,7 +30414,7 @@
           "200": {
             "description": "The todo was soft-deleted. `deleted_count` includes cascaded descendants when `cascade: true`.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -30811,10 +30811,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -30889,7 +30889,7 @@
           "200": {
             "description": "The requested todo. Includes `children` (first-level) when `include=children`, `comments` when `include=comments`, and `deleted_at` only when fetched with `include_deleted=true` on a soft-deleted row.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -31314,10 +31314,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -31382,7 +31382,7 @@
           "200": {
             "description": "The todo was updated. The response carries the post-mutation row with the bumped `version` and refreshed `updated_at`.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -31761,10 +31761,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -31795,7 +31795,7 @@
           "200": {
             "description": "Soft-deleted",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -32153,10 +32153,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -32187,7 +32187,7 @@
           "200": {
             "description": "OK",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -32545,10 +32545,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -32588,7 +32588,7 @@
           "200": {
             "description": "Updated",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -32948,10 +32948,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -32980,7 +32980,7 @@
           "200": {
             "description": "Restored",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -33355,10 +33355,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -33406,7 +33406,7 @@
           "200": {
             "description": "The todo was restored. `restored_count` includes cascaded descendants when `cascade: true`; otherwise `descendants_in_trash_count` reports descendants left in trash.",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
@@ -33784,10 +33784,10 @@
         ],
         "parameters": [
           {
-            "name": "x-consistency-bookmark",
+            "name": "x-cb-todo",
             "in": "header",
             "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
             "schema": {
               "type": "string"
             },
@@ -33813,7 +33813,7 @@
           "200": {
             "description": "Restored",
             "headers": {
-              "x-consistency-bookmark": {
+              "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
