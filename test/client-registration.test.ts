@@ -36,7 +36,7 @@ describe("ensureClientId", () => {
       envs: {
         prod: {
           api_base: "https://api.wspc.ai",
-          consistency_bookmark: "bookmark_old",
+          consistency_bookmarks: { auth: "auth_old" },
           accounts: {},
         },
       },
@@ -46,7 +46,7 @@ describe("ensureClientId", () => {
         status: 200,
         headers: {
           "content-type": "application/json",
-          "x-consistency-bookmark": "bookmark_new",
+          "x-cb-auth": "auth_new",
         },
       }),
     )
@@ -59,9 +59,9 @@ describe("ensureClientId", () => {
     })
 
     const req = fetchMock.mock.calls[0]![0] as Request
-    expect(req.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
+    expect(req.headers.get("x-cb-auth")).toBe("auth_old")
     const c = await store.read()
-    expect(c.envs.prod?.consistency_bookmark).toBe("bookmark_new")
+    expect(c.envs.prod?.consistency_bookmarks?.auth).toBe("auth_new")
   })
 
   it("persists returned bookmark when registering into an empty config", async () => {
@@ -73,7 +73,7 @@ describe("ensureClientId", () => {
         status: 200,
         headers: {
           "content-type": "application/json",
-          "x-consistency-bookmark": "bookmark_new",
+          "x-cb-auth": "auth_new",
         },
       }),
     )
@@ -87,7 +87,7 @@ describe("ensureClientId", () => {
 
     const c = await store.read()
     expect(c.envs.prod?.client_id).toBe("client_NEW_ID")
-    expect(c.envs.prod?.consistency_bookmark).toBe("bookmark_new")
+    expect(c.envs.prod?.consistency_bookmarks?.auth).toBe("auth_new")
   })
 
   it("returns existing client_id without re-registering", async () => {

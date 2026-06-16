@@ -117,8 +117,8 @@ describe("ConfigStore", () => {
     expect(c.envs.prod!.accounts["a@x.com"]).toMatchObject({ email: "a@x.com", api_key: "wspc_k" })
   })
 
-  it("normalizes env-level consistency bookmark when present", async () => {
-    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-config-bookmark-"))
+  it("drops legacy env-level consistency bookmark", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-config-legacy-bookmark-"))
     await fs.writeFile(
       join(dir, "config.json"),
       JSON.stringify({
@@ -127,28 +127,7 @@ describe("ConfigStore", () => {
         envs: {
           prod: {
             api_base: "https://api.wspc.ai",
-            consistency_bookmark: "bookmark_1",
-            accounts: {},
-          },
-        },
-      }),
-    )
-    const store = new ConfigStore({ configDir: dir })
-    const config = await store.read()
-    expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_1")
-  })
-
-  it("drops malformed consistency bookmark values", async () => {
-    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-config-bad-bookmark-"))
-    await fs.writeFile(
-      join(dir, "config.json"),
-      JSON.stringify({
-        schema_version: 2,
-        current_env: "prod",
-        envs: {
-          prod: {
-            api_base: "https://api.wspc.ai",
-            consistency_bookmark: 123,
+            consistency_bookmark: "bookmark_legacy",
             accounts: {},
           },
         },
@@ -157,6 +136,66 @@ describe("ConfigStore", () => {
     const store = new ConfigStore({ configDir: dir })
     const config = await store.read()
     expect(config.envs.prod).not.toHaveProperty("consistency_bookmark")
+    expect(config.envs.prod).not.toHaveProperty("consistency_bookmarks")
+  })
+
+  it("normalizes service consistency bookmarks when present", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-config-bookmarks-"))
+    await fs.writeFile(
+      join(dir, "config.json"),
+      JSON.stringify({
+        schema_version: 2,
+        current_env: "prod",
+        envs: {
+          prod: {
+            api_base: "https://api.wspc.ai",
+            consistency_bookmarks: {
+              auth: "auth_1",
+              todo: "todo_1",
+              calendar: "cal_1",
+              email: "email_1",
+              push: "push_1",
+              bad_service: "ignored",
+            },
+            accounts: {},
+          },
+        },
+      }),
+    )
+    const store = new ConfigStore({ configDir: dir })
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmarks).toEqual({
+      auth: "auth_1",
+      todo: "todo_1",
+      calendar: "cal_1",
+      email: "email_1",
+      push: "push_1",
+    })
+  })
+
+  it("drops malformed service consistency bookmark values", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-config-bad-bookmarks-"))
+    await fs.writeFile(
+      join(dir, "config.json"),
+      JSON.stringify({
+        schema_version: 2,
+        current_env: "prod",
+        envs: {
+          prod: {
+            api_base: "https://api.wspc.ai",
+            consistency_bookmarks: {
+              auth: 123,
+              todo: "todo_1",
+              calendar: null,
+            },
+            accounts: {},
+          },
+        },
+      }),
+    )
+    const store = new ConfigStore({ configDir: dir })
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmarks).toEqual({ todo: "todo_1" })
   })
 })
 

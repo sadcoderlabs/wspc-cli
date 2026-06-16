@@ -47,12 +47,13 @@ describe("ConfigStore.update (locked read-modify-write)", () => {
         cfg.envs.prod!.accounts["a@x.com"]!.access_token = "AT1"
       }),
       store.update((cfg) => {
-        cfg.envs.prod!.consistency_bookmark = "B2"
+        cfg.envs.prod!.consistency_bookmarks ??= {}
+        cfg.envs.prod!.consistency_bookmarks.todo = "B2"
       }),
     ])
     const c = await store.read()
     expect(c.envs.prod!.accounts["a@x.com"]!.refresh_token).toBe("RT1")
-    expect(c.envs.prod!.consistency_bookmark).toBe("B2")
+    expect(c.envs.prod!.consistency_bookmarks?.todo).toBe("B2")
   })
 
   it("does not lose updates under concurrent writers", async () => {

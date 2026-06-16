@@ -1681,9 +1681,9 @@ export type InviteAcceptData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path: {
         /**
@@ -1797,9 +1797,9 @@ export type KeyListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -1908,9 +1908,9 @@ export type KeyCreateData = {
     body: CreateApiKeyBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -2019,9 +2019,9 @@ export type OrgInvitesListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -2130,9 +2130,9 @@ export type OrgInviteCreateData = {
     body?: CreateOrgInviteInput;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -2294,9 +2294,9 @@ export type OrgGetData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -2405,9 +2405,9 @@ export type OrgUpdateData = {
     body?: UpdateOrgInput;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -2516,9 +2516,9 @@ export type InviteGetData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path: {
         /**
@@ -2632,9 +2632,9 @@ export type AuthMeData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -2743,9 +2743,9 @@ export type InvitesListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -2854,9 +2854,9 @@ export type OrgMembersListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: {
@@ -3237,9 +3237,9 @@ export type InviteRejectData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path: {
         /**
@@ -3353,9 +3353,9 @@ export type OrgMemberRemoveData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path: {
         /**
@@ -3469,9 +3469,9 @@ export type AuthRequestCodeData = {
     body?: RequestCodeBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -3580,9 +3580,9 @@ export type KeyRevokeData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path: {
         /**
@@ -3696,9 +3696,9 @@ export type KeyUpdateData = {
     body: UpdateApiKeyBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path: {
         /**
@@ -3867,9 +3867,9 @@ export type OrgInviteRevokeData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path: {
         /**
@@ -4036,9 +4036,9 @@ export type AuthVerifyCodeData = {
     body?: VerifyCodeBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-auth'?: string;
     };
     path?: never;
     query?: never;
@@ -4147,9 +4147,9 @@ export type EventListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-cal'?: string;
     };
     path?: never;
     query?: {
@@ -4295,9 +4295,9 @@ export type EventCreateData = {
     body?: CreateEventBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-cal'?: string;
     };
     path?: never;
     query?: never;
@@ -4406,9 +4406,9 @@ export type EventDeleteData = {
     body?: VersionBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-cal'?: string;
     };
     path: {
         /**
@@ -4522,9 +4522,9 @@ export type EventGetData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-cal'?: string;
     };
     path: {
         /**
@@ -4643,9 +4643,9 @@ export type EventUpdateData = {
     body?: UpdateEventBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-cal'?: string;
     };
     path: {
         /**
@@ -4759,9 +4759,9 @@ export type EventIcsDownloadData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-cal'?: string;
     };
     path: {
         /**
@@ -4875,9 +4875,9 @@ export type EventRestoreData = {
     body?: VersionBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-cal'?: string;
     };
     path: {
         /**
@@ -4993,7 +4993,7 @@ export type EmailAliasListData = {
         /**
          * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-email'?: string;
     };
     path?: never;
     query?: {
@@ -5063,7 +5063,7 @@ export type EmailAliasCreateData = {
         /**
          * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-email'?: string;
     };
     path?: never;
     query?: never;
@@ -5150,7 +5150,7 @@ export type EmailDomainListData = {
         /**
          * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-email'?: string;
     };
     path?: never;
     query?: never;
@@ -5213,7 +5213,7 @@ export type EmailDomainCreateData = {
         /**
          * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-email'?: string;
     };
     path?: never;
     query?: never;
@@ -5651,7 +5651,7 @@ export type EmailAttachmentGetData = {
         /**
          * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-email'?: string;
     };
     path: {
         id: string;
@@ -5734,7 +5734,7 @@ export type EmailGetData = {
         /**
          * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-email'?: string;
     };
     path: {
         id: string;
@@ -5942,7 +5942,7 @@ export type EmailListData = {
         /**
          * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-email'?: string;
     };
     path?: never;
     query?: {
@@ -6399,7 +6399,7 @@ export type EmailSendData = {
         /**
          * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-email'?: string;
     };
     path?: never;
     query?: never;
@@ -6608,7 +6608,7 @@ export type PushConfigDeleteData = {
         /**
          * Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-push'?: string;
     };
     path: {
         /**
@@ -6700,7 +6700,7 @@ export type PushConfigGetData = {
         /**
          * Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-push'?: string;
     };
     path?: never;
     query?: never;
@@ -6775,7 +6775,7 @@ export type PushConfigSetData = {
         /**
          * Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-push'?: string;
     };
     path?: never;
     query?: never;
@@ -6864,7 +6864,7 @@ export type PushTestData = {
         /**
          * Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-push'?: string;
     };
     path?: never;
     query?: never;
@@ -6949,9 +6949,9 @@ export type TodoCommentListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         /**
@@ -7082,9 +7082,9 @@ export type TodoCommentCreateData = {
     body?: CreateCommentBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         /**
@@ -7198,9 +7198,9 @@ export type ProjectListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path?: never;
     query?: {
@@ -7316,9 +7316,9 @@ export type ProjectCreateData = {
     body?: CreateProjectBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path?: never;
     query?: never;
@@ -7427,9 +7427,9 @@ export type RecurrenceRuleListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path?: never;
     query: {
@@ -7544,9 +7544,9 @@ export type RecurrenceRuleCreateData = {
     body?: CreateRecurrenceRuleBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path?: never;
     query?: never;
@@ -7655,9 +7655,9 @@ export type TodoListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path?: never;
     query: {
@@ -7790,9 +7790,9 @@ export type TodoCreateData = {
     body?: CreateTodoBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path?: never;
     query?: never;
@@ -7901,9 +7901,9 @@ export type TodoTypeListData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path?: never;
     query: {
@@ -8021,9 +8021,9 @@ export type TodoTypeCreateData = {
     body?: CreateTodoTypeBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path?: never;
     query?: never;
@@ -8132,9 +8132,9 @@ export type TodoCommentDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         /**
@@ -8248,9 +8248,9 @@ export type TodoCommentUpdateData = {
     body?: UpdateCommentBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         /**
@@ -8364,9 +8364,9 @@ export type ProjectDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         /**
@@ -8480,9 +8480,9 @@ export type ProjectGetData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         /**
@@ -8596,9 +8596,9 @@ export type ProjectUpdateData = {
     body?: UpdateProjectBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         /**
@@ -8712,9 +8712,9 @@ export type RecurrenceRuleDeleteData = {
     body?: DeleteRecurrenceRuleBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -8825,9 +8825,9 @@ export type RecurrenceRuleGetData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -8938,9 +8938,9 @@ export type RecurrenceRuleUpdateData = {
     body?: UpdateRecurrenceRuleBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -9051,9 +9051,9 @@ export type TodoDeleteData = {
     body?: DeleteTodoBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -9164,9 +9164,9 @@ export type TodoGetData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -9281,9 +9281,9 @@ export type TodoUpdateData = {
     body?: UpdateTodoBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -9394,9 +9394,9 @@ export type TodoTypeDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -9507,9 +9507,9 @@ export type TodoTypeGetData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -9620,9 +9620,9 @@ export type TodoTypeUpdateData = {
     body?: UpdateTodoTypeBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -9733,9 +9733,9 @@ export type ProjectRestoreData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         /**
@@ -9849,9 +9849,9 @@ export type TodoRestoreData = {
     body?: RestoreTodoBody;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;
@@ -9962,9 +9962,9 @@ export type TodoTypeRestoreData = {
     body?: never;
     headers?: {
         /**
-         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.
          */
-        'x-consistency-bookmark'?: string;
+        'x-cb-todo'?: string;
     };
     path: {
         id: string;

@@ -44,7 +44,7 @@ describe("loadSdkClient", () => {
       envs: {
         prod: {
           api_base: "https://api.wspc.ai",
-          consistency_bookmark: "bookmark_old",
+          consistency_bookmarks: { todo: "todo_old" },
           current_account: "a@x.com",
           accounts: { "a@x.com": { email: "a@x.com", api_key: "wspc_x" } },
         },
@@ -52,12 +52,12 @@ describe("loadSdkClient", () => {
     })
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const req = input as Request
-      expect(req.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
+      expect(req.headers.get("x-cb-todo")).toBe("todo_old")
       return new Response(JSON.stringify({ todos: [] }), {
         status: 200,
         headers: {
           "content-type": "application/json",
-          "x-consistency-bookmark": "bookmark_new",
+          "x-cb-todo": "todo_new",
         },
       })
     })
@@ -70,7 +70,7 @@ describe("loadSdkClient", () => {
 
     expect(fetchImpl).toHaveBeenCalledOnce()
     const config = await store.read()
-    expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_new")
+    expect(config.envs.prod?.consistency_bookmarks?.todo).toBe("todo_new")
   })
 
   it("routes direct authenticated fetch through consistency fetch", async () => {
@@ -81,7 +81,7 @@ describe("loadSdkClient", () => {
       envs: {
         prod: {
           api_base: "https://api.wspc.ai",
-          consistency_bookmark: "bookmark_old",
+          consistency_bookmarks: { auth: "auth_old" },
           current_account: "a@x.com",
           accounts: { "a@x.com": { email: "a@x.com", api_key: "wspc_x" } },
         },
@@ -90,10 +90,10 @@ describe("loadSdkClient", () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const req = input as Request
       expect(req.headers.get("authorization")).toBe("Bearer wspc_x")
-      expect(req.headers.get("x-consistency-bookmark")).toBe("bookmark_old")
+      expect(req.headers.get("x-cb-auth")).toBe("auth_old")
       return new Response("{}", {
         status: 200,
-        headers: { "x-consistency-bookmark": "bookmark_new" },
+        headers: { "x-cb-auth": "auth_new" },
       })
     })
 
@@ -105,7 +105,7 @@ describe("loadSdkClient", () => {
 
     expect(fetchImpl).toHaveBeenCalledOnce()
     const config = await store.read()
-    expect(config.envs.prod?.consistency_bookmark).toBe("bookmark_new")
+    expect(config.envs.prod?.consistency_bookmarks?.auth).toBe("auth_new")
   })
 
   it("builds a client when OAuth tokens present in config", async () => {
