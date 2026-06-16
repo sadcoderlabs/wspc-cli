@@ -1,10 +1,13 @@
 import { afterEach, describe, it, expect, vi } from "vitest"
 import { createAuthInterceptor } from "../src/handwritten/auth/sdk-auth.js"
 import { WspcAuthExpiredError } from "../src/index.js"
+import { VERSION } from "../src/version.js"
 
 afterEach(() => {
   vi.unstubAllGlobals()
 })
+
+const UA = `@wspc/cli/${VERSION}`
 
 describe("createAuthInterceptor", () => {
   it("attaches bearer header (apiKey mode)", async () => {
@@ -12,6 +15,49 @@ describe("createAuthInterceptor", () => {
     const req = new Request("https://api.wspc.ai/todo/items")
     const out = await interceptor.onRequest(req)
     expect(out.headers.get("authorization")).toBe("Bearer wspc_x")
+  })
+
+  it("stamps the CLI version as user-agent on requests (both modes)", async () => {
+    const apiKeyReq = await createAuthInterceptor({ apiKey: "wspc_x" }).onRequest(
+      new Request("https://api.wspc.ai/todo/items"),
+    )
+    expect(apiKeyReq.headers.get("user-agent")).toBe(UA)
+
+    const tokenReq = await createAuthInterceptor({
+      accessToken: "wat",
+      refreshToken: "wrt",
+      baseUrl: "https://api.wspc.ai",
+      clientId: "oac_wspc_cli",
+      onTokenRefresh: () => {},
+    }).onRequest(new Request("https://api.wspc.ai/todo/items"))
+    expect(tokenReq.headers.get("user-agent")).toBe(UA)
+  })
+
+  it("sends the CLI version as user-agent on the refresh request", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ access_token: "wat_new", refresh_token: "wrt_new", expires_in: 900 }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+
+    const interceptor = createAuthInterceptor({
+      accessToken: "wat_old",
+      refreshToken: "wrt_old",
+      baseUrl: "https://api.wspc.ai",
+      clientId: "oac_wspc_cli",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      onTokenRefresh: () => {},
+    })
+    await interceptor.execute(new Request("https://api.wspc.ai/todo/items"))
+
+    const refreshCall = fetchMock.mock.calls[1]!
+    const headers = new Headers((refreshCall[1] as RequestInit).headers)
+    expect(headers.get("user-agent")).toBe(UA)
   })
 
   it("uses injected fetch in apiKey mode", async () => {
