@@ -1,30 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
+import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { render } from "../src/handwritten/output/render.js"
 import type { XCliDisplay } from "../src/handwritten/output/types.js"
+import { captureStdout, stripAnsi } from "./helpers/stdout.js"
 
 /**
  * Renderer behaviour tests. The renderer writes to `process.stdout` and reads
  * `process.stdout.isTTY` + `WSPC_OUTPUT` to decide pretty vs JSON, so each
  * test pins the relevant ambient state and captures writes via a spy.
  */
-function captureStdout(): { output: () => string; restore: () => void } {
-  const chunks: string[] = []
-  const spy = vi
-    .spyOn(process.stdout, "write")
-    .mockImplementation((chunk: unknown) => {
-      chunks.push(typeof chunk === "string" ? chunk : String(chunk))
-      return true
-    })
-  return {
-    output: () => chunks.join(""),
-    restore: () => spy.mockRestore(),
-  }
-}
-
-function stripAnsi(s: string): string {
-  return s.replace(/\x1b\[[0-9;]*m/g, "")
-}
-
 describe("render", () => {
   const origTTY = process.stdout.isTTY
   const origColumns = process.stdout.columns
@@ -495,4 +478,3 @@ describe("render", () => {
     })
   })
 })
-

@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { idShort, truncate, statusBadge, relativeTime, wrapToWidth } from "../src/handwritten/output/primitives.js"
-
-function stripAnsi(s: string): string {
-  return s.replace(/\x1b\[[0-9;]*m/g, "")
-}
+import { stripAnsi } from "./helpers/stdout.js"
 
 describe("idShort", () => {
   it("preserves the full id for copy-paste", () => {

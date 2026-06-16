@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
+import { captureStdout, stripAnsi } from "../helpers/stdout.js"
 
 const calls = {
   list: vi.fn(),
@@ -27,24 +28,6 @@ vi.mock("../../src/handwritten/output/render.js", async (importActual) => {
 
 // Import generated commands AFTER mocks are set up.
 import { orgMembersListCommand } from "../../src/generated/cli/org/members.js"
-
-function captureStdout(): { output: () => string; restore: () => void } {
-  const chunks: string[] = []
-  const spy = vi
-    .spyOn(process.stdout, "write")
-    .mockImplementation((chunk: unknown) => {
-      chunks.push(typeof chunk === "string" ? chunk : String(chunk))
-      return true
-    })
-  return {
-    output: () => chunks.join(""),
-    restore: () => spy.mockRestore(),
-  }
-}
-
-function stripAnsi(s: string): string {
-  return s.replace(/\x1b\[[0-9;]*m/g, "")
-}
 
 beforeEach(() => {
   for (const v of Object.values(calls)) {

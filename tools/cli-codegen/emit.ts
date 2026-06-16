@@ -56,31 +56,26 @@ export interface EmitInput {
   depth?: number
 }
 
-function operationFnName(operationId: string): string {
-  // snake_case → camelCase, mirroring Hey API default behavior.
-  return operationId.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
-}
-
 function leafCommand(cmd: string): string {
   const parts = cmd.split(/\s+/)
   return parts[parts.length - 1]!
+}
+
+export function snakeToCamel(snake: string): string {
+  return snake.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
 }
 
 function kebab(s: string): string {
   return s.replace(/_/g, "-")
 }
 
-function camelize(kebabStr: string): string {
+function kebabToCamel(kebabStr: string): string {
   return kebabStr.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
-}
-
-function snakeToCamel(snake: string): string {
-  return snake.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
 }
 
 export function emitCommand(input: EmitInput): string | null {
   if (input.xCli.hidden) return null
-  const fnName = operationFnName(input.operationId)
+  const fnName = snakeToCamel(input.operationId)
   const cmdLeaf = leafCommand(input.xCli.command)
   // Compute relative prefix: depth = number of path segments in the output file
   // e.g. "todo add" → parts=["todo","add"] → depth=2 → prefix="../../"
@@ -287,7 +282,7 @@ export function emitCommand(input: EmitInput): string | null {
   // is just `opts.<camel>`.
   function valueExprForOption(optKey: string): string {
     const optDef = xCliOptions[optKey]!
-    const camelKey = camelize(kebab(optKey))
+    const camelKey = kebabToCamel(kebab(optKey))
     if (optDef.parser === "datetime") {
       return `${camelKey}Value`
     }
@@ -334,9 +329,9 @@ export function emitCommand(input: EmitInput): string | null {
       // them so the SDK receives a record/array rather than a string (otherwise
       // the server rejects with e.g. "expected record, received string").
       if (f.type === "object" || f.type === "array") {
-        return `        ${f.name}: parseJsonField(opts.${camelize(longFlag)}, ${JSON.stringify(longFlag)}),`
+        return `        ${f.name}: parseJsonField(opts.${kebabToCamel(longFlag)}, ${JSON.stringify(longFlag)}),`
       }
-      return `        ${f.name}: opts.${camelize(longFlag)},`
+      return `        ${f.name}: opts.${kebabToCamel(longFlag)},`
     })
   const usesJsonField = input.bodyFields.some(
     (f) =>
@@ -380,7 +375,7 @@ export function emitCommand(input: EmitInput): string | null {
         return `        ${f.name}: ${valueExprForOption(optKey)},`
       }
       const { longFlag } = resolveAlias(f.name)
-      return `        ${f.name}: opts.${camelize(longFlag)},`
+      return `        ${f.name}: opts.${kebabToCamel(longFlag)},`
     })
   const fixedQueryLines = Object.entries(input.xCli.fixedQuery ?? {}).map(
     ([k, v]) => `        ${k}: ${JSON.stringify(v)},`,
@@ -405,12 +400,12 @@ export function emitCommand(input: EmitInput): string | null {
   }
   for (const [optKey, optDef] of Object.entries(xCliOptions)) {
     if (optDef.parser === "datetime") {
-      const camelKey = camelize(kebab(optKey))
+      const camelKey = kebabToCamel(kebab(optKey))
       const valueVar = `${camelKey}Value`
       conversionLines.push(`    let ${valueVar}: string | undefined`)
       conversionLines.push(`    if (opts.${camelKey} !== undefined) {`)
       if (optDef.allDayFlag) {
-        const camelAllDay = camelize(kebab(optDef.allDayFlag))
+        const camelAllDay = kebabToCamel(kebab(optDef.allDayFlag))
         conversionLines.push(`      if (opts.${camelAllDay}) {`)
         if (optDef.exclusive) {
           conversionLines.push(`        ${valueVar} = inclusiveEndToExclusive(opts.${camelKey} as string)`)
@@ -425,7 +420,7 @@ export function emitCommand(input: EmitInput): string | null {
       }
       conversionLines.push(`    }`)
     } else if (optDef.parser === "attendee") {
-      const camelKey = camelize(kebab(optKey))
+      const camelKey = kebabToCamel(kebab(optKey))
       const target = optDef.mapsTo ?? optKey
       const targetVar = snakeToCamel(target)
       // Array accumulator default is [], so the value is always a string[];
@@ -436,7 +431,7 @@ export function emitCommand(input: EmitInput): string | null {
         `    const ${targetVar} = ${rawVar}.length > 0 ? ${rawVar}.map(parseAttendee) : undefined`,
       )
     } else if (optDef.array && !optDef.parser) {
-      const camelKey = camelize(kebab(optKey))
+      const camelKey = kebabToCamel(kebab(optKey))
       const target = optDef.mapsTo ?? optKey
       const targetVar = snakeToCamel(target)
       const rawVar = `${camelKey}Raw`
