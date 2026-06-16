@@ -252,7 +252,7 @@ describe("runLogin", () => {
         status: 200,
         headers: {
           "content-type": "application/json",
-          "x-consistency-bookmark": "bookmark_after_me",
+          "x-cb-auth": "auth_after_me",
         },
       })
     })
@@ -266,7 +266,7 @@ describe("runLogin", () => {
     })
 
     const c = await store.read()
-    expect(c.envs.prod?.consistency_bookmark).toBe("bookmark_after_me")
+    expect(c.envs.prod?.consistency_bookmarks?.auth).toBe("auth_after_me")
     expect(c.envs.prod?.accounts["a@x.com"]?.api_key).toBe("wspc_test_key")
   })
 
