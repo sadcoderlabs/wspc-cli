@@ -15,10 +15,13 @@ export interface AccountCreds {
   agent_label?: string
 }
 
+export type ConsistencyBookmarkService = "auth" | "todo" | "calendar" | "email" | "push"
+
+export type ConsistencyBookmarks = Partial<Record<ConsistencyBookmarkService, string>>
+
 export interface EnvConfig {
   api_base: string
-  // Last observed server consistency bookmark for read-your-writes behavior.
-  consistency_bookmark?: string
+  consistency_bookmarks?: ConsistencyBookmarks
   // RFC 7591 dynamically registered OAuth public client — server-level app
   // identity, shared by every account on this env. Kept across logout.
   client_id?: string
@@ -44,10 +47,23 @@ const V1_CRED_KEYS = [
   "agent_label",
 ] as const
 
+const CONSISTENCY_BOOKMARK_SERVICES = ["auth", "todo", "calendar", "email", "push"] as const
+
+function normalizeConsistencyBookmarks(raw: unknown): ConsistencyBookmarks | undefined {
+  if (typeof raw !== "object" || raw === null) return undefined
+  const out: ConsistencyBookmarks = {}
+  const obj = raw as Record<string, unknown>
+  for (const service of CONSISTENCY_BOOKMARK_SERVICES) {
+    if (typeof obj[service] === "string") out[service] = obj[service]
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function migrateEnv(raw: Record<string, unknown>): EnvConfig {
   const api_base = typeof raw.api_base === "string" ? raw.api_base : ""
   const env: EnvConfig = { api_base, accounts: {} }
-  if (typeof raw.consistency_bookmark === "string") env.consistency_bookmark = raw.consistency_bookmark
+  const consistency_bookmarks = normalizeConsistencyBookmarks(raw.consistency_bookmarks)
+  if (consistency_bookmarks) env.consistency_bookmarks = consistency_bookmarks
   if (typeof raw.client_id === "string") env.client_id = raw.client_id
 
   // Already v2: trust its accounts/current_account as-is.
