@@ -1,7 +1,24 @@
-import type { ConfigStore } from "../config/index.js"
+import type { ConfigStore, ConsistencyBookmarkService } from "../config/index.js"
 
-const HEADER = "x-consistency-bookmark"
 const INVALID_BOOKMARK = "INVALID_CONSISTENCY_BOOKMARK"
+
+const SERVICE_HEADERS: Record<ConsistencyBookmarkService, string> = {
+  auth: "x-cb-auth",
+  todo: "x-cb-todo",
+  calendar: "x-cb-cal",
+  email: "x-cb-email",
+  push: "x-cb-push",
+}
+
+const SERVICE_PREFIXES: Array<{ service: ConsistencyBookmarkService; prefix: string }> = [
+  { service: "auth", prefix: "/auth" },
+  { service: "todo", prefix: "/todo" },
+  { service: "calendar", prefix: "/calendar" },
+  { service: "email", prefix: "/email" },
+  { service: "push", prefix: "/push" },
+]
+
+const KNOWN_HEADERS = Object.values(SERVICE_HEADERS)
 
 export interface ConsistencyFetchOptions {
   store: ConfigStore
@@ -22,6 +39,30 @@ function isUnderApiBase(url: URL, apiBase: string): boolean {
     url.origin === base.origin &&
     (basePath === "/" || url.pathname === basePath || url.pathname.startsWith(`${basePath}/`))
   )
+}
+
+function pathWithinApiBase(url: URL, apiBase: string): string {
+  const basePath = normalizeBasePath(new URL(apiBase).pathname)
+  if (basePath === "/") return url.pathname
+  if (url.pathname === basePath) return "/"
+  return url.pathname.slice(basePath.length) || "/"
+}
+
+function pathMatchesPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`)
+}
+
+function serviceForPath(pathname: string): ConsistencyBookmarkService | undefined {
+  return SERVICE_PREFIXES.find(({ prefix }) => pathMatchesPrefix(pathname, prefix))?.service
+}
+
+function stripKnownBookmarkHeaders(request: Request, keep?: string): Request {
+  if (!KNOWN_HEADERS.some((header) => header !== keep && request.headers.has(header))) return request
+  const headers = new Headers(request.headers)
+  for (const header of KNOWN_HEADERS) {
+    if (header !== keep) headers.delete(header)
+  }
+  return new Request(request, { headers })
 }
 
 function isJsonContentType(contentType: string): boolean {
@@ -49,43 +90,48 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
     const url = new URL(request.url)
     const applies = isUnderApiBase(url, opts.apiBase)
     let outgoing = request
-    let injectedStoredBookmark = false
+    let injectedService: ConsistencyBookmarkService | undefined
+    const service = applies ? serviceForPath(pathWithinApiBase(url, opts.apiBase)) : undefined
+    const serviceHeader = service ? SERVICE_HEADERS[service] : undefined
+    outgoing = stripKnownBookmarkHeaders(outgoing, applies ? serviceHeader : undefined)
 
-    if (applies && !outgoing.headers.has(HEADER)) {
-      const config = await opts.store.read()
-      const bookmark = config.envs[opts.envName]?.consistency_bookmark
-      if (bookmark) {
-        const headers = new Headers(outgoing.headers)
-        headers.set(HEADER, bookmark)
-        outgoing = new Request(outgoing, { headers })
-        injectedStoredBookmark = true
+    if (applies && service) {
+      const header = SERVICE_HEADERS[service]
+      if (!outgoing.headers.has(header)) {
+        const config = await opts.store.read()
+        const bookmark = config.envs[opts.envName]?.consistency_bookmarks?.[service]
+        if (bookmark) {
+          const headers = new Headers(outgoing.headers)
+          headers.set(header, bookmark)
+          outgoing = new Request(outgoing, { headers })
+          injectedService = service
+        }
       }
-    }
-
-    if (!applies && outgoing.headers.has(HEADER)) {
-      const headers = new Headers(outgoing.headers)
-      headers.delete(HEADER)
-      outgoing = new Request(outgoing, { headers })
     }
 
     const response = await fetchImpl(outgoing)
     if (!applies) return response
 
-    const nextBookmark = response.headers.get(HEADER)
-    const shouldCheckInvalidBookmark = injectedStoredBookmark && !nextBookmark
-    const invalidBookmark = shouldCheckInvalidBookmark
-      ? await responseHasInvalidBookmark(response)
-      : false
-    const shouldClearBookmark = invalidBookmark
-    if (!nextBookmark && !shouldClearBookmark) return response
+    const nextBookmarks = Object.entries(SERVICE_HEADERS).flatMap(([serviceName, header]) => {
+      const value = response.headers.get(header)
+      return value ? [[serviceName as ConsistencyBookmarkService, value] as const] : []
+    })
+    const shouldCheckInvalidBookmark = injectedService !== undefined && nextBookmarks.length === 0
+    const invalidBookmark = shouldCheckInvalidBookmark ? await responseHasInvalidBookmark(response) : false
+    if (nextBookmarks.length === 0 && !invalidBookmark) return response
 
     await opts.store.update((config) => {
       const env = config.envs[opts.envName]
       if (!env) return
-      if (nextBookmark) {
-        env.consistency_bookmark = nextBookmark
-      } else if (shouldClearBookmark) {
-        delete env.consistency_bookmark
+      env.consistency_bookmarks ??= {}
+      for (const [serviceName, value] of nextBookmarks) {
+        env.consistency_bookmarks[serviceName] = value
+      }
+      if (invalidBookmark && injectedService) {
+        delete env.consistency_bookmarks[injectedService]
+      }
+      if (Object.keys(env.consistency_bookmarks).length === 0) {
+        delete env.consistency_bookmarks
       }
     })
 
