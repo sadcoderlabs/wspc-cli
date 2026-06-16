@@ -34,13 +34,13 @@ function buildInterceptor(
     clientId,
     fetchImpl,
     onTokenRefresh: async ({ accessToken, refreshToken, expiresAt }) => {
-      const cfg = await store.read()
-      const a = cfg.envs[envName]?.accounts?.[email]
-      if (!a) return
-      a.access_token = accessToken
-      a.refresh_token = refreshToken
-      a.access_token_expires_at = expiresAt
-      await store.write(cfg)
+      await store.update((cfg) => {
+        const a = cfg.envs[envName]?.accounts?.[email]
+        if (!a) return
+        a.access_token = accessToken
+        a.refresh_token = refreshToken
+        a.access_token_expires_at = expiresAt
+      })
     },
   })
 }
