@@ -116,7 +116,7 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
       const value = response.headers.get(header)
       return value ? [[serviceName as ConsistencyBookmarkService, value] as const] : []
     })
-    const shouldCheckInvalidBookmark = injectedService !== undefined && nextBookmarks.length === 0
+    const shouldCheckInvalidBookmark = injectedService !== undefined
     const invalidBookmark = shouldCheckInvalidBookmark ? await responseHasInvalidBookmark(response) : false
     if (nextBookmarks.length === 0 && !invalidBookmark) return response
 

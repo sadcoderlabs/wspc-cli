@@ -199,6 +199,32 @@ describe("createConsistencyFetch", () => {
     expect(config.envs.prod?.consistency_bookmarks).toEqual({ auth: "auth_1", calendar: "cal_1" })
   })
 
+  it("clears injected service bookmark when invalid response includes unrelated service bookmark", async () => {
+    const store = await seededStore({ todo: "todo_bad", auth: "auth_old" })
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
+          status: 400,
+          headers: {
+            "content-type": "application/json",
+            "x-cb-auth": "auth_new",
+          },
+        }),
+    )
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://api.wspc.ai/todo/items")
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmarks).toEqual({ auth: "auth_new" })
+  })
+
   it("does not clear stored bookmark when caller-supplied matching service bookmark is invalid", async () => {
     const store = await seededStore({ todo: "todo_valid" })
     const response = new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
@@ -281,7 +307,7 @@ describe("createConsistencyFetch", () => {
     expect(config.envs.staging).toBeUndefined()
   })
 
-  it("does not parse invalid bookmark body when response bookmark is present", async () => {
+  it("clears injected service bookmark when same-service response bookmark is invalid", async () => {
     const store = await seededStore({ todo: "todo_old" })
     const response = new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
       status: 400,
@@ -301,9 +327,9 @@ describe("createConsistencyFetch", () => {
 
     await consistencyFetch("https://api.wspc.ai/todo/items")
 
-    expect(cloneSpy).not.toHaveBeenCalled()
+    expect(cloneSpy).toHaveBeenCalledOnce()
     const config = await store.read()
-    expect(config.envs.prod?.consistency_bookmarks?.todo).toBe("todo_new")
+    expect(config.envs.prod).not.toHaveProperty("consistency_bookmarks")
   })
 
   it("does not send bookmark to sibling prefix paths", async () => {
