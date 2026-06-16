@@ -1679,6 +1679,12 @@ export type UpdateTodoTypeBody = {
 
 export type InviteAcceptData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * The unique identifier of the invitation.
@@ -1789,6 +1795,12 @@ export type InviteAcceptResponse = InviteAcceptResponses[keyof InviteAcceptRespo
 
 export type KeyListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/keys';
@@ -1894,6 +1906,12 @@ export type KeyListResponse = KeyListResponses[keyof KeyListResponses];
 
 export type KeyCreateData = {
     body: CreateApiKeyBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/keys';
@@ -1999,6 +2017,12 @@ export type KeyCreateResponse = KeyCreateResponses[keyof KeyCreateResponses];
 
 export type OrgInvitesListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/me/org/invites';
@@ -2104,6 +2128,12 @@ export type OrgInvitesListResponse = OrgInvitesListResponses[keyof OrgInvitesLis
 
 export type OrgInviteCreateData = {
     body?: CreateOrgInviteInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/me/org/invites';
@@ -2262,6 +2292,12 @@ export type OauthDeviceAuthorizeResponse = OauthDeviceAuthorizeResponses[keyof O
 
 export type OrgGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/me/org';
@@ -2367,6 +2403,12 @@ export type OrgGetResponse = OrgGetResponses[keyof OrgGetResponses];
 
 export type OrgUpdateData = {
     body?: UpdateOrgInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/me/org';
@@ -2472,6 +2514,12 @@ export type OrgUpdateResponse = OrgUpdateResponses[keyof OrgUpdateResponses];
 
 export type InviteGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * The unique identifier of the invitation.
@@ -2582,6 +2630,12 @@ export type InviteGetResponse = InviteGetResponses[keyof InviteGetResponses];
 
 export type AuthMeData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/me';
@@ -2687,6 +2741,12 @@ export type AuthMeResponse = AuthMeResponses[keyof AuthMeResponses];
 
 export type InvitesListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/invites';
@@ -2792,6 +2852,12 @@ export type InvitesListResponse = InvitesListResponses[keyof InvitesListResponse
 
 export type OrgMembersListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: {
         /**
@@ -3169,6 +3235,12 @@ export type OauthClientRegisterResponse = OauthClientRegisterResponses[keyof Oau
 
 export type InviteRejectData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * The unique identifier of the invitation.
@@ -3279,6 +3351,12 @@ export type InviteRejectResponse = InviteRejectResponses[keyof InviteRejectRespo
 
 export type OrgMemberRemoveData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Id of the organization member to remove.
@@ -3389,6 +3467,12 @@ export type OrgMemberRemoveResponse = OrgMemberRemoveResponses[keyof OrgMemberRe
 
 export type AuthRequestCodeData = {
     body?: RequestCodeBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/request-code';
@@ -3494,6 +3578,12 @@ export type AuthRequestCodeResponse = AuthRequestCodeResponses[keyof AuthRequest
 
 export type KeyRevokeData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Id of the API key to revoke, as returned by `GET /auth/keys` (`key_<ULID>`).
@@ -3604,6 +3694,12 @@ export type KeyRevokeResponse = KeyRevokeResponses[keyof KeyRevokeResponses];
 
 export type KeyUpdateData = {
     body: UpdateApiKeyBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Id of the API key to update.
@@ -3769,6 +3865,12 @@ export type OauthTokenRevokeResponse = OauthTokenRevokeResponses[keyof OauthToke
 
 export type OrgInviteRevokeData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * The unique identifier of the invitation.
@@ -3932,6 +4034,12 @@ export type OauthTokenExchangeResponse = OauthTokenExchangeResponses[keyof Oauth
 
 export type AuthVerifyCodeData = {
     body?: VerifyCodeBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/verify-code';
@@ -6496,6 +6604,12 @@ export type EmailDomainVerifyResponse = EmailDomainVerifyResponses[keyof EmailDo
 
 export type PushConfigDeleteData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Transport name to delete (e.g. `telegram`). Only transports the caller has previously registered exist; unknown values return 400 `UNKNOWN_TRANSPORT`.
@@ -6582,6 +6696,12 @@ export type PushConfigDeleteResponse = PushConfigDeleteResponses[keyof PushConfi
 
 export type PushConfigGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/push/config';
@@ -6651,6 +6771,12 @@ export type PushConfigGetResponse = PushConfigGetResponses[keyof PushConfigGetRe
 
 export type PushConfigSetData = {
     body: SetPushConfigBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/push/config';
@@ -6734,6 +6860,12 @@ export type PushConfigSetResponse = PushConfigSetResponses[keyof PushConfigSetRe
 
 export type PushTestData = {
     body: TestPushBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/push/test';
@@ -6815,6 +6947,12 @@ export type PushTestResponse = PushTestResponses[keyof PushTestResponses];
 
 export type TodoCommentListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Todo id (`tod_<ULID>`).
@@ -6942,6 +7080,12 @@ export type TodoCommentListResponse = TodoCommentListResponses[keyof TodoComment
 
 export type TodoCommentCreateData = {
     body?: CreateCommentBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Todo id (`tod_<ULID>`).
@@ -7052,6 +7196,12 @@ export type TodoCommentCreateResponse = TodoCommentCreateResponses[keyof TodoCom
 
 export type ProjectListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: {
         /**
@@ -7164,6 +7314,12 @@ export type ProjectListResponse = ProjectListResponses[keyof ProjectListResponse
 
 export type ProjectCreateData = {
     body?: CreateProjectBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/todo/projects';
@@ -7269,6 +7425,12 @@ export type ProjectCreateResponse = ProjectCreateResponses[keyof ProjectCreateRe
 
 export type RecurrenceRuleListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -7380,6 +7542,12 @@ export type RecurrenceRuleListResponse = RecurrenceRuleListResponses[keyof Recur
 
 export type RecurrenceRuleCreateData = {
     body?: CreateRecurrenceRuleBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/todo/recurrence-rules';
@@ -7485,6 +7653,12 @@ export type RecurrenceRuleCreateResponse = RecurrenceRuleCreateResponses[keyof R
 
 export type TodoListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -7614,6 +7788,12 @@ export type TodoListResponse = TodoListResponses[keyof TodoListResponses];
 
 export type TodoCreateData = {
     body?: CreateTodoBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/todo/items';
@@ -7719,6 +7899,12 @@ export type TodoCreateResponse = TodoCreateResponses[keyof TodoCreateResponses];
 
 export type TodoTypeListData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query: {
         /**
@@ -7833,6 +8019,12 @@ export type TodoTypeListResponse = TodoTypeListResponses[keyof TodoTypeListRespo
 
 export type TodoTypeCreateData = {
     body?: CreateTodoTypeBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path?: never;
     query?: never;
     url: '/todo/types';
@@ -7938,6 +8130,12 @@ export type TodoTypeCreateResponse = TodoTypeCreateResponses[keyof TodoTypeCreat
 
 export type TodoCommentDeleteData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Comment id (`tdc_<ULID>`).
@@ -8048,6 +8246,12 @@ export type TodoCommentDeleteResponse = TodoCommentDeleteResponses[keyof TodoCom
 
 export type TodoCommentUpdateData = {
     body?: UpdateCommentBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Comment id (`tdc_<ULID>`).
@@ -8158,6 +8362,12 @@ export type TodoCommentUpdateResponse = TodoCommentUpdateResponses[keyof TodoCom
 
 export type ProjectDeleteData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Project id (`prj_<ULID>`).
@@ -8268,6 +8478,12 @@ export type ProjectDeleteResponse = ProjectDeleteResponses[keyof ProjectDeleteRe
 
 export type ProjectGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Project id (`prj_<ULID>`).
@@ -8378,6 +8594,12 @@ export type ProjectGetResponse = ProjectGetResponses[keyof ProjectGetResponses];
 
 export type ProjectUpdateData = {
     body?: UpdateProjectBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Project id (`prj_<ULID>`).
@@ -8488,6 +8710,12 @@ export type ProjectUpdateResponse = ProjectUpdateResponses[keyof ProjectUpdateRe
 
 export type RecurrenceRuleDeleteData = {
     body?: DeleteRecurrenceRuleBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -8595,6 +8823,12 @@ export type RecurrenceRuleDeleteResponse = RecurrenceRuleDeleteResponses[keyof R
 
 export type RecurrenceRuleGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -8702,6 +8936,12 @@ export type RecurrenceRuleGetResponse = RecurrenceRuleGetResponses[keyof Recurre
 
 export type RecurrenceRuleUpdateData = {
     body?: UpdateRecurrenceRuleBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -8809,6 +9049,12 @@ export type RecurrenceRuleUpdateResponse = RecurrenceRuleUpdateResponses[keyof R
 
 export type TodoDeleteData = {
     body?: DeleteTodoBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -8916,6 +9162,12 @@ export type TodoDeleteResponse = TodoDeleteResponses[keyof TodoDeleteResponses];
 
 export type TodoGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -9027,6 +9279,12 @@ export type TodoGetResponse = TodoGetResponses[keyof TodoGetResponses];
 
 export type TodoUpdateData = {
     body?: UpdateTodoBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -9134,6 +9392,12 @@ export type TodoUpdateResponse = TodoUpdateResponses[keyof TodoUpdateResponses];
 
 export type TodoTypeDeleteData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -9241,6 +9505,12 @@ export type TodoTypeDeleteResponse = TodoTypeDeleteResponses[keyof TodoTypeDelet
 
 export type TodoTypeGetData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -9348,6 +9618,12 @@ export type TodoTypeGetResponse = TodoTypeGetResponses[keyof TodoTypeGetResponse
 
 export type TodoTypeUpdateData = {
     body?: UpdateTodoTypeBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -9455,6 +9731,12 @@ export type TodoTypeUpdateResponse = TodoTypeUpdateResponses[keyof TodoTypeUpdat
 
 export type ProjectRestoreData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         /**
          * Project id (`prj_<ULID>`).
@@ -9565,6 +9847,12 @@ export type ProjectRestoreResponse = ProjectRestoreResponses[keyof ProjectRestor
 
 export type TodoRestoreData = {
     body?: RestoreTodoBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };
@@ -9672,6 +9960,12 @@ export type TodoRestoreResponse = TodoRestoreResponses[keyof TodoRestoreResponse
 
 export type TodoTypeRestoreData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.
+         */
+        'x-consistency-bookmark'?: string;
+    };
     path: {
         id: string;
     };

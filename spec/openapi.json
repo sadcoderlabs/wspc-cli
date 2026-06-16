@@ -3361,6 +3361,28 @@
           }
         ],
         "summary": "Accept an invite and switch into the inviting organization",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the invitation."
+            },
+            "required": true,
+            "description": "The unique identifier of the invitation.",
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "description": "Switches the caller's org to the invite's org and records the previous org. The caller loses access to data scoped to their previous org.",
         "x-codeSamples": [
           {
@@ -3374,21 +3396,17 @@
             "source": "wspc invite accept inv_01KT43YKZ8CX14WS6ENXQ8397E"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "The unique identifier of the invitation."
-            },
-            "required": true,
-            "description": "The unique identifier of the invitation.",
-            "name": "id",
-            "in": "path"
-          }
-        ],
         "responses": {
           "200": {
             "description": "The organization the caller now belongs to.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -3735,6 +3753,18 @@
           }
         ],
         "summary": "Create a new API key (full value returned once)",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "### Overview\nCreates and provisions a new long-lived API key for the authenticated user. The complete plaintext API key value (`api_key`) is returned **only once** in this endpoint's response and cannot be retrieved again.\n\n### When to Use\n- Use this endpoint when a user requests a new API key (e.g., `wspc keys create --label \"My Agent\"`) to isolate access for specific environments, applications, or developers.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Key Limit**: A user is limited to a maximum of 25 active API keys. Requesting a new key beyond this limit will result in a `KEY_LIMIT_EXCEEDED` error.\n- **Label Validation**: The `label` parameter must be between 1 and 60 characters after trimming whitespace. Failing to provide a valid label results in an `INVALID_LABEL` error.\n\n### Troubleshooting\n- **401 Unauthorized**: The Bearer token is missing or invalid.\n- **400 Bad Request**: The `label` parameter is empty, too long, or missing.\n- **400 Bad Request (Limit Exceeded)**: The user has hit the maximum limit of 25 active keys. An existing active key must be revoked before creating a new one.",
         "x-cli": {
           "command": "keys create",
@@ -3778,6 +3808,14 @@
         "responses": {
           "200": {
             "description": "New key created. Store `api_key` securely — the full value is not available after this response.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -4122,6 +4160,18 @@
           }
         ],
         "summary": "List active API keys",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "### Overview\nReturns a list of all active (non-revoked) API keys belonging to the authenticated user. It also includes the `current_key_id` identifying the specific key used to authenticate the current request.\n\n### When to Use\n- Use this endpoint to view active API keys (e.g., when running `wspc keys list` or displaying API key management screens in user profiles).\n- Use the `current_key_id` to identify which key is making the current call, facilitating self-rotation or auditing.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- Only active keys are returned; keys that have been revoked are filtered out and excluded from the response.\n- The full secret key is never returned; only the last 4 characters (`key_last4`) are provided for identification.\n\n### Troubleshooting\n- **401 Unauthorized**: The provided Bearer token is missing, expired, or invalid. Ensure you are passing a valid, active API key.",
         "x-cli": {
           "command": "keys ls",
@@ -4158,6 +4208,14 @@
         "responses": {
           "200": {
             "description": "List of active API keys and the id of the key used for this request.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -4520,6 +4578,18 @@
           }
         ],
         "summary": "Invite an email to join the caller's organization",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "Creates a pending invite for `email` and sends an invite email. Idempotent for an existing pending invite. The invitee accepts after signing in with the invited email.",
         "x-codeSamples": [
           {
@@ -4545,6 +4615,14 @@
         "responses": {
           "201": {
             "description": "The created (or existing pending) invite.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -4906,6 +4984,18 @@
           }
         ],
         "summary": "List invites issued by the caller's organization",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "Retrieves a list of all active pending or expired organization invites issued by the caller's organization.",
         "x-codeSamples": [
           {
@@ -4922,6 +5012,14 @@
         "responses": {
           "200": {
             "description": "Invites for this org.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5507,6 +5605,18 @@
           }
         ],
         "summary": "Get the authenticated user's organization",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "### Overview\nReturns the metadata of the organization owned by the authenticated user. In the current version, this represents the user's personal organization space containing all their projects and tokens.\n\n### When to Use\n- Use this endpoint to retrieve the organization ID and name for display or context setup (e.g., when running `wspc org show` or rendering user dashboards).\n- Use this to verify that the API token / credentials are linked to a valid organization.\n\n### Constraints\n- Requires a valid Bearer token (API Key or Session Token) in the `Authorization` header.\n- In the current API version (v1), every user is automatically provisioned a single personal organization. Selecting or switching organizations is not supported.\n\n### Troubleshooting\n- **401 Unauthorized**: The provided Bearer token is missing, expired, or invalid. Verify your `Authorization` header format (`Bearer <token>`).\n- **403 Forbidden**: The token does not have access to read organization metadata.\n- **404 Not Found**: The organization associated with this token could not be found or has been deactivated.",
         "x-codeSamples": [
           {
@@ -5523,6 +5633,14 @@
         "responses": {
           "200": {
             "description": "The authenticated user's organization.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5889,6 +6007,18 @@
           }
         ],
         "summary": "Update the authenticated user's organization",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "### Overview\nUpdates the metadata (currently, the name) of the organization associated with the authenticated user.\n\n### Constraints\n- Requires a valid Bearer token.\n- The organization name cannot be empty or purely whitespace.\n- Maximum length is capped by `MAX_ORG_NAME_LEN`.",
         "x-codeSamples": [
           {
@@ -5914,6 +6044,14 @@
         "responses": {
           "200": {
             "description": "The updated organization metadata.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6266,6 +6404,28 @@
           }
         ],
         "summary": "Get a single invite addressed to the caller",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the invitation."
+            },
+            "required": true,
+            "description": "The unique identifier of the invitation.",
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "description": "Retrieves the metadata of a specific organization invite addressed to the caller by its ID.",
         "x-codeSamples": [
           {
@@ -6279,21 +6439,17 @@
             "source": "wspc invite show inv_01KT43YKZ8CX14WS6ENXQ8397E"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "The unique identifier of the invitation."
-            },
-            "required": true,
-            "description": "The unique identifier of the invitation.",
-            "name": "id",
-            "in": "path"
-          }
-        ],
         "responses": {
           "200": {
             "description": "The invite.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6660,6 +6816,18 @@
           }
         ],
         "summary": "Fetch the user identified by the bearer token",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "### Overview\nRetrieves the stable identity profile (user ID, email, and optional display name) of the user associated with the active Bearer token. Works for both long-lived `wspc_*` API keys and OAuth access tokens.\n\n### When to Use\n- Use this endpoint (e.g., in `wspc verify` or `wspc whoami`) to confirm that the active environment's API key or OAuth access token remains valid.\n- Use it in UIs to display the logged-in user's profile details and retrieve the stable `user_id`.\n\n### Constraints\n- Requires a valid Bearer token (either a long-lived `wspc_*` API key or a temporary OAuth access token) in the `Authorization` header.\n- **Response Fields**: The `api_key_id` field is only returned if authenticated via a WSPC API key (prefixed with `wspc_`). OAuth access tokens will omit `api_key_id`. `display_name` is omitted if not configured.\n\n### Troubleshooting\n- **401 Unauthorized**: The Bearer token is missing, malformed, or has been revoked. Ensure the `Authorization` header matches the `Bearer <token>` format.",
         "x-codeSamples": [
           {
@@ -6676,6 +6844,14 @@
         "responses": {
           "200": {
             "description": "The bearer token is valid. The response carries the stable `user_id`, the user's email, and — for `wspc_*` API keys only — the `api_key_id` that authenticated the call.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -7058,6 +7234,18 @@
           }
         ],
         "summary": "List invites addressed to the authenticated user's email",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "Retrieves all pending or expired organization invites addressed to the caller's verified email address.",
         "x-codeSamples": [
           {
@@ -7074,6 +7262,14 @@
         "responses": {
           "200": {
             "description": "Invites addressed to the caller.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -7437,20 +7633,17 @@
           }
         ],
         "summary": "List members of the authenticated user's organization",
-        "description": "### Overview\nRetrieves a paginated list of all members belonging to the authenticated user's organization, including their basic profile information, emails, and roles.\n\n### When to Use\n- Use this endpoint to list members in command-line tools (e.g., `wspc org members ls`) or to display a team directory in a user dashboard.\n- Use this to paginate through large lists of organization members using cursor-based pagination.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- In the current version (v1), organizations are single-user only, meaning this endpoint will always return exactly one member (the caller).\n- **Pagination**: Supports cursor-based pagination. The `limit` query parameter must be a positive integer, defaulting to 50 and capped at a maximum of 100. Pass `cursor` from the previous response's `next_cursor` to fetch subsequent pages.\n\n### Troubleshooting\n- **401 Unauthorized**: The Bearer token is invalid or has expired.\n- **400 Bad Request**: The query parameters `limit` or `cursor` are malformed. Ensure `limit` is an integer between 1 and 100.\n- **404 Not Found**: The organization associated with this user was not found.",
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl https://api.wspc.ai/auth/me/org/members \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc org members ls"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -7472,9 +7665,30 @@
             "in": "query"
           }
         ],
+        "description": "### Overview\nRetrieves a paginated list of all members belonging to the authenticated user's organization, including their basic profile information, emails, and roles.\n\n### When to Use\n- Use this endpoint to list members in command-line tools (e.g., `wspc org members ls`) or to display a team directory in a user dashboard.\n- Use this to paginate through large lists of organization members using cursor-based pagination.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- In the current version (v1), organizations are single-user only, meaning this endpoint will always return exactly one member (the caller).\n- **Pagination**: Supports cursor-based pagination. The `limit` query parameter must be a positive integer, defaulting to 50 and capped at a maximum of 100. Pass `cursor` from the previous response's `next_cursor` to fetch subsequent pages.\n\n### Troubleshooting\n- **401 Unauthorized**: The Bearer token is invalid or has expired.\n- **400 Bad Request**: The query parameters `limit` or `cursor` are malformed. Ensure `limit` is an integer between 1 and 100.\n- **404 Not Found**: The organization associated with this user was not found.",
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/auth/me/org/members \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc org members ls"
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of organization members and optional cursor for next page.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -8797,6 +9011,28 @@
           }
         ],
         "summary": "Reject an invite",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the invitation."
+            },
+            "required": true,
+            "description": "The unique identifier of the invitation.",
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "description": "Rejects an organization invite addressed to the caller. The invite will be marked as rejected.",
         "x-codeSamples": [
           {
@@ -8810,21 +9046,17 @@
             "source": "wspc invite reject inv_01KT43YKZ8CX14WS6ENXQ8397E"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "The unique identifier of the invitation."
-            },
-            "required": true,
-            "description": "The unique identifier of the invitation.",
-            "name": "id",
-            "in": "path"
-          }
-        ],
         "responses": {
           "204": {
-            "description": "Invite rejected."
+            "description": "Invite rejected.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "400": {
             "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
@@ -9164,15 +9396,17 @@
           }
         ],
         "summary": "Remove a member from the organization",
-        "description": "### Overview\nRemoves a member from the authenticated user's organization by their user ID, restoring their original organization ID if applicable.\n\n### Constraints\n- Requires a valid Bearer token.\n- Cannot remove the organization creator/owner.",
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -X DELETE https://api.wspc.ai/auth/me/org/members/usr_member \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -9184,9 +9418,25 @@
             "in": "path"
           }
         ],
+        "description": "### Overview\nRemoves a member from the authenticated user's organization by their user ID, restoring their original organization ID if applicable.\n\n### Constraints\n- Requires a valid Bearer token.\n- Cannot remove the organization creator/owner.",
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X DELETE https://api.wspc.ai/auth/me/org/members/usr_member \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
         "responses": {
           "204": {
-            "description": "Member removed successfully."
+            "description": "Member removed successfully.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "400": {
             "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
@@ -9523,6 +9773,18 @@
         "excludeActorHeaders": true,
         "security": [],
         "summary": "Request an email magic code",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "### Overview\nInitiates the passwordless email magic-code authentication flow by sending a short, time-limited numeric verification code to the specified email address.\n\n### When to Use\n- Use this endpoint as the first step of the CLI login flow (`wspc login`) or any interactive UI where the user initiates authentication by inputting their email address.\n- Pair this request with `POST /auth/verify-code` once the user retrieves the code from their inbox.\n\n### Constraints\n- Does not require authentication (public endpoint).\n- **Security**: The same HTTP 200 response structure is returned regardless of whether the email address is already registered or not. This is an intentional security design to prevent account-existence disclosure (email harvesting).\n- **Rate Limiting**: This endpoint enforces strict rate limits based on both the requesting IP address and the target email address to prevent abuse. Too many consecutive requests will result in a `RATE_LIMITED` error.\n\n### Troubleshooting\n- **429 Too Many Requests**: The requesting IP or target email has exceeded the allowable request rate. Wait a few minutes before trying again.\n- **400 Bad Request**: The `email` payload is malformed or invalid. Verify that the email matches basic email formats.",
         "x-codeSamples": [
           {
@@ -9556,6 +9818,14 @@
         "responses": {
           "200": {
             "description": "The magic code was generated and an email was dispatched. The same response shape is returned for registered and unregistered addresses to avoid account-existence disclosure.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -9911,6 +10181,28 @@
           }
         ],
         "summary": "Soft-revoke an API key",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Id of the API key to revoke, as returned by `GET /auth/keys` (`key_<ULID>`)."
+            },
+            "required": true,
+            "description": "Id of the API key to revoke, as returned by `GET /auth/keys` (`key_<ULID>`).",
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "description": "### Overview\nPermanently revokes an active API key by its unique ID. Once revoked, the key becomes immediately invalid and will be rejected by all services.\n\n### When to Use\n- Use this endpoint to permanently deactivate an API key (e.g., when running `wspc keys revoke <id>`) due to token rotation, key leakage, or decommissioning of a machine/service.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- Revocation is permanent and cannot be undone.\n- A user can revoke any key they own, including the one they are currently using to make the call. If they revoke the current key, subsequent requests using that key will return `401 Unauthorized`.\n\n### Troubleshooting\n- **401 Unauthorized**: The active token is missing, expired, or invalid.\n- **404 Not Found**: The specified key ID does not exist, belongs to another user, or has already been revoked.\n- **400 Bad Request**: The `id` path parameter format is invalid. It must be in the format `key_<ULID>`.",
         "x-cli": {
           "command": "keys rm",
@@ -9930,21 +10222,17 @@
             "source": "wspc keys rm key_abcd1234efgh5678"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Id of the API key to revoke, as returned by `GET /auth/keys` (`key_<ULID>`)."
-            },
-            "required": true,
-            "description": "Id of the API key to revoke, as returned by `GET /auth/keys` (`key_<ULID>`).",
-            "name": "id",
-            "in": "path"
-          }
-        ],
         "responses": {
           "200": {
             "description": "Key revoked successfully.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -10289,6 +10577,28 @@
           }
         ],
         "summary": "Update an active API key's label",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Id of the API key to update."
+            },
+            "required": true,
+            "description": "Id of the API key to update.",
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "description": "### Overview\nUpdates the human-readable label of an active API key. Only active (non-revoked) keys owned by the authenticated user can be updated.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Label Validation**: The `label` parameter must be between 1 and 60 characters after trimming whitespace. Failing to provide a valid label results in an `INVALID_LABEL` error.",
         "x-cli": {
           "command": "keys edit",
@@ -10308,18 +10618,6 @@
             "source": "wspc keys edit key_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --label \"New Label\""
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Id of the API key to update."
-            },
-            "required": true,
-            "description": "Id of the API key to update.",
-            "name": "id",
-            "in": "path"
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10333,6 +10631,14 @@
         "responses": {
           "200": {
             "description": "API key label updated successfully.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -10895,6 +11201,28 @@
           }
         ],
         "summary": "Revoke a pending invite",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the invitation."
+            },
+            "required": true,
+            "description": "The unique identifier of the invitation.",
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "description": "Permanently revokes a pending organization invite. The invitee will no longer be able to accept it.",
         "x-codeSamples": [
           {
@@ -10908,21 +11236,17 @@
             "source": "wspc org invite revoke inv_01KT43YKZ8CX14WS6ENXQ8397E"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "The unique identifier of the invitation."
-            },
-            "required": true,
-            "description": "The unique identifier of the invitation.",
-            "name": "id",
-            "in": "path"
-          }
-        ],
         "responses": {
           "204": {
-            "description": "Invite revoked."
+            "description": "Invite revoked.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "400": {
             "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
@@ -11487,6 +11811,18 @@
         "excludeActorHeaders": true,
         "security": [],
         "summary": "Verify a magic code and issue an API key",
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "description": "### Overview\nCompletes the passwordless login flow by verifying the magic code received via email. If the code is correct, it registers a new user (if not already registered) and issues a long-lived WSPC API key.\n\n### When to Use\n- Use this endpoint as the second step of the login flow, exchanging the user-provided code and email address for a valid credential.\n- Store the returned `api_key` securely client-side to authorize subsequent calls to all WSPC services.\n\n### Constraints\n- Does not require authentication (public endpoint).\n- **One-time Use & Expiry**: The verification code is single-use and expires after a short period (typically a few minutes). Re-using a code or attempting to guess code values results in `INVALID_CODE` or `CODE_EXPIRED`.\n- **Account Creation**: If the email address is not linked to an existing account, a new user profile and personal organization are automatically provisioned (`created: true` in response).\n\n### Troubleshooting\n- **400 Bad Request**: The code has expired (`CODE_EXPIRED`), is incorrect (`INVALID_CODE`), or has already been used. Request a fresh code via `POST /auth/request-code`.\n- **429 Too Many Requests**: The rate limit for verification attempts on this email address has been exceeded.",
         "x-codeSamples": [
           {
@@ -11521,6 +11857,14 @@
         "responses": {
           "200": {
             "description": "Code accepted. The response carries a fresh API key for the active environment plus the user's stable id. Persist these client-side.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -20661,6 +21005,28 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Transport name to delete (e.g. `telegram`). Only transports the caller has previously registered exist; unknown values return 400 `UNKNOWN_TRANSPORT`."
+            },
+            "required": true,
+            "description": "Transport name to delete (e.g. `telegram`). Only transports the caller has previously registered exist; unknown values return 400 `UNKNOWN_TRANSPORT`.",
+            "name": "transport",
+            "in": "path"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -20679,21 +21045,17 @@
             "transport"
           ]
         },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Transport name to delete (e.g. `telegram`). Only transports the caller has previously registered exist; unknown values return 400 `UNKNOWN_TRANSPORT`."
-            },
-            "required": true,
-            "description": "Transport name to delete (e.g. `telegram`). Only transports the caller has previously registered exist; unknown values return 400 `UNKNOWN_TRANSPORT`.",
-            "name": "transport",
-            "in": "path"
-          }
-        ],
         "responses": {
           "204": {
-            "description": "Config deleted (or no config existed — the call is idempotent)."
+            "description": "Config deleted (or no config existed — the call is idempotent).",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest push database position observed by this request. Store and send it on the next push request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "400": {
             "description": "`transport` is not a value wspc supports.",
@@ -20929,6 +21291,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -20981,6 +21355,14 @@
         "responses": {
           "201": {
             "description": "Config stored. The transport is now eligible to receive product notifications for this user.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest push database position observed by this request. Store and send it on the next push request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -21240,6 +21622,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -21290,6 +21684,14 @@
         "responses": {
           "200": {
             "description": "All push transports registered for the authenticated user.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest push database position observed by this request. Store and send it on the next push request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -21525,6 +21927,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -21577,6 +21991,14 @@
         "responses": {
           "200": {
             "description": "Test attempted. Inspect `ok` to discriminate success from a transport-layer failure (network, upstream 4xx/5xx).",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest push database position observed by this request. Store and send it on the next push request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -21865,19 +22287,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -X POST https://api.wspc.ai/todo/items/tod_01HW3K/comments -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"content\":\"Looks good\"}'"
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo comment add tod_01HW3K \"Looks good\""
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -21888,6 +22308,18 @@
             "description": "Todo id (`tod_<ULID>`).",
             "name": "id",
             "in": "path"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/todo/items/tod_01HW3K/comments -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"content\":\"Looks good\"}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc todo comment add tod_01HW3K \"Looks good\""
           }
         ],
         "requestBody": {
@@ -21910,6 +22342,14 @@
         "responses": {
           "201": {
             "description": "Created",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -22289,19 +22729,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl https://api.wspc.ai/todo/items/tod_01HW3K/comments -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo comment ls tod_01HW3K"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -22354,9 +22792,29 @@
             "in": "query"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/todo/items/tod_01HW3K/comments -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc todo comment ls tod_01HW3K"
+          }
+        ],
         "responses": {
           "200": {
             "description": "List",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -22759,6 +23217,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -22798,6 +23268,14 @@
         "responses": {
           "201": {
             "description": "Created",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -23178,19 +23656,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl https://api.wspc.ai/todo/projects -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc project ls"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -23203,9 +23679,29 @@
             "in": "query"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/todo/projects -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc project ls"
+          }
+        ],
         "responses": {
           "200": {
             "description": "List",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -23625,6 +24121,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -23671,6 +24179,14 @@
         "responses": {
           "201": {
             "description": "The rule was created. `materialized_instance_count` reports how many todo instances were materialized immediately within the 14-day horizon.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -24056,19 +24572,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl https://api.wspc.ai/todo/recurrence-rules \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo rule ls"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -24089,9 +24603,29 @@
             "in": "query"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/todo/recurrence-rules \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc todo rule ls"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Active recurrence rules for the caller. Empty `rules` array when none are configured.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -24492,6 +25026,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -24534,6 +25080,14 @@
         "responses": {
           "201": {
             "description": "The todo was created. The response carries the full row including server-assigned `id`, `version`, and `created_at`.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -24926,19 +25480,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -G https://api.wspc.ai/todo/items \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  --data-urlencode \"status=open\" \\\n  --data-urlencode \"status=in_progress\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo ls --status open in_progress"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -25105,9 +25657,29 @@
             "in": "query"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -G https://api.wspc.ai/todo/items \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  --data-urlencode \"status=open\" \\\n  --data-urlencode \"status=in_progress\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc todo ls --status open in_progress"
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of todos matching the filters. Empty `todos` array when nothing matches.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -25500,6 +26072,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -25524,6 +26108,14 @@
         "responses": {
           "201": {
             "description": "Created",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -25887,19 +26479,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl https://api.wspc.ai/todo/types -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo types ls"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -25929,9 +26519,29 @@
             "in": "query"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/todo/types -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc todo types ls"
+          }
+        ],
         "responses": {
           "200": {
             "description": "List",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -26310,19 +26920,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -X DELETE https://api.wspc.ai/todo/comments/tdc_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo comment rm tdc_01HW3K"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -26335,9 +26943,29 @@
             "in": "path"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X DELETE https://api.wspc.ai/todo/comments/tdc_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc todo comment rm tdc_01HW3K"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Soft-deleted",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -26719,19 +27347,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -X PATCH https://api.wspc.ai/todo/comments/tdc_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"content\":\"Edited\"}'"
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo comment edit tdc_01HW3K \"Edited\""
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -26742,6 +27368,18 @@
             "description": "Comment id (`tdc_<ULID>`).",
             "name": "id",
             "in": "path"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X PATCH https://api.wspc.ai/todo/comments/tdc_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"content\":\"Edited\"}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc todo comment edit tdc_01HW3K \"Edited\""
           }
         ],
         "requestBody": {
@@ -26764,6 +27402,14 @@
         "responses": {
           "200": {
             "description": "Updated",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -27129,19 +27775,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -X DELETE https://api.wspc.ai/todo/projects/prj_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc project rm prj_01HW3K"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -27154,9 +27798,29 @@
             "in": "path"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X DELETE https://api.wspc.ai/todo/projects/prj_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc project rm prj_01HW3K"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Soft-deleted",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -27522,19 +28186,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl https://api.wspc.ai/todo/projects/prj_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc project show prj_01HW3K"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -27547,9 +28209,29 @@
             "in": "path"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/todo/projects/prj_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc project show prj_01HW3K"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -27914,19 +28596,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -X PATCH https://api.wspc.ai/todo/projects/prj_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"name\":\"Renamed\"}'"
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc project update prj_01HW3K --name \"Renamed\""
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -27937,6 +28617,18 @@
             "description": "Project id (`prj_<ULID>`).",
             "name": "id",
             "in": "path"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X PATCH https://api.wspc.ai/todo/projects/prj_01HW3K -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"name\":\"Renamed\"}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc project update prj_01HW3K --name \"Renamed\""
           }
         ],
         "requestBody": {
@@ -27972,6 +28664,14 @@
         "responses": {
           "200": {
             "description": "Updated",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -28344,6 +29044,26 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -28354,16 +29074,6 @@
             "lang": "bash",
             "label": "wspc CLI",
             "source": "wspc todo rule rm tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
           }
         ],
         "requestBody": {
@@ -28390,6 +29100,14 @@
         "responses": {
           "200": {
             "description": "The rule was soft-deleted; future materializations stop. Already-materialized todo instances remain on the user's list.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -28759,6 +29477,26 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -28771,19 +29509,17 @@
             "source": "wspc todo rule show tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
         "responses": {
           "200": {
             "description": "The requested rule along with its template todo snapshot and the count of todo instances currently materialized from it.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -29163,6 +29899,26 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -29173,16 +29929,6 @@
             "lang": "bash",
             "label": "wspc CLI",
             "source": "wspc todo rule set tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --rrule \"FREQ=WEEKLY;BYDAY=FR\""
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
           }
         ],
         "requestBody": {
@@ -29216,6 +29962,14 @@
         "responses": {
           "200": {
             "description": "The rule was updated. Returns the post-update rule with a bumped `version` and refreshed `updated_at`. Future materializations follow the new schedule; existing instances are untouched.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -29602,6 +30356,26 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -29612,16 +30386,6 @@
             "lang": "bash",
             "label": "wspc CLI",
             "source": "wspc todo rm tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --cascade"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
           }
         ],
         "requestBody": {
@@ -29649,6 +30413,14 @@
         "responses": {
           "200": {
             "description": "The todo was soft-deleted. `deleted_count` includes cascaded descendants when `cascade: true`.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -30037,19 +30809,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl https://api.wspc.ai/todo/items/tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
-          },
-          {
-            "lang": "bash",
-            "label": "wspc CLI",
-            "source": "wspc todo show tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string"
@@ -30103,9 +30873,29 @@
             "in": "query"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/todo/items/tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc todo show tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
+          }
+        ],
         "responses": {
           "200": {
             "description": "The requested todo. Includes `children` (first-level) when `include=children`, `comments` when `include=comments`, and `deleted_at` only when fetched with `include_deleted=true` on a soft-deleted row.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -30522,6 +31312,26 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -30532,16 +31342,6 @@
             "lang": "bash",
             "label": "wspc CLI",
             "source": "wspc todo done tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
           }
         ],
         "requestBody": {
@@ -30581,6 +31381,14 @@
         "responses": {
           "200": {
             "description": "The todo was updated. The response carries the post-mutation row with the bumped `version` and refreshed `updated_at`.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -30951,6 +31759,26 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -30963,19 +31791,17 @@
             "source": "wspc todo types rm typ_01HW3K"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
         "responses": {
           "200": {
             "description": "Soft-deleted",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -31325,6 +32151,26 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -31337,19 +32183,17 @@
             "source": "wspc todo types show typ_01HW3K"
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -31699,6 +32543,26 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -31709,16 +32573,6 @@
             "lang": "bash",
             "label": "wspc CLI",
             "source": "wspc todo types update typ_01HW3K --label \"Renamed\""
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
           }
         ],
         "requestBody": {
@@ -31733,6 +32587,14 @@
         "responses": {
           "200": {
             "description": "Updated",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -32084,14 +32946,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -X POST https://api.wspc.ai/todo/projects/prj_01HW3K/restore -H \"Authorization: Bearer $WSPC_API_KEY\""
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string",
@@ -32104,9 +32969,24 @@
             "in": "path"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/todo/projects/prj_01HW3K/restore -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
         "responses": {
           "200": {
             "description": "Restored",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -32473,14 +33353,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -X POST https://api.wspc.ai/todo/items/tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string"
@@ -32488,6 +33371,13 @@
             "required": true,
             "name": "id",
             "in": "path"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/todo/items/tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
           }
         ],
         "requestBody": {
@@ -32515,6 +33405,14 @@
         "responses": {
           "200": {
             "description": "The todo was restored. `restored_count` includes cascaded descendants when `cascade: true`; otherwise `descendants_in_trash_count` reports descendants left in trash.",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -32884,14 +33782,17 @@
             "bearerAuth": []
           }
         ],
-        "x-codeSamples": [
-          {
-            "lang": "shell",
-            "label": "curl",
-            "source": "curl -X POST https://api.wspc.ai/todo/types/typ_01HW3K/restore -H \"Authorization: Bearer $WSPC_API_KEY\""
-          }
-        ],
         "parameters": [
+          {
+            "name": "x-consistency-bookmark",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
           {
             "schema": {
               "type": "string"
@@ -32901,9 +33802,24 @@
             "in": "path"
           }
         ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/todo/types/typ_01HW3K/restore -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
         "responses": {
           "200": {
             "description": "Restored",
+            "headers": {
+              "x-consistency-bookmark": {
+                "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
