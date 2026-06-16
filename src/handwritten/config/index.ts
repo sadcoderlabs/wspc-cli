@@ -136,6 +136,57 @@ export class ConfigStore {
     await fs.writeFile(this.configFile, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 })
   }
 
+  /**
+   * Read-modify-write the config under a cross-process file lock. The mutator
+   * runs against a FRESH read taken inside the lock and edits it in place, so
+   * two writers (e.g. token refresh and the consistency-bookmark writeback)
+   * can't clobber each other from stale snapshots — the bug that revoked whole
+   * refresh-token families when several CLI sessions ran concurrently.
+   */
+  async update(mutate: (config: WspcConfig) => void): Promise<void> {
+    await this.withLock(async () => {
+      const config = await this.read()
+      mutate(config)
+      await this.write(config)
+    })
+  }
+
+  private async withLock<T>(fn: () => Promise<T>): Promise<T> {
+    await fs.mkdir(this.configDir, { recursive: true, mode: 0o700 })
+    const lockFile = this.configFile + ".lock"
+    // ponytail: native O_EXCL spin-lock, no dep. A lock older than STALE_MS is
+    // assumed orphaned by a crashed process and stolen; after MAX_WAIT_MS we
+    // steal rather than deadlock the command.
+    const STALE_MS = 10_000
+    const RETRY_MS = 25
+    const MAX_WAIT_MS = 5_000
+    let waited = 0
+    for (;;) {
+      try {
+        const fh = await fs.open(lockFile, "wx")
+        await fh.close()
+        break
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e
+        const age = await fs
+          .stat(lockFile)
+          .then((s) => Date.now() - s.mtimeMs)
+          .catch(() => Infinity)
+        if (age > STALE_MS || waited >= MAX_WAIT_MS) {
+          await fs.rm(lockFile, { force: true })
+          continue
+        }
+        await new Promise((r) => setTimeout(r, RETRY_MS))
+        waited += RETRY_MS
+      }
+    }
+    try {
+      return await fn()
+    } finally {
+      await fs.rm(lockFile, { force: true })
+    }
+  }
+
   async currentEnv(): Promise<{ name: string; config: EnvConfig } | undefined> {
     const c = await this.read()
     const name = c.current_env

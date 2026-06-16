@@ -79,16 +79,15 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
     const shouldClearBookmark = invalidBookmark
     if (!nextBookmark && !shouldClearBookmark) return response
 
-    const config = await opts.store.read()
-    const env = config.envs[opts.envName]
-    if (!env) return response
-
-    if (nextBookmark) {
-      env.consistency_bookmark = nextBookmark
-    } else if (shouldClearBookmark) {
-      delete env.consistency_bookmark
-    }
-    await opts.store.write(config)
+    await opts.store.update((config) => {
+      const env = config.envs[opts.envName]
+      if (!env) return
+      if (nextBookmark) {
+        env.consistency_bookmark = nextBookmark
+      } else if (shouldClearBookmark) {
+        delete env.consistency_bookmark
+      }
+    })
 
     return response
   }
