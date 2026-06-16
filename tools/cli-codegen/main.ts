@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { emitCommand, type XCli, type BodyField } from "./emit.js"
+import { emitCommand, snakeToCamel, type XCli, type BodyField } from "./emit.js"
 
 const SPEC_PATH = "spec/openapi.json"
 const OUT_DIR = "src/generated/cli"
@@ -43,10 +43,6 @@ export function shouldSkipRoute(xCli: { command: string; hidden?: boolean }): bo
   if (xCli.command === "_internal") return true
   if (xCli.command === "_handwritten") return true
   return false
-}
-
-function camelize(snake: string): string {
-  return snake.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
 }
 
 function resolveRef(ref: string, spec: Record<string, unknown>): SchemaLike {
@@ -236,7 +232,7 @@ async function main(): Promise<void> {
       emitted.push({
         commandPath: parts,
         filePath: relFile,
-        varName: `${camelize(op.operationId)}Command`,
+        varName: `${snakeToCamel(op.operationId)}Command`,
       })
     }
   }
