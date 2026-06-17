@@ -113,7 +113,12 @@ describe("runLogin", () => {
     const writes: string[] = []
     const jsonEvents: Record<string, unknown>[] = []
     const deviceFlow = vi.fn().mockImplementation(async (o: { onPrompt: (p: unknown) => void }) => {
-      o.onPrompt({ verification_uri: "https://app.wspc.ai/device", user_code: "ABCD-1234", expires_in: 600 })
+      o.onPrompt({
+        verification_uri: "https://app.wspc.ai/device",
+        verification_uri_complete: "https://app.wspc.ai/device?user_code=ABCD-1234",
+        user_code: "ABCD-1234",
+        expires_in: 600,
+      })
       return { access_token: "wat_x", refresh_token: "wrt_x", expires_in: 900, token_type: "Bearer" }
     })
     await runLogin({
@@ -128,8 +133,12 @@ describe("runLogin", () => {
     expect(jsonEvents).toContainEqual(
       expect.objectContaining({ event: "device_code_issued", user_code: "ABCD-1234" }),
     )
-    expect(writes.some((l) => l.includes("verification_uri:"))).toBe(true)
-    expect(writes.some((l) => l.includes("ABCD-1234"))).toBe(true)
+    const human = writes.join("\n")
+    // The prefilled link is the headline of the new UI.
+    expect(human).toContain("https://app.wspc.ai/device?user_code=ABCD-1234")
+    // Bare URL + code stay as a manual fallback.
+    expect(human).toContain("https://app.wspc.ai/device")
+    expect(human).toContain("ABCD-1234")
   })
 
   it("calls ensureClient when no explicit clientId is provided", async () => {
