@@ -46,20 +46,6 @@
           "updated_at"
         ]
       },
-      "CreateApiKeyBody": {
-        "type": "object",
-        "properties": {
-          "label": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 60,
-            "description": "Human-readable label for the new key (1–60 chars after trimming). Pick something that identifies where the key will live — agent name, machine, or environment — so you can recognise it later in `wspc keys list`."
-          }
-        },
-        "required": [
-          "label"
-        ]
-      },
       "CreateApiKeyResponse": {
         "type": "object",
         "properties": {
@@ -92,17 +78,18 @@
           "created_at"
         ]
       },
-      "CreateOrgInviteInput": {
+      "CreateApiKeyBody": {
         "type": "object",
         "properties": {
-          "email": {
+          "label": {
             "type": "string",
-            "format": "email",
-            "description": "Email address to invite into the caller's organization."
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Human-readable label for the new key (1–60 chars after trimming). Pick something that identifies where the key will live — agent name, machine, or environment — so you can recognise it later in `wspc keys list`."
           }
         },
         "required": [
-          "email"
+          "label"
         ]
       },
       "OrgInviteSummary": {
@@ -148,24 +135,17 @@
           "invite_url"
         ]
       },
-      "OAuthDeviceBody": {
+      "CreateOrgInviteInput": {
         "type": "object",
         "properties": {
-          "client_id": {
+          "email": {
             "type": "string",
-            "description": "Identifier of the OAuth client initiating the device flow. Must already be registered via `POST /auth/oauth/register`."
-          },
-          "scope": {
-            "type": "string",
-            "description": "Optional space-separated scope list. Defaults to `wspc:full` when omitted; WSPC issues only this scope today."
-          },
-          "resource": {
-            "type": "string",
-            "description": "Optional RFC 8707 resource indicator the resulting access token will be bound to. When omitted, the server uses the default WSPC API audience."
+            "format": "email",
+            "description": "Email address to invite into the caller's organization."
           }
         },
         "required": [
-          "client_id"
+          "email"
         ]
       },
       "OAuthDeviceResponse": {
@@ -205,6 +185,26 @@
           "verification_uri_complete",
           "expires_in",
           "interval"
+        ]
+      },
+      "OAuthDeviceBody": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Identifier of the OAuth client initiating the device flow. Must already be registered via `POST /auth/oauth/register`."
+          },
+          "scope": {
+            "type": "string",
+            "description": "Optional space-separated scope list. Defaults to `wspc:full` when omitted; WSPC issues only this scope today."
+          },
+          "resource": {
+            "type": "string",
+            "description": "Optional RFC 8707 resource indicator the resulting access token will be bound to. When omitted, the server uses the default WSPC API audience."
+          }
+        },
+        "required": [
+          "client_id"
         ]
       },
       "OrgInviteView": {
@@ -314,19 +314,6 @@
         "required": [
           "invites"
         ]
-      },
-      "ListOrgMembersQuery": {
-        "type": "object",
-        "properties": {
-          "cursor": {
-            "type": "string",
-            "description": "Opaque pagination cursor. Pass the `next_cursor` returned by the previous page to fetch the next slice. Omit on the first call."
-          },
-          "limit": {
-            "type": "string",
-            "description": "Maximum members to return. Clamped to [1, 100]. Defaults to 50."
-          }
-        }
       },
       "ListOrgMembersResponse": {
         "type": "object",
@@ -500,48 +487,6 @@
           "token_endpoint_auth_methods_supported"
         ]
       },
-      "OAuthRegisterBody": {
-        "type": "object",
-        "properties": {
-          "client_name": {
-            "type": "string",
-            "description": "Human-readable name for the client application. Shown to users on the consent screen so they know which agent / integration is requesting access."
-          },
-          "redirect_uris": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uri"
-            },
-            "minItems": 1,
-            "description": "Non-empty list of redirect URIs the client may use. Must exactly match the `redirect_uri` sent in subsequent authorization requests. Use `http://localhost:<port>/callback` for native / local development clients."
-          },
-          "token_endpoint_auth_method": {
-            "type": "string",
-            "enum": [
-              "none",
-              "client_secret_basic"
-            ],
-            "default": "none",
-            "description": "Client authentication method to use at the token endpoint. `none` (the default and the only fully supported value today) is for public PKCE clients; `client_secret_basic` is reserved for future confidential clients."
-          },
-          "grant_types": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [
-              "authorization_code",
-              "refresh_token"
-            ],
-            "description": "List of grant types the client intends to use. Defaults to `[\"authorization_code\", \"refresh_token\"]`; add `urn:ietf:params:oauth:grant-type:device_code` for device flow."
-          }
-        },
-        "required": [
-          "client_name",
-          "redirect_uris"
-        ]
-      },
       "OAuthRegisterResponse": {
         "type": "object",
         "properties": {
@@ -585,16 +530,46 @@
           "client_id_issued_at"
         ]
       },
-      "RequestCodeBody": {
+      "OAuthRegisterBody": {
         "type": "object",
         "properties": {
-          "email": {
+          "client_name": {
             "type": "string",
-            "description": "Email address to send the magic code to. Lowercased and trimmed server-side. The same response is returned whether or not the address is registered, to avoid disclosing account existence."
+            "description": "Human-readable name for the client application. Shown to users on the consent screen so they know which agent / integration is requesting access."
+          },
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "minItems": 1,
+            "description": "Non-empty list of redirect URIs the client may use. Must exactly match the `redirect_uri` sent in subsequent authorization requests. Use `http://localhost:<port>/callback` for native / local development clients."
+          },
+          "token_endpoint_auth_method": {
+            "type": "string",
+            "enum": [
+              "none",
+              "client_secret_basic"
+            ],
+            "default": "none",
+            "description": "Client authentication method to use at the token endpoint. `none` (the default and the only fully supported value today) is for public PKCE clients; `client_secret_basic` is reserved for future confidential clients."
+          },
+          "grant_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "authorization_code",
+              "refresh_token"
+            ],
+            "description": "List of grant types the client intends to use. Defaults to `[\"authorization_code\", \"refresh_token\"]`; add `urn:ietf:params:oauth:grant-type:device_code` for device flow."
           }
         },
         "required": [
-          "email"
+          "client_name",
+          "redirect_uris"
         ]
       },
       "RequestCodeResponse": {
@@ -615,6 +590,18 @@
         "required": [
           "status",
           "message"
+        ]
+      },
+      "RequestCodeBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address to send the magic code to. Lowercased and trimmed server-side. The same response is returned whether or not the address is registered, to avoid disclosing account existence."
+          }
+        },
+        "required": [
+          "email"
         ]
       },
       "RevokeApiKeyResponse": {
@@ -650,6 +637,41 @@
         },
         "required": [
           "token"
+        ]
+      },
+      "OAuthTokenResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "Opaque bearer access token. Send as `Authorization: Bearer <access_token>` to WSPC services. Treat as a short-lived secret."
+          },
+          "token_type": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ],
+            "description": "Always the literal `Bearer`. WSPC issues OAuth bearer tokens only."
+          },
+          "expires_in": {
+            "type": "integer",
+            "description": "Lifetime of the access token in seconds. Clients should refresh before this deadline to avoid 401 responses."
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "Refresh token used to obtain a new access token without re-prompting the user. Rotated on every use; store securely."
+          },
+          "scope": {
+            "type": "string",
+            "description": "Space-separated list of OAuth scopes granted on this token. WSPC issues `wspc:full` today."
+          }
+        },
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in",
+          "refresh_token",
+          "scope"
         ]
       },
       "OAuthTokenBody": {
@@ -753,55 +775,6 @@
           }
         ]
       },
-      "OAuthTokenResponse": {
-        "type": "object",
-        "properties": {
-          "access_token": {
-            "type": "string",
-            "description": "Opaque bearer access token. Send as `Authorization: Bearer <access_token>` to WSPC services. Treat as a short-lived secret."
-          },
-          "token_type": {
-            "type": "string",
-            "enum": [
-              "Bearer"
-            ],
-            "description": "Always the literal `Bearer`. WSPC issues OAuth bearer tokens only."
-          },
-          "expires_in": {
-            "type": "integer",
-            "description": "Lifetime of the access token in seconds. Clients should refresh before this deadline to avoid 401 responses."
-          },
-          "refresh_token": {
-            "type": "string",
-            "description": "Refresh token used to obtain a new access token without re-prompting the user. Rotated on every use; store securely."
-          },
-          "scope": {
-            "type": "string",
-            "description": "Space-separated list of OAuth scopes granted on this token. WSPC issues `wspc:full` today."
-          }
-        },
-        "required": [
-          "access_token",
-          "token_type",
-          "expires_in",
-          "refresh_token",
-          "scope"
-        ]
-      },
-      "UpdateApiKeyBody": {
-        "type": "object",
-        "properties": {
-          "label": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 60,
-            "description": "Human-readable label for the key (1–60 chars after trimming)."
-          }
-        },
-        "required": [
-          "label"
-        ]
-      },
       "UpdateApiKeyResponse": {
         "type": "object",
         "properties": {
@@ -832,6 +805,20 @@
           "created_at"
         ]
       },
+      "UpdateApiKeyBody": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Human-readable label for the key (1–60 chars after trimming)."
+          }
+        },
+        "required": [
+          "label"
+        ]
+      },
       "UpdateOrgInput": {
         "type": "object",
         "properties": {
@@ -844,23 +831,6 @@
         },
         "required": [
           "name"
-        ]
-      },
-      "VerifyCodeBody": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "description": "Email address that received the magic code. Must exactly match (after lowercasing) the address used in the prior `POST /auth/request-code` call."
-          },
-          "code": {
-            "type": "string",
-            "description": "Numeric magic code delivered by email. Single-use; expires a few minutes after issuance. Treat as a short-lived secret."
-          }
-        },
-        "required": [
-          "email",
-          "code"
         ]
       },
       "VerifyCodeResponse": {
@@ -885,75 +855,22 @@
           "created"
         ]
       },
-      "CreateEventBody": {
+      "VerifyCodeBody": {
         "type": "object",
         "properties": {
-          "title": {
+          "email": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 500,
-            "description": "Short human-readable summary of the event. Shown in list views and `.ics` SUMMARY."
+            "description": "Email address that received the magic code. Must exactly match (after lowercasing) the address used in the prior `POST /auth/request-code` call."
           },
-          "description": {
+          "code": {
             "type": "string",
-            "maxLength": 10000,
-            "description": "Free-form notes about the event (agenda, dial-in instructions, etc.). Markdown formatted (CommonMark + GFM tables, strikethrough, task lists); stored verbatim. Invitation emails include the raw source — most email clients display it as plain text."
-          },
-          "start": {
-            "type": "string",
-            "description": "Accepts ISO 8601 datetime with offset (e.g. `2026-06-01T12:30:00+08:00`) for timed events, or ISO date-only (e.g. `2026-06-01`) for all-day. The `wspc` CLI additionally accepts natural-language phrases (`tomorrow 12:30pm`, `next Monday 9am`) and resolves them to ISO before sending; the server itself only accepts ISO. All-day uses RFC 5545 exclusive end: a one-day event on 6/1 is `start=2026-06-01, end=2026-06-02`; both endpoints must be the same type."
-          },
-          "end": {
-            "type": "string",
-            "description": "Accepts ISO 8601 datetime with offset (e.g. `2026-06-01T12:30:00+08:00`) for timed events, or ISO date-only (e.g. `2026-06-01`) for all-day. The `wspc` CLI additionally accepts natural-language phrases (`tomorrow 12:30pm`, `next Monday 9am`) and resolves them to ISO before sending; the server itself only accepts ISO. All-day uses RFC 5545 exclusive end: a one-day event on 6/1 is `start=2026-06-01, end=2026-06-02`; both endpoints must be the same type."
-          },
-          "location": {
-            "type": "string",
-            "maxLength": 10000,
-            "description": "Free-text location — physical address, room, or short note. Separate from `url` (meeting link)."
-          },
-          "url": {
-            "type": "string",
-            "format": "uri",
-            "description": "Optional meeting link (Zoom / Meet / etc.). Kept separate from `location` so calendar clients can render it as a join action."
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "confirmed",
-              "tentative",
-              "cancelled"
-            ],
-            "description": "Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses."
-          },
-          "attendees": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "email": {
-                  "type": "string",
-                  "description": "Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out."
-                },
-                "display_name": {
-                  "type": "string",
-                  "description": "Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address."
-                }
-              },
-              "required": [
-                "email"
-              ],
-              "description": "A single attendee on a calendar event. Each event supports up to 50 unique attendees after case-insensitive email dedupe; new attendees receive an invitation email with an `.ics` REQUEST attachment, kept attendees receive an update email when the event is mutated, and removed attendees receive a cancellation."
-            },
-            "description": "Up to 50 unique attendees (deduped case-insensitively by email). If non-empty, each attendee receives an invitation email with an `.ics` REQUEST attachment as a side effect of creation."
+            "description": "Numeric magic code delivered by email. Single-use; expires a few minutes after issuance. Treat as a short-lived secret."
           }
         },
         "required": [
-          "title",
-          "start",
-          "end"
-        ],
-        "description": "Request body for POST `/calendar/events`. `start` and `end` must be the same kind (both timed ISO datetimes with offset, or both ISO date-only for all-day) and `end` must be strictly after `start`."
+          "email",
+          "code"
+        ]
       },
       "Event": {
         "type": "object",
@@ -1058,17 +975,75 @@
         ],
         "description": "A calendar event row as returned by the API."
       },
-      "VersionBody": {
+      "CreateEventBody": {
         "type": "object",
         "properties": {
-          "expected_version": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Optional optimistic lock. Omit to let the server use the current version; pass only to fail with 409 `VERSION_CONFLICT` if someone else has mutated the event since you last read."
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Short human-readable summary of the event. Shown in list views and `.ics` SUMMARY."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 10000,
+            "description": "Free-form notes about the event (agenda, dial-in instructions, etc.). Markdown formatted (CommonMark + GFM tables, strikethrough, task lists); stored verbatim. Invitation emails include the raw source — most email clients display it as plain text."
+          },
+          "start": {
+            "type": "string",
+            "description": "Accepts ISO 8601 datetime with offset (e.g. `2026-06-01T12:30:00+08:00`) for timed events, or ISO date-only (e.g. `2026-06-01`) for all-day. The `wspc` CLI additionally accepts natural-language phrases (`tomorrow 12:30pm`, `next Monday 9am`) and resolves them to ISO before sending; the server itself only accepts ISO. All-day uses RFC 5545 exclusive end: a one-day event on 6/1 is `start=2026-06-01, end=2026-06-02`; both endpoints must be the same type."
+          },
+          "end": {
+            "type": "string",
+            "description": "Accepts ISO 8601 datetime with offset (e.g. `2026-06-01T12:30:00+08:00`) for timed events, or ISO date-only (e.g. `2026-06-01`) for all-day. The `wspc` CLI additionally accepts natural-language phrases (`tomorrow 12:30pm`, `next Monday 9am`) and resolves them to ISO before sending; the server itself only accepts ISO. All-day uses RFC 5545 exclusive end: a one-day event on 6/1 is `start=2026-06-01, end=2026-06-02`; both endpoints must be the same type."
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 10000,
+            "description": "Free-text location — physical address, room, or short note. Separate from `url` (meeting link)."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Optional meeting link (Zoom / Meet / etc.). Kept separate from `location` so calendar clients can render it as a join action."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "tentative",
+              "cancelled"
+            ],
+            "description": "Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses."
+          },
+          "attendees": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "description": "Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out."
+                },
+                "display_name": {
+                  "type": "string",
+                  "description": "Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address."
+                }
+              },
+              "required": [
+                "email"
+              ],
+              "description": "A single attendee on a calendar event. Each event supports up to 50 unique attendees after case-insensitive email dedupe; new attendees receive an invitation email with an `.ics` REQUEST attachment, kept attendees receive an update email when the event is mutated, and removed attendees receive a cancellation."
+            },
+            "description": "Up to 50 unique attendees (deduped case-insensitively by email). If non-empty, each attendee receives an invitation email with an `.ics` REQUEST attachment as a side effect of creation."
           }
         },
-        "additionalProperties": false,
-        "description": "Request body for DELETE `/calendar/events/{id}` and POST `/calendar/events/{id}/restore`. Carries only the optional optimistic-lock version."
+        "required": [
+          "title",
+          "start",
+          "end"
+        ],
+        "description": "Request body for POST `/calendar/events`. `start` and `end` must be the same kind (both timed ISO datetimes with offset, or both ISO date-only for all-day) and `end` must be strictly after `start`."
       },
       "DeleteEventResponse": {
         "type": "object",
@@ -1094,47 +1069,17 @@
         ],
         "description": "Minimal response for DELETE `/calendar/events/{id}`. Use GET with `?include_deleted=true` to fetch the full soft-deleted row."
       },
-      "ListEventsQuery": {
+      "VersionBody": {
         "type": "object",
         "properties": {
-          "q": {
-            "type": "string",
-            "description": "Optional full-text search across title, description, and location (case-insensitive substring)."
-          },
-          "start_from": {
-            "type": "string",
-            "description": "Inclusive lower bound on the event `start` (ISO datetime with offset, or ISO date-only). When ANY of `start_from`/`start_to`/`end_from`/`end_to` is provided, the implicit past filter is disabled."
-          },
-          "start_to": {
-            "type": "string",
-            "description": "Inclusive upper bound on the event `start`."
-          },
-          "end_from": {
-            "type": "string",
-            "description": "Inclusive lower bound on the event `end`."
-          },
-          "end_to": {
-            "type": "string",
-            "description": "Inclusive upper bound on the event `end`."
-          },
-          "cursor": {
-            "type": "string",
-            "description": "Opaque pagination cursor returned in `next_cursor` of a previous response."
-          },
-          "limit": {
-            "type": "string",
-            "description": "Maximum number of events to return. Clamped to `[1, 200]`. Default is server-defined."
-          },
-          "include_deleted": {
-            "type": "string",
-            "description": "When `true`, include soft-deleted events. Default `false`."
-          },
-          "include_past": {
-            "type": "string",
-            "description": "When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win."
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional optimistic lock. Omit to let the server use the current version; pass only to fail with 409 `VERSION_CONFLICT` if someone else has mutated the event since you last read."
           }
         },
-        "description": "Query parameters for GET `/calendar/events`. Default behaviour hides soft-deleted events and events whose `end` is in the past; supply any explicit time bound or `include_past=true` to override."
+        "additionalProperties": false,
+        "description": "Request body for DELETE `/calendar/events/{id}` and POST `/calendar/events/{id}/restore`. Carries only the optional optimistic-lock version."
       },
       "ListEventsResponse": {
         "type": "object",
@@ -1237,19 +1182,6 @@
         "additionalProperties": false,
         "description": "Request body for PATCH `/calendar/events/{id}`. All fields are optional partial updates. To CANCEL a meeting (preserve the record and notify attendees) set `status: cancelled`; to remove the event from default listings, call DELETE instead."
       },
-      "CreateAliasBody": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "Full alias address under the platform email domain or a fully verified organization custom domain, for example alice-shop@wspc.app or alice-shop@example.com."
-          }
-        },
-        "required": [
-          "email"
-        ]
-      },
       "Alias": {
         "type": "object",
         "properties": {
@@ -1282,16 +1214,17 @@
           "created_at"
         ]
       },
-      "CreateDomainBody": {
+      "CreateAliasBody": {
         "type": "object",
         "properties": {
-          "domain": {
+          "email": {
             "type": "string",
-            "description": "Custom domain hostname to register with the provider, for example `mail.example.com`."
+            "format": "email",
+            "description": "Full alias address under the platform email domain or a fully verified organization custom domain, for example alice-shop@wspc.app or alice-shop@example.com."
           }
         },
         "required": [
-          "domain"
+          "email"
         ]
       },
       "EmailDomainObjectResponse": {
@@ -1428,21 +1361,16 @@
           "domain"
         ]
       },
-      "BatchIdsBody": {
+      "CreateDomainBody": {
         "type": "object",
         "properties": {
-          "ids": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "maxItems": 100,
-            "description": "Email ids to act on. 1-100 ids per call. All bulk ops (read / unread / delete / restore) are idempotent: ids that are already in the target state are silently no-ops and ids that don't belong to the user (or don't exist) are reported in `not_found` rather than failing the call."
+          "domain": {
+            "type": "string",
+            "description": "Custom domain hostname to register with the provider, for example `mail.example.com`."
           }
         },
         "required": [
-          "ids"
+          "domain"
         ]
       },
       "DeleteBatchResponse": {
@@ -1465,48 +1393,22 @@
           "not_found"
         ]
       },
-      "EmailDomainParam": {
+      "BatchIdsBody": {
         "type": "object",
         "properties": {
-          "domain": {
-            "type": "string",
-            "description": "Custom domain hostname path parameter. URL-encode if your client requires it."
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "Email ids to act on. 1-100 ids per call. All bulk ops (read / unread / delete / restore) are idempotent: ids that are already in the target state are silently no-ops and ids that don't belong to the user (or don't exist) are reported in `not_found` rather than failing the call."
           }
         },
         "required": [
-          "domain"
+          "ids"
         ]
-      },
-      "GetAttachmentQuery": {
-        "type": "object",
-        "properties": {
-          "include_deleted": {
-            "type": "string",
-            "description": "When `true`, allow downloading an attachment whose parent email is soft-deleted. Defaults to `false`."
-          }
-        }
-      },
-      "GetEmailQuery": {
-        "type": "object",
-        "properties": {
-          "include_html": {
-            "type": "string",
-            "description": "When `true`, fetch the HTML body from R2 and include it as `html_body` in the response. Costs an extra R2 read; omit if you only need text."
-          },
-          "include_deleted": {
-            "type": "string",
-            "description": "When `true`, allow fetching a soft-deleted email. Defaults to `false` (returns 404 for soft-deleted rows)."
-          }
-        }
-      },
-      "ListAliasesQuery": {
-        "type": "object",
-        "properties": {
-          "include_deleted": {
-            "type": "string",
-            "description": "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`."
-          }
-        }
       },
       "EmailDomainListResponse": {
         "type": "object",
@@ -1645,36 +1547,6 @@
           "domains"
         ]
       },
-      "ListEmailsQuery": {
-        "type": "object",
-        "properties": {
-          "limit": {
-            "type": "string",
-            "description": "Max items to return (clamped to 1-100). Defaults to 20 server-side."
-          },
-          "alias_email": {
-            "type": "string",
-            "format": "email",
-            "description": "If set, only return emails received on this full alias email address."
-          },
-          "unread_only": {
-            "type": "string",
-            "description": "When `true`, only return emails with `is_read=false`."
-          },
-          "since": {
-            "type": "string",
-            "description": "Unix epoch milliseconds — only return emails with `received_at >= since`. Useful for incremental sync."
-          },
-          "cursor": {
-            "type": "string",
-            "description": "Opaque pagination cursor returned in `next_cursor` of a previous response."
-          },
-          "include_deleted": {
-            "type": "string",
-            "description": "When `true`, also return soft-deleted emails. Defaults to `false`."
-          }
-        }
-      },
       "MarkBatchResponse": {
         "type": "object",
         "properties": {
@@ -1713,104 +1585,6 @@
         "required": [
           "restored",
           "not_found"
-        ]
-      },
-      "SendEmailBody": {
-        "type": "object",
-        "properties": {
-          "from_alias_email": {
-            "type": "string",
-            "format": "email",
-            "description": "Full active alias email address owned by the caller. Soft-deleted aliases are not allowed for sending."
-          },
-          "to": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "maxItems": 10,
-            "description": "Recipient addresses. 1-10 entries. Required for a fresh send; may be omitted when `in_reply_to_email_id` is set (the server then reuses the original sender as the sole recipient)."
-          },
-          "subject": {
-            "type": "string",
-            "maxLength": 500,
-            "description": "Outbound subject. Required for a fresh send; may be omitted on reply (the server prefixes the inbound subject with `Re: `)."
-          },
-          "text": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Plain-text body. 1 byte to 100 KiB. HTML bodies are not exposed in the v1 send API — agents compose plain text and clients render as desired."
-          },
-          "in_reply_to_email_id": {
-            "type": "string",
-            "description": "If set, sends as a threaded reply to the referenced inbound email. The outbound `In-Reply-To` / `References` headers and recipient default are derived from that message; the inbound email must belong to the caller."
-          },
-          "idempotency_key": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200,
-            "description": "Caller-chosen key (1-200 chars) that makes retries safe. The server hashes the full request and stores it under this key for the calling user: a second send with the same key and identical content returns the original result with `idempotent_replay: true`; the same key with different content returns 409 `IDEMPOTENCY_KEY_REUSED`."
-          },
-          "attachments": {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "filename": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 255,
-                      "description": "Filename as presented to the recipient. Must not contain `/` or NUL."
-                    },
-                    "content_type": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 255,
-                      "description": "MIME type as advertised in the outbound message Content-Type header."
-                    },
-                    "content_base64": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "Base64-encoded attachment bytes. Per-attachment ≤ 5 MiB; per-send total ≤ 25 MiB."
-                    }
-                  },
-                  "required": [
-                    "filename",
-                    "content_type",
-                    "content_base64"
-                  ]
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "from_inbound_email_id": {
-                      "type": "string",
-                      "description": "Id of an inbound email owned by the caller. Server reads its attachment at `idx` from R2 and re-attaches."
-                    },
-                    "idx": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "description": "0-based index into the inbound email's attachments array."
-                    }
-                  },
-                  "required": [
-                    "from_inbound_email_id",
-                    "idx"
-                  ]
-                }
-              ]
-            },
-            "maxItems": 10,
-            "description": "Optional outbound attachments. Each element is either an inline `{filename, content_type, content_base64}` blob OR a reference `{from_inbound_email_id, idx}` to an inbound email's existing attachment. Per-attachment ≤ 5 MiB; per-send total ≤ 25 MiB; max 10 attachments. Extensions in `[exe, bat, com, scr, cmd, jar, js]` are rejected."
-          }
-        },
-        "required": [
-          "from_alias_email",
-          "text",
-          "idempotency_key"
         ]
       },
       "SendEmailResponse": {
@@ -1925,6 +1699,104 @@
           "idempotent_replay"
         ]
       },
+      "SendEmailBody": {
+        "type": "object",
+        "properties": {
+          "from_alias_email": {
+            "type": "string",
+            "format": "email",
+            "description": "Full active alias email address owned by the caller. Soft-deleted aliases are not allowed for sending."
+          },
+          "to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 10,
+            "description": "Recipient addresses. 1-10 entries. Required for a fresh send; may be omitted when `in_reply_to_email_id` is set (the server then reuses the original sender as the sole recipient)."
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Outbound subject. Required for a fresh send; may be omitted on reply (the server prefixes the inbound subject with `Re: `)."
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Plain-text body. 1 byte to 100 KiB. HTML bodies are not exposed in the v1 send API — agents compose plain text and clients render as desired."
+          },
+          "in_reply_to_email_id": {
+            "type": "string",
+            "description": "If set, sends as a threaded reply to the referenced inbound email. The outbound `In-Reply-To` / `References` headers and recipient default are derived from that message; the inbound email must belong to the caller."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Caller-chosen key (1-200 chars) that makes retries safe. The server hashes the full request and stores it under this key for the calling user: a second send with the same key and identical content returns the original result with `idempotent_replay: true`; the same key with different content returns 409 `IDEMPOTENCY_KEY_REUSED`."
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "filename": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255,
+                      "description": "Filename as presented to the recipient. Must not contain `/` or NUL."
+                    },
+                    "content_type": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255,
+                      "description": "MIME type as advertised in the outbound message Content-Type header."
+                    },
+                    "content_base64": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Base64-encoded attachment bytes. Per-attachment ≤ 5 MiB; per-send total ≤ 25 MiB."
+                    }
+                  },
+                  "required": [
+                    "filename",
+                    "content_type",
+                    "content_base64"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "from_inbound_email_id": {
+                      "type": "string",
+                      "description": "Id of an inbound email owned by the caller. Server reads its attachment at `idx` from R2 and re-attaches."
+                    },
+                    "idx": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "0-based index into the inbound email's attachments array."
+                    }
+                  },
+                  "required": [
+                    "from_inbound_email_id",
+                    "idx"
+                  ]
+                }
+              ]
+            },
+            "maxItems": 10,
+            "description": "Optional outbound attachments. Each element is either an inline `{filename, content_type, content_base64}` blob OR a reference `{from_inbound_email_id, idx}` to an inbound email's existing attachment. Per-attachment ≤ 5 MiB; per-send total ≤ 25 MiB; max 10 attachments. Extensions in `[exe, bat, com, scr, cmd, jar, js]` are rejected."
+          }
+        },
+        "required": [
+          "from_alias_email",
+          "text",
+          "idempotency_key"
+        ]
+      },
       "SetPushConfigBody": {
         "type": "object",
         "properties": {
@@ -2027,21 +1899,6 @@
           "configs"
         ]
       },
-      "TestPushBody": {
-        "type": "object",
-        "properties": {
-          "transport": {
-            "type": "string",
-            "enum": [
-              "telegram"
-            ],
-            "description": "Which transport to send the test message through. Must match a transport the caller has already registered via `POST /push/config`; today only `telegram` is supported."
-          }
-        },
-        "required": [
-          "transport"
-        ]
-      },
       "TestPushResponse": {
         "oneOf": [
           {
@@ -2096,17 +1953,19 @@
           }
         ]
       },
-      "CreateCommentBody": {
+      "TestPushBody": {
         "type": "object",
         "properties": {
-          "content": {
+          "transport": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 10000
+            "enum": [
+              "telegram"
+            ],
+            "description": "Which transport to send the test message through. Must match a transport the caller has already registered via `POST /push/config`; today only `telegram` is supported."
           }
         },
         "required": [
-          "content"
+          "transport"
         ]
       },
       "Comment": {
@@ -2147,20 +2006,17 @@
           "updated_at"
         ]
       },
-      "CreateProjectBody": {
+      "CreateCommentBody": {
         "type": "object",
         "properties": {
-          "name": {
+          "content": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 500
-          },
-          "default_todo_type_id": {
-            "type": "string"
+            "maxLength": 10000
           }
         },
         "required": [
-          "name"
+          "content"
         ]
       },
       "Project": {
@@ -2204,51 +2060,20 @@
           "updated_at"
         ]
       },
-      "CreateRecurrenceRuleBody": {
+      "CreateProjectBody": {
         "type": "object",
         "properties": {
-          "rrule": {
-            "type": "string",
-            "minLength": 1
-          },
-          "dtstart": {
-            "type": "string",
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-          },
-          "title": {
+          "name": {
             "type": "string",
             "minLength": 1,
             "maxLength": 500
           },
-          "description": {
-            "type": "string",
-            "maxLength": 10000
-          },
-          "parent_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "project_id": {
-            "type": "string",
-            "description": "Project for the recurrence rule, its template todo, and all materialized instances. Must be an active project in the caller's organization."
-          },
-          "type_id": {
-            "type": "string",
-            "minLength": 1
+          "default_todo_type_id": {
+            "type": "string"
           }
         },
         "required": [
-          "rrule",
-          "dtstart",
-          "title",
-          "project_id"
+          "name"
         ]
       },
       "CreateRecurrenceRuleResponse": {
@@ -2318,24 +2143,25 @@
           "updated_at"
         ]
       },
-      "CreateTodoBody": {
+      "CreateRecurrenceRuleBody": {
         "type": "object",
         "properties": {
+          "rrule": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dtstart": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
           "title": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 500,
-            "description": "Short human-readable summary of the work item. Required, non-empty. Shown as the primary label in CLI list output."
-          },
-          "project_id": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Project id to assign this todo to. It must be an active project in the caller's organization."
+            "maxLength": 500
           },
           "description": {
             "type": "string",
-            "maxLength": 10000,
-            "description": "Free-form details about the todo. Fully supports GFM Markdown (tables, strikethrough, task lists). Stored verbatim; client applications are responsible for rendering. Optional. Passing `null` is strictly rejected."
+            "maxLength": 10000
           },
           "parent_id": {
             "anyOf": [
@@ -2346,47 +2172,20 @@
               {
                 "type": "null"
               }
-            ],
-            "description": "Parent todo ID (`tod_<ULID>`) to attach this todo as a child under another todo. Omit or pass `null` to create a root-level todo. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`. To make a subtask appear on every occurrence of a recurring rule, set this to that rule's template todo id (the template id returned when the rule is created); the server re-materializes future occurrences so each carries the subtask."
+            ]
           },
-          "status": {
+          "project_id": {
             "type": "string",
-            "enum": [
-              "open",
-              "in_progress",
-              "done",
-              "cancelled"
-            ],
-            "description": "Initial status of the todo. Omit to default to `open`. Allowed values: `open`, `in_progress`, `done`, `cancelled`."
-          },
-          "due_at": {
-            "type": "string",
-            "description": "Optional calendar due date in ISO date-only format (`YYYY-MM-DD`). Stored without timezone offsets to represent the same local calendar day globally. Pass `\"\"` or omit the field to skip setting a due date. Passing `null` is strictly rejected."
+            "description": "Project for the recurrence rule, its template todo, and all materialized instances. Must be an active project in the caller's organization."
           },
           "type_id": {
             "type": "string",
-            "minLength": 1,
-            "description": "Type id this todo belongs to. Omit to use the project's default type. When project_id is also supplied, the type must belong to the same project. New server-generated type ids use typ_<ULID>; legacy ids remain accepted."
-          },
-          "custom_fields": {
-            "type": "object",
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ]
-            },
-            "description": "Custom field values keyed by the field's immutable `key` (not the human `label`). Each value must match the declared field type: string fields require string values, and string_array fields require string arrays. Providing a key that is not declared on the resolved todo type is strictly rejected with `UNDECLARED_FIELD`. Missing required fields that lack a default value are rejected with `FIELD_REQUIRED`. Defaults declared on the type are auto-applied at create time."
+            "minLength": 1
           }
         },
         "required": [
+          "rrule",
+          "dtstart",
           "title",
           "project_id"
         ]
@@ -2479,103 +2278,76 @@
           "type_id"
         ]
       },
-      "CreateTodoTypeBody": {
+      "CreateTodoBody": {
         "type": "object",
         "properties": {
-          "label": {
+          "title": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 500
+            "maxLength": 500,
+            "description": "Short human-readable summary of the work item. Required, non-empty. Shown as the primary label in CLI list output."
           },
           "project_id": {
             "type": "string",
             "minLength": 1,
-            "description": "Project this type belongs to. Required. It must be an active project in the caller's organization."
+            "description": "Project id to assign this todo to. It must be an active project in the caller's organization."
           },
-          "hide_core_fields": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "description",
-                "status",
-                "due_at",
-                "parent_id",
-                "recurrence"
-              ]
-            }
+          "description": {
+            "type": "string",
+            "maxLength": 10000,
+            "description": "Free-form details about the todo. Fully supports GFM Markdown (tables, strikethrough, task lists). Stored verbatim; client applications are responsible for rendering. Optional. Passing `null` is strictly rejected."
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Parent todo ID (`tod_<ULID>`) to attach this todo as a child under another todo. Omit or pass `null` to create a root-level todo. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`. To make a subtask appear on every occurrence of a recurring rule, set this to that rule's template todo id (the template id returned when the rule is created); the server re-materializes future occurrences so each carries the subtask."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "done",
+              "cancelled"
+            ],
+            "description": "Initial status of the todo. Omit to default to `open`. Allowed values: `open`, `in_progress`, `done`, `cancelled`."
+          },
+          "due_at": {
+            "type": "string",
+            "description": "Optional calendar due date in ISO date-only format (`YYYY-MM-DD`). Stored without timezone offsets to represent the same local calendar day globally. Pass `\"\"` or omit the field to skip setting a due date. Passing `null` is strictly rejected."
+          },
+          "type_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Type id this todo belongs to. Omit to use the project's default type. When project_id is also supplied, the type must belong to the same project. New server-generated type ids use typ_<ULID>; legacy ids remain accepted."
           },
           "custom_fields": {
-            "type": "array",
-            "items": {
-              "oneOf": [
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
                 {
-                  "type": "object",
-                  "properties": {
-                    "key": {
-                      "type": "string",
-                      "pattern": "^[a-z][a-z0-9_]{0,63}$"
-                    },
-                    "label": {
-                      "type": "string"
-                    },
-                    "type": {
-                      "type": "string",
-                      "enum": [
-                        "string"
-                      ]
-                    },
-                    "required": {
-                      "type": "boolean"
-                    },
-                    "default": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "key",
-                    "type"
-                  ],
-                  "additionalProperties": false
+                  "type": "string"
                 },
                 {
-                  "type": "object",
-                  "properties": {
-                    "key": {
-                      "type": "string",
-                      "pattern": "^[a-z][a-z0-9_]{0,63}$"
-                    },
-                    "label": {
-                      "type": "string"
-                    },
-                    "type": {
-                      "type": "string",
-                      "enum": [
-                        "string_array"
-                      ]
-                    },
-                    "required": {
-                      "type": "boolean"
-                    },
-                    "default": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "required": [
-                    "key",
-                    "type"
-                  ],
-                  "additionalProperties": false
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               ]
-            }
+            },
+            "description": "Custom field values keyed by the field's immutable `key` (not the human `label`). Each value must match the declared field type: string fields require string values, and string_array fields require string arrays. Providing a key that is not declared on the resolved todo type is strictly rejected with `UNDECLARED_FIELD`. Missing required fields that lack a default value are rejected with `FIELD_REQUIRED`. Defaults declared on the type are auto-applied at create time."
           }
         },
         "required": [
-          "label",
+          "title",
           "project_id"
         ]
       },
@@ -2690,14 +2462,105 @@
           "updated_at"
         ]
       },
-      "DeleteRecurrenceRuleBody": {
+      "CreateTodoTypeBody": {
         "type": "object",
         "properties": {
-          "expected_version": {
-            "type": "integer",
-            "minimum": 0
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Project this type belongs to. Required. It must be an active project in the caller's organization."
+          },
+          "hide_core_fields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "description",
+                "status",
+                "due_at",
+                "parent_id",
+                "recurrence"
+              ]
+            }
+          },
+          "custom_fields": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "string"
+                      ]
+                    },
+                    "required": {
+                      "type": "boolean"
+                    },
+                    "default": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "type"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "string_array"
+                      ]
+                    },
+                    "required": {
+                      "type": "boolean"
+                    },
+                    "default": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "type"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
           }
-        }
+        },
+        "required": [
+          "label",
+          "project_id"
+        ]
       },
       "DeleteRecurrenceRuleResponse": {
         "type": "object",
@@ -2710,16 +2573,12 @@
           "ok"
         ]
       },
-      "DeleteTodoBody": {
+      "DeleteRecurrenceRuleBody": {
         "type": "object",
         "properties": {
           "expected_version": {
             "type": "integer",
             "minimum": 0
-          },
-          "cascade": {
-            "type": "boolean",
-            "default": false
           }
         }
       },
@@ -2738,6 +2597,19 @@
           "deleted_count",
           "deleted_at"
         ]
+      },
+      "DeleteTodoBody": {
+        "type": "object",
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cascade": {
+            "type": "boolean",
+            "default": false
+          }
+        }
       },
       "RecurrenceRuleDetail": {
         "type": "object",
@@ -2843,40 +2715,6 @@
           "template",
           "materialized_instance_count"
         ]
-      },
-      "GetTodoQuery": {
-        "type": "object",
-        "properties": {
-          "include_deleted": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            ]
-          },
-          "include_orphan_fields": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            ]
-          },
-          "include": {
-            "type": "string"
-          }
-        }
       },
       "TodoWithRelations": {
         "type": "object",
@@ -2984,22 +2822,6 @@
           "type_id"
         ]
       },
-      "ListRecurrenceRulesQuery": {
-        "type": "object",
-        "properties": {
-          "project_id": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND."
-          },
-          "user_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "project_id"
-        ]
-      },
       "ListRecurrenceRulesResponse": {
         "type": "object",
         "properties": {
@@ -3032,19 +2854,6 @@
           "todos"
         ]
       },
-      "RestoreTodoBody": {
-        "type": "object",
-        "properties": {
-          "expected_version": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "cascade": {
-            "type": "boolean",
-            "default": false
-          }
-        }
-      },
       "RestoreTodoResponse": {
         "type": "object",
         "properties": {
@@ -3065,6 +2874,19 @@
           "parent_in_trash_warning",
           "descendants_in_trash_count"
         ]
+      },
+      "RestoreTodoBody": {
+        "type": "object",
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cascade": {
+            "type": "boolean",
+            "default": false
+          }
+        }
       },
       "UpdateCommentBody": {
         "type": "object",
