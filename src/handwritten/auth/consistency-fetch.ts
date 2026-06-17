@@ -67,7 +67,7 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
     const url = new URL(request.url)
     const applies = isUnderApiBase(url, opts.apiBase)
     let outgoing = stripKnownBookmarkHeaders(request)
-    const injectedServices: ConsistencyBookmarkService[] = []
+    const injectedBookmarks: Array<readonly [ConsistencyBookmarkService, string]> = []
 
     if (applies) {
       const config = await opts.store.read()
@@ -79,9 +79,9 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
           const bookmark = bookmarks[service]
           if (!bookmark) continue
           headers.set(header, bookmark)
-          injectedServices.push(service)
+          injectedBookmarks.push([service, bookmark])
         }
-        if (injectedServices.length > 0) {
+        if (injectedBookmarks.length > 0) {
           outgoing = new Request(outgoing, { headers })
         }
       }
@@ -94,7 +94,7 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
       const value = response.headers.get(header)
       return value ? [[serviceName as ConsistencyBookmarkService, value] as const] : []
     })
-    const shouldCheckInvalidBookmark = injectedServices.length > 0
+    const shouldCheckInvalidBookmark = injectedBookmarks.length > 0
     const invalidBookmark = shouldCheckInvalidBookmark ? await responseHasInvalidBookmark(response) : false
     if (nextBookmarks.length === 0 && !invalidBookmark) return response
 
@@ -102,12 +102,15 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
       const env = config.envs[opts.envName]
       if (!env) return
       env.consistency_bookmarks ??= {}
-      for (const [serviceName, value] of nextBookmarks) {
-        env.consistency_bookmarks[serviceName] = value
-      }
       if (invalidBookmark) {
-        for (const service of injectedServices) {
-          delete env.consistency_bookmarks[service]
+        for (const [service, injectedValue] of injectedBookmarks) {
+          if (env.consistency_bookmarks[service] === injectedValue) {
+            delete env.consistency_bookmarks[service]
+          }
+        }
+      } else {
+        for (const [serviceName, value] of nextBookmarks) {
+          env.consistency_bookmarks[serviceName] = value
         }
       }
       if (Object.keys(env.consistency_bookmarks).length === 0) {

@@ -203,6 +203,32 @@ describe("createConsistencyFetch", () => {
     expect(config.envs.prod).not.toHaveProperty("consistency_bookmarks")
   })
 
+  it("preserves newer bookmark values when clearing invalid injected bookmarks", async () => {
+    const store = await seededStore({ todo: "todo_old" })
+    const fetchImpl = vi.fn(async () => {
+      await store.update((config) => {
+        config.envs.prod!.consistency_bookmarks = { todo: "todo_new" }
+      })
+      return new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      })
+    })
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://api.wspc.ai/todo/items")
+
+    const req = fetchRequest(fetchImpl)
+    expect(req.headers.get("x-cb-todo")).toBe("todo_old")
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmarks).toEqual({ todo: "todo_new" })
+  })
+
   it("clears injected service bookmarks when invalid response includes a returned bookmark", async () => {
     const store = await seededStore({ todo: "todo_bad", auth: "auth_old" })
     const fetchImpl = vi.fn(
