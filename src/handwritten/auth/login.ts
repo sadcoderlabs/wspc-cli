@@ -1,8 +1,9 @@
 import type { ConfigStore, EnvConfig, WspcConfig } from "../config/index.js"
 import { LEGACY_ACCOUNT_KEY } from "../config/index.js"
-import { runDeviceFlow, type DeviceFlowResult } from "./device-flow.js"
+import { runDeviceFlow, type DeviceFlowResult, type DeviceFlowPrompt } from "./device-flow.js"
 import { ensureClientId } from "./client-registration.js"
 import { fetchMe as defaultFetchMe } from "./fetch-me.js"
+import { bold, cyan, dim, green } from "../output/primitives.js"
 
 export interface LoginOutput {
   write(line: string): void
@@ -31,6 +32,29 @@ export interface RunLoginOptions {
     store?: ConfigStore
     envName?: string
   }) => Promise<{ user_id: string; email: string }>
+}
+
+/** Human-friendly device-flow panel. Leads with the prefilled link
+ * (verification_uri_complete) so most users click once; keeps the bare URL +
+ * code as a manual fallback. Colours degrade to plain text under NO_COLOR /
+ * non-TTY via the primitives. */
+function renderDevicePrompt(prompt: DeviceFlowPrompt): string {
+  const mins = Math.max(1, Math.round((prompt.expires_in ?? 0) / 60))
+  const lines = ["", `  ${bold("wspc login")}`, ""]
+  if (prompt.verification_uri_complete) {
+    lines.push(`  ${dim("Open this link to sign in (code already filled in):")}`)
+    lines.push(`    ${cyan(prompt.verification_uri_complete)}`)
+    lines.push("")
+    lines.push(`  ${dim(`Or go to ${prompt.verification_uri} and enter:`)}`)
+    lines.push(`    ${bold(prompt.user_code)}`)
+  } else {
+    lines.push(`  ${dim(`Go to ${prompt.verification_uri} and enter:`)}`)
+    lines.push(`    ${bold(prompt.user_code)}`)
+  }
+  lines.push("")
+  lines.push(`  ${dim(`Code expires in ${mins}m · waiting for approval…`)}`)
+  lines.push("")
+  return lines.join("\n")
 }
 
 function getOrCreateEnv(c: WspcConfig, envName: string, apiBase: string): EnvConfig {
@@ -82,7 +106,7 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     if (who.email !== LEGACY_ACCOUNT_KEY) delete env.accounts[LEGACY_ACCOUNT_KEY]
     c.current_env = envName
     await opts.store.write(c)
-    opts.output.write(`✓ logged in (api key) as ${who.email} → env "${envName}"`)
+    opts.output.write(`${green("✓")} logged in (api key) as ${bold(who.email)} ${dim(`→ env "${envName}"`)}`)
     return
   }
 
@@ -98,13 +122,9 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     store: opts.store,
     envName,
     onPrompt: (p) => {
-      const prompt = p as { verification_uri: string; user_code: string; expires_in: number }
+      const prompt = p as DeviceFlowPrompt
       opts.output.writeJson({ event: "device_code_issued", ...prompt })
-      opts.output.write(`\n=== wspc login ===`)
-      opts.output.write(`verification_uri: ${prompt.verification_uri}`)
-      opts.output.write(`user_code: ${prompt.user_code}`)
-      opts.output.write(`expires_in: ${prompt.expires_in}`)
-      opts.output.write(`=== waiting for approval ===\n`)
+      opts.output.write(renderDevicePrompt(prompt))
     },
   })
 
@@ -134,5 +154,5 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
   c.current_env = envName
   await opts.store.write(c)
   opts.output.writeJson({ event: "login_success", email: who.email })
-  opts.output.write(`✓ logged in as ${who.email} → env "${envName}"`)
+  opts.output.write(`${green("✓")} logged in as ${bold(who.email)} ${dim(`→ env "${envName}"`)}`)
 }
