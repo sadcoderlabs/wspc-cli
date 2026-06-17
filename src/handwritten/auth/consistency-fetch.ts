@@ -102,15 +102,14 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
       const env = config.envs[opts.envName]
       if (!env) return
       env.consistency_bookmarks ??= {}
+      for (const [serviceName, value] of nextBookmarks) {
+        env.consistency_bookmarks[serviceName] = value
+      }
       if (invalidBookmark) {
         for (const [service, injectedValue] of injectedBookmarks) {
           if (env.consistency_bookmarks[service] === injectedValue) {
             delete env.consistency_bookmarks[service]
           }
-        }
-      } else {
-        for (const [serviceName, value] of nextBookmarks) {
-          env.consistency_bookmarks[serviceName] = value
         }
       }
       if (Object.keys(env.consistency_bookmarks).length === 0) {

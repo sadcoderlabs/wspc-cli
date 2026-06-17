@@ -252,7 +252,7 @@ describe("createConsistencyFetch", () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const config = await store.read()
-    expect(config.envs.prod).not.toHaveProperty("consistency_bookmarks")
+    expect(config.envs.prod?.consistency_bookmarks).toEqual({ auth: "auth_new" })
   })
 
   it("clears saved bookmark even when caller supplied the same service header", async () => {
@@ -359,7 +359,7 @@ describe("createConsistencyFetch", () => {
 
     expect(cloneSpy).toHaveBeenCalledOnce()
     const config = await store.read()
-    expect(config.envs.prod).not.toHaveProperty("consistency_bookmarks")
+    expect(config.envs.prod?.consistency_bookmarks).toEqual({ todo: "todo_new" })
   })
 
   it("does not send bookmark to sibling prefix paths", async () => {
