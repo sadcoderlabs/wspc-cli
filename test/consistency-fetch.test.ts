@@ -26,7 +26,7 @@ function fetchRequest(fetchImpl: ReturnType<typeof vi.fn>, index = 0): Request {
 }
 
 describe("createConsistencyFetch", () => {
-  it("sends only the matching service bookmark", async () => {
+  it("sends all saved service bookmarks on WSPC API requests", async () => {
     const store = await seededStore({
       auth: "auth_1",
       todo: "todo_1",
@@ -50,15 +50,15 @@ describe("createConsistencyFetch", () => {
     })
 
     const req = fetchRequest(fetchImpl)
-    expect(req.headers.get("x-cb-auth")).toBeNull()
+    expect(req.headers.get("x-cb-auth")).toBe("auth_1")
     expect(req.headers.get("x-cb-todo")).toBe("todo_1")
-    expect(req.headers.get("x-cb-cal")).toBeNull()
-    expect(req.headers.get("x-cb-email")).toBeNull()
-    expect(req.headers.get("x-cb-push")).toBeNull()
+    expect(req.headers.get("x-cb-cal")).toBe("cal_1")
+    expect(req.headers.get("x-cb-email")).toBe("email_1")
+    expect(req.headers.get("x-cb-push")).toBe("push_1")
   })
 
-  it("preserves caller supplied matching service header", async () => {
-    const store = await seededStore({ todo: "todo_1" })
+  it("replaces caller supplied service headers with saved bookmarks", async () => {
+    const store = await seededStore({ todo: "todo_1", calendar: "cal_1" })
     const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }))
     const consistencyFetch = createConsistencyFetch({
       store,
@@ -68,15 +68,19 @@ describe("createConsistencyFetch", () => {
     })
 
     await consistencyFetch("https://api.wspc.ai/todo/items", {
-      headers: { "x-cb-todo": "caller_todo" },
+      headers: {
+        "x-cb-todo": "caller_todo",
+        "x-cb-cal": "caller_cal",
+      },
     })
 
     const req = fetchRequest(fetchImpl)
-    expect(req.headers.get("x-cb-todo")).toBe("caller_todo")
+    expect(req.headers.get("x-cb-todo")).toBe("todo_1")
+    expect(req.headers.get("x-cb-cal")).toBe("cal_1")
   })
 
-  it("strips other service headers from known api paths", async () => {
-    const store = await seededStore({ calendar: "cal_1" })
+  it("strips caller headers and injects all saved bookmarks on known api paths", async () => {
+    const store = await seededStore({ auth: "auth_1", calendar: "cal_1", push: "push_1" })
     const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }))
     const consistencyFetch = createConsistencyFetch({
       store,
@@ -96,14 +100,14 @@ describe("createConsistencyFetch", () => {
     })
 
     const req = fetchRequest(fetchImpl)
-    expect(req.headers.get("x-cb-auth")).toBeNull()
-    expect(req.headers.get("x-cb-cal")).toBe("caller_cal")
+    expect(req.headers.get("x-cb-auth")).toBe("auth_1")
     expect(req.headers.get("x-cb-todo")).toBeNull()
+    expect(req.headers.get("x-cb-cal")).toBe("cal_1")
     expect(req.headers.get("x-cb-email")).toBeNull()
-    expect(req.headers.get("x-cb-push")).toBeNull()
+    expect(req.headers.get("x-cb-push")).toBe("push_1")
   })
 
-  it("unknown api paths inject no bookmark but persist known response headers", async () => {
+  it("unknown api paths inject all saved bookmarks and persist known response headers", async () => {
     const store = await seededStore({ auth: "auth_1", todo: "todo_1" })
     const fetchImpl = vi.fn(
       async () =>
@@ -130,8 +134,8 @@ describe("createConsistencyFetch", () => {
     })
 
     const req = fetchRequest(fetchImpl)
-    expect(req.headers.get("x-cb-auth")).toBeNull()
-    expect(req.headers.get("x-cb-todo")).toBeNull()
+    expect(req.headers.get("x-cb-auth")).toBe("auth_1")
+    expect(req.headers.get("x-cb-todo")).toBe("todo_1")
     expect(req.headers.get("x-cb-cal")).toBeNull()
     expect(req.headers.get("x-cb-email")).toBeNull()
     expect(req.headers.get("x-cb-push")).toBeNull()
@@ -174,7 +178,7 @@ describe("createConsistencyFetch", () => {
     expect(req.headers.get("x-cb-push")).toBeNull()
   })
 
-  it("clears only the injected service bookmark on invalid bookmark errors", async () => {
+  it("clears all injected service bookmarks on invalid bookmark errors", async () => {
     const store = await seededStore({ auth: "auth_1", todo: "todo_bad", calendar: "cal_1" })
     const fetchImpl = vi.fn(
       async () =>
@@ -196,10 +200,36 @@ describe("createConsistencyFetch", () => {
     expect(await response.json()).toEqual({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } })
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const config = await store.read()
-    expect(config.envs.prod?.consistency_bookmarks).toEqual({ auth: "auth_1", calendar: "cal_1" })
+    expect(config.envs.prod).not.toHaveProperty("consistency_bookmarks")
   })
 
-  it("clears injected service bookmark when invalid response includes unrelated service bookmark", async () => {
+  it("preserves newer bookmark values when clearing invalid injected bookmarks", async () => {
+    const store = await seededStore({ todo: "todo_old" })
+    const fetchImpl = vi.fn(async () => {
+      await store.update((config) => {
+        config.envs.prod!.consistency_bookmarks = { todo: "todo_new" }
+      })
+      return new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      })
+    })
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    await consistencyFetch("https://api.wspc.ai/todo/items")
+
+    const req = fetchRequest(fetchImpl)
+    expect(req.headers.get("x-cb-todo")).toBe("todo_old")
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmarks).toEqual({ todo: "todo_new" })
+  })
+
+  it("clears injected service bookmarks when invalid response includes a returned bookmark", async () => {
     const store = await seededStore({ todo: "todo_bad", auth: "auth_old" })
     const fetchImpl = vi.fn(
       async () =>
@@ -225,7 +255,7 @@ describe("createConsistencyFetch", () => {
     expect(config.envs.prod?.consistency_bookmarks).toEqual({ auth: "auth_new" })
   })
 
-  it("does not clear stored bookmark when caller-supplied matching service bookmark is invalid", async () => {
+  it("clears saved bookmark even when caller supplied the same service header", async () => {
     const store = await seededStore({ todo: "todo_valid" })
     const response = new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
       status: 400,
@@ -244,9 +274,9 @@ describe("createConsistencyFetch", () => {
       headers: { "x-cb-todo": "caller_bad" },
     })
 
-    expect(cloneSpy).not.toHaveBeenCalled()
+    expect(cloneSpy).toHaveBeenCalledOnce()
     const config = await store.read()
-    expect(config.envs.prod?.consistency_bookmarks).toEqual({ todo: "todo_valid" })
+    expect(config.envs.prod).not.toHaveProperty("consistency_bookmarks")
   })
 
   it("persists all returned service bookmarks", async () => {
@@ -329,7 +359,7 @@ describe("createConsistencyFetch", () => {
 
     expect(cloneSpy).toHaveBeenCalledOnce()
     const config = await store.read()
-    expect(config.envs.prod).not.toHaveProperty("consistency_bookmarks")
+    expect(config.envs.prod?.consistency_bookmarks).toEqual({ todo: "todo_new" })
   })
 
   it("does not send bookmark to sibling prefix paths", async () => {
@@ -365,7 +395,7 @@ describe("createConsistencyFetch", () => {
     const exactReq = fetchRequest(fetchImpl, 0)
     const childReq = fetchRequest(fetchImpl, 1)
     const siblingReq = fetchRequest(fetchImpl, 2)
-    expect(exactReq.headers.get("x-cb-todo")).toBeNull()
+    expect(exactReq.headers.get("x-cb-todo")).toBe("todo_1")
     expect(childReq.headers.get("x-cb-todo")).toBe("todo_1")
     expect(siblingReq.headers.get("x-cb-todo")).toBeNull()
   })

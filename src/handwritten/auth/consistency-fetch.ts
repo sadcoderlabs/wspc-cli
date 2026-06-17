@@ -10,14 +10,6 @@ const SERVICE_HEADERS: Record<ConsistencyBookmarkService, string> = {
   push: "x-cb-push",
 }
 
-const SERVICE_PREFIXES: Array<{ service: ConsistencyBookmarkService; prefix: string }> = [
-  { service: "auth", prefix: "/auth" },
-  { service: "todo", prefix: "/todo" },
-  { service: "calendar", prefix: "/calendar" },
-  { service: "email", prefix: "/email" },
-  { service: "push", prefix: "/push" },
-]
-
 const KNOWN_HEADERS = Object.values(SERVICE_HEADERS)
 
 export interface ConsistencyFetchOptions {
@@ -41,26 +33,11 @@ function isUnderApiBase(url: URL, apiBase: string): boolean {
   )
 }
 
-function pathWithinApiBase(url: URL, apiBase: string): string {
-  const basePath = normalizeBasePath(new URL(apiBase).pathname)
-  if (basePath === "/") return url.pathname
-  if (url.pathname === basePath) return "/"
-  return url.pathname.slice(basePath.length) || "/"
-}
-
-function pathMatchesPrefix(pathname: string, prefix: string): boolean {
-  return pathname === prefix || pathname.startsWith(`${prefix}/`)
-}
-
-function serviceForPath(pathname: string): ConsistencyBookmarkService | undefined {
-  return SERVICE_PREFIXES.find(({ prefix }) => pathMatchesPrefix(pathname, prefix))?.service
-}
-
-function stripKnownBookmarkHeaders(request: Request, keep?: string): Request {
-  if (!KNOWN_HEADERS.some((header) => header !== keep && request.headers.has(header))) return request
+function stripKnownBookmarkHeaders(request: Request): Request {
+  if (!KNOWN_HEADERS.some((header) => request.headers.has(header))) return request
   const headers = new Headers(request.headers)
   for (const header of KNOWN_HEADERS) {
-    if (header !== keep) headers.delete(header)
+    headers.delete(header)
   }
   return new Request(request, { headers })
 }
@@ -89,22 +66,23 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
     const request = new Request(input as RequestInfo, init)
     const url = new URL(request.url)
     const applies = isUnderApiBase(url, opts.apiBase)
-    let outgoing = request
-    let injectedService: ConsistencyBookmarkService | undefined
-    const service = applies ? serviceForPath(pathWithinApiBase(url, opts.apiBase)) : undefined
-    const serviceHeader = service ? SERVICE_HEADERS[service] : undefined
-    outgoing = stripKnownBookmarkHeaders(outgoing, applies ? serviceHeader : undefined)
+    let outgoing = stripKnownBookmarkHeaders(request)
+    const injectedBookmarks: Array<readonly [ConsistencyBookmarkService, string]> = []
 
-    if (applies && service) {
-      const header = SERVICE_HEADERS[service]
-      if (!outgoing.headers.has(header)) {
-        const config = await opts.store.read()
-        const bookmark = config.envs[opts.envName]?.consistency_bookmarks?.[service]
-        if (bookmark) {
-          const headers = new Headers(outgoing.headers)
+    if (applies) {
+      const config = await opts.store.read()
+      const bookmarks = config.envs[opts.envName]?.consistency_bookmarks
+      if (bookmarks) {
+        const headers = new Headers(outgoing.headers)
+        for (const [serviceName, header] of Object.entries(SERVICE_HEADERS)) {
+          const service = serviceName as ConsistencyBookmarkService
+          const bookmark = bookmarks[service]
+          if (!bookmark) continue
           headers.set(header, bookmark)
+          injectedBookmarks.push([service, bookmark])
+        }
+        if (injectedBookmarks.length > 0) {
           outgoing = new Request(outgoing, { headers })
-          injectedService = service
         }
       }
     }
@@ -116,7 +94,7 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
       const value = response.headers.get(header)
       return value ? [[serviceName as ConsistencyBookmarkService, value] as const] : []
     })
-    const shouldCheckInvalidBookmark = injectedService !== undefined
+    const shouldCheckInvalidBookmark = injectedBookmarks.length > 0
     const invalidBookmark = shouldCheckInvalidBookmark ? await responseHasInvalidBookmark(response) : false
     if (nextBookmarks.length === 0 && !invalidBookmark) return response
 
@@ -127,8 +105,12 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
       for (const [serviceName, value] of nextBookmarks) {
         env.consistency_bookmarks[serviceName] = value
       }
-      if (invalidBookmark && injectedService) {
-        delete env.consistency_bookmarks[injectedService]
+      if (invalidBookmark) {
+        for (const [service, injectedValue] of injectedBookmarks) {
+          if (env.consistency_bookmarks[service] === injectedValue) {
+            delete env.consistency_bookmarks[service]
+          }
+        }
       }
       if (Object.keys(env.consistency_bookmarks).length === 0) {
         delete env.consistency_bookmarks
