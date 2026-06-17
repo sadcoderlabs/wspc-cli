@@ -1181,29 +1181,9 @@ export type SendEmailResponse = {
          */
         references_header?: string;
         /**
-         * Send provider used for this outbound email.
-         */
-        provider: 'cloudflare-email-service' | 'pete-mail';
-        /**
-         * Provider-side message id (after successful submission).
-         */
-        provider_message_id?: string;
-        /**
-         * Hash of the canonicalized request body — used to enforce idempotency.
-         */
-        request_hash: string;
-        /**
          * Lifecycle status. `submitted`: the row is persisted; provider call is in flight. `sent`: provider accepted the message. `failed`: provider rejected; see `error_code`/`error_message`.
          */
         status: 'submitted' | 'sent' | 'failed';
-        /**
-         * Provider error code on `status: failed`.
-         */
-        error_code?: string;
-        /**
-         * Provider error message on `status: failed`.
-         */
-        error_message?: string;
         /**
          * Echo of the idempotency key used for this send.
          */

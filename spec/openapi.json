@@ -1868,22 +1868,6 @@
                 "type": "string",
                 "description": "Materialized `References` header for threaded replies."
               },
-              "provider": {
-                "type": "string",
-                "enum": [
-                  "cloudflare-email-service",
-                  "pete-mail"
-                ],
-                "description": "Send provider used for this outbound email."
-              },
-              "provider_message_id": {
-                "type": "string",
-                "description": "Provider-side message id (after successful submission)."
-              },
-              "request_hash": {
-                "type": "string",
-                "description": "Hash of the canonicalized request body — used to enforce idempotency."
-              },
               "status": {
                 "type": "string",
                 "enum": [
@@ -1892,14 +1876,6 @@
                   "failed"
                 ],
                 "description": "Lifecycle status. `submitted`: the row is persisted; provider call is in flight. `sent`: provider accepted the message. `failed`: provider rejected; see `error_code`/`error_message`."
-              },
-              "error_code": {
-                "type": "string",
-                "description": "Provider error code on `status: failed`."
-              },
-              "error_message": {
-                "type": "string",
-                "description": "Provider error message on `status: failed`."
               },
               "idempotency_key": {
                 "type": "string",
@@ -1932,8 +1908,6 @@
               "to",
               "text_body",
               "message_id",
-              "provider",
-              "request_hash",
               "status",
               "idempotency_key",
               "attachment_count",
@@ -20305,8 +20279,6 @@
                         "subject": "Welcome to WSPC",
                         "text_body": "Hi Alice — welcome aboard.",
                         "message_id": "<01HW3K4N9V5G6Z8C2Q7B1Y0M3G@wspc.app>",
-                        "provider": "cloudflare-email-service",
-                        "request_hash": "sha256:abc...",
                         "status": "sent",
                         "idempotency_key": "retry-20260601-001",
                         "submitted_at": 1748736000500,
@@ -20331,8 +20303,6 @@
                         "subject": "Welcome to WSPC",
                         "text_body": "Hi Alice — welcome aboard.",
                         "message_id": "<01HW3K4N9V5G6Z8C2Q7B1Y0M3G@wspc.app>",
-                        "provider": "cloudflare-email-service",
-                        "request_hash": "sha256:abc...",
                         "status": "sent",
                         "idempotency_key": "retry-20260601-001",
                         "submitted_at": 1748736000500,
@@ -21010,10 +20980,10 @@
             "name": "x-cb-push",
             "in": "header",
             "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
             "schema": {
               "type": "string"
             },
-            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
             "example": "opaque-consistency-bookmark"
           },
           {
@@ -21296,10 +21266,10 @@
             "name": "x-cb-push",
             "in": "header",
             "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
             "schema": {
               "type": "string"
             },
-            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
             "example": "opaque-consistency-bookmark"
           }
         ],
@@ -21627,10 +21597,10 @@
             "name": "x-cb-push",
             "in": "header",
             "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
             "schema": {
               "type": "string"
             },
-            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
             "example": "opaque-consistency-bookmark"
           }
         ],
@@ -21932,10 +21902,10 @@
             "name": "x-cb-push",
             "in": "header",
             "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
             "schema": {
               "type": "string"
             },
-            "description": "Optional opaque consistency bookmark returned by a previous push response. Send it back unchanged to continue read-after-write consistency.",
             "example": "opaque-consistency-bookmark"
           }
         ],
