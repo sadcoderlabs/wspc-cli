@@ -4,7 +4,7 @@
 
 **Goal:** Build `wspc drive bind` and `wspc drive sync once` for safe one-shot whole-file Drive sync.
 
-**Architecture:** Keep sync behavior handwritten because it owns local filesystem safety, state, locking, and raw byte transfer. Use generated SDK for Drive JSON operations after regenerating from the synced OpenAPI spec, and use `loadAuthedFetch` for upload/download streams, matching the existing email attachment pattern.
+**Architecture:** Keep sync behavior handwritten because it owns local filesystem safety, state, locking, and raw byte transfer. Use generated SDK for Drive JSON operations after regenerating from the synced OpenAPI spec, and use `loadAuthedFetch` for upload/download streams, matching the existing email attachment pattern. Drive OpenAPI routes currently have no `x-cli` metadata, so the `drive` CLI root is handwritten.
 
 **Tech Stack:** TypeScript, Node 24 stdlib filesystem/path/crypto/stream APIs, Commander, generated WSPC SDK, Vitest.
 
@@ -13,7 +13,7 @@
 ## File Structure
 
 - Modify `src/handwritten/config/index.ts`: add `drive` to consistency bookmark storage.
-- Modify `src/cli.ts`: mount handwritten Drive commands under the generated `drive` command tree.
+- Modify `src/cli.ts`: mount a handwritten Drive command tree.
 - Create `src/handwritten/commands/drive/state.ts`: state schema, atomic read/write, binding guards, lock helper.
 - Create `src/handwritten/commands/drive/path-policy.ts`: POSIX relative path validation and root-safe path resolution.
 - Create `src/handwritten/commands/drive/scanner.ts`: local file scan with sha256, symlink/non-regular skip, `.wspc-drive/` exclusion.
@@ -22,14 +22,13 @@
 - Create `src/handwritten/commands/drive/bind.ts`: `wspc drive bind`.
 - Create `src/handwritten/commands/drive/sync.ts`: `wspc drive sync once`.
 - Add tests under `test/handwritten/drive/*.test.ts`.
-- Generated files from `npm run generate` will update `src/generated/**`; do not hand-edit generated files.
+- Generated files from `npm run generate` will update `src/generated/**`; do not hand-edit generated files. The current Drive routes generate SDK operations but no generated CLI files because they have no `x-cli` metadata.
 
-## Task 1: Generate Drive SDK/CLI and Add Drive Bookmark Storage
+## Task 1: Generate Drive SDK and Add Drive Bookmark Storage
 
 **Files:**
 - Modify: `src/handwritten/config/index.ts`
 - Generated: `src/generated/sdk/*`
-- Generated: `src/generated/cli/*`
 - Test: `test/config.test.ts`
 - Test: `test/consistency-fetch.test.ts`
 
@@ -118,7 +117,7 @@ Run:
 npm run generate
 ```
 
-Expected: PASS and generated Drive SDK/CLI files appear under `src/generated/`.
+Expected: PASS and generated Drive SDK operations and types appear under `src/generated/sdk/`. No generated Drive CLI files are expected unless upstream later adds `x-cli` metadata.
 
 - [ ] **Step 5: Run tests**
 
@@ -831,11 +830,9 @@ import { driveBindCommand } from "./handwritten/commands/drive/bind.js"
 After generated commands are registered:
 
 ```ts
-  const drive = program.commands.find((c) => c.name() === "drive")
-  if (!drive) {
-    throw new Error("drive command tree not found; codegen output may be missing")
-  }
+  const drive = new Command("drive").description("Drive commands")
   drive.addCommand(driveBindCommand())
+  program.addCommand(drive)
 ```
 
 - [ ] **Step 5: Run test**
