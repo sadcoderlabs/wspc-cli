@@ -30,6 +30,9 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
       if (isExcludedRootEntry(currentDrivePath, entry)) {
         continue
       }
+      if (isInternalSyncArtifactName(entry.name)) {
+        continue
+      }
 
       const nextDrivePath = currentDrivePath ? `${currentDrivePath}/${entry.name}` : entry.name
       try {
@@ -90,6 +93,11 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
   function isExcludedRootEntry(currentDrivePath: string, entry: Dirent): boolean {
     return currentDrivePath === "" && entry.name === DRIVE_DIR
   }
+}
+
+function isInternalSyncArtifactName(name: string): boolean {
+  if (!name.startsWith(".") || !name.endsWith(".tmp")) return false
+  return name.includes(".wspc-download-") || name.includes(".wspc-backup-")
 }
 
 export type FileDigest = { sizeBytes: number; sha256: string }

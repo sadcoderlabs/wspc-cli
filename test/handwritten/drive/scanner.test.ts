@@ -42,6 +42,28 @@ describe("drive scanner", () => {
     })
   })
 
+  it("skips internal sync temp artifacts without excluding ordinary dotfiles", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-scan-artifacts-"))
+    await mkdir(join(root, "docs"), { recursive: true })
+    await writeFile(join(root, ".secret"), "hidden")
+    await writeFile(join(root, ".notes.txt.wspc-download-123.tmp"), "download tmp")
+    await writeFile(join(root, "docs", ".readme.md.wspc-backup-456.tmp"), "backup tmp")
+    await writeFile(join(root, "docs", "readme.md"), "readme")
+
+    const files = await scanDriveFiles(root)
+
+    expect(files).toEqual({
+      ".secret": {
+        sha256: sha256("hidden"),
+        size_bytes: 6,
+      },
+      "docs/readme.md": {
+        sha256: sha256("readme"),
+        size_bytes: 6,
+      },
+    })
+  })
+
   it("excludes .wspc-drive at root", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-scan-exclude-"))
     await mkdir(join(root, ".wspc-drive"), { recursive: true })

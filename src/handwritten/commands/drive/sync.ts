@@ -178,14 +178,14 @@ async function processPath(args: {
 }): Promise<ProcessPathResult> {
   const { root, state, api, path, action, remote, local, summary } = args
   summary.paths.push({ path, action: action.type })
-  let remoteMutationCompleted = false
+  let durableStateRequired = false
 
   try {
     if (action.type === "upload_create" || action.type === "upload_update") {
       const localPath = resolveInsideRoot(root, path)
       const { body, digest: uploadDigest } = await readStableUploadBody(localPath, local)
       const uploaded = await api.uploadFile(state.library_id, path, body, uploadDigest, action.expectedEntryVersion)
-      remoteMutationCompleted = true
+      durableStateRequired = true
       const nextState = cloneDriveState(state)
       nextState.entries[path] = stateEntryFromRemote(uploaded.entry, uploadDigest)
       delete nextState.conflicts[path]
@@ -198,6 +198,7 @@ async function processPath(args: {
       if (!remote) throw new Error("remote entry missing for download")
       await assertLocalSafeForDownload(root, path, state.entries[path])
       const digest = await downloadRemote(root, state.library_id, path, api, remote.content_sha256, state.entries[path])
+      durableStateRequired = true
       const nextState = cloneDriveState(state)
       nextState.entries[path] = stateEntryFromRemote(remote, digest)
       delete nextState.conflicts[path]
@@ -209,7 +210,7 @@ async function processPath(args: {
     if (action.type === "delete_remote") {
       await assertLocalAbsentBeforeRemoteDelete(root, path)
       await api.deleteFile(state.library_id, path, action.expectedEntryVersion)
-      remoteMutationCompleted = true
+      durableStateRequired = true
       await assertLocalAbsentBeforeRemoteDelete(root, path)
       const nextState = cloneDriveState(state)
       delete nextState.entries[path]
@@ -221,6 +222,7 @@ async function processPath(args: {
 
     if (action.type === "delete_local") {
       await removeLocalIfStillBase(root, path, state.entries[path])
+      durableStateRequired = true
       const nextState = cloneDriveState(state)
       delete nextState.entries[path]
       delete nextState.conflicts[path]
@@ -264,11 +266,11 @@ async function processPath(args: {
         return { state: nextState, stop: false }
       } catch (writeError) {
         await recordPathError(summary, undefined, path, writeError)
-        return { state, stop: remoteMutationCompleted }
+        return { state, stop: durableStateRequired }
       }
     }
     await recordPathError(summary, undefined, path, error)
-    return { state, stop: remoteMutationCompleted }
+    return { state, stop: durableStateRequired }
   }
   return { state, stop: false }
 }

@@ -206,6 +206,30 @@ describe("drive sync once", () => {
     await expect(readFile(join(root, "docs", ".readme.md.wspc-download.tmp"), "utf8")).rejects.toThrow()
   })
 
+  it("stops after a local download when state write fails", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-download-state-fail-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "b.txt"), "b")
+    const api = mkApi([{ entries: [entry("a.txt", "remote", 3)] }])
+    api.downloads.set("a.txt", "remote")
+    stateWriteControl.failNext = (candidate) => {
+      const state = candidate as { entries?: Record<string, unknown> }
+      if (state.entries?.["a.txt"] && !state.entries?.["b.txt"]) {
+        return new Error("state write failed once")
+      }
+      return undefined
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.downloaded).toBe(0)
+    expect(api.uploads).toEqual([])
+    expect(result.paths).toEqual([{ path: "a.txt", action: "error" }])
+    expect(await readFile(join(root, "a.txt"), "utf8")).toBe("remote")
+    expect((await readDriveState(root)).entries["a.txt"]).toBeUndefined()
+  })
+
   it("delete_remote for local deleted while remote unchanged calls delete API and removes state", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delete-remote-"))
     const state = await initDriveState(root, "lib_1")
@@ -234,6 +258,32 @@ describe("drive sync once", () => {
     expect(api.deletes).toEqual([])
     await expect(readFile(join(root, "gone-local.txt"), "utf8")).rejects.toThrow()
     expect((await readDriveState(root)).entries["gone-local.txt"]).toBeUndefined()
+  })
+
+  it("stops after a local delete when state write fails", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delete-local-state-fail-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["a.txt"] = stateEntry("a.txt", "base", 2)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "a.txt"), "base")
+    await writeFile(join(root, "b.txt"), "b")
+    const api = mkApi([{ entries: [] }])
+    stateWriteControl.failNext = (candidate) => {
+      const state = candidate as { entries?: Record<string, unknown> }
+      if (!state.entries?.["a.txt"] && !state.entries?.["b.txt"]) {
+        return new Error("state write failed once")
+      }
+      return undefined
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.deleted).toBe(0)
+    expect(api.uploads).toEqual([])
+    expect(result.paths).toEqual([{ path: "a.txt", action: "error" }])
+    await expect(readFile(join(root, "a.txt"), "utf8")).rejects.toThrow()
+    expect((await readDriveState(root)).entries["a.txt"]).toEqual(state.entries["a.txt"])
   })
 
   it("conflict action records conflict and does not mutate existing state entry", async () => {
