@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { mkdtemp, readFile } from "node:fs/promises"
+import { mkdtemp, readFile, writeFile } from "node:fs/promises"
 import { spawnSync } from "node:child_process"
+import { Command } from "commander"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { initDriveState } from "../../../src/handwritten/commands/drive/state.js"
@@ -15,9 +16,13 @@ vi.mock("../../../src/handwritten/commands/drive/api.js", () => ({
   })),
 }))
 
-vi.mock("../../../src/handwritten/output/render.js", () => ({
-  render: vi.fn(),
-}))
+vi.mock("../../../src/handwritten/output/render.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/handwritten/output/render.js")>()
+  return {
+    ...actual,
+    render: vi.fn(),
+  }
+})
 
 import { driveBindCommand } from "../../../src/handwritten/commands/drive/bind.js"
 
@@ -75,6 +80,32 @@ describe("drive bind", () => {
     await expect(readFile(join(root, ".wspc-drive", "state.json"), "utf8")).rejects.toThrow()
   })
 
+  it("rejects nonexistent local folder before validating library", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "wspc-drive-bind-missing-"))
+    const root = join(parent, "notse")
+
+    const cmd = driveBindCommand()
+    await expect(cmd.parseAsync(["node", "bind", "--library", "lib_a", root])).rejects.toThrow(
+      /local folder does not exist/,
+    )
+
+    expect(getLibraryMock).not.toHaveBeenCalled()
+    await expect(readFile(join(root, ".wspc-drive", "state.json"), "utf8")).rejects.toThrow()
+  })
+
+  it("rejects file paths before validating library", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-bind-file-"))
+    const file = join(root, "notes.txt")
+    await writeFile(file, "hello")
+
+    const cmd = driveBindCommand()
+    await expect(cmd.parseAsync(["node", "bind", "--library", "lib_a", file])).rejects.toThrow(
+      /local path is not a folder/,
+    )
+
+    expect(getLibraryMock).not.toHaveBeenCalled()
+  })
+
   it("mounts bind under source CLI drive help", () => {
     const res = spawnSync("node", ["--import", "tsx", "src/cli.ts", "drive", "--help"], {
       encoding: "utf8",
@@ -84,5 +115,19 @@ describe("drive bind", () => {
     expect(res.status).toBe(0)
     expect(res.stdout).toContain("bind")
     expect(res.stdout).toContain("Bind a local folder to an existing Drive library")
+  })
+
+  it("mounts bind onto an existing drive command tree", async () => {
+    const { mountDriveCommands } = await import("../../../src/cli.js")
+    const program = new Command("wspc")
+    const drive = new Command("drive").description("Generated Drive commands")
+    drive.command("generated")
+    program.addCommand(drive)
+
+    mountDriveCommands(program)
+
+    const driveRoots = program.commands.filter((cmd) => cmd.name() === "drive")
+    expect(driveRoots).toHaveLength(1)
+    expect(driveRoots[0]!.commands.map((cmd) => cmd.name())).toEqual(["generated", "bind"])
   })
 })

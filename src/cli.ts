@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander"
+import { pathToFileURL } from "node:url"
 import { registerGeneratedCommands } from "./generated/cli/index.js"
 import { loginCommand } from "./handwritten/commands/login.js"
 import { logoutCommand } from "./handwritten/commands/logout.js"
@@ -11,6 +12,15 @@ import { sendCommand } from "./handwritten/commands/email/send.js"
 import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
 import { driveBindCommand } from "./handwritten/commands/drive/bind.js"
 import { VERSION, SPEC_SHA, SPEC_FETCHED_AT } from "./version.js"
+
+export function mountDriveCommands(program: Command): void {
+  let drive = program.commands.find((c) => c.name() === "drive")
+  if (!drive) {
+    drive = new Command("drive").description("Drive commands")
+    program.addCommand(drive)
+  }
+  drive.addCommand(driveBindCommand())
+}
 
 function buildProgram(): Command {
   const program = new Command()
@@ -38,9 +48,7 @@ function buildProgram(): Command {
 
   registerGeneratedCommands(program)
 
-  const drive = new Command("drive").description("Drive commands")
-  drive.addCommand(driveBindCommand())
-  program.addCommand(drive)
+  mountDriveCommands(program)
 
   const todo = program.commands.find((c) => c.name() === "todo")
   if (todo) todo.addCommand(todoDoneCommand)
@@ -83,4 +91,6 @@ export async function dispatch(argv: string[], { allowRetry = true }: { allowRet
   }
 }
 
-dispatch(process.argv)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  dispatch(process.argv)
+}
