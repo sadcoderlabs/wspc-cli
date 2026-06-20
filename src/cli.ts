@@ -12,6 +12,7 @@ import { todoDoneCommand } from "./handwritten/commands/todo-done.js"
 import { sendCommand } from "./handwritten/commands/email/send.js"
 import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
 import { driveBindCommand } from "./handwritten/commands/drive/bind.js"
+import { driveSyncCommand } from "./handwritten/commands/drive/sync.js"
 import { VERSION, SPEC_SHA, SPEC_FETCHED_AT } from "./version.js"
 
 export function mountDriveCommands(program: Command): void {
@@ -20,8 +21,12 @@ export function mountDriveCommands(program: Command): void {
     drive = new Command("drive").description("Drive commands")
     program.addCommand(drive)
   }
-  if (drive.commands.some((c) => c.name() === "bind")) return
-  drive.addCommand(driveBindCommand())
+  if (!drive.commands.some((c) => c.name() === "bind")) {
+    drive.addCommand(driveBindCommand())
+  }
+  if (!drive.commands.some((c) => c.name() === "sync")) {
+    drive.addCommand(driveSyncCommand())
+  }
 }
 
 export function isCliEntrypoint(argv: string[] = process.argv, metaUrl: string = import.meta.url): boolean {

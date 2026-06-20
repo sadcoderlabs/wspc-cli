@@ -129,7 +129,7 @@ describe("drive bind", () => {
 
     const driveRoots = program.commands.filter((cmd) => cmd.name() === "drive")
     expect(driveRoots).toHaveLength(1)
-    expect(driveRoots[0]!.commands.map((cmd) => cmd.name())).toEqual(["generated", "bind"])
+    expect(driveRoots[0]!.commands.map((cmd) => cmd.name())).toEqual(["generated", "bind", "sync"])
   })
 
   it("does not duplicate a generated drive bind command", async () => {
@@ -142,6 +142,19 @@ describe("drive bind", () => {
     mountDriveCommands(program)
 
     expect(drive.commands.filter((cmd) => cmd.name() === "bind")).toHaveLength(1)
+  })
+
+  it("does not duplicate a generated drive sync command", async () => {
+    const { mountDriveCommands } = await import("../../../src/cli.js")
+    const program = new Command("wspc")
+    const drive = new Command("drive").description("Generated Drive commands")
+    drive.command("sync")
+    program.addCommand(drive)
+
+    mountDriveCommands(program)
+
+    expect(drive.commands.filter((cmd) => cmd.name() === "sync")).toHaveLength(1)
+    expect(drive.commands.map((cmd) => cmd.name())).toContain("bind")
   })
 
   it("detects symlinked CLI entrypoints", async () => {

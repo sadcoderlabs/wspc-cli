@@ -1,0 +1,320 @@
+import { createHash } from "node:crypto"
+import { spawnSync } from "node:child_process"
+import { mkdtemp, readFile, writeFile } from "node:fs/promises"
+import { join } from "node:path"
+import { tmpdir } from "node:os"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { initDriveState, readDriveState, writeDriveState, type DriveStateEntry } from "../../../src/handwritten/commands/drive/state.js"
+import { driveSyncCommand, runDriveSyncOnce, type DriveSyncApi } from "../../../src/handwritten/commands/drive/sync.js"
+import { render } from "../../../src/handwritten/output/render.js"
+import type { UploadDriveFileResponse } from "../../../src/generated/sdk/index.js"
+
+vi.mock("../../../src/handwritten/output/render.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/handwritten/output/render.js")>()
+  return {
+    ...actual,
+    render: vi.fn(),
+  }
+})
+
+function sha256(content: string): string {
+  return createHash("sha256").update(content).digest("hex")
+}
+
+function entry(path: string, content: string, version = 1): ManifestEntry {
+  return {
+    id: `ent_${path.replace(/[^a-z0-9]/gi, "_")}_${version}`,
+    path,
+    kind: "file",
+    entry_version: version,
+    current_version_id: `ver_${version}`,
+    content_sha256: sha256(content),
+    size_bytes: Buffer.byteLength(content),
+    updated_at: "2026-06-21T00:00:00.000Z",
+  }
+}
+
+function stateEntry(path: string, content: string, version = 1): DriveStateEntry {
+  const remote = entry(path, content, version)
+  return {
+    entry_id: remote.id,
+    entry_version: remote.entry_version,
+    current_version_id: remote.current_version_id,
+    content_sha256: remote.content_sha256,
+    size_bytes: remote.size_bytes,
+    last_local_sha256: remote.content_sha256,
+    last_synced_at: "2026-06-21T00:00:00.000Z",
+    status: "synced",
+  }
+}
+
+type ManifestEntry = {
+  id: string
+  path: string
+  kind: "file"
+  entry_version: number
+  current_version_id?: string
+  content_sha256?: string
+  size_bytes: number
+  updated_at: string
+  deleted_at?: string
+}
+
+type TestDriveSyncApi = DriveSyncApi & {
+  manifests: string[]
+  uploads: Array<{ id: string; path: string; sha256: string; expectedEntryVersion?: number }>
+  deletes: Array<{ id: string; path: string; expectedEntryVersion: number }>
+  downloads: Map<string, string>
+}
+
+function mkApi(manifestPages: Array<{ entries: ManifestEntry[]; next_cursor?: string | null }>): TestDriveSyncApi {
+  const downloads = new Map<string, string>()
+  const api: TestDriveSyncApi = {
+    manifests: [],
+    uploads: [],
+    deletes: [],
+    downloads,
+    async getManifest(_id, cursor) {
+      api.manifests.push(cursor ?? "")
+      const page = manifestPages.shift()
+      if (!page) throw new Error("unexpected manifest page")
+      return {
+        library: {
+          id: "lib_1",
+          org_id: "org_1",
+          name: "Docs",
+          version: 1,
+          file_count: page.entries.length,
+          storage_bytes: 0,
+          created_by_user_id: "usr_1",
+          created_at: 1,
+          updated_at: 2,
+        },
+        entries: page.entries,
+        next_cursor: page.next_cursor ?? null,
+      }
+    },
+    async uploadFile(id, path, body, digest, expectedEntryVersion) {
+      api.uploads.push({ id, path, sha256: digest, expectedEntryVersion })
+      const content = typeof body === "string" ? body : Buffer.from(await new Response(body).arrayBuffer()).toString("utf8")
+      const result: UploadDriveFileResponse = {
+        entry: entry(path, content, expectedEntryVersion === 0 ? 1 : (expectedEntryVersion ?? 0) + 1),
+        result: expectedEntryVersion === 0 ? "created" : "updated",
+      }
+      return result
+    },
+    async downloadFile(_id, path) {
+      const content = downloads.get(path)
+      if (content === undefined) throw new Error(`missing test download: ${path}`)
+      return new Response(content)
+    },
+    async deleteFile(id, path, expectedEntryVersion) {
+      api.deletes.push({ id, path, expectedEntryVersion })
+      return { entry: { ...entry(path, "", expectedEntryVersion + 1), deleted_at: "2026-06-21T00:00:00.000Z" }, result: "deleted" }
+    },
+  }
+  return api
+}
+
+describe("drive sync once", () => {
+  beforeEach(() => {
+    process.exitCode = undefined
+    vi.clearAllMocks()
+  })
+
+  it("uploads a new local file and updates state", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-upload-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "notes.txt"), "hello")
+    const api = mkApi([{ entries: [] }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.uploaded).toBe(1)
+    expect(result.paths).toEqual([{ path: "notes.txt", action: "upload_create" }])
+    expect(api.uploads).toEqual([{ id: "lib_1", path: "notes.txt", sha256: sha256("hello"), expectedEntryVersion: 0 }])
+    const state = await readDriveState(root)
+    expect(state.entries["notes.txt"]).toMatchObject({
+      entry_id: expect.stringContaining("ent_notes_txt"),
+      entry_version: 1,
+      current_version_id: "ver_1",
+      content_sha256: sha256("hello"),
+      size_bytes: 5,
+      last_local_sha256: sha256("hello"),
+      status: "synced",
+    })
+  })
+
+  it("downloads a remote file via temp rename and updates state", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-download-"))
+    await initDriveState(root, "lib_1")
+    const remote = entry("docs/readme.md", "remote", 3)
+    const api = mkApi([{ entries: [remote] }])
+    api.downloads.set("docs/readme.md", "remote")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.downloaded).toBe(1)
+    expect(await readFile(join(root, "docs", "readme.md"), "utf8")).toBe("remote")
+    const state = await readDriveState(root)
+    expect(state.entries["docs/readme.md"]).toMatchObject({
+      entry_id: remote.id,
+      entry_version: 3,
+      current_version_id: "ver_3",
+      content_sha256: sha256("remote"),
+      size_bytes: 6,
+      last_local_sha256: sha256("remote"),
+      status: "synced",
+    })
+    await expect(readFile(join(root, "docs", ".readme.md.wspc-download.tmp"), "utf8")).rejects.toThrow()
+  })
+
+  it("delete_remote for local deleted while remote unchanged calls delete API and removes state", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delete-remote-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["gone.txt"] = stateEntry("gone.txt", "base", 4)
+    await writeDriveState(root, state)
+    const api = mkApi([{ entries: [entry("gone.txt", "base", 4)] }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.deleted).toBe(1)
+    expect(api.deletes).toEqual([{ id: "lib_1", path: "gone.txt", expectedEntryVersion: 4 }])
+    expect((await readDriveState(root)).entries["gone.txt"]).toBeUndefined()
+  })
+
+  it("delete_local for remote gone while local unchanged removes local file and state without calling delete API", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delete-local-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["gone-local.txt"] = stateEntry("gone-local.txt", "base", 2)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "gone-local.txt"), "base")
+    const api = mkApi([{ entries: [] }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.deleted).toBe(1)
+    expect(api.deletes).toEqual([])
+    await expect(readFile(join(root, "gone-local.txt"), "utf8")).rejects.toThrow()
+    expect((await readDriveState(root)).entries["gone-local.txt"]).toBeUndefined()
+  })
+
+  it("conflict action records conflict and does not mutate existing state entry", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.txt"] = stateEntry("notes.txt", "base", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.txt"), "local")
+    const api = mkApi([{ entries: [entry("notes.txt", "remote", 2)] }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.conflicts).toBe(1)
+    const after = await readDriveState(root)
+    expect(after.entries["notes.txt"]).toEqual(state.entries["notes.txt"])
+    expect(after.conflicts["notes.txt"]).toMatchObject({
+      reason: "local_and_remote_changed",
+      remote_entry_version: 2,
+      remote_version_id: "ver_2",
+    })
+  })
+
+  it("persists earlier success when a later path errors", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-partial-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "a.txt"), "ok")
+    await writeFile(join(root, "b.txt"), "boom")
+    const api = mkApi([{ entries: [] }])
+    api.uploadFile = vi.fn(async (_id, path, body, digest, expectedEntryVersion) => {
+      if (path === "b.txt") throw new Error("network broke")
+      const content = Buffer.from(await new Response(body).arrayBuffer()).toString("utf8")
+      return { entry: entry(path, content, expectedEntryVersion === 0 ? 1 : 2), result: "created" as const }
+    })
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.uploaded).toBe(1)
+    const state = await readDriveState(root)
+    expect(state.entries["a.txt"]).toMatchObject({ content_sha256: digestOf("ok"), status: "synced" })
+    expect(state.entries["b.txt"]).toBeUndefined()
+    expect(state.conflicts["b.txt"]?.reason).toContain("network broke")
+  })
+
+  it("follows manifest pagination until next cursor is empty", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-pages-"))
+    await initDriveState(root, "lib_1")
+    const api = mkApi([
+      { entries: [entry("a.txt", "a", 1)], next_cursor: "cursor_1" },
+      { entries: [entry("b.txt", "b", 1)], next_cursor: null },
+    ])
+    api.downloads.set("a.txt", "a")
+    api.downloads.set("b.txt", "b")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.downloaded).toBe(2)
+    expect(api.manifests).toEqual(["", "cursor_1"])
+  })
+
+  it("records invalid local paths as path errors without uploading them", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-invalid-local-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "bad\\name.txt"), "unsafe")
+    const api = mkApi([{ entries: [] }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.paths).toEqual([{ path: "bad\\name.txt", action: "error" }])
+    expect(api.uploads).toEqual([])
+    expect((await readDriveState(root)).conflicts["bad\\name.txt"]?.reason).toContain("backslash")
+  })
+
+  it("records invalid remote paths as path errors without writing outside root", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-invalid-remote-"))
+    await initDriveState(root, "lib_1")
+    const api = mkApi([{ entries: [entry("../escape.txt", "remote", 1)] }])
+    api.downloads.set("../escape.txt", "remote")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.paths).toEqual([{ path: "../escape.txt", action: "error" }])
+    await expect(readFile(join(root, "..", "escape.txt"), "utf8")).rejects.toThrow()
+    expect((await readDriveState(root)).conflicts["../escape.txt"]?.reason).toContain("relative segment")
+  })
+
+  it("renders command summary and sets exit code for conflicts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-command-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.txt"] = stateEntry("notes.txt", "base", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.txt"), "local")
+    const api = mkApi([{ entries: [entry("notes.txt", "remote", 2)] }])
+    const command = driveSyncCommand(api)
+
+    await command.parseAsync(["node", "sync", "once", root])
+
+    expect(process.exitCode).toBe(1)
+    expect(render).toHaveBeenCalledWith(
+      { kind: "drive_sync_once", display: { shape: "object" } },
+      expect.objectContaining({ conflicts: 1, errors: 0 }),
+    )
+  })
+
+  it("mounts sync once under source CLI drive help", () => {
+    const res = spawnSync("node", ["--import", "tsx", "src/cli.ts", "drive", "sync", "--help"], {
+      encoding: "utf8",
+      env: { ...process.env, NO_COLOR: undefined, TERM: "xterm-256color" },
+    })
+
+    expect(res.status).toBe(0)
+    expect(res.stdout).toContain("once")
+    expect(res.stdout).toContain("Run one Drive sync pass")
+  })
+})
+
+function digestOf(content: string): string {
+  return sha256(content)
+}

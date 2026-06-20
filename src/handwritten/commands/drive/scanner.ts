@@ -11,7 +11,11 @@ export interface DriveFileEntry {
   sha256: string
 }
 
-export async function scanDriveFiles(root: string): Promise<Record<string, DriveFileEntry>> {
+export interface ScanDriveFilesOptions {
+  onPathError?: (path: string, error: unknown) => void | Promise<void>
+}
+
+export async function scanDriveFiles(root: string, options: ScanDriveFilesOptions = {}): Promise<Record<string, DriveFileEntry>> {
   const files: Record<string, DriveFileEntry> = {}
   const absRoot = root
   await walk(absRoot, "")
@@ -26,7 +30,13 @@ export async function scanDriveFiles(root: string): Promise<Record<string, Drive
       }
 
       const nextDrivePath = currentDrivePath ? `${currentDrivePath}/${entry.name}` : entry.name
-      validateDrivePath(nextDrivePath)
+      try {
+        validateDrivePath(nextDrivePath)
+      } catch (error) {
+        if (!options.onPathError) throw error
+        await options.onPathError(nextDrivePath, error)
+        continue
+      }
       const nextPath = join(currentPath, entry.name)
       const stats = await lstat(nextPath)
 
