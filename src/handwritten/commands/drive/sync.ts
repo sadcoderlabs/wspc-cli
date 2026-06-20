@@ -62,7 +62,7 @@ function emptySummary(): DriveSyncSummary {
 
 export async function runDriveSyncOnce(root: string, api?: DriveSyncApi): Promise<DriveSyncSummary> {
   return withDriveLock(root, async () => {
-    const state = await readDriveState(root)
+    let state = await readDriveState(root)
     const syncApi = api ?? (await createDriveApi())
     const summary = emptySummary()
     const blockedPaths = new Set<string>()
@@ -81,7 +81,7 @@ export async function runDriveSyncOnce(root: string, api?: DriveSyncApi): Promis
     for (const path of paths) {
       const remote = remoteFiles[path]
       const action = decideDriveAction(state.entries[path], localFiles[path], remote)
-      await processPath({ root, state, api: syncApi, path, action, remote, local: localFiles[path], summary })
+      state = await processPath({ root, state, api: syncApi, path, action, remote, local: localFiles[path], summary })
     }
 
     return summary
@@ -172,88 +172,100 @@ async function processPath(args: {
   remote: RemoteEntry | undefined
   local: { sha256: string; size_bytes: number } | undefined
   summary: DriveSyncSummary
-}): Promise<void> {
+}): Promise<DriveState> {
   const { root, state, api, path, action, remote, local, summary } = args
   summary.paths.push({ path, action: action.type })
 
   try {
     if (action.type === "upload_create" || action.type === "upload_update") {
       const localPath = resolveInsideRoot(root, path)
-      const uploadDigest = await assertLocalStillMatchesScan(localPath, local)
-      const body = await readFile(localPath)
+      const { body, digest: uploadDigest } = await readStableUploadBody(localPath, local)
       const uploaded = await api.uploadFile(state.library_id, path, body, uploadDigest, action.expectedEntryVersion)
-      state.entries[path] = stateEntryFromRemote(uploaded.entry, uploadDigest)
-      delete state.conflicts[path]
-      await writeDriveState(root, state)
+      const nextState = cloneDriveState(state)
+      nextState.entries[path] = stateEntryFromRemote(uploaded.entry, uploadDigest)
+      delete nextState.conflicts[path]
+      await commitDriveState(root, nextState)
       summary.uploaded += 1
-      return
+      return nextState
     }
 
     if (action.type === "download") {
       if (!remote) throw new Error("remote entry missing for download")
       await assertLocalSafeForDownload(root, path, state.entries[path])
-      const digest = await downloadRemote(root, state.library_id, path, api, remote.content_sha256)
-      state.entries[path] = stateEntryFromRemote(remote, digest)
-      delete state.conflicts[path]
-      await writeDriveState(root, state)
+      const digest = await downloadRemote(root, state.library_id, path, api, remote.content_sha256, state.entries[path])
+      const nextState = cloneDriveState(state)
+      nextState.entries[path] = stateEntryFromRemote(remote, digest)
+      delete nextState.conflicts[path]
+      await commitDriveState(root, nextState)
       summary.downloaded += 1
-      return
+      return nextState
     }
 
     if (action.type === "delete_remote") {
       await assertLocalAbsentBeforeRemoteDelete(root, path)
       await api.deleteFile(state.library_id, path, action.expectedEntryVersion)
-      await rm(resolveInsideRoot(root, path), { force: true })
-      delete state.entries[path]
-      delete state.conflicts[path]
-      await writeDriveState(root, state)
+      await assertLocalAbsentBeforeRemoteDelete(root, path)
+      const nextState = cloneDriveState(state)
+      delete nextState.entries[path]
+      delete nextState.conflicts[path]
+      await commitDriveState(root, nextState)
       summary.deleted += 1
-      return
+      return nextState
     }
 
     if (action.type === "delete_local") {
       await assertLocalStillMatchesBase(root, path, state.entries[path])
+      await assertLocalStillMatchesBase(root, path, state.entries[path])
       await rm(resolveInsideRoot(root, path), { force: true })
-      delete state.entries[path]
-      delete state.conflicts[path]
-      await writeDriveState(root, state)
+      const nextState = cloneDriveState(state)
+      delete nextState.entries[path]
+      delete nextState.conflicts[path]
+      await commitDriveState(root, nextState)
       summary.deleted += 1
-      return
+      return nextState
     }
 
     if (action.type === "state_only") {
       if (!remote) throw new Error("remote entry missing for state update")
-      state.entries[path] = stateEntryFromRemote(remote, local?.sha256 ?? remote.content_sha256)
-      delete state.conflicts[path]
-      await writeDriveState(root, state)
+      const nextState = cloneDriveState(state)
+      nextState.entries[path] = stateEntryFromRemote(remote, local?.sha256 ?? remote.content_sha256)
+      delete nextState.conflicts[path]
+      await commitDriveState(root, nextState)
       summary.unchanged += 1
-      return
+      return nextState
     }
 
     if (action.type === "remove_state") {
-      delete state.entries[path]
-      delete state.conflicts[path]
-      await writeDriveState(root, state)
+      const nextState = cloneDriveState(state)
+      delete nextState.entries[path]
+      delete nextState.conflicts[path]
+      await commitDriveState(root, nextState)
       summary.unchanged += 1
-      return
+      return nextState
     }
 
     if (action.type === "conflict") {
-      await recordConflict(root, state, path, action.reason, remote)
+      const nextState = await recordConflict(root, state, path, action.reason, remote)
       summary.conflicts += 1
-      return
+      return nextState
     }
 
     summary.unchanged += 1
   } catch (error) {
     if (isVersionConflict(error)) {
-      await recordConflict(root, state, path, "VERSION_CONFLICT", remote)
-      summary.conflicts += 1
-      summary.paths[summary.paths.length - 1] = { path, action: "conflict" }
-      return
+      try {
+        const nextState = await recordConflict(root, state, path, "VERSION_CONFLICT", remote)
+        summary.conflicts += 1
+        summary.paths[summary.paths.length - 1] = { path, action: "conflict" }
+        return nextState
+      } catch (writeError) {
+        await recordPathError(summary, undefined, path, writeError)
+        return state
+      }
     }
     await recordPathError(summary, undefined, path, error)
   }
+  return state
 }
 
 async function downloadRemote(
@@ -262,6 +274,7 @@ async function downloadRemote(
   path: string,
   api: DriveSyncApi,
   expectedSha256: string | undefined,
+  entry: DriveStateEntry | undefined,
 ): Promise<string> {
   const target = resolveInsideRoot(root, path)
   await mkdir(dirname(target), { recursive: true })
@@ -287,6 +300,7 @@ async function downloadRemote(
     if (expectedSha256 !== undefined && digest !== expectedSha256) {
       throw new Error(`download hash mismatch: expected ${expectedSha256}, got ${digest}`)
     }
+    await assertLocalSafeForDownload(root, path, entry)
     await rename(tmp, target)
     return digest
   } finally {
@@ -294,24 +308,34 @@ async function downloadRemote(
   }
 }
 
-async function assertLocalStillMatchesScan(
+async function readStableUploadBody(
   localPath: string,
   scanned: { sha256: string; size_bytes: number } | undefined,
-): Promise<string> {
+): Promise<{ body: ArrayBuffer; digest: string }> {
   if (!scanned) {
     throw new Error("local file missing from scan")
   }
-  const digest = await hashDriveFile(localPath).catch((error: unknown) => {
+  const snapshot = await hashDriveFile(localPath).catch((error: unknown) => {
     if (isNotFoundError(error)) return undefined
     throw error
   })
-  if (!digest) {
+  if (!snapshot || snapshot.sha256 !== scanned.sha256 || snapshot.sizeBytes !== scanned.size_bytes) {
     throw new Error("local file changed after scan")
   }
-  if (digest.sha256 !== scanned.sha256 || digest.sizeBytes !== scanned.size_bytes) {
+  const body = await readFile(localPath).catch((error: unknown) => {
+    if (isNotFoundError(error)) return undefined
+    throw error
+  })
+  if (!body) {
     throw new Error("local file changed after scan")
   }
-  return digest.sha256
+  const uploadBytes = new Uint8Array(body.byteLength)
+  uploadBytes.set(body)
+  const digest = createHash("sha256").update(uploadBytes).digest("hex")
+  if (digest !== scanned.sha256 || uploadBytes.byteLength !== scanned.size_bytes) {
+    throw new Error("local file changed after scan")
+  }
+  return { body: uploadBytes.buffer, digest }
 }
 
 async function assertLocalSafeForDownload(
@@ -371,15 +395,29 @@ function stateEntryFromRemote(remote: RemoteEntry, localSha256: string | undefin
   }
 }
 
+async function commitDriveState(root: string, nextState: DriveState): Promise<void> {
+  await writeDriveState(root, nextState)
+}
+
+function cloneDriveState(state: DriveState): DriveState {
+  return {
+    ...state,
+    entries: { ...state.entries },
+    conflicts: { ...state.conflicts },
+  }
+}
+
 async function recordConflict(
   root: string,
   state: DriveState,
   path: string,
   reason: string,
   remote: RemoteEntry | undefined,
-): Promise<void> {
-  state.conflicts[path] = conflict(reason, remote)
-  await writeDriveState(root, state)
+): Promise<DriveState> {
+  const nextState = cloneDriveState(state)
+  nextState.conflicts[path] = conflict(reason, remote)
+  await commitDriveState(root, nextState)
+  return nextState
 }
 
 async function recordPathError(
@@ -414,11 +452,19 @@ function errorMessage(error: unknown): string {
 }
 
 function isVersionConflict(error: unknown): boolean {
-  const structured = error as { code?: unknown; status?: unknown; response?: { status?: unknown } } | undefined
+  const structured = error as { body?: unknown; code?: unknown; response?: { body?: unknown } } | undefined
   if (structured?.code === "VERSION_CONFLICT") return true
-  if (structured?.status === 409 || structured?.response?.status === 409) return true
+  return [errorMessage(error), structured?.body, structured?.response?.body].some(containsVersionConflict)
+}
 
-  return /VERSION_CONFLICT|HTTP 409\b/.test(errorMessage(error))
+function containsVersionConflict(value: unknown): boolean {
+  if (value === undefined) return false
+  if (typeof value === "string") return value.includes("VERSION_CONFLICT")
+  try {
+    return JSON.stringify(value).includes("VERSION_CONFLICT")
+  } catch {
+    return false
+  }
 }
 
 function isNotFoundError(error: unknown): boolean {
