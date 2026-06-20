@@ -24,8 +24,12 @@ export function mountDriveCommands(program: Command): void {
   if (!drive.commands.some((c) => c.name() === "bind")) {
     drive.addCommand(driveBindCommand())
   }
-  if (!drive.commands.some((c) => c.name() === "sync")) {
+  const sync = drive.commands.find((c) => c.name() === "sync")
+  if (!sync) {
     drive.addCommand(driveSyncCommand())
+  } else if (!sync.commands.some((c) => c.name() === "once")) {
+    const once = driveSyncCommand().commands.find((c) => c.name() === "once")
+    if (once) sync.addCommand(once)
   }
 }
 

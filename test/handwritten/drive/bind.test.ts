@@ -144,17 +144,20 @@ describe("drive bind", () => {
     expect(drive.commands.filter((cmd) => cmd.name() === "bind")).toHaveLength(1)
   })
 
-  it("does not duplicate a generated drive sync command", async () => {
+  it("adds sync once under a generated drive sync command without duplicating the sync root", async () => {
     const { mountDriveCommands } = await import("../../../src/cli.js")
     const program = new Command("wspc")
     const drive = new Command("drive").description("Generated Drive commands")
-    drive.command("sync")
+    const sync = new Command("sync").description("Generated sync commands")
+    sync.command("other")
+    drive.addCommand(sync)
     program.addCommand(drive)
 
     mountDriveCommands(program)
 
     expect(drive.commands.filter((cmd) => cmd.name() === "sync")).toHaveLength(1)
     expect(drive.commands.map((cmd) => cmd.name())).toContain("bind")
+    expect(sync.commands.map((cmd) => cmd.name())).toEqual(["other", "once"])
   })
 
   it("detects symlinked CLI entrypoints", async () => {

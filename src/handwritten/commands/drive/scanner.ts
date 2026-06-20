@@ -16,9 +16,11 @@ export interface ScanDriveFilesOptions {
 }
 
 export async function scanDriveFiles(root: string, options: ScanDriveFilesOptions = {}): Promise<Record<string, DriveFileEntry>> {
+  const candidates: Array<{ path: string; entry: DriveFileEntry }> = []
   const files: Record<string, DriveFileEntry> = {}
   const absRoot = root
   await walk(absRoot, "")
+  await addNonCollidingFiles(candidates)
   return files
 
   async function walk(currentPath: string, currentDrivePath: string): Promise<void> {
@@ -53,14 +55,35 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
         continue
       }
 
-      const digest = await hashFile(nextPath)
+      const digest = await hashDriveFile(nextPath)
       if (!digest) {
         continue
       }
-      files[nextDrivePath] = {
-        sha256: digest.sha256,
-        size_bytes: digest.sizeBytes,
+      candidates.push({ path: nextDrivePath, entry: { sha256: digest.sha256, size_bytes: digest.sizeBytes } })
+    }
+  }
+
+  async function addNonCollidingFiles(candidates: Array<{ path: string; entry: DriveFileEntry }>): Promise<void> {
+    const byCaseFoldedPath = new Map<string, Array<{ path: string; entry: DriveFileEntry }>>()
+    for (const candidate of candidates) {
+      const folded = candidate.path.toLowerCase()
+      const group = byCaseFoldedPath.get(folded) ?? []
+      group.push(candidate)
+      byCaseFoldedPath.set(folded, group)
+    }
+
+    for (const group of byCaseFoldedPath.values()) {
+      if (group.length > 1) {
+        const sorted = group.sort((left, right) => left.path.localeCompare(right.path))
+        for (const candidate of sorted) {
+          const error = new Error(`LOCAL_PATH_CASE_CONFLICT: ${candidate.path}`)
+          if (!options.onPathError) throw error
+          await options.onPathError(candidate.path, error)
+        }
+        continue
       }
+      const [candidate] = group
+      if (candidate) files[candidate.path] = candidate.entry
     }
   }
 
@@ -69,9 +92,9 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
   }
 }
 
-type FileDigest = { sizeBytes: number; sha256: string }
+export type FileDigest = { sizeBytes: number; sha256: string }
 
-async function hashFile(path: string): Promise<FileDigest | undefined> {
+export async function hashDriveFile(path: string): Promise<FileDigest | undefined> {
   const useNoFollow = fsConstants.O_NOFOLLOW !== undefined
   const fdFlags = useNoFollow ? fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW : fsConstants.O_RDONLY
   const fileHandle = await open(path, fdFlags)

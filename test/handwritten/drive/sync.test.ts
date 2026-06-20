@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
-import { mkdtemp, readFile, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -238,7 +238,7 @@ describe("drive sync once", () => {
     const state = await readDriveState(root)
     expect(state.entries["a.txt"]).toMatchObject({ content_sha256: digestOf("ok"), status: "synced" })
     expect(state.entries["b.txt"]).toBeUndefined()
-    expect(state.conflicts["b.txt"]?.reason).toContain("network broke")
+    expect(state.conflicts["b.txt"]).toBeUndefined()
   })
 
   it("follows manifest pagination until next cursor is empty", async () => {
@@ -268,7 +268,7 @@ describe("drive sync once", () => {
     expect(result.errors).toBe(1)
     expect(result.paths).toEqual([{ path: "bad\\name.txt", action: "error" }])
     expect(api.uploads).toEqual([])
-    expect((await readDriveState(root)).conflicts["bad\\name.txt"]?.reason).toContain("backslash")
+    expect((await readDriveState(root)).conflicts["bad\\name.txt"]).toBeUndefined()
   })
 
   it("records invalid remote paths as path errors without writing outside root", async () => {
@@ -282,7 +282,213 @@ describe("drive sync once", () => {
     expect(result.errors).toBe(1)
     expect(result.paths).toEqual([{ path: "../escape.txt", action: "error" }])
     await expect(readFile(join(root, "..", "escape.txt"), "utf8")).rejects.toThrow()
-    expect((await readDriveState(root)).conflicts["../escape.txt"]?.reason).toContain("relative segment")
+    expect((await readDriveState(root)).conflicts["../escape.txt"]).toBeUndefined()
+  })
+
+  it("records remote case-only path collisions as path errors and skips every ambiguous path", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-remote-case-"))
+    await initDriveState(root, "lib_1")
+    const api = mkApi([{ entries: [entry("A.txt", "upper", 1), entry("a.txt", "lower", 1)] }])
+    api.downloads.set("A.txt", "upper")
+    api.downloads.set("a.txt", "lower")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(2)
+    expect(result.downloaded).toBe(0)
+    expect(result.paths).toEqual([
+      { path: "a.txt", action: "error" },
+      { path: "A.txt", action: "error" },
+    ])
+    await expect(readFile(join(root, "A.txt"), "utf8")).rejects.toThrow()
+    await expect(readFile(join(root, "a.txt"), "utf8")).rejects.toThrow()
+    expect((await readDriveState(root)).conflicts).toEqual({})
+  })
+
+  it("records exact duplicate remote paths as path errors and skips the duplicate path", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-remote-duplicate-"))
+    await initDriveState(root, "lib_1")
+    const api = mkApi([{ entries: [entry("dup.txt", "first", 1), entry("dup.txt", "second", 2)] }])
+    api.downloads.set("dup.txt", "second")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(2)
+    expect(result.downloaded).toBe(0)
+    expect(result.paths).toEqual([
+      { path: "dup.txt", action: "error" },
+      { path: "dup.txt", action: "error" },
+    ])
+    await expect(readFile(join(root, "dup.txt"), "utf8")).rejects.toThrow()
+    expect((await readDriveState(root)).conflicts).toEqual({})
+  })
+
+  it("does not write conflicts for generic upload errors", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-upload-error-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.txt"] = stateEntry("notes.txt", "base", 7)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.txt"), "local")
+    const api = mkApi([{ entries: [entry("notes.txt", "base", 7)] }])
+    api.uploadFile = vi.fn(async () => {
+      throw new Error("network 500")
+    })
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    const after = await readDriveState(root)
+    expect(after.entries["notes.txt"]).toEqual(state.entries["notes.txt"])
+    expect(after.conflicts["notes.txt"]).toBeUndefined()
+  })
+
+  it("does not treat arbitrary 409 text as a version conflict", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-upload-409-text-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["bytes.txt"] = stateEntry("bytes.txt", "base", 3)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "bytes.txt"), "local")
+    const api = mkApi([{ entries: [entry("bytes.txt", "base", 3)] }])
+    api.uploadFile = vi.fn(async () => {
+      throw new Error("file 409 bytes bad")
+    })
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.conflicts).toBe(0)
+    expect((await readDriveState(root)).conflicts["bytes.txt"]).toBeUndefined()
+  })
+
+  it("records structured VERSION_CONFLICT upload errors as conflicts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-version-conflict-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.txt"] = stateEntry("notes.txt", "base", 5)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.txt"), "local")
+    const api = mkApi([{ entries: [entry("notes.txt", "base", 5)] }])
+    api.uploadFile = vi.fn(async () => {
+      const error = new Error("stale version") as Error & { code: string }
+      error.code = "VERSION_CONFLICT"
+      throw error
+    })
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.conflicts).toBe(1)
+    expect(result.errors).toBe(0)
+    expect((await readDriveState(root)).conflicts["notes.txt"]).toMatchObject({ reason: "VERSION_CONFLICT" })
+  })
+
+  it("fails download without overwriting when local changed after scan", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-download-race-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.txt"] = stateEntry("notes.txt", "base", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.txt"), "base")
+    const remote = entry("notes.txt", "remote", 2)
+    const api = mkApi([{ entries: [remote] }])
+    api.downloads.set("notes.txt", "remote")
+    const getManifest = api.getManifest.bind(api)
+    api.getManifest = vi.fn(async (id, cursor) => {
+      const page = await getManifest(id, cursor)
+      await writeFile(join(root, "notes.txt"), "local edit")
+      return page
+    })
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.downloaded).toBe(0)
+    expect(await readFile(join(root, "notes.txt"), "utf8")).toBe("local edit")
+    expect((await readDriveState(root)).entries["notes.txt"]).toEqual(state.entries["notes.txt"])
+  })
+
+  it("fails delete_local when local changed after scan", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delete-local-race-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["gone-local.txt"] = stateEntry("gone-local.txt", "base", 2)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "gone-local.txt"), "base")
+    const api = mkApi([{ entries: [] }])
+    const getManifest = api.getManifest.bind(api)
+    api.getManifest = vi.fn(async (id, cursor) => {
+      const page = await getManifest(id, cursor)
+      await writeFile(join(root, "gone-local.txt"), "local edit")
+      return page
+    })
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.deleted).toBe(0)
+    expect(await readFile(join(root, "gone-local.txt"), "utf8")).toBe("local edit")
+    expect((await readDriveState(root)).entries["gone-local.txt"]).toEqual(state.entries["gone-local.txt"])
+  })
+
+  it("fails delete_remote when local file was recreated after scan", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delete-remote-race-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["gone.txt"] = stateEntry("gone.txt", "base", 4)
+    await writeDriveState(root, state)
+    const api = mkApi([{ entries: [entry("gone.txt", "base", 4)] }])
+    const getManifest = api.getManifest.bind(api)
+    api.getManifest = vi.fn(async (id, cursor) => {
+      const page = await getManifest(id, cursor)
+      await writeFile(join(root, "gone.txt"), "recreated")
+      return page
+    })
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.deleted).toBe(0)
+    expect(api.deletes).toEqual([])
+    expect(await readFile(join(root, "gone.txt"), "utf8")).toBe("recreated")
+    expect((await readDriveState(root)).entries["gone.txt"]).toEqual(state.entries["gone.txt"])
+  })
+
+  it("removes a temp download and preserves the local target when remote hash mismatches", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-download-mismatch-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["docs/readme.md"] = stateEntry("docs/readme.md", "base", 1)
+    await writeDriveState(root, state)
+    await mkdir(join(root, "docs"), { recursive: true })
+    await writeFile(join(root, "docs", "readme.md"), "base")
+    const remote = { ...entry("docs/readme.md", "expected", 2), content_sha256: sha256("expected") }
+    const api = mkApi([{ entries: [remote] }])
+    api.downloads.set("docs/readme.md", "actual")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.downloaded).toBe(0)
+    expect(await readFile(join(root, "docs", "readme.md"), "utf8")).toBe("base")
+    await expect(readFile(join(root, "docs", ".readme.md.wspc-download.tmp"), "utf8")).rejects.toThrow()
+    const after = await readDriveState(root)
+    expect(after.entries["docs/readme.md"]).toEqual(state.entries["docs/readme.md"])
+    expect(after.conflicts["docs/readme.md"]).toBeUndefined()
+  })
+
+  it("fails upload when the local file changed after scan", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-upload-race-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "notes.txt"), "scan")
+    const api = mkApi([{ entries: [] }])
+    const getManifest = api.getManifest.bind(api)
+    api.getManifest = vi.fn(async (id, cursor) => {
+      const page = await getManifest(id, cursor)
+      await writeFile(join(root, "notes.txt"), "changed")
+      return page
+    })
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.uploaded).toBe(0)
+    expect(api.uploads).toEqual([])
+    expect(await readFile(join(root, "notes.txt"), "utf8")).toBe("changed")
+    expect((await readDriveState(root)).entries["notes.txt"]).toBeUndefined()
   })
 
   it("renders command summary and sets exit code for conflicts", async () => {
