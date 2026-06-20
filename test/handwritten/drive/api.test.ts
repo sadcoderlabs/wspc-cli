@@ -57,7 +57,7 @@ function mkReq(input: RequestInfo | URL, init?: RequestInit): Request {
   return new Request(input, init)
 }
 
-async function mkDriveApi(fetchImpl: typeof fetch) {
+async function mkDriveApi(fetchImpl: typeof fetch, apiBase = "https://api.wspc.ai") {
   const dir = await mkdtemp(join(tmpdir(), "wspc-drive-api-"))
   const store = new ConfigStore({ configDir: dir })
   await store.write({
@@ -65,7 +65,7 @@ async function mkDriveApi(fetchImpl: typeof fetch) {
     current_env: "prod",
     envs: {
       prod: {
-        api_base: "https://api.wspc.ai",
+        api_base: apiBase,
         current_account: "a@x.com",
         accounts: {
           "a@x.com": { email: "a@x.com", api_key: "wspc_x" },
@@ -233,6 +233,28 @@ describe("createDriveApi", () => {
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
+  it("uploadFile preserves configured API base path in raw content URLs", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = mkReq(input, init)
+      const url = new URL(req.url)
+      expect(req.method).toBe("PUT")
+      expect(url.origin).toBe("https://proxy.example.com")
+      expect(url.pathname).toBe("/api/drive/libraries/lib_1/files/content")
+      expect(url.searchParams.get("path")).toBe("notes/hello.txt")
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_x")
+      return new Response(JSON.stringify(DRIVE_UPLOAD), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    }) as typeof fetch
+
+    const api = await mkDriveApi(fetchImpl, "https://proxy.example.com/api")
+    const result = await api.uploadFile("lib_1", "notes/hello.txt", new TextEncoder().encode("hello"), "3a6eb7")
+
+    expect(result).toMatchObject(DRIVE_UPLOAD)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
   it("uploadFile throws status and response body for failed raw uploads", async () => {
     const fetchImpl = vi.fn(async () => new Response("version mismatch", { status: 409 })) as typeof fetch
     const api = await mkDriveApi(fetchImpl)
@@ -284,6 +306,28 @@ describe("createDriveApi", () => {
 
     const api = await mkDriveApi(fetchImpl)
     const result = await api.downloadFile(RESERVED_LIBRARY_ID, downloadPath)
+
+    expect(await result.text()).toBe("hello")
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it("downloadFile preserves configured API base path with trailing slash in raw content URLs", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = mkReq(input, init)
+      const url = new URL(req.url)
+      expect(req.method).toBe("GET")
+      expect(url.origin).toBe("https://proxy.example.com")
+      expect(url.pathname).toBe("/api/drive/libraries/lib_1/files/content")
+      expect(url.searchParams.get("path")).toBe("notes/hello.txt")
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_x")
+      return new Response("hello", {
+        status: 200,
+        headers: { "content-type": "text/plain" },
+      })
+    }) as typeof fetch
+
+    const api = await mkDriveApi(fetchImpl, "https://proxy.example.com/api/")
+    const result = await api.downloadFile("lib_1", "notes/hello.txt")
 
     expect(await result.text()).toBe("hello")
     expect(fetchImpl).toHaveBeenCalledOnce()
