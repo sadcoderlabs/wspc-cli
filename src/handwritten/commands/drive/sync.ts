@@ -87,6 +87,7 @@ export async function runDriveSyncOnce(root: string, api?: DriveSyncApi): Promis
       if (result.stop) break
     }
 
+    recordUnresolvedConflicts(summary, state)
     return summary
   })
 }
@@ -197,8 +198,9 @@ async function processPath(args: {
     if (action.type === "download") {
       if (!remote) throw new Error("remote entry missing for download")
       await assertLocalSafeForDownload(root, path, state.entries[path])
-      const digest = await downloadRemote(root, state.library_id, path, api, remote.content_sha256, state.entries[path])
-      durableStateRequired = true
+      const digest = await downloadRemote(root, state.library_id, path, api, remote.content_sha256, state.entries[path], () => {
+        durableStateRequired = true
+      })
       const nextState = cloneDriveState(state)
       nextState.entries[path] = stateEntryFromRemote(remote, digest)
       delete nextState.conflicts[path]
@@ -221,8 +223,9 @@ async function processPath(args: {
     }
 
     if (action.type === "delete_local") {
-      await removeLocalIfStillBase(root, path, state.entries[path])
-      durableStateRequired = true
+      await removeLocalIfStillBase(root, path, state.entries[path], () => {
+        durableStateRequired = true
+      })
       const nextState = cloneDriveState(state)
       delete nextState.entries[path]
       delete nextState.conflicts[path]
@@ -275,6 +278,24 @@ async function processPath(args: {
   return { state, stop: false }
 }
 
+function recordUnresolvedConflicts(summary: DriveSyncSummary, state: DriveState): void {
+  const newlyRecorded = new Set(summary.paths.filter((result) => result.action === "conflict").map((result) => result.path))
+  const reportedPaths = new Set(summary.paths.map((result) => result.path))
+  for (const path of Object.keys(state.conflicts).sort((left, right) => left.localeCompare(right))) {
+    if (!newlyRecorded.has(path)) {
+      summary.conflicts += 1
+    }
+    const existingResult = summary.paths.find((result) => result.path === path)
+    if (existingResult?.action === "unchanged") {
+      existingResult.action = "conflict"
+      continue
+    }
+    if (!reportedPaths.has(path)) {
+      summary.paths.push({ path, action: "conflict" })
+    }
+  }
+}
+
 async function downloadRemote(
   root: string,
   libraryId: string,
@@ -282,6 +303,7 @@ async function downloadRemote(
   api: DriveSyncApi,
   expectedSha256: string | undefined,
   entry: DriveStateEntry | undefined,
+  onLocalMutation: () => void,
 ): Promise<string> {
   const target = resolveInsideRoot(root, path)
   await mkdir(dirname(target), { recursive: true })
@@ -307,7 +329,7 @@ async function downloadRemote(
     if (expectedSha256 !== undefined && digest !== expectedSha256) {
       throw new Error(`download hash mismatch: expected ${expectedSha256}, got ${digest}`)
     }
-    await installDownloadedFile(root, path, tmp, entry)
+    await installDownloadedFile(root, path, tmp, entry, onLocalMutation)
     return digest
   } finally {
     await rm(tmp, { force: true }).catch(() => {})
@@ -319,6 +341,7 @@ async function installDownloadedFile(
   path: string,
   tmp: string,
   entry: DriveStateEntry | undefined,
+  onLocalMutation: () => void,
 ): Promise<void> {
   const target = resolveInsideRoot(root, path)
   const backup = localMutationBackupPath(target)
@@ -328,9 +351,10 @@ async function installDownloadedFile(
   try {
     try {
       await rename(target, backup)
+      onLocalMutation()
     } catch (error) {
       if (!isNotFoundError(error)) throw error
-      await installNoOverwrite(tmp, target)
+      await installNoOverwrite(tmp, target, onLocalMutation)
       return
     }
 
@@ -346,7 +370,7 @@ async function installDownloadedFile(
     backupIsExpectedBase = true
 
     try {
-      await installNoOverwrite(tmp, target)
+      await installNoOverwrite(tmp, target, onLocalMutation)
     } catch (error) {
       const restored = await restoreBackupWhenPossible(backup, target)
       if (!restored && backupIsExpectedBase) {
@@ -363,7 +387,12 @@ async function installDownloadedFile(
   }
 }
 
-async function removeLocalIfStillBase(root: string, path: string, entry: DriveStateEntry | undefined): Promise<void> {
+async function removeLocalIfStillBase(
+  root: string,
+  path: string,
+  entry: DriveStateEntry | undefined,
+  onLocalMutation: () => void,
+): Promise<void> {
   const target = resolveInsideRoot(root, path)
   const backup = localMutationBackupPath(target)
   const expectedSha256 = expectedLocalBaseSha256(entry)
@@ -375,6 +404,7 @@ async function removeLocalIfStillBase(root: string, path: string, entry: DriveSt
   try {
     try {
       await rename(target, backup)
+      onLocalMutation()
     } catch (error) {
       if (isNotFoundError(error)) {
         throw new Error("local file changed before delete")
@@ -405,8 +435,9 @@ async function removeLocalIfStillBase(root: string, path: string, entry: DriveSt
   }
 }
 
-async function installNoOverwrite(source: string, target: string): Promise<void> {
+async function installNoOverwrite(source: string, target: string, onLinked?: () => void): Promise<void> {
   await link(source, target)
+  onLinked?.()
   await unlink(source)
 }
 

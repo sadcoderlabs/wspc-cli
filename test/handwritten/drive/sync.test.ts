@@ -306,6 +306,24 @@ describe("drive sync once", () => {
     })
   })
 
+  it("reports persisted unresolved conflicts even when no path changes in this run", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-existing-conflict-"))
+    const state = await initDriveState(root, "lib_1")
+    state.conflicts["stuck.txt"] = {
+      detected_at: "2026-06-21T00:00:00.000Z",
+      reason: "manual_resolution_required",
+    }
+    await writeDriveState(root, state)
+    const api = mkApi([{ entries: [] }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.conflicts).toBe(1)
+    expect(result.errors).toBe(0)
+    expect(result.paths).toEqual([{ path: "stuck.txt", action: "conflict" }])
+    expect((await readDriveState(root)).conflicts["stuck.txt"]).toEqual(state.conflicts["stuck.txt"])
+  })
+
   it("persists earlier success when a later path errors", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-partial-"))
     await initDriveState(root, "lib_1")
@@ -781,6 +799,26 @@ describe("drive sync once", () => {
     await writeDriveState(root, state)
     await writeFile(join(root, "notes.txt"), "local")
     const api = mkApi([{ entries: [entry("notes.txt", "remote", 2)] }])
+    const command = driveSyncCommand(api)
+
+    await command.parseAsync(["node", "sync", "once", root])
+
+    expect(process.exitCode).toBe(1)
+    expect(render).toHaveBeenCalledWith(
+      { kind: "drive_sync_once", display: { shape: "object" } },
+      expect.objectContaining({ conflicts: 1, errors: 0 }),
+    )
+  })
+
+  it("sets exit code for persisted unresolved conflicts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-command-existing-conflict-"))
+    const state = await initDriveState(root, "lib_1")
+    state.conflicts["stuck.txt"] = {
+      detected_at: "2026-06-21T00:00:00.000Z",
+      reason: "manual_resolution_required",
+    }
+    await writeDriveState(root, state)
+    const api = mkApi([{ entries: [] }])
     const command = driveSyncCommand(api)
 
     await command.parseAsync(["node", "sync", "once", root])

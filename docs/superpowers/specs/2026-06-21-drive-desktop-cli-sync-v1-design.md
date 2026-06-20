@@ -149,6 +149,7 @@ Decision table：
 | none | exists | exists, different hash | conflict |
 | exists, local unchanged | none | remote unchanged | delete remote |
 | exists, local unchanged | exists | remote changed | download remote |
+| exists, local unchanged | exists | none | delete local |
 | exists, local deleted | none | remote unchanged | delete remote |
 | exists, local deleted | none | remote changed | conflict |
 | exists, local changed | exists | remote unchanged | upload update with state `entry_version` |
@@ -203,4 +204,3 @@ Human output 應是 compact summary：uploaded、downloaded、deleted、unchange
 - rename detection
 - stale-lock recovery
 - empty directory preservation
-
