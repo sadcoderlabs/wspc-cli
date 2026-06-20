@@ -3,7 +3,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path"
 const UTF8_SEGMENT_LIMIT = 255
 const UTF8_PATH_LIMIT = 1024
 const CONTROL_CHARS = /[\0-\x1f\x7f]/
-const WINDOWS_DRIVE_PREFIX = /^[a-zA-Z]:[\\/]/u
+const WINDOWS_DRIVE_PREFIX = /^[a-zA-Z]:/
 const UNC_PREFIX = /^\\\\/
 const ABSOLUTE_POSIX_DOUBLE_SLASH = /^\/\//
 

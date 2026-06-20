@@ -10,8 +10,8 @@ export interface DriveFileEntry {
   sha256: string
 }
 
-export async function scanDriveFiles(root: string): Promise<Map<string, DriveFileEntry>> {
-  const files = new Map<string, DriveFileEntry>()
+export async function scanDriveFiles(root: string): Promise<Record<string, DriveFileEntry>> {
+  const files: Record<string, DriveFileEntry> = {}
   const absRoot = root
   await walk(absRoot, "")
   return files
@@ -43,10 +43,10 @@ export async function scanDriveFiles(root: string): Promise<Map<string, DriveFil
       }
 
       const digest = await hashFile(nextPath)
-      files.set(nextDrivePath, {
+      files[nextDrivePath] = {
         sha256: digest.sha256,
         size_bytes: digest.sizeBytes,
-      })
+      }
     }
   }
 

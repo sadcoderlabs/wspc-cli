@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { describe, expect, it } from "vitest"
@@ -21,7 +21,7 @@ describe("drive scanner", () => {
 
     const files = await scanDriveFiles(root)
 
-    expect(Object.fromEntries(files.entries())).toEqual({
+    expect(files).toEqual({
       ".secret": {
         sha256: sha256("hidden"),
         size_bytes: 6,
@@ -45,7 +45,7 @@ describe("drive scanner", () => {
 
     const files = await scanDriveFiles(root)
 
-    expect(Object.fromEntries(files.entries())).toEqual({
+    expect(files).toEqual({
       "keep.txt": {
         sha256: sha256("keep"),
         size_bytes: 4,
@@ -60,13 +60,14 @@ describe("drive scanner", () => {
 
     const files = await scanDriveFiles(root)
 
-    expect(Object.fromEntries(files.entries())).toEqual({
+    expect(files).toEqual({
       "target.txt": {
         sha256: sha256("target"),
         size_bytes: 6,
       },
     })
-    expect(files.has("linked.txt")).toBe(false)
+    expect(files.linked).toBeUndefined()
+    expect(files["linked.txt"]).toBeUndefined()
   })
 
   it("skips non-regular entries", async () => {
@@ -75,7 +76,6 @@ describe("drive scanner", () => {
     await writeFile(join(root, "dir", "a.txt"), "in-dir")
 
     const files = await scanDriveFiles(root)
-    const names = [...files.keys()]
-    expect(names).toEqual(["dir/a.txt"])
+    expect(Object.keys(files)).toEqual(["dir/a.txt"])
   })
 })
