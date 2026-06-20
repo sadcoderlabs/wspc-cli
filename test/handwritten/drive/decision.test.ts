@@ -29,7 +29,7 @@ describe("drive decision", () => {
   > = [
     ["new local", undefined, { sha256: "a" }, undefined, "upload_create"],
     ["new remote", undefined, undefined, { content_sha256: "a" }, "download"],
-    ["same first sight", undefined, { sha256: "a" }, { content_sha256: "a" }, "state_only"],
+    ["same first sight", undefined, { sha256: "a" }, { content_sha256: "a", entry_version: 1 }, "state_only"],
     ["different first sight", undefined, { sha256: "a" }, { content_sha256: "b" }, "conflict"],
     ["delete remote", base, undefined, { content_sha256: "old", entry_version: 1 }, "delete_remote"],
     ["download changed remote", base, { sha256: "old" }, { content_sha256: "new", entry_version: 2 }, "download"],
@@ -65,6 +65,14 @@ describe("drive decision", () => {
 
   it("reports conservative conflict reasons", () => {
     expect(decideDriveAction(undefined, { sha256: "local" }, { content_sha256: "remote" })).toEqual({
+      type: "conflict",
+      reason: "remote_missing_entry_version",
+    })
+    expect(decideDriveAction(undefined, { sha256: "same" }, { content_sha256: "same" })).toEqual({
+      type: "conflict",
+      reason: "remote_missing_entry_version",
+    })
+    expect(decideDriveAction(undefined, { sha256: "local" }, { content_sha256: "remote", entry_version: 1 })).toEqual({
       type: "conflict",
       reason: "local_and_remote_without_base",
     })
