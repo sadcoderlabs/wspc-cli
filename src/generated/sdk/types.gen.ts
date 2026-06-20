@@ -753,6 +753,88 @@ export type UpdateEventBody = {
     }>;
 };
 
+export type DriveLibrary = {
+    id: string;
+    org_id: string;
+    created_by_user_id: string;
+    name: string;
+    version: number;
+    file_count: number;
+    storage_bytes: number;
+    created_at: number;
+    updated_at: number;
+    deleted_at?: number;
+};
+
+export type CreateDriveLibraryBody = {
+    name: string;
+};
+
+export type DeleteDriveFileResponse = {
+    entry: {
+        id: string;
+        path: string;
+        kind: 'file';
+        entry_version: number;
+        current_version_id?: string;
+        content_sha256?: string;
+        size_bytes: number;
+        updated_at: string;
+        deleted_at?: string;
+    };
+    result: 'deleted' | 'unchanged';
+};
+
+export type DeleteDriveFileBody = {
+    path: string;
+    expected_entry_version: number;
+};
+
+export type DeleteDriveLibraryBody = {
+    expected_version: number;
+};
+
+export type DriveManifestResponse = {
+    library: DriveLibrary;
+    entries: Array<{
+        id: string;
+        path: string;
+        kind: 'file';
+        entry_version: number;
+        current_version_id?: string;
+        content_sha256?: string;
+        size_bytes: number;
+        updated_at: string;
+        deleted_at?: string;
+    }>;
+    next_cursor: string | null;
+};
+
+export type ListDriveLibrariesResponse = {
+    libraries: Array<DriveLibrary>;
+    next_cursor?: string;
+};
+
+export type UpdateDriveLibraryBody = {
+    name?: string;
+    expected_version: number;
+};
+
+export type UploadDriveFileResponse = {
+    entry: {
+        id: string;
+        path: string;
+        kind: 'file';
+        entry_version: number;
+        current_version_id?: string;
+        content_sha256?: string;
+        size_bytes: number;
+        updated_at: string;
+        deleted_at?: string;
+    };
+    result: 'created' | 'updated' | 'unchanged';
+};
+
 export type Alias = {
     /**
      * Full wspc alias email address. This is the stable alias identifier.
@@ -4549,6 +4631,846 @@ export type EventRestoreResponses = {
 };
 
 export type EventRestoreResponse = EventRestoreResponses[keyof EventRestoreResponses];
+
+export type DriveLibraryListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path?: never;
+    query?: {
+        limit?: string;
+        cursor?: string;
+        include_deleted?: string;
+    };
+    url: '/drive/libraries';
+};
+
+export type DriveLibraryListErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveLibraryListError = DriveLibraryListErrors[keyof DriveLibraryListErrors];
+
+export type DriveLibraryListResponses = {
+    /**
+     * List
+     */
+    200: ListDriveLibrariesResponse;
+};
+
+export type DriveLibraryListResponse = DriveLibraryListResponses[keyof DriveLibraryListResponses];
+
+export type DriveLibraryCreateData = {
+    body?: CreateDriveLibraryBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/libraries';
+};
+
+export type DriveLibraryCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveLibraryCreateError = DriveLibraryCreateErrors[keyof DriveLibraryCreateErrors];
+
+export type DriveLibraryCreateResponses = {
+    /**
+     * Created
+     */
+    201: DriveLibrary;
+};
+
+export type DriveLibraryCreateResponse = DriveLibraryCreateResponses[keyof DriveLibraryCreateResponses];
+
+export type DriveFileDeleteData = {
+    body?: DeleteDriveFileBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/libraries/{id}/files/delete';
+};
+
+export type DriveFileDeleteErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveFileDeleteError = DriveFileDeleteErrors[keyof DriveFileDeleteErrors];
+
+export type DriveFileDeleteResponses = {
+    /**
+     * Deleted
+     */
+    200: DeleteDriveFileResponse;
+};
+
+export type DriveFileDeleteResponse = DriveFileDeleteResponses[keyof DriveFileDeleteResponses];
+
+export type DriveLibraryDeleteData = {
+    body?: DeleteDriveLibraryBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/libraries/{id}';
+};
+
+export type DriveLibraryDeleteErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveLibraryDeleteError = DriveLibraryDeleteErrors[keyof DriveLibraryDeleteErrors];
+
+export type DriveLibraryDeleteResponses = {
+    /**
+     * Deleted
+     */
+    200: DriveLibrary;
+};
+
+export type DriveLibraryDeleteResponse = DriveLibraryDeleteResponses[keyof DriveLibraryDeleteResponses];
+
+export type DriveLibraryGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/libraries/{id}';
+};
+
+export type DriveLibraryGetErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveLibraryGetError = DriveLibraryGetErrors[keyof DriveLibraryGetErrors];
+
+export type DriveLibraryGetResponses = {
+    /**
+     * Library
+     */
+    200: DriveLibrary;
+};
+
+export type DriveLibraryGetResponse = DriveLibraryGetResponses[keyof DriveLibraryGetResponses];
+
+export type DriveLibraryUpdateData = {
+    body?: UpdateDriveLibraryBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/libraries/{id}';
+};
+
+export type DriveLibraryUpdateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveLibraryUpdateError = DriveLibraryUpdateErrors[keyof DriveLibraryUpdateErrors];
+
+export type DriveLibraryUpdateResponses = {
+    /**
+     * Updated
+     */
+    200: DriveLibrary;
+};
+
+export type DriveLibraryUpdateResponse = DriveLibraryUpdateResponses[keyof DriveLibraryUpdateResponses];
+
+export type DriveFileDownloadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        path: string;
+        expected_entry_version?: string;
+        version_id?: string;
+    };
+    url: '/drive/libraries/{id}/files/content';
+};
+
+export type DriveFileDownloadErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveFileDownloadError = DriveFileDownloadErrors[keyof DriveFileDownloadErrors];
+
+export type DriveFileDownloadResponses = {
+    /**
+     * File content
+     */
+    200: Blob | File;
+};
+
+export type DriveFileDownloadResponse = DriveFileDownloadResponses[keyof DriveFileDownloadResponses];
+
+export type DriveFileUploadData = {
+    body?: Blob | File;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        path: string;
+        expected_entry_version?: string;
+        version_id?: string;
+    };
+    url: '/drive/libraries/{id}/files/content';
+};
+
+export type DriveFileUploadErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveFileUploadError = DriveFileUploadErrors[keyof DriveFileUploadErrors];
+
+export type DriveFileUploadResponses = {
+    /**
+     * Uploaded
+     */
+    200: UploadDriveFileResponse;
+};
+
+export type DriveFileUploadResponse = DriveFileUploadResponses[keyof DriveFileUploadResponses];
+
+export type DriveManifestGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        limit?: string;
+        cursor?: string;
+        include_deleted?: string;
+    };
+    url: '/drive/libraries/{id}/manifest';
+};
+
+export type DriveManifestGetErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveManifestGetError = DriveManifestGetErrors[keyof DriveManifestGetErrors];
+
+export type DriveManifestGetResponses = {
+    /**
+     * Manifest
+     */
+    200: DriveManifestResponse;
+};
+
+export type DriveManifestGetResponse = DriveManifestGetResponses[keyof DriveManifestGetResponses];
 
 export type EmailAliasListData = {
     body?: never;

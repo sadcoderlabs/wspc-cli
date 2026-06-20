@@ -6,6 +6,7 @@ const SERVICE_HEADERS: Record<ConsistencyBookmarkService, string> = {
   auth: "x-cb-auth",
   todo: "x-cb-todo",
   calendar: "x-cb-cal",
+  drive: "x-cb-drive",
   email: "x-cb-email",
   push: "x-cb-push",
 }

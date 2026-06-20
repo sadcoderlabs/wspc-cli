@@ -57,6 +57,37 @@ describe("createConsistencyFetch", () => {
     expect(req.headers.get("x-cb-push")).toBe("push_1")
   })
 
+  it("injects saved drive bookmark on WSPC API requests", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-drive-cb-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          consistency_bookmarks: { drive: "drive_old" } as never,
+          accounts: {},
+        },
+      },
+    })
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const req = input as Request
+      expect(req.headers.get("x-cb-drive")).toBe("drive_old")
+      return new Response("{}", { headers: { "x-cb-drive": "drive_new" } })
+    })
+
+    const wrapped = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    })
+    await wrapped("https://api.wspc.ai/drive/libraries")
+
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmarks?.drive).toBe("drive_new")
+  })
+
   it("replaces caller supplied service headers with saved bookmarks", async () => {
     const store = await seededStore({ todo: "todo_1", calendar: "cal_1" })
     const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }))
