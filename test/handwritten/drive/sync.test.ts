@@ -520,6 +520,31 @@ describe("drive sync once", () => {
     expect((await readDriveState(root)).entries["notes.txt"]).toEqual(state.entries["notes.txt"])
   })
 
+  it("fails download without overwriting a target recreated after backup validation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-download-install-race-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.txt"] = stateEntry("notes.txt", "base", 1)
+    await writeDriveState(root, state)
+    const localPath = join(root, "notes.txt")
+    await writeFile(localPath, "base")
+    const remote = entry("notes.txt", "remote", 2)
+    const api = mkApi([{ entries: [remote] }])
+    api.downloads.set("notes.txt", "remote")
+    scannerControl.afterHash = async (path) => {
+      if (path.includes(".notes.txt.wspc-backup-")) {
+        scannerControl.afterHash = undefined
+        await writeFile(localPath, "recreated after backup")
+      }
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.downloaded).toBe(0)
+    expect(await readFile(localPath, "utf8")).toBe("recreated after backup")
+    expect((await readDriveState(root)).entries["notes.txt"]).toEqual(state.entries["notes.txt"])
+  })
+
   it("fails delete_local when local changed after scan", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delete-local-race-"))
     const state = await initDriveState(root, "lib_1")
@@ -542,8 +567,8 @@ describe("drive sync once", () => {
     expect((await readDriveState(root)).entries["gone-local.txt"]).toEqual(state.entries["gone-local.txt"])
   })
 
-  it("fails delete_local when local changes immediately before rm", async () => {
-    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delete-local-final-race-"))
+  it("fails delete_local without removing a target recreated after backup validation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delete-local-recreate-race-"))
     const state = await initDriveState(root, "lib_1")
     state.entries["gone-local.txt"] = stateEntry("gone-local.txt", "base", 2)
     await writeDriveState(root, state)
@@ -551,9 +576,9 @@ describe("drive sync once", () => {
     await writeFile(localPath, "base")
     const api = mkApi([{ entries: [] }])
     scannerControl.afterHash = async (path) => {
-      if (path === localPath) {
+      if (path.includes(".gone-local.txt.wspc-backup-")) {
         scannerControl.afterHash = undefined
-        await writeFile(localPath, "local edit before rm")
+        await writeFile(localPath, "recreated during delete")
       }
     }
 
@@ -561,7 +586,7 @@ describe("drive sync once", () => {
 
     expect(result.errors).toBe(1)
     expect(result.deleted).toBe(0)
-    expect(await readFile(localPath, "utf8")).toBe("local edit before rm")
+    expect(await readFile(localPath, "utf8")).toBe("recreated during delete")
     expect((await readDriveState(root)).entries["gone-local.txt"]).toEqual(state.entries["gone-local.txt"])
   })
 
@@ -674,7 +699,7 @@ describe("drive sync once", () => {
     expect((await readDriveState(root)).entries["notes.txt"]).toBeUndefined()
   })
 
-  it("does not leak state from a failed write into a later successful path", async () => {
+  it("stops after a remote mutation when state write fails", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-state-write-fail-"))
     await initDriveState(root, "lib_1")
     await writeFile(join(root, "a.txt"), "a")
@@ -691,10 +716,12 @@ describe("drive sync once", () => {
     const result = await runDriveSyncOnce(root, api)
 
     expect(result.errors).toBe(1)
-    expect(result.uploaded).toBe(1)
+    expect(result.uploaded).toBe(0)
+    expect(api.uploads).toEqual([{ id: "lib_1", path: "a.txt", sha256: sha256("a"), expectedEntryVersion: 0 }])
+    expect(result.paths).toEqual([{ path: "a.txt", action: "error" }])
     const after = await readDriveState(root)
     expect(after.entries["a.txt"]).toBeUndefined()
-    expect(after.entries["b.txt"]).toMatchObject({ content_sha256: sha256("b"), status: "synced" })
+    expect(after.entries["b.txt"]).toBeUndefined()
   })
 
   it("renders command summary and sets exit code for conflicts", async () => {

@@ -1,6 +1,6 @@
 import { Command } from "commander"
 import { createWriteStream } from "node:fs"
-import { mkdir, readFile, rename, rm } from "node:fs/promises"
+import { link, mkdir, readFile, rename, rm, unlink } from "node:fs/promises"
 import { basename, dirname, join, resolve } from "node:path"
 import { createHash, randomUUID } from "node:crypto"
 import { Readable, Transform } from "node:stream"
@@ -22,6 +22,7 @@ import { render } from "../../output/render.js"
 import type { DriveManifestResponse, UploadDriveFileResponse } from "../../../generated/sdk/index.js"
 
 type RemoteEntry = DriveManifestResponse["entries"][number]
+type ProcessPathResult = { state: DriveState; stop: boolean }
 
 export interface DriveSyncApi {
   getManifest(id: string, cursor?: string): Promise<DriveManifestResponse>
@@ -81,7 +82,9 @@ export async function runDriveSyncOnce(root: string, api?: DriveSyncApi): Promis
     for (const path of paths) {
       const remote = remoteFiles[path]
       const action = decideDriveAction(state.entries[path], localFiles[path], remote)
-      state = await processPath({ root, state, api: syncApi, path, action, remote, local: localFiles[path], summary })
+      const result = await processPath({ root, state, api: syncApi, path, action, remote, local: localFiles[path], summary })
+      state = result.state
+      if (result.stop) break
     }
 
     return summary
@@ -172,21 +175,23 @@ async function processPath(args: {
   remote: RemoteEntry | undefined
   local: { sha256: string; size_bytes: number } | undefined
   summary: DriveSyncSummary
-}): Promise<DriveState> {
+}): Promise<ProcessPathResult> {
   const { root, state, api, path, action, remote, local, summary } = args
   summary.paths.push({ path, action: action.type })
+  let remoteMutationCompleted = false
 
   try {
     if (action.type === "upload_create" || action.type === "upload_update") {
       const localPath = resolveInsideRoot(root, path)
       const { body, digest: uploadDigest } = await readStableUploadBody(localPath, local)
       const uploaded = await api.uploadFile(state.library_id, path, body, uploadDigest, action.expectedEntryVersion)
+      remoteMutationCompleted = true
       const nextState = cloneDriveState(state)
       nextState.entries[path] = stateEntryFromRemote(uploaded.entry, uploadDigest)
       delete nextState.conflicts[path]
       await commitDriveState(root, nextState)
       summary.uploaded += 1
-      return nextState
+      return { state: nextState, stop: false }
     }
 
     if (action.type === "download") {
@@ -198,31 +203,30 @@ async function processPath(args: {
       delete nextState.conflicts[path]
       await commitDriveState(root, nextState)
       summary.downloaded += 1
-      return nextState
+      return { state: nextState, stop: false }
     }
 
     if (action.type === "delete_remote") {
       await assertLocalAbsentBeforeRemoteDelete(root, path)
       await api.deleteFile(state.library_id, path, action.expectedEntryVersion)
+      remoteMutationCompleted = true
       await assertLocalAbsentBeforeRemoteDelete(root, path)
       const nextState = cloneDriveState(state)
       delete nextState.entries[path]
       delete nextState.conflicts[path]
       await commitDriveState(root, nextState)
       summary.deleted += 1
-      return nextState
+      return { state: nextState, stop: false }
     }
 
     if (action.type === "delete_local") {
-      await assertLocalStillMatchesBase(root, path, state.entries[path])
-      await assertLocalStillMatchesBase(root, path, state.entries[path])
-      await rm(resolveInsideRoot(root, path), { force: true })
+      await removeLocalIfStillBase(root, path, state.entries[path])
       const nextState = cloneDriveState(state)
       delete nextState.entries[path]
       delete nextState.conflicts[path]
       await commitDriveState(root, nextState)
       summary.deleted += 1
-      return nextState
+      return { state: nextState, stop: false }
     }
 
     if (action.type === "state_only") {
@@ -232,7 +236,7 @@ async function processPath(args: {
       delete nextState.conflicts[path]
       await commitDriveState(root, nextState)
       summary.unchanged += 1
-      return nextState
+      return { state: nextState, stop: false }
     }
 
     if (action.type === "remove_state") {
@@ -241,13 +245,13 @@ async function processPath(args: {
       delete nextState.conflicts[path]
       await commitDriveState(root, nextState)
       summary.unchanged += 1
-      return nextState
+      return { state: nextState, stop: false }
     }
 
     if (action.type === "conflict") {
       const nextState = await recordConflict(root, state, path, action.reason, remote)
       summary.conflicts += 1
-      return nextState
+      return { state: nextState, stop: false }
     }
 
     summary.unchanged += 1
@@ -257,15 +261,16 @@ async function processPath(args: {
         const nextState = await recordConflict(root, state, path, "VERSION_CONFLICT", remote)
         summary.conflicts += 1
         summary.paths[summary.paths.length - 1] = { path, action: "conflict" }
-        return nextState
+        return { state: nextState, stop: false }
       } catch (writeError) {
         await recordPathError(summary, undefined, path, writeError)
-        return state
+        return { state, stop: remoteMutationCompleted }
       }
     }
     await recordPathError(summary, undefined, path, error)
+    return { state, stop: remoteMutationCompleted }
   }
-  return state
+  return { state, stop: false }
 }
 
 async function downloadRemote(
@@ -300,12 +305,134 @@ async function downloadRemote(
     if (expectedSha256 !== undefined && digest !== expectedSha256) {
       throw new Error(`download hash mismatch: expected ${expectedSha256}, got ${digest}`)
     }
-    await assertLocalSafeForDownload(root, path, entry)
-    await rename(tmp, target)
+    await installDownloadedFile(root, path, tmp, entry)
     return digest
   } finally {
     await rm(tmp, { force: true }).catch(() => {})
   }
+}
+
+async function installDownloadedFile(
+  root: string,
+  path: string,
+  tmp: string,
+  entry: DriveStateEntry | undefined,
+): Promise<void> {
+  const target = resolveInsideRoot(root, path)
+  const backup = localMutationBackupPath(target)
+  const expectedSha256 = expectedLocalBaseSha256(entry)
+  let backupIsExpectedBase = false
+
+  try {
+    try {
+      await rename(target, backup)
+    } catch (error) {
+      if (!isNotFoundError(error)) throw error
+      await installNoOverwrite(tmp, target)
+      return
+    }
+
+    const backupDigest = await hashDriveFile(backup)
+    if (!backupDigest) {
+      await restoreBackupWhenPossible(backup, target)
+      throw new Error("local file changed before download")
+    }
+    if (!expectedSha256 || backupDigest.sha256 !== expectedSha256) {
+      await restoreBackupWhenPossible(backup, target)
+      throw new Error("local file changed before download")
+    }
+    backupIsExpectedBase = true
+
+    try {
+      await installNoOverwrite(tmp, target)
+    } catch (error) {
+      const restored = await restoreBackupWhenPossible(backup, target)
+      if (!restored && backupIsExpectedBase) {
+        await unlink(backup).catch(() => {})
+      }
+      throw error
+    }
+    await unlink(backup)
+  } catch (error) {
+    if (!backupIsExpectedBase) {
+      await restoreBackupWhenPossible(backup, target)
+    }
+    throw error
+  }
+}
+
+async function removeLocalIfStillBase(root: string, path: string, entry: DriveStateEntry | undefined): Promise<void> {
+  const target = resolveInsideRoot(root, path)
+  const backup = localMutationBackupPath(target)
+  const expectedSha256 = expectedLocalBaseSha256(entry)
+  if (!expectedSha256) {
+    throw new Error("local file has no sync base")
+  }
+
+  let backupIsExpectedBase = false
+  try {
+    try {
+      await rename(target, backup)
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        throw new Error("local file changed before delete")
+      }
+      throw error
+    }
+
+    const backupDigest = await hashDriveFile(backup)
+    if (!backupDigest || backupDigest.sha256 !== expectedSha256) {
+      await restoreBackupWhenPossible(backup, target)
+      throw new Error("local file changed before delete")
+    }
+    backupIsExpectedBase = true
+
+    if (await localFileExists(target)) {
+      await unlink(backup).catch(() => {})
+      throw new Error("local file reappeared during delete")
+    }
+    await unlink(backup)
+    if (await localFileExists(target)) {
+      throw new Error("local file reappeared during delete")
+    }
+  } catch (error) {
+    if (!backupIsExpectedBase) {
+      await restoreBackupWhenPossible(backup, target)
+    }
+    throw error
+  }
+}
+
+async function installNoOverwrite(source: string, target: string): Promise<void> {
+  await link(source, target)
+  await unlink(source)
+}
+
+async function restoreBackupWhenPossible(backup: string, target: string): Promise<boolean> {
+  try {
+    await installNoOverwrite(backup, target)
+    return true
+  } catch (error) {
+    if (isAlreadyExistsError(error)) return false
+    if (isNotFoundError(error)) return true
+    return false
+  }
+}
+
+async function localFileExists(path: string): Promise<boolean> {
+  const digest = await hashDriveFile(path).catch((error: unknown) => {
+    if (isNotFoundError(error)) return undefined
+    throw error
+  })
+  return digest !== undefined
+}
+
+function localMutationBackupPath(target: string): string {
+  return join(dirname(target), `.${basename(target)}.wspc-backup-${randomUUID()}.tmp`)
+}
+
+function expectedLocalBaseSha256(entry: DriveStateEntry | undefined): string | undefined {
+  return entry?.last_local_sha256 ?? entry?.content_sha256
 }
 
 async function readStableUploadBody(
@@ -355,20 +482,6 @@ async function assertLocalSafeForDownload(
   }
   if (digest.sha256 !== entry.last_local_sha256) {
     throw new Error("local file changed before download")
-  }
-}
-
-async function assertLocalStillMatchesBase(root: string, path: string, entry: DriveStateEntry | undefined): Promise<void> {
-  const expectedSha256 = entry?.last_local_sha256 ?? entry?.content_sha256
-  if (!expectedSha256) {
-    throw new Error("local file has no sync base")
-  }
-  const digest = await hashDriveFile(resolveInsideRoot(root, path)).catch((error: unknown) => {
-    if (isNotFoundError(error)) return undefined
-    throw error
-  })
-  if (!digest || digest.sha256 !== expectedSha256) {
-    throw new Error("local file changed before delete")
   }
 }
 
@@ -472,5 +585,13 @@ function isNotFoundError(error: unknown): boolean {
     error instanceof Error &&
     "code" in error &&
     (error as NodeJS.ErrnoException).code === "ENOENT"
+  )
+}
+
+function isAlreadyExistsError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === "EEXIST"
   )
 }
