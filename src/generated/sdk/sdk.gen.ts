@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainDeleteData, EmailDomainDeleteErrors, EmailDomainDeleteResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainDeleteData, EmailDomainDeleteErrors, EmailDomainDeleteResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthAuthorizeGrantData, OauthAuthorizeGrantErrors, OauthAuthorizeGrantResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthDeviceConfirmData, OauthDeviceConfirmErrors, OauthDeviceConfirmResponses, OauthDeviceVerifyData, OauthDeviceVerifyErrors, OauthDeviceVerifyResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -27,6 +27,36 @@ export const inviteAccept = <ThrowOnError extends boolean = false>(options: Opti
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/auth/invites/{id}/accept',
     ...options
+});
+
+/**
+ * Create an authorization code from the web approval UI
+ *
+ * Creates a PKCE authorization code for an already-authenticated browser account and returns the client redirect URL.
+ */
+export const oauthAuthorizeGrant = <ThrowOnError extends boolean = false>(options: Options<OauthAuthorizeGrantData, ThrowOnError>) => (options.client ?? client).post<OauthAuthorizeGrantResponses, OauthAuthorizeGrantErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/oauth/grant',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Approve or deny a pending device code
+ *
+ * Consumes the authenticated user's Bearer token to approve or deny a pending RFC 8628 device-code request.
+ */
+export const oauthDeviceConfirm = <ThrowOnError extends boolean = false>(options: Options<OauthDeviceConfirmData, ThrowOnError>) => (options.client ?? client).post<OauthDeviceConfirmResponses, OauthDeviceConfirmErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/oauth/device/confirm',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
@@ -501,6 +531,20 @@ export const authVerifyCode = <ThrowOnError extends boolean = false>(options?: O
     headers: {
         'Content-Type': 'application/json',
         ...options?.headers
+    }
+});
+
+/**
+ * Look up a device user code for the web approval UI
+ *
+ * Validates a user-facing device code and returns the web consent route metadata without requiring a browser session.
+ */
+export const oauthDeviceVerify = <ThrowOnError extends boolean = false>(options: Options<OauthDeviceVerifyData, ThrowOnError>) => (options.client ?? client).post<OauthDeviceVerifyResponses, OauthDeviceVerifyErrors, ThrowOnError>({
+    url: '/auth/oauth/device/verify',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
     }
 });
 

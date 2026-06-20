@@ -13,6 +13,7 @@ export const todoCreateCommand = new Command("add")
   .option("--parent-id <value>", "Parent todo ID (`tod_<ULID>`) to attach this todo as a child under another todo. Omit or pass `null` to create a root-level todo. Nesting is limited to one level; attempting to set a child todo as a parent will trigger `PARENT_IS_CHILD`. To make a subtask appear on every occurrence of a recurring rule, set this to that rule's template todo id (the template id returned when the rule is created); the server re-materializes future occurrences so each carries the subtask.")
   .option("--status <value>", "Initial status of the todo. Omit to default to `open`. Allowed values: `open`, `in_progress`, `done`, `cancelled`.")
   .option("--due-at <value>", "Optional calendar due date in ISO date-only format (`YYYY-MM-DD`). Stored without timezone offsets to represent the same local calendar day globally. Pass `\"\"` or omit the field to skip setting a due date. Passing `null` is strictly rejected.")
+  .option("--idempotency-key <value>", "idempotency_key")
   .option("--type-id <value>", "Type id this todo belongs to. Omit to use the project's default type. When project_id is also supplied, the type must belong to the same project. New server-generated type ids use typ_<ULID>; legacy ids remain accepted.")
   .option("--custom-fields <value>", "Custom field values keyed by the field's immutable `key` (not the human `label`). Each value must match the declared field type: string fields require string values, and string_array fields require string arrays. Providing a key that is not declared on the resolved todo type is strictly rejected with `UNDECLARED_FIELD`. Missing required fields that lack a default value are rejected with `FIELD_REQUIRED`. Defaults declared on the type are auto-applied at create time.")
   .action(async (title, opts) => {
@@ -26,6 +27,7 @@ export const todoCreateCommand = new Command("add")
         parent_id: opts.parentId,
         status: opts.status,
         due_at: opts.dueAt,
+        idempotency_key: opts.idempotencyKey,
         type_id: opts.typeId,
         custom_fields: parseJsonField(opts.customFields, "custom-fields"),
       },

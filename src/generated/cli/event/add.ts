@@ -17,6 +17,7 @@ export const eventCreateCommand = new Command("add")
   .option("-u, --url <value>", "Optional meeting link (Zoom / Meet / etc.). Kept separate from `location` so calendar clients can render it as a join action.")
   .option("--status <value>", "Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses.")
   .option("--attendee <value>", "Up to 50 unique attendees (deduped case-insensitively by email). If non-empty, each attendee receives an invitation email with an `.ics` REQUEST attachment as a side effect of creation.", (val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[])
+  .option("--idempotency-key <value>", "idempotency_key")
   .option("--all-day", "all_day")
   .option("--tz <zone>", "IANA timezone for relative time parsing")
   .action(async (title, opts) => {
@@ -51,6 +52,7 @@ export const eventCreateCommand = new Command("add")
         url: opts.url,
         status: opts.status,
         attendees: attendees,
+        idempotency_key: opts.idempotencyKey,
       },
     })
     if (result.error || !result.response?.ok) {

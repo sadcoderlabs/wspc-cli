@@ -657,6 +657,7 @@ export type CreateEventBody = {
          */
         display_name?: string;
     }>;
+    idempotency_key?: string;
 };
 
 /**
@@ -1299,6 +1300,7 @@ export type CreateTodoBody = {
      * Optional calendar due date in ISO date-only format (`YYYY-MM-DD`). Stored without timezone offsets to represent the same local calendar day globally. Pass `""` or omit the field to skip setting a due date. Passing `null` is strictly rejected.
      */
     due_at?: string;
+    idempotency_key?: string;
     /**
      * Type id this todo belongs to. Omit to use the project's default type. When project_id is also supplied, the type must belong to the same project. New server-generated type ids use typ_<ULID>; legacy ids remain accepted.
      */
@@ -1557,9 +1559,6 @@ export type InviteAcceptErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1569,9 +1568,6 @@ export type InviteAcceptErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1581,9 +1577,6 @@ export type InviteAcceptErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1593,9 +1586,6 @@ export type InviteAcceptErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1605,21 +1595,15 @@ export type InviteAcceptErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1629,9 +1613,6 @@ export type InviteAcceptErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -1646,6 +1627,190 @@ export type InviteAcceptResponses = {
 };
 
 export type InviteAcceptResponse = InviteAcceptResponses[keyof InviteAcceptResponses];
+
+export type OauthAuthorizeGrantData = {
+    body: {
+        client_id: string;
+        redirect_uri: string;
+        code_challenge: string;
+        code_challenge_method: 'S256';
+        resource: string;
+        scope: string;
+        state: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/oauth/grant';
+};
+
+export type OauthAuthorizeGrantErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type OauthAuthorizeGrantError = OauthAuthorizeGrantErrors[keyof OauthAuthorizeGrantErrors];
+
+export type OauthAuthorizeGrantResponses = {
+    /**
+     * Authorization code created and embedded into the redirect URL.
+     */
+    200: {
+        redirect_to: string;
+    };
+};
+
+export type OauthAuthorizeGrantResponse = OauthAuthorizeGrantResponses[keyof OauthAuthorizeGrantResponses];
+
+export type OauthDeviceConfirmData = {
+    body: {
+        user_code: string;
+        decision: 'approve' | 'deny';
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/oauth/device/confirm';
+};
+
+export type OauthDeviceConfirmErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type OauthDeviceConfirmError = OauthDeviceConfirmErrors[keyof OauthDeviceConfirmErrors];
+
+export type OauthDeviceConfirmResponses = {
+    /**
+     * The decision was recorded.
+     */
+    200: {
+        ok: true;
+        decision: 'approve' | 'deny';
+    };
+};
+
+export type OauthDeviceConfirmResponse = OauthDeviceConfirmResponses[keyof OauthDeviceConfirmResponses];
 
 export type KeyListData = {
     body?: never;
@@ -1668,9 +1833,6 @@ export type KeyListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1680,9 +1842,6 @@ export type KeyListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1692,9 +1851,6 @@ export type KeyListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1704,9 +1860,6 @@ export type KeyListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1716,21 +1869,15 @@ export type KeyListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1740,9 +1887,6 @@ export type KeyListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -1779,9 +1923,6 @@ export type KeyCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1791,9 +1932,6 @@ export type KeyCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1803,9 +1941,6 @@ export type KeyCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1815,9 +1950,6 @@ export type KeyCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1827,21 +1959,15 @@ export type KeyCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1851,9 +1977,6 @@ export type KeyCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -1890,9 +2013,6 @@ export type OrgInvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1902,9 +2022,6 @@ export type OrgInvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1914,9 +2031,6 @@ export type OrgInvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1926,9 +2040,6 @@ export type OrgInvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1938,21 +2049,15 @@ export type OrgInvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -1962,9 +2067,6 @@ export type OrgInvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -2001,9 +2103,6 @@ export type OrgInviteCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2013,9 +2112,6 @@ export type OrgInviteCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2025,9 +2121,6 @@ export type OrgInviteCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2037,9 +2130,6 @@ export type OrgInviteCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2049,21 +2139,15 @@ export type OrgInviteCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2073,9 +2157,6 @@ export type OrgInviteCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -2165,9 +2246,6 @@ export type OrgGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2177,9 +2255,6 @@ export type OrgGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2189,9 +2264,6 @@ export type OrgGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2201,9 +2273,6 @@ export type OrgGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2213,21 +2282,15 @@ export type OrgGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2237,9 +2300,6 @@ export type OrgGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -2276,9 +2336,6 @@ export type OrgUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2288,9 +2345,6 @@ export type OrgUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2300,9 +2354,6 @@ export type OrgUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2312,9 +2363,6 @@ export type OrgUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2324,21 +2372,15 @@ export type OrgUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2348,9 +2390,6 @@ export type OrgUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -2392,9 +2431,6 @@ export type InviteGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2404,9 +2440,6 @@ export type InviteGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2416,9 +2449,6 @@ export type InviteGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2428,9 +2458,6 @@ export type InviteGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2440,21 +2467,15 @@ export type InviteGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2464,9 +2485,6 @@ export type InviteGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -2503,9 +2521,6 @@ export type AuthMeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2515,9 +2530,6 @@ export type AuthMeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2527,9 +2539,6 @@ export type AuthMeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2539,9 +2548,6 @@ export type AuthMeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2551,21 +2557,15 @@ export type AuthMeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2575,9 +2575,6 @@ export type AuthMeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -2614,9 +2611,6 @@ export type InvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2626,9 +2620,6 @@ export type InvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2638,9 +2629,6 @@ export type InvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2650,9 +2638,6 @@ export type InvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2662,21 +2647,15 @@ export type InvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2686,9 +2665,6 @@ export type InvitesListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -2734,9 +2710,6 @@ export type OrgMembersListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2746,9 +2719,6 @@ export type OrgMembersListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2758,9 +2728,6 @@ export type OrgMembersListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2770,9 +2737,6 @@ export type OrgMembersListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2782,21 +2746,15 @@ export type OrgMembersListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2806,9 +2764,6 @@ export type OrgMembersListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -2839,9 +2794,6 @@ export type OauthMetadataErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2851,9 +2803,6 @@ export type OauthMetadataErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2863,9 +2812,6 @@ export type OauthMetadataErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2875,9 +2821,6 @@ export type OauthMetadataErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2887,21 +2830,15 @@ export type OauthMetadataErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2911,9 +2848,6 @@ export type OauthMetadataErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -2944,9 +2878,6 @@ export type OauthMetadataOpenidAliasErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2956,9 +2887,6 @@ export type OauthMetadataOpenidAliasErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2968,9 +2896,6 @@ export type OauthMetadataOpenidAliasErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2980,9 +2905,6 @@ export type OauthMetadataOpenidAliasErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -2992,21 +2914,15 @@ export type OauthMetadataOpenidAliasErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3016,9 +2932,6 @@ export type OauthMetadataOpenidAliasErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -3113,9 +3026,6 @@ export type InviteRejectErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3125,9 +3035,6 @@ export type InviteRejectErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3137,9 +3044,6 @@ export type InviteRejectErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3149,9 +3053,6 @@ export type InviteRejectErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3161,21 +3062,15 @@ export type InviteRejectErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3185,9 +3080,6 @@ export type InviteRejectErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -3229,9 +3121,6 @@ export type OrgMemberRemoveErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3241,9 +3130,6 @@ export type OrgMemberRemoveErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3253,9 +3139,6 @@ export type OrgMemberRemoveErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3265,9 +3148,6 @@ export type OrgMemberRemoveErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3277,21 +3157,15 @@ export type OrgMemberRemoveErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3301,9 +3175,6 @@ export type OrgMemberRemoveErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -3340,9 +3211,6 @@ export type AuthRequestCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3352,9 +3220,6 @@ export type AuthRequestCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3364,9 +3229,6 @@ export type AuthRequestCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3376,9 +3238,6 @@ export type AuthRequestCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3388,21 +3247,15 @@ export type AuthRequestCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3412,9 +3265,6 @@ export type AuthRequestCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -3456,9 +3306,6 @@ export type KeyRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3468,9 +3315,6 @@ export type KeyRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3480,9 +3324,6 @@ export type KeyRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3492,9 +3333,6 @@ export type KeyRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3504,21 +3342,15 @@ export type KeyRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3528,9 +3360,6 @@ export type KeyRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -3572,9 +3401,6 @@ export type KeyUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3584,9 +3410,6 @@ export type KeyUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3596,9 +3419,6 @@ export type KeyUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3608,9 +3428,6 @@ export type KeyUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3620,21 +3437,15 @@ export type KeyUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3644,9 +3455,6 @@ export type KeyUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -3743,9 +3551,6 @@ export type OrgInviteRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3755,9 +3560,6 @@ export type OrgInviteRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3767,9 +3569,6 @@ export type OrgInviteRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3779,9 +3578,6 @@ export type OrgInviteRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3791,21 +3587,15 @@ export type OrgInviteRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3815,9 +3605,6 @@ export type OrgInviteRevokeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -3907,9 +3694,6 @@ export type AuthVerifyCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3919,9 +3703,6 @@ export type AuthVerifyCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3931,9 +3712,6 @@ export type AuthVerifyCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3943,9 +3721,6 @@ export type AuthVerifyCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3955,21 +3730,15 @@ export type AuthVerifyCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -3979,9 +3748,6 @@ export type AuthVerifyCodeErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -3996,6 +3762,96 @@ export type AuthVerifyCodeResponses = {
 };
 
 export type AuthVerifyCodeResponse = AuthVerifyCodeResponses[keyof AuthVerifyCodeResponses];
+
+export type OauthDeviceVerifyData = {
+    body: {
+        user_code: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/oauth/device/verify';
+};
+
+export type OauthDeviceVerifyErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type OauthDeviceVerifyError = OauthDeviceVerifyErrors[keyof OauthDeviceVerifyErrors];
+
+export type OauthDeviceVerifyResponses = {
+    /**
+     * The code is pending and can be approved by the user.
+     */
+    200: {
+        redirect_to: string;
+        client_name: string;
+        scope: string;
+    };
+};
+
+export type OauthDeviceVerifyResponse = OauthDeviceVerifyResponses[keyof OauthDeviceVerifyResponses];
 
 export type EventListData = {
     body?: never;
@@ -4055,9 +3911,6 @@ export type EventListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4067,9 +3920,6 @@ export type EventListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4079,9 +3929,6 @@ export type EventListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4091,9 +3938,6 @@ export type EventListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4103,21 +3947,15 @@ export type EventListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4127,9 +3965,6 @@ export type EventListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -4166,9 +4001,6 @@ export type EventCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4178,9 +4010,6 @@ export type EventCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4190,9 +4019,6 @@ export type EventCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4202,9 +4028,6 @@ export type EventCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4214,21 +4037,15 @@ export type EventCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4238,9 +4055,6 @@ export type EventCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -4282,9 +4096,6 @@ export type EventDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4294,9 +4105,6 @@ export type EventDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4306,9 +4114,6 @@ export type EventDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4318,9 +4123,6 @@ export type EventDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4330,21 +4132,15 @@ export type EventDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4354,9 +4150,6 @@ export type EventDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -4403,9 +4196,6 @@ export type EventGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4415,9 +4205,6 @@ export type EventGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4427,9 +4214,6 @@ export type EventGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4439,9 +4223,6 @@ export type EventGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4451,21 +4232,15 @@ export type EventGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4475,9 +4250,6 @@ export type EventGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -4519,9 +4291,6 @@ export type EventUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4531,9 +4300,6 @@ export type EventUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4543,9 +4309,6 @@ export type EventUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4555,9 +4318,6 @@ export type EventUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4567,21 +4327,15 @@ export type EventUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4591,9 +4345,6 @@ export type EventUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -4635,9 +4386,6 @@ export type EventIcsDownloadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4647,9 +4395,6 @@ export type EventIcsDownloadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4659,9 +4404,6 @@ export type EventIcsDownloadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4671,9 +4413,6 @@ export type EventIcsDownloadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4683,21 +4422,15 @@ export type EventIcsDownloadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4707,9 +4440,6 @@ export type EventIcsDownloadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -4751,9 +4481,6 @@ export type EventRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4763,9 +4490,6 @@ export type EventRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4775,9 +4499,6 @@ export type EventRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4787,9 +4508,6 @@ export type EventRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4799,21 +4517,15 @@ export type EventRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4823,9 +4535,6 @@ export type EventRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -4867,21 +4576,15 @@ export type EmailAliasListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4891,9 +4594,6 @@ export type EmailAliasListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -4932,9 +4632,6 @@ export type EmailAliasCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4944,9 +4641,6 @@ export type EmailAliasCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4956,9 +4650,6 @@ export type EmailAliasCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4968,9 +4659,6 @@ export type EmailAliasCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -4980,9 +4668,6 @@ export type EmailAliasCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5019,21 +4704,15 @@ export type EmailDomainListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5043,9 +4722,6 @@ export type EmailDomainListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5082,9 +4758,6 @@ export type EmailDomainCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5094,9 +4767,6 @@ export type EmailDomainCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5106,21 +4776,15 @@ export type EmailDomainCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5130,9 +4794,6 @@ export type EmailDomainCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5142,9 +4803,6 @@ export type EmailDomainCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5180,9 +4838,6 @@ export type EmailAliasDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5192,21 +4847,15 @@ export type EmailAliasDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5216,9 +4865,6 @@ export type EmailAliasDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5249,9 +4895,6 @@ export type EmailDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5261,21 +4904,15 @@ export type EmailDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5285,9 +4922,6 @@ export type EmailDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5323,9 +4957,6 @@ export type EmailDomainDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5335,9 +4966,6 @@ export type EmailDomainDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5347,9 +4975,6 @@ export type EmailDomainDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5359,21 +4984,15 @@ export type EmailDomainDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5383,9 +5002,6 @@ export type EmailDomainDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5395,9 +5011,6 @@ export type EmailDomainDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5433,9 +5046,6 @@ export type EmailDomainGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5445,9 +5055,6 @@ export type EmailDomainGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5457,21 +5064,15 @@ export type EmailDomainGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5481,9 +5082,6 @@ export type EmailDomainGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5528,9 +5126,6 @@ export type EmailAttachmentGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5540,21 +5135,15 @@ export type EmailAttachmentGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5564,9 +5153,6 @@ export type EmailAttachmentGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5614,9 +5200,6 @@ export type EmailGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5626,21 +5209,15 @@ export type EmailGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5650,9 +5227,6 @@ export type EmailGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5836,21 +5410,15 @@ export type EmailListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5860,9 +5428,6 @@ export type EmailListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -5981,9 +5546,6 @@ export type EmailMarkReadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -5993,21 +5555,15 @@ export type EmailMarkReadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6017,9 +5573,6 @@ export type EmailMarkReadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6050,9 +5603,6 @@ export type EmailMarkUnreadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6062,21 +5612,15 @@ export type EmailMarkUnreadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6086,9 +5630,6 @@ export type EmailMarkUnreadErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6124,9 +5665,6 @@ export type EmailAliasRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6136,9 +5674,6 @@ export type EmailAliasRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6148,9 +5683,6 @@ export type EmailAliasRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6160,9 +5692,6 @@ export type EmailAliasRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6193,9 +5722,6 @@ export type EmailRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6205,21 +5731,15 @@ export type EmailRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6229,9 +5749,6 @@ export type EmailRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6268,9 +5785,6 @@ export type EmailSendErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6280,9 +5794,6 @@ export type EmailSendErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6292,9 +5803,6 @@ export type EmailSendErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6304,9 +5812,6 @@ export type EmailSendErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6316,9 +5821,6 @@ export type EmailSendErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6328,9 +5830,6 @@ export type EmailSendErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6340,9 +5839,6 @@ export type EmailSendErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6378,9 +5874,6 @@ export type EmailDomainVerifyErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6390,9 +5883,6 @@ export type EmailDomainVerifyErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6402,21 +5892,15 @@ export type EmailDomainVerifyErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6426,9 +5910,6 @@ export type EmailDomainVerifyErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6438,9 +5919,6 @@ export type EmailDomainVerifyErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6482,9 +5960,6 @@ export type PushConfigDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6494,9 +5969,6 @@ export type PushConfigDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6506,21 +5978,15 @@ export type PushConfigDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6530,9 +5996,6 @@ export type PushConfigDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6569,9 +6032,6 @@ export type PushConfigGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6581,21 +6041,15 @@ export type PushConfigGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6605,9 +6059,6 @@ export type PushConfigGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6644,9 +6095,6 @@ export type PushConfigSetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6656,9 +6104,6 @@ export type PushConfigSetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6668,21 +6113,15 @@ export type PushConfigSetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6692,9 +6131,6 @@ export type PushConfigSetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6733,9 +6169,6 @@ export type PushTestErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6745,9 +6178,6 @@ export type PushTestErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6757,21 +6187,15 @@ export type PushTestErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6781,9 +6205,6 @@ export type PushTestErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6836,9 +6257,6 @@ export type TodoCommentListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6848,9 +6266,6 @@ export type TodoCommentListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6860,9 +6275,6 @@ export type TodoCommentListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6872,9 +6284,6 @@ export type TodoCommentListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6884,21 +6293,15 @@ export type TodoCommentListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6908,9 +6311,6 @@ export type TodoCommentListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -6958,9 +6358,6 @@ export type TodoCommentCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6970,9 +6367,6 @@ export type TodoCommentCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6982,9 +6376,6 @@ export type TodoCommentCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -6994,9 +6385,6 @@ export type TodoCommentCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7006,21 +6394,15 @@ export type TodoCommentCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7030,9 +6412,6 @@ export type TodoCommentCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -7074,9 +6453,6 @@ export type ProjectListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7086,9 +6462,6 @@ export type ProjectListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7098,9 +6471,6 @@ export type ProjectListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7110,9 +6480,6 @@ export type ProjectListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7122,21 +6489,15 @@ export type ProjectListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7146,9 +6507,6 @@ export type ProjectListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -7187,9 +6545,6 @@ export type ProjectCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7199,9 +6554,6 @@ export type ProjectCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7211,9 +6563,6 @@ export type ProjectCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7223,9 +6572,6 @@ export type ProjectCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7235,21 +6581,15 @@ export type ProjectCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7259,9 +6599,6 @@ export type ProjectCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -7304,9 +6641,6 @@ export type RecurrenceRuleListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7316,9 +6650,6 @@ export type RecurrenceRuleListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7328,9 +6659,6 @@ export type RecurrenceRuleListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7340,9 +6668,6 @@ export type RecurrenceRuleListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7352,21 +6677,15 @@ export type RecurrenceRuleListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7376,9 +6695,6 @@ export type RecurrenceRuleListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -7415,9 +6731,6 @@ export type RecurrenceRuleCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7427,9 +6740,6 @@ export type RecurrenceRuleCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7439,9 +6749,6 @@ export type RecurrenceRuleCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7451,9 +6758,6 @@ export type RecurrenceRuleCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7463,21 +6767,15 @@ export type RecurrenceRuleCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7487,9 +6785,6 @@ export type RecurrenceRuleCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -7550,9 +6845,6 @@ export type TodoListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7562,9 +6854,6 @@ export type TodoListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7574,9 +6863,6 @@ export type TodoListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7586,9 +6872,6 @@ export type TodoListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7598,21 +6881,15 @@ export type TodoListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7622,9 +6899,6 @@ export type TodoListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -7661,9 +6935,6 @@ export type TodoCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7673,9 +6944,6 @@ export type TodoCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7685,9 +6953,6 @@ export type TodoCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7697,9 +6962,6 @@ export type TodoCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7709,21 +6971,15 @@ export type TodoCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7733,9 +6989,6 @@ export type TodoCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -7779,9 +7032,6 @@ export type TodoTypeListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7791,9 +7041,6 @@ export type TodoTypeListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7803,9 +7050,6 @@ export type TodoTypeListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7815,9 +7059,6 @@ export type TodoTypeListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7827,21 +7068,15 @@ export type TodoTypeListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7851,9 +7086,6 @@ export type TodoTypeListErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -7892,9 +7124,6 @@ export type TodoTypeCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7904,9 +7133,6 @@ export type TodoTypeCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7916,9 +7142,6 @@ export type TodoTypeCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7928,9 +7151,6 @@ export type TodoTypeCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7940,21 +7160,15 @@ export type TodoTypeCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -7964,9 +7178,6 @@ export type TodoTypeCreateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -8008,9 +7219,6 @@ export type TodoCommentDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8020,9 +7228,6 @@ export type TodoCommentDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8032,9 +7237,6 @@ export type TodoCommentDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8044,9 +7246,6 @@ export type TodoCommentDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8056,21 +7255,15 @@ export type TodoCommentDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8080,9 +7273,6 @@ export type TodoCommentDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -8124,9 +7314,6 @@ export type TodoCommentUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8136,9 +7323,6 @@ export type TodoCommentUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8148,9 +7332,6 @@ export type TodoCommentUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8160,9 +7341,6 @@ export type TodoCommentUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8172,21 +7350,15 @@ export type TodoCommentUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8196,9 +7368,6 @@ export type TodoCommentUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -8240,9 +7409,6 @@ export type ProjectDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8252,9 +7418,6 @@ export type ProjectDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8264,9 +7427,6 @@ export type ProjectDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8276,9 +7436,6 @@ export type ProjectDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8288,21 +7445,15 @@ export type ProjectDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8312,9 +7463,6 @@ export type ProjectDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -8356,9 +7504,6 @@ export type ProjectGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8368,9 +7513,6 @@ export type ProjectGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8380,9 +7522,6 @@ export type ProjectGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8392,9 +7531,6 @@ export type ProjectGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8404,21 +7540,15 @@ export type ProjectGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8428,9 +7558,6 @@ export type ProjectGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -8472,9 +7599,6 @@ export type ProjectUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8484,9 +7608,6 @@ export type ProjectUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8496,9 +7617,6 @@ export type ProjectUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8508,9 +7626,6 @@ export type ProjectUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8520,21 +7635,15 @@ export type ProjectUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8544,9 +7653,6 @@ export type ProjectUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -8585,9 +7691,6 @@ export type RecurrenceRuleDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8597,9 +7700,6 @@ export type RecurrenceRuleDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8609,9 +7709,6 @@ export type RecurrenceRuleDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8621,9 +7718,6 @@ export type RecurrenceRuleDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8633,21 +7727,15 @@ export type RecurrenceRuleDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8657,9 +7745,6 @@ export type RecurrenceRuleDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -8698,9 +7783,6 @@ export type RecurrenceRuleGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8710,9 +7792,6 @@ export type RecurrenceRuleGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8722,9 +7801,6 @@ export type RecurrenceRuleGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8734,9 +7810,6 @@ export type RecurrenceRuleGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8746,21 +7819,15 @@ export type RecurrenceRuleGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8770,9 +7837,6 @@ export type RecurrenceRuleGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -8811,9 +7875,6 @@ export type RecurrenceRuleUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8823,9 +7884,6 @@ export type RecurrenceRuleUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8835,9 +7893,6 @@ export type RecurrenceRuleUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8847,9 +7902,6 @@ export type RecurrenceRuleUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8859,21 +7911,15 @@ export type RecurrenceRuleUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8883,9 +7929,6 @@ export type RecurrenceRuleUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -8924,9 +7967,6 @@ export type TodoDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8936,9 +7976,6 @@ export type TodoDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8948,9 +7985,6 @@ export type TodoDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8960,9 +7994,6 @@ export type TodoDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8972,21 +8003,15 @@ export type TodoDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -8996,9 +8021,6 @@ export type TodoDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -9041,9 +8063,6 @@ export type TodoGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9053,9 +8072,6 @@ export type TodoGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9065,9 +8081,6 @@ export type TodoGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9077,9 +8090,6 @@ export type TodoGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9089,21 +8099,15 @@ export type TodoGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9113,9 +8117,6 @@ export type TodoGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -9154,9 +8155,6 @@ export type TodoUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9166,9 +8164,6 @@ export type TodoUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9178,9 +8173,6 @@ export type TodoUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9190,9 +8182,6 @@ export type TodoUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9202,21 +8191,15 @@ export type TodoUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9226,9 +8209,6 @@ export type TodoUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -9267,9 +8247,6 @@ export type TodoTypeDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9279,9 +8256,6 @@ export type TodoTypeDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9291,9 +8265,6 @@ export type TodoTypeDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9303,9 +8274,6 @@ export type TodoTypeDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9315,21 +8283,15 @@ export type TodoTypeDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9339,9 +8301,6 @@ export type TodoTypeDeleteErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -9380,9 +8339,6 @@ export type TodoTypeGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9392,9 +8348,6 @@ export type TodoTypeGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9404,9 +8357,6 @@ export type TodoTypeGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9416,9 +8366,6 @@ export type TodoTypeGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9428,21 +8375,15 @@ export type TodoTypeGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9452,9 +8393,6 @@ export type TodoTypeGetErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -9493,9 +8431,6 @@ export type TodoTypeUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9505,9 +8440,6 @@ export type TodoTypeUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9517,9 +8449,6 @@ export type TodoTypeUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9529,9 +8458,6 @@ export type TodoTypeUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9541,21 +8467,15 @@ export type TodoTypeUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9565,9 +8485,6 @@ export type TodoTypeUpdateErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -9609,9 +8526,6 @@ export type ProjectRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9621,9 +8535,6 @@ export type ProjectRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9633,9 +8544,6 @@ export type ProjectRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9645,9 +8553,6 @@ export type ProjectRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9657,21 +8562,15 @@ export type ProjectRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9681,9 +8580,6 @@ export type ProjectRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -9722,9 +8618,6 @@ export type TodoRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9734,9 +8627,6 @@ export type TodoRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9746,9 +8636,6 @@ export type TodoRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9758,9 +8645,6 @@ export type TodoRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9770,21 +8654,15 @@ export type TodoRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9794,9 +8672,6 @@ export type TodoRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
@@ -9835,9 +8710,6 @@ export type TodoTypeRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9847,9 +8719,6 @@ export type TodoTypeRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9859,9 +8728,6 @@ export type TodoTypeRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9871,9 +8737,6 @@ export type TodoTypeRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9883,21 +8746,15 @@ export type TodoTypeRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
-     * Rate limit exceeded. Retry after the duration in `error.extra.retry_after_seconds`. `limit_kind` identifies which bucket was exhausted.
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
     /**
@@ -9907,9 +8764,6 @@ export type TodoTypeRestoreErrors = {
         error: {
             code: string;
             message: string;
-            extra?: {
-                [key: string]: unknown;
-            };
         };
     };
 };
