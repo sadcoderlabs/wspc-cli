@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { mkdtemp, readFile, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, symlink, writeFile } from "node:fs/promises"
 import { spawnSync } from "node:child_process"
 import { Command } from "commander"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
+import { pathToFileURL } from "node:url"
 import { initDriveState } from "../../../src/handwritten/commands/drive/state.js"
 import { createDriveApi } from "../../../src/handwritten/commands/drive/api.js"
 import { render } from "../../../src/handwritten/output/render.js"
@@ -129,5 +130,28 @@ describe("drive bind", () => {
     const driveRoots = program.commands.filter((cmd) => cmd.name() === "drive")
     expect(driveRoots).toHaveLength(1)
     expect(driveRoots[0]!.commands.map((cmd) => cmd.name())).toEqual(["generated", "bind"])
+  })
+
+  it("does not duplicate a generated drive bind command", async () => {
+    const { mountDriveCommands } = await import("../../../src/cli.js")
+    const program = new Command("wspc")
+    const drive = new Command("drive").description("Generated Drive commands")
+    drive.command("bind")
+    program.addCommand(drive)
+
+    mountDriveCommands(program)
+
+    expect(drive.commands.filter((cmd) => cmd.name() === "bind")).toHaveLength(1)
+  })
+
+  it("detects symlinked CLI entrypoints", async () => {
+    const { isCliEntrypoint } = await import("../../../src/cli.js")
+    const dir = await mkdtemp(join(tmpdir(), "wspc-drive-bind-main-"))
+    const target = join(process.cwd(), "src", "cli.ts")
+    const link = join(dir, "wspc")
+    await symlink(target, link)
+
+    expect(isCliEntrypoint(["node", link], pathToFileURL(target).href)).toBe(true)
+    expect(isCliEntrypoint(["node", join(dir, "other")], pathToFileURL(target).href)).toBe(false)
   })
 })

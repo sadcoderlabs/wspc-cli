@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander"
-import { pathToFileURL } from "node:url"
+import { realpathSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import { registerGeneratedCommands } from "./generated/cli/index.js"
 import { loginCommand } from "./handwritten/commands/login.js"
 import { logoutCommand } from "./handwritten/commands/logout.js"
@@ -19,7 +20,17 @@ export function mountDriveCommands(program: Command): void {
     drive = new Command("drive").description("Drive commands")
     program.addCommand(drive)
   }
+  if (drive.commands.some((c) => c.name() === "bind")) return
   drive.addCommand(driveBindCommand())
+}
+
+export function isCliEntrypoint(argv: string[] = process.argv, metaUrl: string = import.meta.url): boolean {
+  if (!argv[1]) return false
+  try {
+    return realpathSync(argv[1]) === realpathSync(fileURLToPath(metaUrl))
+  } catch {
+    return false
+  }
 }
 
 function buildProgram(): Command {
@@ -91,6 +102,6 @@ export async function dispatch(argv: string[], { allowRetry = true }: { allowRet
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isCliEntrypoint()) {
   dispatch(process.argv)
 }

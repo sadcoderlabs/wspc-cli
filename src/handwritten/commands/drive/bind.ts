@@ -35,7 +35,6 @@ export function driveBindCommand(): Command {
           root,
           library_id: state.library_id,
           library_name: library.name,
-          next: `wspc drive sync once ${root}`,
         },
       )
     })
