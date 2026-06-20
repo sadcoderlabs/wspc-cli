@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
-import { createReadStream } from "node:fs"
-import { Dirent, readdir, lstat } from "node:fs/promises"
+import { constants as fsConstants } from "node:fs"
+import { Dirent, open, readdir, lstat } from "node:fs/promises"
 import { join } from "node:path"
 import { DRIVE_DIR } from "./state.js"
 import { validateDrivePath } from "./path-policy.js"
@@ -43,6 +43,9 @@ export async function scanDriveFiles(root: string): Promise<Record<string, Drive
       }
 
       const digest = await hashFile(nextPath)
+      if (!digest) {
+        continue
+      }
       files[nextDrivePath] = {
         sha256: digest.sha256,
         size_bytes: digest.sizeBytes,
@@ -55,20 +58,33 @@ export async function scanDriveFiles(root: string): Promise<Record<string, Drive
   }
 }
 
-async function hashFile(path: string): Promise<{ sizeBytes: number; sha256: string }> {
+type FileDigest = { sizeBytes: number; sha256: string }
+
+async function hashFile(path: string): Promise<FileDigest | undefined> {
+  const fdFlags = fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0)
+  const fileHandle = await open(path, fdFlags)
   const hash = createHash("sha256")
   let sizeBytes = 0
-  await new Promise<void>((resolve, reject) => {
-    const stream = createReadStream(path)
-    stream.on("error", reject)
-    stream.on("data", (chunk: Buffer) => {
-      hash.update(chunk)
-      sizeBytes += chunk.length
+  try {
+    const stats = await fileHandle.stat()
+    if (!stats.isFile()) {
+      return undefined
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const stream = fileHandle.createReadStream()
+      stream.on("error", reject)
+      stream.on("data", (chunk: Buffer) => {
+        hash.update(chunk)
+        sizeBytes += chunk.length
+      })
+      stream.on("end", () => resolve())
     })
-    stream.on("end", () => resolve())
-  })
-  return {
-    sizeBytes,
-    sha256: hash.digest("hex"),
+    return {
+      sizeBytes,
+      sha256: hash.digest("hex"),
+    }
+  } finally {
+    await fileHandle.close().catch(() => {})
   }
 }
