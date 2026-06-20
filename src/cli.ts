@@ -9,6 +9,7 @@ import { accountCommand } from "./handwritten/commands/account.js"
 import { todoDoneCommand } from "./handwritten/commands/todo-done.js"
 import { sendCommand } from "./handwritten/commands/email/send.js"
 import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
+import { driveBindCommand } from "./handwritten/commands/drive/bind.js"
 import { VERSION, SPEC_SHA, SPEC_FETCHED_AT } from "./version.js"
 
 function buildProgram(): Command {
@@ -36,6 +37,10 @@ function buildProgram(): Command {
   program.addCommand(accountCommand)
 
   registerGeneratedCommands(program)
+
+  const drive = new Command("drive").description("Drive commands")
+  drive.addCommand(driveBindCommand())
+  program.addCommand(drive)
 
   const todo = program.commands.find((c) => c.name() === "todo")
   if (todo) todo.addCommand(todoDoneCommand)
