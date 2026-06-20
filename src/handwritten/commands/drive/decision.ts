@@ -56,6 +56,9 @@ export function decideDriveAction(
   if (local && remote && localStatus === "unchanged" && remoteStatus === "content_same_new_version") {
     return { type: "state_only" }
   }
+  if (local && remote && remoteStatus === "missing_version") {
+    return { type: "conflict", reason: "remote_missing_entry_version" }
+  }
   if (local && remote && localStatus === "unknown" && remoteStatus !== "unchanged") {
     return { type: "conflict", reason: "unknown_local_base_remote_changed" }
   }
@@ -85,9 +88,10 @@ function getLocalStatus(entry: DecisionEntry, local: DecisionLocal | undefined):
 function getRemoteStatus(
   entry: DecisionEntry,
   remote: DecisionRemote | undefined,
-): "unchanged" | "content_same_new_version" | "changed" {
+): "unchanged" | "content_same_new_version" | "changed" | "missing_version" {
   if (!remote) return "changed"
   if (remote.entry_version !== undefined && remote.entry_version === entry.entry_version) return "unchanged"
+  if (remote.entry_version === undefined) return "missing_version"
   if (
     remote.content_sha256 !== undefined &&
     entry.content_sha256 !== undefined &&

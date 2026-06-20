@@ -120,6 +120,13 @@ describe("drive decision", () => {
     })
   })
 
+  it("conflicts when remote entry version is missing even if content hash matches", () => {
+    expect(decideDriveAction(base, { sha256: "old" }, { content_sha256: "old" })).toEqual({
+      type: "conflict",
+      reason: "remote_missing_entry_version",
+    })
+  })
+
   it("conflicts when local changed and remote version changed even with the same content hash", () => {
     const entry: DecisionEntry = { entry_version: 1, content_sha256: "remote", last_local_sha256: "old" }
 
