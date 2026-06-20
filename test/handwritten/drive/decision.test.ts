@@ -28,7 +28,7 @@ describe("drive decision", () => {
     ]
   > = [
     ["new local", undefined, { sha256: "a" }, undefined, "upload_create"],
-    ["new remote", undefined, undefined, { content_sha256: "a" }, "download"],
+    ["new remote", undefined, undefined, { content_sha256: "a", entry_version: 1 }, "download"],
     ["same first sight", undefined, { sha256: "a" }, { content_sha256: "a", entry_version: 1 }, "state_only"],
     ["different first sight", undefined, { sha256: "a" }, { content_sha256: "b" }, "conflict"],
     ["delete remote", base, undefined, { content_sha256: "old", entry_version: 1 }, "delete_remote"],
@@ -69,6 +69,10 @@ describe("drive decision", () => {
       reason: "remote_missing_entry_version",
     })
     expect(decideDriveAction(undefined, { sha256: "same" }, { content_sha256: "same" })).toEqual({
+      type: "conflict",
+      reason: "remote_missing_entry_version",
+    })
+    expect(decideDriveAction(undefined, undefined, { content_sha256: "remote" })).toEqual({
       type: "conflict",
       reason: "remote_missing_entry_version",
     })

@@ -31,7 +31,11 @@ export function decideDriveAction(
 ): DriveAction {
   if (!entry) {
     if (local && !remote) return { type: "upload_create", expectedEntryVersion: 0 }
-    if (!local && remote) return { type: "download" }
+    if (!local && remote) {
+      return remote.entry_version === undefined
+        ? { type: "conflict", reason: "remote_missing_entry_version" }
+        : { type: "download" }
+    }
     if (local && remote) {
       if (remote.entry_version === undefined) return { type: "conflict", reason: "remote_missing_entry_version" }
       return remote.content_sha256 !== undefined && local.sha256 === remote.content_sha256
