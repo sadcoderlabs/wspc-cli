@@ -49,6 +49,9 @@ const DRIVE_DELETE = {
   result: "deleted" as const,
 }
 
+const RESERVED_LIBRARY_ID = "lib/space ?#"
+const ENCODED_RESERVED_LIBRARY_ID = encodeURIComponent(RESERVED_LIBRARY_ID)
+
 function mkReq(input: RequestInfo | URL, init?: RequestInit): Request {
   if (input instanceof Request) return input
   return new Request(input, init)
@@ -205,6 +208,31 @@ describe("createDriveApi", () => {
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
+  it("uploadFile encodes opaque library ids in raw content URLs", async () => {
+    const sha256 = "3a6eb7"
+    const uploadPath = "notes/hello.txt"
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = mkReq(input, init)
+      const url = new URL(req.url)
+      expect(req.method).toBe("PUT")
+      expect(url.pathname).toBe(`/drive/libraries/${ENCODED_RESERVED_LIBRARY_ID}/files/content`)
+      expect(url.searchParams.get("path")).toBe(uploadPath)
+      expect(url.searchParams.get("expected_entry_version")).toBe("0")
+      expect(url.hash).toBe("")
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_x")
+      return new Response(JSON.stringify(DRIVE_UPLOAD), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    }) as typeof fetch
+
+    const api = await mkDriveApi(fetchImpl)
+    const result = await api.uploadFile(RESERVED_LIBRARY_ID, uploadPath, new TextEncoder().encode("hello"), sha256, 0)
+
+    expect(result).toMatchObject(DRIVE_UPLOAD)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
   it("uploadFile throws status and response body for failed raw uploads", async () => {
     const fetchImpl = vi.fn(async () => new Response("version mismatch", { status: 409 })) as typeof fetch
     const api = await mkDriveApi(fetchImpl)
@@ -233,6 +261,30 @@ describe("createDriveApi", () => {
     const result = await api.downloadFile("lib_1", "notes/hello.txt")
 
     expect(result).toBeInstanceOf(Response)
+    expect(await result.text()).toBe("hello")
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it("downloadFile encodes opaque library ids in raw content URLs", async () => {
+    const downloadPath = "notes/hello.txt"
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = mkReq(input, init)
+      const url = new URL(req.url)
+      expect(req.method).toBe("GET")
+      expect(url.pathname).toBe(`/drive/libraries/${ENCODED_RESERVED_LIBRARY_ID}/files/content`)
+      expect(url.searchParams.get("path")).toBe(downloadPath)
+      expect(url.searchParams.toString()).toBe("path=notes%2Fhello.txt")
+      expect(url.hash).toBe("")
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_x")
+      return new Response("hello", {
+        status: 200,
+        headers: { "content-type": "text/plain" },
+      })
+    }) as typeof fetch
+
+    const api = await mkDriveApi(fetchImpl)
+    const result = await api.downloadFile(RESERVED_LIBRARY_ID, downloadPath)
+
     expect(await result.text()).toBe("hello")
     expect(fetchImpl).toHaveBeenCalledOnce()
   })

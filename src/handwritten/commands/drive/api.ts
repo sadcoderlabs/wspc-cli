@@ -67,7 +67,7 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       sha256: string,
       expectedEntryVersion?: number,
     ): Promise<UploadDriveFileResponse> {
-      const url = new URL(`/drive/libraries/${id}/files/content`, authedFetch.baseUrl)
+      const url = new URL(`/drive/libraries/${encodeURIComponent(id)}/files/content`, authedFetch.baseUrl)
       url.searchParams.set("path", path)
       if (expectedEntryVersion !== undefined) {
         url.searchParams.set("expected_entry_version", String(expectedEntryVersion))
@@ -92,7 +92,7 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       return payload as UploadDriveFileResponse
     },
     async downloadFile(id: string, path: string): Promise<Response> {
-      const url = new URL(`/drive/libraries/${id}/files/content`, authedFetch.baseUrl)
+      const url = new URL(`/drive/libraries/${encodeURIComponent(id)}/files/content`, authedFetch.baseUrl)
       url.searchParams.set("path", path)
       const res = await authedFetch.fetch(url, { method: "GET" })
       if (!res.ok) {
