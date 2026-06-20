@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { constants as fsConstants } from "node:fs"
-import { Dirent, open, readdir, lstat } from "node:fs/promises"
+import { type Dirent } from "node:fs"
+import { open, readdir, lstat } from "node:fs/promises"
 import { join } from "node:path"
 import { DRIVE_DIR } from "./state.js"
 import { validateDrivePath } from "./path-policy.js"
@@ -61,7 +62,8 @@ export async function scanDriveFiles(root: string): Promise<Record<string, Drive
 type FileDigest = { sizeBytes: number; sha256: string }
 
 async function hashFile(path: string): Promise<FileDigest | undefined> {
-  const fdFlags = fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0)
+  const useNoFollow = fsConstants.O_NOFOLLOW !== undefined
+  const fdFlags = useNoFollow ? fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW : fsConstants.O_RDONLY
   const fileHandle = await open(path, fdFlags)
   const hash = createHash("sha256")
   let sizeBytes = 0
@@ -69,6 +71,19 @@ async function hashFile(path: string): Promise<FileDigest | undefined> {
     const stats = await fileHandle.stat()
     if (!stats.isFile()) {
       return undefined
+    }
+
+    if (!useNoFollow) {
+      // Fallback TOCTOU check when O_NOFOLLOW is unavailable: verify the path is still the same regular file.
+      const liveStats = await lstat(path)
+      if (!liveStats.isFile()) {
+        return undefined
+      }
+      if (stats.ino !== undefined && liveStats.ino !== undefined && stats.dev !== undefined && liveStats.dev !== undefined) {
+        if (stats.ino !== liveStats.ino || stats.dev !== liveStats.dev) {
+          return undefined
+        }
+      }
     }
 
     await new Promise<void>((resolve, reject) => {
