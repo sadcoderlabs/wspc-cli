@@ -35,6 +35,20 @@ const DRIVE_UPLOAD = {
   result: "updated" as const,
 }
 
+const DRIVE_DELETE = {
+  entry: {
+    id: "ent_1",
+    path: "notes/hello.txt",
+    kind: "file" as const,
+    entry_version: 2,
+    current_version_id: "ver_2",
+    content_sha256: "deadbeef",
+    size_bytes: 5,
+    updated_at: "2026-06-21T00:00:00.000Z",
+  },
+  result: "deleted" as const,
+}
+
 function mkReq(input: RequestInfo | URL, init?: RequestInit): Request {
   if (input instanceof Request) return input
   return new Request(input, init)
@@ -101,6 +115,31 @@ describe("createDriveApi", () => {
     const result = await api.getManifest("lib_1", "cursor_1")
 
     expect(result).toMatchObject(DRIVE_MANIFEST)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it("deleteFile sends generated JSON POST with path/body/auth and returns parsed data", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = mkReq(input, init)
+      const url = new URL(req.url)
+      expect(req.method).toBe("POST")
+      expect(url.pathname).toBe("/drive/libraries/lib_1/files/delete")
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_x")
+      const body = await req.json()
+      expect(body).toMatchObject({
+        path: "notes/hello.txt",
+        expected_entry_version: 2,
+      })
+      return new Response(JSON.stringify(DRIVE_DELETE), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    }) as typeof fetch
+
+    const api = await mkDriveApi(fetchImpl)
+    const result = await api.deleteFile("lib_1", "notes/hello.txt", 2)
+
+    expect(result).toMatchObject(DRIVE_DELETE)
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
