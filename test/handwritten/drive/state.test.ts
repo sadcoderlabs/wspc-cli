@@ -44,6 +44,31 @@ describe("drive state", () => {
     await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
   })
 
+  it("rejects missing timestamps", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-missing-ts-"))
+    const badState = { schema_version: 1, library_id: "lib_a", entries: {}, conflicts: {} }
+    const path = join(root, ".wspc-drive", "state.json")
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    await writeFile(path, JSON.stringify(badState), { mode: 0o600 })
+    await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
+  })
+
+  it("rejects malformed entries", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-entries-"))
+    const badState = {
+      schema_version: 1,
+      library_id: "lib_a",
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+      entries: { "a.txt": 42 },
+      conflicts: {},
+    }
+    const path = join(root, ".wspc-drive", "state.json")
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    await writeFile(path, JSON.stringify(badState), { mode: 0o600 })
+    await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
+  })
+
   it("removes lock file after callback throws", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-release-"))
     await initDriveState(root, "lib_a")

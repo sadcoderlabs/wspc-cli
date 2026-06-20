@@ -37,13 +37,11 @@ export function statePath(root: string): string {
 
 export async function readDriveState(root: string): Promise<DriveState> {
   const buf = await readFile(statePath(root), "utf8")
-  const state = JSON.parse(buf) as DriveState
-  if (state.schema_version !== 1 || typeof state.library_id !== "string") {
+  const parsed = JSON.parse(buf)
+  if (!isValidDriveState(parsed)) {
     throw new Error("unsupported .wspc-drive/state.json schema")
   }
-  if (!isRecord(state.entries)) state.entries = {}
-  if (!isRecord(state.conflicts)) state.conflicts = {}
-  return state
+  return parsed
 }
 
 export async function writeDriveState(root: string, state: DriveState): Promise<void> {
@@ -111,4 +109,49 @@ export async function withDriveLock<T>(root: string, fn: () => Promise<T>): Prom
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function isDriveStateEntry(value: unknown): value is DriveStateEntry {
+  return (
+    isRecord(value) &&
+    typeof value.entry_id === "string" &&
+    typeof value.entry_version === "number" &&
+    typeof value.size_bytes === "number" &&
+    typeof value.last_synced_at === "string" &&
+    value.status === "synced" &&
+    (value.current_version_id === undefined || typeof value.current_version_id === "string") &&
+    (value.content_sha256 === undefined || typeof value.content_sha256 === "string") &&
+    (value.last_local_sha256 === undefined || typeof value.last_local_sha256 === "string")
+  )
+}
+
+function isDriveConflict(value: unknown): value is DriveConflict {
+  return (
+    isRecord(value) &&
+    typeof value.detected_at === "string" &&
+    typeof value.reason === "string" &&
+    (value.remote_entry_version === undefined || typeof value.remote_entry_version === "number") &&
+    (value.remote_version_id === undefined || typeof value.remote_version_id === "string")
+  )
+}
+
+function isValidDriveState(value: unknown): value is DriveState {
+  if (!isRecord(value)) return false
+  if (
+    value.schema_version !== 1 ||
+    typeof value.library_id !== "string" ||
+    typeof value.created_at !== "string" ||
+    typeof value.updated_at !== "string" ||
+    !isRecord(value.entries) ||
+    !isRecord(value.conflicts)
+  ) {
+    return false
+  }
+  for (const entry of Object.values(value.entries)) {
+    if (!isDriveStateEntry(entry)) return false
+  }
+  for (const conflict of Object.values(value.conflicts)) {
+    if (!isDriveConflict(conflict)) return false
+  }
+  return true
 }
