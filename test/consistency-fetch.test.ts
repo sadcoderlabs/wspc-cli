@@ -310,6 +310,29 @@ describe("createConsistencyFetch", () => {
     expect(config.envs.prod).not.toHaveProperty("consistency_bookmarks")
   })
 
+  it("does not inspect successful JSON bodies for invalid bookmark errors", async () => {
+    const store = await seededStore({ drive: "drive_valid" })
+    const response = new Response(JSON.stringify({ error: { code: "INVALID_CONSISTENCY_BOOKMARK" } }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })
+    const cloneSpy = vi.spyOn(response, "clone")
+    const fetchImpl = vi.fn(async () => response)
+    const consistencyFetch = createConsistencyFetch({
+      store,
+      envName: "prod",
+      apiBase: "https://api.wspc.ai",
+      fetchImpl,
+    })
+
+    const result = await consistencyFetch("https://api.wspc.ai/drive/libraries/lib_1/files/content")
+
+    expect(result).toBe(response)
+    expect(cloneSpy).not.toHaveBeenCalled()
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmarks).toEqual({ drive: "drive_valid" })
+  })
+
   it("persists all returned service bookmarks", async () => {
     const store = await seededStore({ todo: "todo_old" })
     const fetchImpl = vi.fn(

@@ -1,4 +1,4 @@
-import { loadAuthedFetch, loadSdkClient } from "../../auth/load-sdk-client.js"
+import { loadSdkClientWithAuthedFetch } from "../../auth/load-sdk-client.js"
 import {
   driveFileDelete,
   driveLibraryGet,
@@ -35,20 +35,20 @@ function driveContentUrl(baseUrl: string, id: string): URL {
 }
 
 export async function createDriveApi(opts: DriveApiOptions = {}) {
-  const sdkClient = await loadSdkClient(opts)
-  const authedFetch = await loadAuthedFetch(opts)
+  const client = await loadSdkClientWithAuthedFetch(opts)
+  const rawClient = client._rawClient as never
 
   return {
     async getLibrary(id: string): Promise<DriveLibrary> {
       const result = await driveLibraryGet({
-        client: (sdkClient as { _rawClient: never })._rawClient,
+        client: rawClient,
         path: { id },
       })
       return expectJsonResult(result)
     },
     async getManifest(id: string, cursor?: string): Promise<DriveManifestResponse> {
       const result = await driveManifestGet({
-        client: (sdkClient as { _rawClient: never })._rawClient,
+        client: rawClient,
         path: { id },
         ...(cursor ? { query: { cursor } } : {}),
       })
@@ -56,7 +56,7 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
     },
     async deleteFile(id: string, path: string, expectedEntryVersion: number) {
       const result = await driveFileDelete({
-        client: (sdkClient as { _rawClient: never })._rawClient,
+        client: rawClient,
         path: { id },
         body: {
           path,
@@ -72,13 +72,13 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       sha256: string,
       expectedEntryVersion?: number,
     ): Promise<UploadDriveFileResponse> {
-      const url = driveContentUrl(authedFetch.baseUrl, id)
+      const url = driveContentUrl(client.baseUrl, id)
       url.searchParams.set("path", path)
       if (expectedEntryVersion !== undefined) {
         url.searchParams.set("expected_entry_version", String(expectedEntryVersion))
       }
 
-      const res = await authedFetch.fetch(url, {
+      const res = await client.fetch(url, {
         method: "PUT",
         headers: {
           "content-type": "application/octet-stream",
@@ -97,9 +97,9 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       return payload as UploadDriveFileResponse
     },
     async downloadFile(id: string, path: string): Promise<Response> {
-      const url = driveContentUrl(authedFetch.baseUrl, id)
+      const url = driveContentUrl(client.baseUrl, id)
       url.searchParams.set("path", path)
-      const res = await authedFetch.fetch(url, { method: "GET" })
+      const res = await client.fetch(url, { method: "GET" })
       if (!res.ok) {
         const text = await res.text()
         throw new Error(`HTTP ${res.status}: ${text}`)

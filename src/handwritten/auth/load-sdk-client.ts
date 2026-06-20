@@ -5,7 +5,7 @@ import { createAuthInterceptor } from "./sdk-auth.js"
 import { resolveAccount } from "./resolve-account.js"
 
 export interface AuthedFetch {
-  fetch: typeof fetch
+  fetch: typeof globalThis.fetch
   baseUrl: string
 }
 
@@ -13,10 +13,12 @@ export interface LoadedClient {
   _rawClient: ReturnType<typeof createClient>
 }
 
+export interface LoadedClientWithAuthedFetch extends LoadedClient, AuthedFetch {}
+
 function buildInterceptor(
   store: ConfigStore,
   resolved: ReturnType<typeof resolveAccount>,
-  fetchImpl: typeof fetch,
+  fetchImpl: typeof globalThis.fetch,
 ): ReturnType<typeof createAuthInterceptor> {
   const { envName, apiBase, clientId, email, creds } = resolved
   if (creds.api_key) {
@@ -46,8 +48,28 @@ function buildInterceptor(
 }
 
 export async function loadSdkClient(
-  opts: { store?: ConfigStore; fetchImpl?: typeof fetch } = {},
+  opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
 ): Promise<LoadedClient> {
+  const { _rawClient } = await loadClientParts(opts)
+  return { _rawClient }
+}
+
+export async function loadAuthedFetch(
+  opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
+): Promise<AuthedFetch> {
+  const { fetch, baseUrl } = await loadClientParts(opts)
+  return { fetch, baseUrl }
+}
+
+export async function loadSdkClientWithAuthedFetch(
+  opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
+): Promise<LoadedClientWithAuthedFetch> {
+  return loadClientParts(opts)
+}
+
+async function loadClientParts(
+  opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
+): Promise<LoadedClientWithAuthedFetch> {
   const store = opts.store ?? new ConfigStore()
   const config = await store.read()
   const resolved = resolveAccount(config, { accountOverride: process.env.WSPC_ACCOUNT })
@@ -58,32 +80,14 @@ export async function loadSdkClient(
     fetchImpl: opts.fetchImpl,
   })
   const interceptor = buildInterceptor(store, resolved, consistencyFetch)
+  const authedFetch: typeof globalThis.fetch = (input, init) =>
+    interceptor.execute(new Request(input as RequestInfo, init))
 
   const rawClient = createClient(
     createConfig({
       baseUrl: resolved.apiBase,
-      fetch: ((input: RequestInfo | URL, init?: RequestInit) =>
-        interceptor.execute(new Request(input as RequestInfo, init))) as typeof fetch,
+      fetch: authedFetch,
     }),
   )
-  return { _rawClient: rawClient }
-}
-
-export async function loadAuthedFetch(
-  opts: { store?: ConfigStore; fetchImpl?: typeof fetch } = {},
-): Promise<AuthedFetch> {
-  const store = opts.store ?? new ConfigStore()
-  const config = await store.read()
-  const resolved = resolveAccount(config, { accountOverride: process.env.WSPC_ACCOUNT })
-  const consistencyFetch = createConsistencyFetch({
-    store,
-    envName: resolved.envName,
-    apiBase: resolved.apiBase,
-    fetchImpl: opts.fetchImpl,
-  })
-  const interceptor = buildInterceptor(store, resolved, consistencyFetch)
-
-  const authedFetch: typeof fetch = (input, init) =>
-    interceptor.execute(new Request(input as RequestInfo, init))
-  return { fetch: authedFetch, baseUrl: resolved.apiBase }
+  return { _rawClient: rawClient, fetch: authedFetch, baseUrl: resolved.apiBase }
 }
