@@ -63,13 +63,15 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
     async uploadFile(
       id: string,
       path: string,
-      expectedEntryVersion: number,
       body: BodyInit,
       sha256: string,
+      expectedEntryVersion?: number,
     ): Promise<UploadDriveFileResponse> {
       const url = new URL(`/drive/libraries/${id}/files/content`, authedFetch.baseUrl)
       url.searchParams.set("path", path)
-      url.searchParams.set("expected_entry_version", String(expectedEntryVersion))
+      if (expectedEntryVersion !== undefined) {
+        url.searchParams.set("expected_entry_version", String(expectedEntryVersion))
+      }
 
       const res = await authedFetch.fetch(url, {
         method: "PUT",

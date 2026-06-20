@@ -175,9 +175,43 @@ describe("createDriveApi", () => {
     }) as typeof fetch
 
     const api = await mkDriveApi(fetchImpl)
-    const result = await api.uploadFile("lib_1", "notes/hello.txt", 2, new TextEncoder().encode("hello"), sha256)
+    const result = await api.uploadFile("lib_1", "notes/hello.txt", new TextEncoder().encode("hello"), sha256, 2)
 
     expect(result).toMatchObject(DRIVE_UPLOAD)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it("uploadFile omits optional expected version while preserving decoded path", async () => {
+    const sha256 = "3a6eb7"
+    const uploadPath = "notes/space dir/你好.txt"
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = mkReq(input, init)
+      const url = new URL(req.url)
+      expect(req.method).toBe("PUT")
+      expect(url.pathname).toBe("/drive/libraries/lib_1/files/content")
+      expect(url.searchParams.get("path")).toBe(uploadPath)
+      expect(url.searchParams.has("expected_entry_version")).toBe(false)
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_x")
+      return new Response(JSON.stringify(DRIVE_UPLOAD), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    }) as typeof fetch
+
+    const api = await mkDriveApi(fetchImpl)
+    const result = await api.uploadFile("lib_1", uploadPath, new TextEncoder().encode("hello"), sha256)
+
+    expect(result).toMatchObject(DRIVE_UPLOAD)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it("uploadFile throws status and response body for failed raw uploads", async () => {
+    const fetchImpl = vi.fn(async () => new Response("version mismatch", { status: 409 })) as typeof fetch
+    const api = await mkDriveApi(fetchImpl)
+
+    await expect(
+      api.uploadFile("lib_1", "notes/hello.txt", new TextEncoder().encode("hello"), "3a6eb7"),
+    ).rejects.toThrow("HTTP 409: version mismatch")
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
@@ -200,6 +234,14 @@ describe("createDriveApi", () => {
 
     expect(result).toBeInstanceOf(Response)
     expect(await result.text()).toBe("hello")
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it("downloadFile throws status and response body for failed raw downloads", async () => {
+    const fetchImpl = vi.fn(async () => new Response("missing file", { status: 404 })) as typeof fetch
+    const api = await mkDriveApi(fetchImpl)
+
+    await expect(api.downloadFile("lib_1", "notes/missing.txt")).rejects.toThrow("HTTP 404: missing file")
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 })
