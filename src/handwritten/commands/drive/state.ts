@@ -1,4 +1,5 @@
 import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises"
+import { randomUUID } from "node:crypto"
 import { join } from "node:path"
 
 export const DRIVE_DIR = ".wspc-drive"
@@ -46,7 +47,7 @@ export async function readDriveState(root: string): Promise<DriveState> {
 
 export async function writeDriveState(root: string, state: DriveState): Promise<void> {
   await mkdir(join(root, DRIVE_DIR), { recursive: true })
-  const tmp = join(root, DRIVE_DIR, `state.json.tmp-${process.pid}-${Date.now()}`)
+  const tmp = join(root, DRIVE_DIR, `state.json.tmp-${process.pid}-${randomUUID()}`)
   const snapshot = JSON.stringify(
     {
       ...state,
@@ -56,14 +57,18 @@ export async function writeDriveState(root: string, state: DriveState): Promise<
     2,
   ) + "\n"
   const fullPath = statePath(root)
-  await writeFile(tmp, snapshot, { mode: 0o600 })
-  const fh = await open(tmp, "r")
   try {
-    await fh.sync()
+    await writeFile(tmp, snapshot, { mode: 0o600 })
+    const fh = await open(tmp, "r")
+    try {
+      await fh.sync()
+    } finally {
+      await fh.close()
+    }
+    await rename(tmp, fullPath)
   } finally {
-    await fh.close()
+    await rm(tmp, { force: true })
   }
-  await rename(tmp, fullPath)
 }
 
 export async function initDriveState(root: string, libraryId: string): Promise<DriveState> {
@@ -103,7 +108,7 @@ export async function withDriveLock<T>(root: string, fn: () => Promise<T>): Prom
     return await fn()
   } finally {
     await fh.close().catch(() => {})
-    await rm(lockFile, { force: true })
+    await rm(lockFile, { force: true }).catch(() => {})
   }
 }
 

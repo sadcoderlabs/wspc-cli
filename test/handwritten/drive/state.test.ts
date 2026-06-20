@@ -82,6 +82,16 @@ describe("drive state", () => {
     await expect(readFile(join(root, ".wspc-drive", "sync.lock"))).rejects.toThrow()
   })
 
+  it("removes lock file after callback succeeds", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-success-"))
+    await initDriveState(root, "lib_a")
+
+    const value = await withDriveLock(root, async () => "ok")
+
+    expect(value).toBe("ok")
+    await expect(readFile(join(root, ".wspc-drive", "sync.lock"))).rejects.toThrow()
+  })
+
   it("writes and reads schema fields", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-write-"))
     await initDriveState(root, "lib_a")
