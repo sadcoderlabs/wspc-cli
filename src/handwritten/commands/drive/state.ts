@@ -27,6 +27,13 @@ export interface DriveConflict {
   conflict_paths?: string[]
 }
 
+export interface DriveRealtimeState {
+  client_id: string
+  last_cursor?: string
+  last_connected_at?: string
+  last_event_at?: string
+}
+
 export interface DriveState {
   schema_version: 1
   library_id: string
@@ -34,6 +41,7 @@ export interface DriveState {
   updated_at: string
   entries: Record<string, DriveStateEntry>
   conflicts: Record<string, DriveConflict>
+  realtime?: DriveRealtimeState
 }
 
 export function statePath(root: string): string {
@@ -99,6 +107,22 @@ export async function initDriveState(root: string, libraryId: string): Promise<D
   return state
 }
 
+export async function ensureDriveRealtimeState(root: string): Promise<DriveState> {
+  const state = await readDriveState(root)
+  if (state.realtime?.client_id !== undefined) {
+    return state
+  }
+  const next: DriveState = {
+    ...state,
+    realtime: {
+      ...state.realtime,
+      client_id: `drvcli_${randomUUID().replace(/-/g, "")}`,
+    },
+  }
+  await writeDriveState(root, next)
+  return next
+}
+
 export async function withDriveLock<T>(root: string, fn: () => Promise<T>): Promise<T> {
   await mkdir(join(root, DRIVE_DIR), { recursive: true })
   const lockFile = join(root, DRIVE_DIR, "sync.lock")
@@ -162,6 +186,17 @@ function isDriveConflict(value: unknown): value is DriveConflict {
   )
 }
 
+function isDriveRealtimeState(value: unknown): value is DriveRealtimeState {
+  return (
+    isRecord(value) &&
+    typeof value.client_id === "string" &&
+    value.client_id.startsWith("drvcli_") &&
+    (value.last_cursor === undefined || typeof value.last_cursor === "string") &&
+    (value.last_connected_at === undefined || typeof value.last_connected_at === "string") &&
+    (value.last_event_at === undefined || typeof value.last_event_at === "string")
+  )
+}
+
 function isValidDriveState(value: unknown): value is DriveState {
   if (!isRecord(value)) return false
   if (
@@ -170,7 +205,8 @@ function isValidDriveState(value: unknown): value is DriveState {
     typeof value.created_at !== "string" ||
     typeof value.updated_at !== "string" ||
     !isRecord(value.entries) ||
-    !isRecord(value.conflicts)
+    !isRecord(value.conflicts) ||
+    (value.realtime !== undefined && !isDriveRealtimeState(value.realtime))
   ) {
     return false
   }
