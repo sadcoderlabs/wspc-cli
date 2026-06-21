@@ -17,9 +17,16 @@ describe("drive merge helpers", () => {
   })
 
   it("keeps local newline style for clean merges", () => {
-    const result = mergeText3("a\nb\n", "a\r\nlocal\r\nb\r\n", "a\nremote\nb\n")
+    const result = mergeText3("a\nb\nc\n", "a\r\nlocal\r\nb\r\nc\r\n", "a\nb\nremote\nc\n")
 
-    expect(result).toEqual({ clean: true, text: "a\r\nlocal\r\nremote\r\nb\r\n" })
+    expect(result).toEqual({ clean: true, text: "a\r\nlocal\r\nb\r\nremote\r\nc\r\n" })
+  })
+
+  it("reports same-offset different insertions as conflicts", () => {
+    const result = mergeText3("a\nb\n", "a\nlocal\nb\n", "a\nremote\nb\n")
+
+    expect(result.clean).toBe(false)
+    expect("text" in result).toBe(false)
   })
 
   it("reports hunk conflicts without conflict markers", () => {

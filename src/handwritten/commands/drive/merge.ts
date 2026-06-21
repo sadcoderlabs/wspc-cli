@@ -59,10 +59,6 @@ export function mergeText3(base: string, local: string, remote: string): MergeTe
   const mergedLines: string[] = []
 
   for (const region of regions) {
-    if (region.conflict !== undefined && region.conflict.o.length === 0) {
-      mergedLines.push(...region.conflict.a, ...region.conflict.b)
-      continue
-    }
     if (region.conflict !== undefined) {
       return { clean: false }
     }
