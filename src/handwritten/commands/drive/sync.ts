@@ -445,7 +445,7 @@ async function recordRemoteConflictCopy(args: {
     return undefined
   }
 
-  if (canReuseConflictCopy(state.conflicts[path], remoteVersionId)) {
+  if (await canReuseConflictCopy(root, state.conflicts[path], remoteVersionId)) {
     return state
   }
 
@@ -466,13 +466,31 @@ async function recordRemoteConflictCopy(args: {
   return nextState
 }
 
-function canReuseConflictCopy(conflict: DriveConflict | undefined, remoteVersionId: string): boolean {
-  return (
-    conflict?.strategy === "conflict_copy" &&
-    conflict.remote_version_id === remoteVersionId &&
-    Array.isArray(conflict.conflict_paths) &&
-    conflict.conflict_paths.length > 0
-  )
+async function canReuseConflictCopy(
+  root: string,
+  conflict: DriveConflict | undefined,
+  remoteVersionId: string,
+): Promise<boolean> {
+  if (
+    conflict?.strategy !== "conflict_copy" ||
+    conflict.remote_version_id !== remoteVersionId ||
+    !Array.isArray(conflict.conflict_paths) ||
+    conflict.conflict_paths.length === 0
+  ) {
+    return false
+  }
+
+  for (const conflictPath of conflict.conflict_paths) {
+    try {
+      validateDrivePath(conflictPath)
+      if (!(await localFileExists(resolveInsideRoot(root, conflictPath)))) {
+        return false
+      }
+    } catch {
+      return false
+    }
+  }
+  return true
 }
 
 async function writeConflictCopy(

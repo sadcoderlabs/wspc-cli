@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, readdir, unlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -430,6 +430,35 @@ describe("drive sync once", () => {
       expect((await readdir(root)).filter((name) => name.includes(".remote-conflict-"))).toEqual([
         "notes.remote-conflict-20260621T101000Z-ver_2.md",
       ])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("recreates a missing conflict copy for the same unresolved edit/edit conflict", async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date("2026-06-21T10:10:00Z"))
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-copy-missing-"))
+      const state = await initDriveState(root, "lib_1")
+      state.entries["notes.md"] = stateEntry("notes.md", "old\n", 1)
+      await writeDriveState(root, state)
+      await writeFile(join(root, "notes.md"), "local\n")
+      const remote = entry("notes.md", "remote\n", 2)
+      const api = mkApi([{ entries: [remote] }, { entries: [remote] }])
+      api.downloads.set("notes.md@ver_1", "old\n")
+      api.downloads.set("notes.md@ver_2", "remote\n")
+      const originalDownloadFile = api.downloadFile
+      api.downloadFile = vi.fn(originalDownloadFile)
+
+      const first = await runDriveSyncOnce(root, api)
+      await unlink(join(root, first.conflict_paths[0]!))
+      const second = await runDriveSyncOnce(root, api)
+
+      expect(second.conflict_paths).toEqual(first.conflict_paths)
+      expect(await readFile(join(root, second.conflict_paths[0]!), "utf8")).toBe("remote\n")
+      expect(api.downloadFile).toHaveBeenCalledWith("lib_1", "notes.md", "ver_2")
+      expect(vi.mocked(api.downloadFile).mock.calls.filter((call) => call[2] === "ver_2")).toHaveLength(4)
     } finally {
       vi.useRealTimers()
     }
