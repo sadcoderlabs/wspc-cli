@@ -392,6 +392,10 @@ async function recordEditEditConflictCopy(args: {
     return undefined
   }
 
+  if (canReuseConflictCopy(state.conflicts[path], remoteVersionId)) {
+    return state
+  }
+
   const remoteBytes = await downloadBytes(api, state.library_id, path, remoteVersionId)
   const copyPath = await writeConflictCopy(root, path, "remote", remoteVersionId, remoteBytes)
   const nextState = cloneDriveState(state)
@@ -407,6 +411,15 @@ async function recordEditEditConflictCopy(args: {
   }
   await commitDriveState(root, nextState)
   return nextState
+}
+
+function canReuseConflictCopy(conflict: DriveConflict | undefined, remoteVersionId: string): boolean {
+  return (
+    conflict?.strategy === "conflict_copy" &&
+    conflict.remote_version_id === remoteVersionId &&
+    Array.isArray(conflict.conflict_paths) &&
+    conflict.conflict_paths.length > 0
+  )
 }
 
 async function writeConflictCopy(
