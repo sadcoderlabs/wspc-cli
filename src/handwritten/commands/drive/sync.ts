@@ -260,28 +260,80 @@ async function processPath(args: {
 
     if (action.type === "conflict") {
       if (action.reason === "local_and_remote_changed") {
-        const mergedState = await tryResolveConflict({
-          root,
-          state,
-          api,
-          path,
-          remote,
-          local,
-          onLocalMutation: () => {
-            durableStateRequired = true
-          },
-        })
-        if (mergedState) {
-          summary.merged += 1
-          summary.paths[summary.paths.length - 1] = { path, action: "merged" }
-          return { state: mergedState, stop: false }
+        try {
+          const mergedState = await tryResolveConflict({
+            root,
+            state,
+            api,
+            path,
+            remote,
+            local,
+            onLocalMutation: () => {
+              durableStateRequired = true
+            },
+          })
+          if (mergedState) {
+            summary.merged += 1
+            summary.paths[summary.paths.length - 1] = { path, action: "merged" }
+            return { state: mergedState, stop: false }
+          }
+        } catch (error) {
+          if (!isLocalChangedDuringMerge(error)) {
+            throw error
+          }
+          const nextState = await recordTypedConflict(root, state, path, action.reason, remote, {
+            type: "edit_edit",
+            strategy: "record_only",
+            reason: "local_changed_during_merge",
+          })
+          summary.conflicts += 1
+          return { state: nextState, stop: false }
         }
-        const conflictCopyState = await recordEditEditConflictCopy({
+        const conflictCopyState = await recordRemoteConflictCopy({
           root,
           state,
           api,
           path,
           reason: action.reason,
+          type: "edit_edit",
+          remote,
+        })
+        if (conflictCopyState) {
+          summary.conflicts += 1
+          return { state: conflictCopyState, stop: false }
+        }
+      }
+      if (action.reason === "local_and_remote_without_base") {
+        const conflictCopyState = await recordRemoteConflictCopy({
+          root,
+          state,
+          api,
+          path,
+          reason: action.reason,
+          type: "create_create",
+          remote,
+        })
+        if (conflictCopyState) {
+          summary.conflicts += 1
+          return { state: conflictCopyState, stop: false }
+        }
+      }
+      if (action.reason === "local_changed_remote_deleted") {
+        const nextState = await recordTypedConflict(root, state, path, action.reason, remote, {
+          type: "edit_delete",
+          strategy: "record_only",
+        })
+        summary.conflicts += 1
+        return { state: nextState, stop: false }
+      }
+      if (action.reason === "remote_changed_before_delete") {
+        const conflictCopyState = await recordRemoteConflictCopy({
+          root,
+          state,
+          api,
+          path,
+          reason: action.reason,
+          type: "delete_edit",
           remote,
         })
         if (conflictCopyState) {
@@ -377,18 +429,19 @@ async function downloadBytes(api: DriveSyncApi, libraryId: string, path: string,
   return new Uint8Array(await response.arrayBuffer())
 }
 
-async function recordEditEditConflictCopy(args: {
+async function recordRemoteConflictCopy(args: {
   root: string
   state: DriveState
   api: DriveSyncApi
   path: string
   reason: string
+  type: NonNullable<DriveConflict["type"]>
   remote: RemoteEntry | undefined
 }): Promise<DriveState | undefined> {
-  const { root, state, api, path, reason, remote } = args
+  const { root, state, api, path, reason, type, remote } = args
   const entry = state.entries[path]
   const remoteVersionId = remote?.current_version_id
-  if (!entry || !remote || remoteVersionId === undefined) {
+  if (!remote || remoteVersionId === undefined) {
     return undefined
   }
 
@@ -402,9 +455,9 @@ async function recordEditEditConflictCopy(args: {
   nextState.conflicts[path] = {
     detected_at: new Date().toISOString(),
     reason,
-    type: "edit_edit",
+    type,
     strategy: "conflict_copy",
-    base_version_id: entry.current_version_id,
+    base_version_id: entry?.current_version_id,
     remote_version_id: remoteVersionId,
     remote_entry_version: remote.entry_version,
     conflict_paths: [copyPath],
@@ -849,6 +902,25 @@ async function recordConflict(
   return nextState
 }
 
+async function recordTypedConflict(
+  root: string,
+  state: DriveState,
+  path: string,
+  reason: string,
+  remote: RemoteEntry | undefined,
+  metadata: Pick<DriveConflict, "type" | "strategy"> & { reason?: string },
+): Promise<DriveState> {
+  const nextState = cloneDriveState(state)
+  nextState.conflicts[path] = {
+    ...conflict(metadata.reason ?? reason, remote),
+    type: metadata.type,
+    strategy: metadata.strategy,
+    base_version_id: state.entries[path]?.current_version_id,
+  }
+  await commitDriveState(root, nextState)
+  return nextState
+}
+
 async function recordPathError(
   summary: DriveSyncSummary,
   blockedPaths: Set<string> | undefined,
@@ -884,6 +956,10 @@ function isVersionConflict(error: unknown): boolean {
   const structured = error as { body?: unknown; code?: unknown; response?: { body?: unknown } } | undefined
   if (structured?.code === "VERSION_CONFLICT") return true
   return [errorMessage(error), structured?.body, structured?.response?.body].some(containsVersionConflict)
+}
+
+function isLocalChangedDuringMerge(error: unknown): boolean {
+  return errorMessage(error) === "local file changed after scan"
 }
 
 function containsVersionConflict(value: unknown): boolean {
