@@ -1,3 +1,4 @@
+import { driveIsoTimestamp, systemDriveClock, type DriveClock } from "./clock.js"
 import type { DriveRealtimeState } from "./state.js"
 import type { DriveRealtimeSource } from "./watch.js"
 
@@ -27,12 +28,12 @@ export function createDriveRealtimeSource(args: {
   writeRealtimeState: (next: DriveRealtimeState) => Promise<void>
   connect?: DriveRealtimeConnector
   headers?: HeadersInit
-  now?: () => Date
+  clock?: DriveClock
   setTimeout?: typeof setTimeout
   clearTimeout?: typeof clearTimeout
 }): DriveRealtimeSource {
   const connect = args.connect ?? nativeWebSocketConnector
-  const now = args.now ?? (() => new Date())
+  const clock = args.clock ?? systemDriveClock
   const scheduleTimeout = args.setTimeout ?? setTimeout
   const cancelTimeout = args.clearTimeout ?? clearTimeout
   let currentRealtime = { ...args.realtime }
@@ -72,7 +73,7 @@ export function createDriveRealtimeSource(args: {
       open() {
         if (id !== connectionId || stopped || authFailed) return
         reconnectDelayMs = 1000
-        void persistBestEffort({ ...currentRealtime, last_connected_at: now().toISOString() })
+        void persistBestEffort({ ...currentRealtime, last_connected_at: driveIsoTimestamp(clock) })
           .then(() => handlers?.onConnected())
       },
       message(data) {
@@ -123,7 +124,7 @@ export function createDriveRealtimeSource(args: {
         reason: "library_changed",
       }, "cursor", message.cursor), "path", message.path))
       if (message.cursor !== undefined) {
-        await persistBestEffort({ ...currentRealtime, last_cursor: message.cursor, last_event_at: now().toISOString() })
+        await persistBestEffort({ ...currentRealtime, last_cursor: message.cursor, last_event_at: driveIsoTimestamp(clock) })
       }
       return
     }
@@ -131,7 +132,7 @@ export function createDriveRealtimeSource(args: {
       const reason = message.reason ?? "resync_required"
       handlers?.onEvent(optionalString({ immediate: true, reason }, "cursor", message.cursor))
       if (message.cursor !== undefined || isInvalidCursorReason(reason)) {
-        await persistBestEffort(resyncRealtimeState(currentRealtime, message.cursor, reason, now().toISOString()))
+        await persistBestEffort(resyncRealtimeState(currentRealtime, message.cursor, reason, driveIsoTimestamp(clock)))
       }
       return
     }

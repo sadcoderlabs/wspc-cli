@@ -3,11 +3,13 @@ import { spawnSync } from "node:child_process"
 import { mkdir, mkdtemp, readFile, readdir, unlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
+import { DateTime } from "luxon"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { initDriveState, readDriveState, writeDriveState, type DriveStateEntry } from "../../../src/handwritten/commands/drive/state.js"
 import { driveSyncCommand, runDriveSyncOnce, type DriveSyncApi } from "../../../src/handwritten/commands/drive/sync.js"
 import { render } from "../../../src/handwritten/output/render.js"
 import type { UploadDriveFileResponse } from "../../../src/generated/sdk/index.js"
+import type { DriveClock } from "../../../src/handwritten/commands/drive/clock.js"
 
 const stateWriteControl = vi.hoisted(() => ({
   failNext: undefined as undefined | ((state: unknown) => Error | undefined),
@@ -21,13 +23,13 @@ vi.mock("../../../src/handwritten/commands/drive/state.js", async (importOrigina
   const actual = await importOriginal<typeof import("../../../src/handwritten/commands/drive/state.js")>()
   return {
     ...actual,
-    writeDriveState: vi.fn(async (root: string, state: unknown) => {
+    writeDriveState: vi.fn(async (root: string, state: unknown, clock?: DriveClock) => {
       const fail = stateWriteControl.failNext?.(state)
       if (fail) {
         stateWriteControl.failNext = undefined
         throw fail
       }
-      await actual.writeDriveState(root, state as Parameters<typeof actual.writeDriveState>[1])
+      await actual.writeDriveState(root, state as Parameters<typeof actual.writeDriveState>[1], clock)
     }),
   }
 })
@@ -81,6 +83,10 @@ function stateEntry(path: string, content: string, version = 1): DriveStateEntry
     last_synced_at: "2026-06-21T00:00:00.000Z",
     status: "synced",
   }
+}
+
+const conflictClock: DriveClock = {
+  now: () => DateTime.fromISO("2026-06-21T10:10:00Z", { setZone: true }),
 }
 
 type ManifestEntry = {
@@ -398,95 +404,77 @@ describe("drive sync once", () => {
   })
 
   it("reuses an existing conflict copy for the same unresolved edit/edit conflict", async () => {
-    vi.useFakeTimers()
-    try {
-      vi.setSystemTime(new Date("2026-06-21T10:10:00Z"))
-      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-copy-reuse-"))
-      const state = await initDriveState(root, "lib_1")
-      state.entries["notes.md"] = stateEntry("notes.md", "old\n", 1)
-      await writeDriveState(root, state)
-      await writeFile(join(root, "notes.md"), "local\n")
-      const remote = entry("notes.md", "remote\n", 2)
-      const api = mkApi([{ entries: [remote] }, { entries: [remote] }])
-      api.downloads.set("notes.md@ver_1", "old\n")
-      api.downloads.set("notes.md@ver_2", "remote\n")
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-copy-reuse-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.md"] = stateEntry("notes.md", "old\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.md"), "local\n")
+    const remote = entry("notes.md", "remote\n", 2)
+    const api = mkApi([{ entries: [remote] }, { entries: [remote] }])
+    api.downloads.set("notes.md@ver_1", "old\n")
+    api.downloads.set("notes.md@ver_2", "remote\n")
 
-      const first = await runDriveSyncOnce(root, api)
-      const firstState = await readDriveState(root)
-      const second = await runDriveSyncOnce(root, api)
-      const secondState = await readDriveState(root)
+    const first = await runDriveSyncOnce(root, api, conflictClock)
+    const firstState = await readDriveState(root)
+    const second = await runDriveSyncOnce(root, api, conflictClock)
+    const secondState = await readDriveState(root)
 
-      expect(first.conflict_paths).toEqual(["notes.remote-conflict-20260621T101000Z-ver_2.md"])
-      expect(second.conflict_paths).toEqual(first.conflict_paths)
-      expect(second.conflicts).toBe(1)
-      expect(second.paths).toContainEqual({
-        path: "notes.md",
-        action: "conflict",
-        conflict_paths: first.conflict_paths,
-      })
-      expect(firstState.conflicts["notes.md"]?.conflict_paths).toEqual(first.conflict_paths)
-      expect(secondState.conflicts["notes.md"]?.conflict_paths).toEqual(first.conflict_paths)
-      expect(secondState.conflicts["notes.md"]).toEqual(firstState.conflicts["notes.md"])
-      expect((await readdir(root)).filter((name) => name.includes(".remote-conflict-"))).toEqual([
-        "notes.remote-conflict-20260621T101000Z-ver_2.md",
-      ])
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(first.conflict_paths).toEqual(["notes.remote-conflict-20260621T101000Z-ver_2.md"])
+    expect(second.conflict_paths).toEqual(first.conflict_paths)
+    expect(second.conflicts).toBe(1)
+    expect(second.paths).toContainEqual({
+      path: "notes.md",
+      action: "conflict",
+      conflict_paths: first.conflict_paths,
+    })
+    expect(firstState.conflicts["notes.md"]?.conflict_paths).toEqual(first.conflict_paths)
+    expect(secondState.conflicts["notes.md"]?.conflict_paths).toEqual(first.conflict_paths)
+    expect(secondState.conflicts["notes.md"]).toEqual(firstState.conflicts["notes.md"])
+    expect((await readdir(root)).filter((name) => name.includes(".remote-conflict-"))).toEqual([
+      "notes.remote-conflict-20260621T101000Z-ver_2.md",
+    ])
   })
 
   it("recreates a missing conflict copy for the same unresolved edit/edit conflict", async () => {
-    vi.useFakeTimers()
-    try {
-      vi.setSystemTime(new Date("2026-06-21T10:10:00Z"))
-      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-copy-missing-"))
-      const state = await initDriveState(root, "lib_1")
-      state.entries["notes.md"] = stateEntry("notes.md", "old\n", 1)
-      await writeDriveState(root, state)
-      await writeFile(join(root, "notes.md"), "local\n")
-      const remote = entry("notes.md", "remote\n", 2)
-      const api = mkApi([{ entries: [remote] }, { entries: [remote] }])
-      api.downloads.set("notes.md@ver_1", "old\n")
-      api.downloads.set("notes.md@ver_2", "remote\n")
-      const originalDownloadFile = api.downloadFile
-      api.downloadFile = vi.fn(originalDownloadFile)
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-copy-missing-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.md"] = stateEntry("notes.md", "old\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.md"), "local\n")
+    const remote = entry("notes.md", "remote\n", 2)
+    const api = mkApi([{ entries: [remote] }, { entries: [remote] }])
+    api.downloads.set("notes.md@ver_1", "old\n")
+    api.downloads.set("notes.md@ver_2", "remote\n")
+    const originalDownloadFile = api.downloadFile
+    api.downloadFile = vi.fn(originalDownloadFile)
 
-      const first = await runDriveSyncOnce(root, api)
-      await unlink(join(root, first.conflict_paths[0]!))
-      const second = await runDriveSyncOnce(root, api)
+    const first = await runDriveSyncOnce(root, api, conflictClock)
+    await unlink(join(root, first.conflict_paths[0]!))
+    const second = await runDriveSyncOnce(root, api, conflictClock)
 
-      expect(second.conflict_paths).toEqual(first.conflict_paths)
-      expect(await readFile(join(root, second.conflict_paths[0]!), "utf8")).toBe("remote\n")
-      expect(api.downloadFile).toHaveBeenCalledWith("lib_1", "notes.md", "ver_2")
-      expect(vi.mocked(api.downloadFile).mock.calls.filter((call) => call[2] === "ver_2")).toHaveLength(4)
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(second.conflict_paths).toEqual(first.conflict_paths)
+    expect(await readFile(join(root, second.conflict_paths[0]!), "utf8")).toBe("remote\n")
+    expect(api.downloadFile).toHaveBeenCalledWith("lib_1", "notes.md", "ver_2")
+    expect(vi.mocked(api.downloadFile).mock.calls.filter((call) => call[2] === "ver_2")).toHaveLength(4)
   })
 
   it("adds a numeric suffix when the conflict copy path already exists", async () => {
-    vi.useFakeTimers()
-    try {
-      vi.setSystemTime(new Date("2026-06-21T10:10:00Z"))
-      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-copy-suffix-"))
-      const state = await initDriveState(root, "lib_1")
-      state.entries["notes.md"] = stateEntry("notes.md", "old\n", 1)
-      await writeDriveState(root, state)
-      await writeFile(join(root, "notes.md"), "local\n")
-      await writeFile(join(root, "notes.remote-conflict-20260621T101000Z-ver_2.md"), "existing")
-      const remote = entry("notes.md", "remote\n", 2)
-      const api = mkApi([{ entries: [remote] }])
-      api.downloads.set("notes.md@ver_1", "old\n")
-      api.downloads.set("notes.md@ver_2", "remote\n")
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-copy-suffix-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.md"] = stateEntry("notes.md", "old\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.md"), "local\n")
+    await writeFile(join(root, "notes.remote-conflict-20260621T101000Z-ver_2.md"), "existing")
+    const remote = entry("notes.md", "remote\n", 2)
+    const api = mkApi([{ entries: [remote] }])
+    api.downloads.set("notes.md@ver_1", "old\n")
+    api.downloads.set("notes.md@ver_2", "remote\n")
 
-      const result = await runDriveSyncOnce(root, api)
+    const result = await runDriveSyncOnce(root, api, conflictClock)
 
-      expect(result.conflict_paths).toEqual(["notes.remote-conflict-20260621T101000Z-ver_2-2.md"])
-      expect(await readFile(join(root, "notes.remote-conflict-20260621T101000Z-ver_2-2.md"), "utf8")).toBe("remote\n")
-      expect(await readFile(join(root, "notes.remote-conflict-20260621T101000Z-ver_2.md"), "utf8")).toBe("existing")
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(result.conflict_paths).toEqual(["notes.remote-conflict-20260621T101000Z-ver_2-2.md"])
+    expect(await readFile(join(root, "notes.remote-conflict-20260621T101000Z-ver_2-2.md"), "utf8")).toBe("remote\n")
+    expect(await readFile(join(root, "notes.remote-conflict-20260621T101000Z-ver_2.md"), "utf8")).toBe("existing")
   })
 
   it("fails a clean merge without deleting the backed up local edit when the target is recreated", async () => {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DateTime } from "luxon"
 import {
   buildDriveRealtimeUrl,
   createDriveRealtimeSource,
@@ -7,6 +8,7 @@ import {
   type DriveRealtimeConnector,
 } from "../../../src/handwritten/commands/drive/realtime.js"
 import type { DriveRealtimeState } from "../../../src/handwritten/commands/drive/state.js"
+import type { DriveClock } from "../../../src/handwritten/commands/drive/clock.js"
 
 type ConnectorHandlers = Parameters<DriveRealtimeConnector>[1]
 type ConnectorInit = Parameters<DriveRealtimeConnector>[2]
@@ -57,7 +59,7 @@ function sourceArgs(overrides: Partial<{
   realtime: DriveRealtimeState
   writeRealtimeState: (next: DriveRealtimeState) => Promise<void>
   connect: DriveRealtimeConnector
-  now: () => Date
+  clock: DriveClock
   headers: HeadersInit
 }> = {}) {
   return {
@@ -66,7 +68,7 @@ function sourceArgs(overrides: Partial<{
     realtime: { client_id: "drvcli_abc", ...overrides.realtime },
     writeRealtimeState: overrides.writeRealtimeState ?? (async () => {}),
     connect: overrides.connect,
-    now: overrides.now,
+    clock: overrides.clock,
     headers: overrides.headers,
   }
 }
@@ -155,7 +157,7 @@ describe("drive realtime helpers", () => {
     const events: unknown[] = []
     const source = createDriveRealtimeSource(sourceArgs({
       connect,
-      now: () => new Date("2026-06-21T10:00:00.000Z"),
+      clock: { now: () => DateTime.fromISO("2026-06-21T10:00:00.000Z", { setZone: true }) },
       writeRealtimeState: async (next) => {
         updates.push(next)
       },
@@ -210,7 +212,7 @@ describe("drive realtime helpers", () => {
     const events: unknown[] = []
     const source = createDriveRealtimeSource(sourceArgs({
       connect,
-      now: () => new Date("2026-06-21T10:05:00.000Z"),
+      clock: { now: () => DateTime.fromISO("2026-06-21T10:05:00.000Z", { setZone: true }) },
       writeRealtimeState: async (next) => {
         updates.push(next)
       },
@@ -261,7 +263,7 @@ describe("drive realtime helpers", () => {
     const events: unknown[] = []
     const source = createDriveRealtimeSource(sourceArgs({
       connect,
-      now: () => new Date("2026-06-21T10:06:00.000Z"),
+      clock: { now: () => DateTime.fromISO("2026-06-21T10:06:00.000Z", { setZone: true }) },
       writeRealtimeState: async (next) => {
         updates.push(next)
       },
@@ -290,7 +292,7 @@ describe("drive realtime helpers", () => {
     const source = createDriveRealtimeSource(sourceArgs({
       connect,
       realtime: { client_id: "drvcli_abc", last_cursor: "old" },
-      now: () => new Date("2026-06-21T10:07:00.000Z"),
+      clock: { now: () => DateTime.fromISO("2026-06-21T10:07:00.000Z", { setZone: true }) },
       writeRealtimeState: async (next) => {
         updates.push(next)
       },
