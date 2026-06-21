@@ -1,14 +1,14 @@
 import { Command } from "commander"
 import { createWriteStream } from "node:fs"
 import { link, mkdir, readFile, rename, rm, unlink, writeFile } from "node:fs/promises"
-import { basename, dirname, join, resolve } from "node:path"
+import { basename, dirname, join, posix as pathPosix, resolve } from "node:path"
 import { createHash, randomUUID } from "node:crypto"
 import { Readable, Transform } from "node:stream"
 import { pipeline } from "node:stream/promises"
 import type { ReadableStream as NodeReadableStream } from "node:stream/web"
 import { createDriveApi } from "./api.js"
 import { decideDriveAction, type DriveAction } from "./decision.js"
-import { classifyMergeText, mergeText3 } from "./merge.js"
+import { classifyMergeText, conflictCopyPath, mergeText3 } from "./merge.js"
 import { resolveInsideRoot, validateDrivePath } from "./path-policy.js"
 import { hashDriveFile, scanDriveFiles } from "./scanner.js"
 import {
@@ -276,6 +276,18 @@ async function processPath(args: {
           summary.paths[summary.paths.length - 1] = { path, action: "merged" }
           return { state: mergedState, stop: false }
         }
+        const conflictCopyState = await recordEditEditConflictCopy({
+          root,
+          state,
+          api,
+          path,
+          reason: action.reason,
+          remote,
+        })
+        if (conflictCopyState) {
+          summary.conflicts += 1
+          return { state: conflictCopyState, stop: false }
+        }
       }
       const nextState = await recordConflict(root, state, path, action.reason, remote)
       summary.conflicts += 1
@@ -363,6 +375,86 @@ async function tryResolveConflict(args: {
 async function downloadBytes(api: DriveSyncApi, libraryId: string, path: string, versionId: string): Promise<Uint8Array> {
   const response = await api.downloadFile(libraryId, path, versionId)
   return new Uint8Array(await response.arrayBuffer())
+}
+
+async function recordEditEditConflictCopy(args: {
+  root: string
+  state: DriveState
+  api: DriveSyncApi
+  path: string
+  reason: string
+  remote: RemoteEntry | undefined
+}): Promise<DriveState | undefined> {
+  const { root, state, api, path, reason, remote } = args
+  const entry = state.entries[path]
+  const remoteVersionId = remote?.current_version_id
+  if (!entry || !remote || remoteVersionId === undefined) {
+    return undefined
+  }
+
+  const remoteBytes = await downloadBytes(api, state.library_id, path, remoteVersionId)
+  const copyPath = await writeConflictCopy(root, path, "remote", remoteVersionId, remoteBytes)
+  const nextState = cloneDriveState(state)
+  nextState.conflicts[path] = {
+    detected_at: new Date().toISOString(),
+    reason,
+    type: "edit_edit",
+    strategy: "conflict_copy",
+    base_version_id: entry.current_version_id,
+    remote_version_id: remoteVersionId,
+    remote_entry_version: remote.entry_version,
+    conflict_paths: [copyPath],
+  }
+  await commitDriveState(root, nextState)
+  return nextState
+}
+
+async function writeConflictCopy(
+  root: string,
+  path: string,
+  side: "remote" | "local",
+  versionId: string,
+  bytes: Uint8Array,
+): Promise<string> {
+  const baseCopyPath = conflictCopyPath(path, side, new Date(), versionId)
+  for (let suffix = 1; ; suffix += 1) {
+    const candidate = conflictCopyPathWithSuffix(baseCopyPath, suffix)
+    validateDrivePath(candidate)
+    const target = resolveInsideRoot(root, candidate)
+    await mkdir(dirname(target), { recursive: true })
+
+    for (;;) {
+      const tmp = join(dirname(target), `.${basename(target)}.wspc-conflict-${randomUUID()}.tmp`)
+      let tmpWritten = false
+      try {
+        await writeFile(tmp, bytes, { flag: "wx" })
+        tmpWritten = true
+        await installNoOverwrite(tmp, target)
+        return candidate
+      } catch (error) {
+        if (tmpWritten) {
+          await rm(tmp, { force: true }).catch(() => {})
+        }
+        if (isAlreadyExistsError(error)) {
+          if (tmpWritten) break
+          continue
+        }
+        throw error
+      }
+    }
+  }
+}
+
+function conflictCopyPathWithSuffix(path: string, suffix: number): string {
+  if (suffix === 1) {
+    return path
+  }
+  const parsed = pathPosix.parse(path)
+  const fileName = `${parsed.name}-${suffix}${parsed.ext}`
+  if (parsed.dir === "") {
+    return fileName
+  }
+  return pathPosix.join(parsed.dir, fileName)
 }
 
 function isExpectedVersionDownloadMissing(error: unknown): boolean {

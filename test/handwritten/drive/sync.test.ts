@@ -340,6 +340,63 @@ describe("drive sync once", () => {
     expect((await readDriveState(root)).conflicts["notes.md"]).toBeUndefined()
   })
 
+  it("writes a remote conflict copy for unclean edit/edit merges without changing the canonical local file", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-copy-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.md"] = stateEntry("notes.md", "old\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.md"), "local\n")
+    const remote = entry("notes.md", "remote\n", 2)
+    const api = mkApi([{ entries: [remote] }])
+    api.downloads.set("notes.md@ver_1", "old\n")
+    api.downloads.set("notes.md@ver_2", "remote\n")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(await readFile(join(root, "notes.md"), "utf8")).toBe("local\n")
+    expect(result.conflicts).toBe(1)
+    expect(result.conflict_paths[0]).toMatch(/^notes\.remote-conflict-\d{8}T\d{6}Z-ver_2\.md$/)
+    expect(await readFile(join(root, result.conflict_paths[0]!), "utf8")).toBe("remote\n")
+    expect(result.paths).toEqual([
+      { path: "notes.md", action: "conflict", conflict_paths: [result.conflict_paths[0]!] },
+    ])
+    expect(api.uploads).toEqual([])
+    expect((await readDriveState(root)).conflicts["notes.md"]).toMatchObject({
+      reason: "local_and_remote_changed",
+      type: "edit_edit",
+      strategy: "conflict_copy",
+      base_version_id: "ver_1",
+      remote_version_id: "ver_2",
+      remote_entry_version: 2,
+      conflict_paths: [result.conflict_paths[0]!],
+    })
+  })
+
+  it("adds a numeric suffix when the conflict copy path already exists", async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date("2026-06-21T10:10:00Z"))
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-conflict-copy-suffix-"))
+      const state = await initDriveState(root, "lib_1")
+      state.entries["notes.md"] = stateEntry("notes.md", "old\n", 1)
+      await writeDriveState(root, state)
+      await writeFile(join(root, "notes.md"), "local\n")
+      await writeFile(join(root, "notes.remote-conflict-20260621T101000Z-ver_2.md"), "existing")
+      const remote = entry("notes.md", "remote\n", 2)
+      const api = mkApi([{ entries: [remote] }])
+      api.downloads.set("notes.md@ver_1", "old\n")
+      api.downloads.set("notes.md@ver_2", "remote\n")
+
+      const result = await runDriveSyncOnce(root, api)
+
+      expect(result.conflict_paths).toEqual(["notes.remote-conflict-20260621T101000Z-ver_2-2.md"])
+      expect(await readFile(join(root, "notes.remote-conflict-20260621T101000Z-ver_2-2.md"), "utf8")).toBe("remote\n")
+      expect(await readFile(join(root, "notes.remote-conflict-20260621T101000Z-ver_2.md"), "utf8")).toBe("existing")
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it("fails a clean merge without deleting the backed up local edit when the target is recreated", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-merge-install-race-"))
     const state = await initDriveState(root, "lib_1")
