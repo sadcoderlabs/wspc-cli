@@ -124,6 +124,13 @@ export async function ensureDriveRealtimeState(root: string): Promise<DriveState
   return next
 }
 
+export async function writeDriveRealtimeState(root: string, realtime: DriveRealtimeState): Promise<void> {
+  await withDriveLock(root, async () => {
+    const current = await readDriveState(root)
+    await writeDriveState(root, { ...current, realtime })
+  })
+}
+
 export async function withDriveLock<T>(root: string, fn: () => Promise<T>): Promise<T> {
   await mkdir(join(root, DRIVE_DIR), { recursive: true })
   const lockFile = join(root, DRIVE_DIR, "sync.lock")

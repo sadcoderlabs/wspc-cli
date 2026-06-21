@@ -56,6 +56,7 @@ function fakeRealtimeSource(): DriveRealtimeSource & {
   emitEvent(event: RealtimeEvent): void
   emitReconnect(delayMs: number, error: string): void
   emitAuthFailed(error?: string): void
+  emitWarning(warning: string): void
 } {
   let handlers: Parameters<DriveRealtimeSource["start"]>[0] | undefined
   return {
@@ -74,6 +75,9 @@ function fakeRealtimeSource(): DriveRealtimeSource & {
     },
     emitAuthFailed(error) {
       handlers?.onAuthFailed(error)
+    },
+    emitWarning(warning) {
+      handlers?.onWarning?.(warning)
     },
   }
 }
@@ -568,6 +572,29 @@ describe("drive watch", () => {
         kind: "drive_realtime_reconnecting",
         delay_ms: 1000,
         error: "network failed",
+      })
+    } finally {
+      process.emit("SIGINT")
+      await watching
+    }
+  })
+
+  it("emits realtime warning events", async () => {
+    const source = fakeSource()
+    const realtimeSource = fakeRealtimeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    try {
+      realtimeSource.emitWarning("unknown realtime message")
+
+      expect(onEvent).toHaveBeenCalledWith({
+        kind: "drive_realtime_warning",
+        warning: "unknown realtime message",
       })
     } finally {
       process.emit("SIGINT")

@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { ConfigStore } from "../src/handwritten/config/index.js"
-import { loadAuthedFetch, loadSdkClient, loadSdkClientWithAuthedFetch } from "../src/handwritten/auth/load-sdk-client.js"
+import { loadAuthedFetch, loadRealtimeAuthHeaders, loadSdkClient, loadSdkClientWithAuthedFetch } from "../src/handwritten/auth/load-sdk-client.js"
 import { todoList } from "../src/generated/sdk/index.js"
 
 describe("loadSdkClient", () => {
@@ -106,6 +106,27 @@ describe("loadSdkClient", () => {
     expect(fetchImpl).toHaveBeenCalledOnce()
     const config = await store.read()
     expect(config.envs.prod?.consistency_bookmarks?.auth).toBe("auth_new")
+  })
+
+  it("loads realtime auth headers from the existing auth layer", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-load-realtime-auth-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          current_account: "a@x.com",
+          accounts: { "a@x.com": { email: "a@x.com", api_key: "wspc_x" } },
+        },
+      },
+    })
+
+    const { baseUrl, headers } = await loadRealtimeAuthHeaders({ store })
+
+    expect(baseUrl).toBe("https://api.wspc.ai")
+    expect(new Headers(headers).get("authorization")).toBe("Bearer wspc_x")
+    expect(new Headers(headers).get("user-agent")).toMatch(/^@wspc\/cli\//)
   })
 
   it("shares OAuth refresh state between generated SDK and direct authenticated fetch", async () => {

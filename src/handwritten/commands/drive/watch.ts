@@ -1,10 +1,10 @@
 import { Command } from "commander"
 import chokidar from "chokidar"
 import { relative, resolve } from "node:path"
-import { loadAuthedFetch } from "../../auth/load-sdk-client.js"
+import { loadRealtimeAuthHeaders } from "../../auth/load-sdk-client.js"
 import { render } from "../../output/render.js"
 import { createDriveRealtimeSource } from "./realtime.js"
-import { DRIVE_DIR, ensureDriveRealtimeState, readDriveState, writeDriveState } from "./state.js"
+import { DRIVE_DIR, ensureDriveRealtimeState, readDriveState, writeDriveRealtimeState } from "./state.js"
 import { runDriveSyncOnce, type DriveSyncSummary } from "./sync.js"
 
 export interface DriveWatchSource {
@@ -24,6 +24,7 @@ export interface DriveRealtimeSource {
     }) => void
     onReconnect: (delayMs: number, error: string) => void
     onAuthFailed: (error?: string) => void
+    onWarning?: (warning: string) => void
   }): Promise<void>
   close(): Promise<void>
 }
@@ -141,27 +142,27 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     stopWatch?.()
   }
 
-  let state = await (options.readState ?? readDriveState)(root)
-  const source = options.source ?? createChokidarSource(root)
-  let realtimeSource = options.once ? undefined : options.realtimeSource
-  if (!options.once && realtimeSource === undefined) {
-    state = await ensureDriveRealtimeState(root)
-    const { baseUrl } = await loadAuthedFetch()
-    const realtime = state.realtime
-    if (realtime === undefined) {
-      throw new Error("drive realtime state is required")
-    }
-    realtimeSource = createDriveRealtimeSource({
-      baseUrl,
-      libraryId: state.library_id,
-      realtime,
-      writeRealtimeState: async (next) => {
-        const current = await readDriveState(root)
-        await writeDriveState(root, { ...current, realtime: next })
-      },
-    })
-  }
+  let source: DriveWatchSource | undefined
+  let realtimeSource: DriveRealtimeSource | undefined
   try {
+    let state = await (options.readState ?? readDriveState)(root)
+    realtimeSource = options.once ? undefined : options.realtimeSource
+    if (!options.once && realtimeSource === undefined) {
+      state = await ensureDriveRealtimeState(root)
+      const { baseUrl, headers } = await loadRealtimeAuthHeaders()
+      const realtime = state.realtime
+      if (realtime === undefined) {
+        throw new Error("drive realtime state is required")
+      }
+      realtimeSource = createDriveRealtimeSource({
+        baseUrl,
+        headers,
+        libraryId: state.library_id,
+        realtime,
+        writeRealtimeState: (next) => writeDriveRealtimeState(root, next),
+      })
+    }
+    source = options.source ?? createChokidarSource(root)
     source.onChange((path) => {
       if (isDriveInternalPath(root, path)) return
       scheduleSync(debounceMs)
@@ -187,6 +188,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
         onAuthFailed(error) {
           emit({ kind: "drive_realtime_auth_failed", error: error ?? "auth failed" })
         },
+        onWarning(warning) {
+          emit({ kind: "drive_realtime_warning", warning })
+        },
       })
       .catch(stopWithError)
     await requestSync()
@@ -202,7 +206,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     clearDebounceTimer()
     clearRetryTimer()
     cleanupSignalListeners()
-    await Promise.all([source.close(), realtimeSource?.close()])
+    await Promise.all([source?.close(), realtimeSource?.close()])
   }
 }
 

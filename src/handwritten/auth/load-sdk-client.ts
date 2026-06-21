@@ -9,11 +9,20 @@ export interface AuthedFetch {
   baseUrl: string
 }
 
+export interface RealtimeAuthHeaders {
+  baseUrl: string
+  headers: Headers
+}
+
 export interface LoadedClient {
   _rawClient: ReturnType<typeof createClient>
 }
 
 export interface LoadedClientWithAuthedFetch extends LoadedClient, AuthedFetch {}
+
+interface LoadedClientParts extends LoadedClientWithAuthedFetch {
+  authInterceptor: ReturnType<typeof createAuthInterceptor>
+}
 
 function buildInterceptor(
   store: ConfigStore,
@@ -61,15 +70,24 @@ export async function loadAuthedFetch(
   return { fetch, baseUrl }
 }
 
+export async function loadRealtimeAuthHeaders(
+  opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
+): Promise<RealtimeAuthHeaders> {
+  const { baseUrl, authInterceptor } = await loadClientParts(opts)
+  const request = await authInterceptor.onRequest(new Request(baseUrl))
+  return { baseUrl, headers: request.headers }
+}
+
 export async function loadSdkClientWithAuthedFetch(
   opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
 ): Promise<LoadedClientWithAuthedFetch> {
-  return loadClientParts(opts)
+  const { _rawClient, fetch, baseUrl } = await loadClientParts(opts)
+  return { _rawClient, fetch, baseUrl }
 }
 
 async function loadClientParts(
   opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
-): Promise<LoadedClientWithAuthedFetch> {
+): Promise<LoadedClientParts> {
   const store = opts.store ?? new ConfigStore()
   const config = await store.read()
   const resolved = resolveAccount(config, { accountOverride: process.env.WSPC_ACCOUNT })
@@ -89,5 +107,5 @@ async function loadClientParts(
       fetch: authedFetch,
     }),
   )
-  return { _rawClient: rawClient, fetch: authedFetch, baseUrl: resolved.apiBase }
+  return { _rawClient: rawClient, fetch: authedFetch, baseUrl: resolved.apiBase, authInterceptor: interceptor }
 }

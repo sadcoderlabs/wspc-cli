@@ -8,11 +8,15 @@ export type DriveRealtimeMessage =
   | { type: "error"; code?: string; message?: string }
   | { type: "unknown"; message_type?: string }
 
+export interface DriveRealtimeConnectorInit {
+  headers?: HeadersInit
+}
+
 export type DriveRealtimeConnector = (url: URL, handlers: {
   open: () => void
   message: (data: string) => void
   close: (error?: unknown) => void
-}) => { close: () => void }
+}, init?: DriveRealtimeConnectorInit) => { close: () => void }
 
 type DriveRealtimeHandlers = Parameters<DriveRealtimeSource["start"]>[0]
 
@@ -22,6 +26,7 @@ export function createDriveRealtimeSource(args: {
   realtime: DriveRealtimeState
   writeRealtimeState: (next: DriveRealtimeState) => Promise<void>
   connect?: DriveRealtimeConnector
+  headers?: HeadersInit
   now?: () => Date
   setTimeout?: typeof setTimeout
   clearTimeout?: typeof clearTimeout
@@ -70,12 +75,21 @@ export function createDriveRealtimeSource(args: {
       close(error) {
         closeConnection(id, error ?? "close")
       },
-    })
+    }, args.headers === undefined ? undefined : { headers: args.headers })
   }
 
   function closeConnection(id: number, error: unknown): void {
     if (id !== connectionId || stopped || authFailed) return
+    connectionId += 1
+    const socket = activeSocket
     activeSocket = undefined
+    clearReconnectTimer()
+    socket?.close()
+    if (isRealtimeAuthError(error)) {
+      authFailed = true
+      handlers?.onAuthFailed(redactedRealtimeError(error))
+      return
+    }
     const delayMs = reconnectDelayMs
     handlers?.onReconnect(delayMs, redactedRealtimeError(error))
     reconnectTimer = scheduleTimeout(() => {
@@ -118,14 +132,17 @@ export function createDriveRealtimeSource(args: {
       const error = message.message ?? message.code ?? "realtime error"
       if (isRealtimeAuthError(error) || isRealtimeAuthError(message.code)) {
         authFailed = true
+        connectionId += 1
         clearReconnectTimer()
         handlers?.onAuthFailed(redactedRealtimeError(error))
         activeSocket?.close()
         activeSocket = undefined
         return
       }
-      handlers?.onReconnect(reconnectDelayMs, redactedRealtimeError(error))
+      handlers?.onWarning?.(redactedRealtimeError(error))
+      return
     }
+    handlers?.onWarning?.("unknown realtime message")
   }
 
   return {
@@ -234,8 +251,11 @@ function optionalString<T extends object, K extends string>(target: T, key: K, v
   return { ...target, [key]: value } as T & Record<K, string>
 }
 
-function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeConnector>[1]): { close: () => void } {
-  const ws = new WebSocket(url.toString())
+function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeConnector>[1], init?: DriveRealtimeConnectorInit): { close: () => void } {
+  const WebSocketWithInit = WebSocket as unknown as {
+    new (url: string | URL, init?: DriveRealtimeConnectorInit): WebSocket
+  }
+  const ws = new WebSocketWithInit(url.toString(), init)
   let closed = false
   const closeOnce = (error?: unknown) => {
     if (closed) return
@@ -244,7 +264,16 @@ function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeCo
   }
   ws.addEventListener("open", () => handlers.open())
   ws.addEventListener("message", (event) => handlers.message(String(event.data)))
-  ws.addEventListener("close", () => closeOnce())
+  ws.addEventListener("close", (event) => closeOnce(webSocketCloseError(event)))
   ws.addEventListener("error", () => closeOnce(new Error("network error")))
   return { close: () => ws.close() }
+}
+
+function webSocketCloseError(event: CloseEvent): Error | undefined {
+  if (event.code === 1000) return undefined
+  if (event.code === 4001 || event.code === 4401) return new Error("HTTP 401")
+  if (event.code === 4003 || event.code === 4403) return new Error("HTTP 403")
+  if (event.reason && isRealtimeAuthError(event.reason)) return new Error(event.reason)
+  if (event.reason) return new Error(event.reason)
+  return new Error(`WebSocket close ${event.code}`)
 }

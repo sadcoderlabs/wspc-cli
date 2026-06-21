@@ -8,6 +8,7 @@ import {
   readDriveState,
   withDriveLock,
   writeDriveState,
+  writeDriveRealtimeState,
   type DriveState,
 } from "../../../src/handwritten/commands/drive/state.js"
 
@@ -287,6 +288,17 @@ describe("drive state", () => {
       last_cursor: "000123",
     })
     expect((await readDriveState(root)).realtime).toEqual(state.realtime)
+  })
+
+  it("writes realtime metadata under the drive lock", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-realtime-lock-"))
+    await initDriveState(root, "lib_a")
+
+    await withDriveLock(root, async () => {
+      await expect(writeDriveRealtimeState(root, { client_id: "drvcli_abc", last_cursor: "c1" })).rejects.toThrow(
+        /sync lock already exists/,
+      )
+    })
   })
 
   it("removes lock file after callback throws", async () => {
