@@ -31,7 +31,7 @@ describe("drive merge helpers", () => {
 
   it("builds conflict copy paths next to the original path", () => {
     expect(conflictCopyPath("notes/today.md", "remote", new Date("2026-06-21T10:10:00Z"), "ver_remote")).toBe(
-      "notes/today.remote-conflict-20260621T101000Z.ver_remo.md",
+      "notes/today.remote-conflict-20260621T101000Z-ver_remo.md",
     )
   })
 })

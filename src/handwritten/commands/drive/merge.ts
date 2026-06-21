@@ -78,7 +78,7 @@ export function conflictCopyPath(path: string, side: ConflictSide, now: Date, ve
   const parsed = pathPosix.parse(path)
   const timestamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")
   const shortVersionId = safeShortVersionId(versionId)
-  const fileName = `${parsed.name}.${side}-conflict-${timestamp}.${shortVersionId}${parsed.ext}`
+  const fileName = `${parsed.name}.${side}-conflict-${timestamp}-${shortVersionId}${parsed.ext}`
 
   if (parsed.dir === "") {
     return fileName
