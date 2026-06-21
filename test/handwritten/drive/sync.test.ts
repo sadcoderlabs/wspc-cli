@@ -659,6 +659,40 @@ describe("drive sync once", () => {
     })
   })
 
+  it("does not overwrite a new local edit while restoring after merged upload conflict", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-merge-upload-restore-race-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.md"] = stateEntry("notes.md", "a\nb\nc\n", 1)
+    await writeDriveState(root, state)
+    const localPath = join(root, "notes.md")
+    await writeFile(localPath, "a\nlocal\nb\nc\n")
+    const remote = entry("notes.md", "a\nb\nremote\nc\n", 2)
+    const api = mkApi([{ entries: [remote] }])
+    api.downloads.set("notes.md@ver_1", "a\nb\nc\n")
+    api.downloads.set("notes.md@ver_2", "a\nb\nremote\nc\n")
+    api.uploadFile = vi.fn(async () => {
+      const error = new Error("HTTP 409: VERSION_CONFLICT") as Error & { code: string }
+      error.code = "VERSION_CONFLICT"
+      throw error
+    })
+    scannerControl.afterHash = async (path) => {
+      if (path.includes(".notes.md.wspc-merge-restore-")) {
+        scannerControl.afterHash = undefined
+        await writeFile(localPath, "new edit during restore\n")
+      }
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.conflicts).toBe(1)
+    expect(result.errors).toBe(0)
+    expect(await readFile(localPath, "utf8")).toBe("new edit during restore\n")
+    const backups = (await readdir(root)).filter((name) => name.includes(".notes.md.wspc-backup-"))
+    expect(backups).toHaveLength(1)
+    expect(await readFile(join(root, backups[0]!), "utf8")).toBe("a\nlocal\nb\nc\n")
+    expect((await readdir(root)).filter((name) => name.includes(".notes.md.wspc-merge-restore-"))).toEqual([])
+  })
+
   it("keeps transient versioned download failures as path errors", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-merge-download-network-"))
     const state = await initDriveState(root, "lib_1")

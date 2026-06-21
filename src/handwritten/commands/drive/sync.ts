@@ -676,21 +676,29 @@ async function restoreMergedLocalFile(
   mergedSha256: string,
   mergedSizeBytes: number,
 ): Promise<void> {
-  const targetDigest = await hashDriveFile(target).catch((error: unknown) => {
+  const quarantine = join(dirname(target), `.${basename(target)}.wspc-merge-restore-${randomUUID()}.tmp`)
+  try {
+    await rename(target, quarantine)
+  } catch (error) {
+    if (!isNotFoundError(error)) throw error
+  }
+  const quarantineDigest = await hashDriveFile(quarantine).catch((error: unknown) => {
     if (isNotFoundError(error)) return undefined
     throw error
   })
   if (
-    targetDigest !== undefined &&
-    (targetDigest.sha256 !== mergedSha256 || targetDigest.sizeBytes !== mergedSizeBytes)
+    quarantineDigest !== undefined &&
+    (quarantineDigest.sha256 !== mergedSha256 || quarantineDigest.sizeBytes !== mergedSizeBytes)
   ) {
+    await restoreBackupWhenPossible(quarantine, target)
     return
   }
-  if (targetDigest !== undefined) {
-    await unlink(target)
-  }
   const restored = await restoreBackupWhenPossible(backup, target)
-  if (!restored) return
+  if (!restored) {
+    await rm(quarantine, { force: true }).catch(() => {})
+    return
+  }
+  await unlink(quarantine).catch(() => {})
   const restoredDigest = await hashDriveFile(target)
   if (!restoredDigest || restoredDigest.sha256 !== backupSha256 || restoredDigest.sizeBytes !== backupSizeBytes) {
     throw new Error("local file restore failed")
