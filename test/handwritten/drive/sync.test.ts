@@ -138,9 +138,10 @@ function mkApi(manifestPages: Array<{ entries: ManifestEntry[]; next_cursor?: st
       }
       return result
     },
-    async downloadFile(_id, path) {
-      const content = downloads.get(path)
-      if (content === undefined) throw new Error(`missing test download: ${path}`)
+    async downloadFile(_id, path, versionId) {
+      const key = versionId === undefined ? path : `${path}@${versionId}`
+      const content = downloads.get(key)
+      if (content === undefined) throw new Error(`missing test download: ${key}`)
       return new Response(content)
     },
     async deleteFile(id, path, expectedEntryVersion) {
@@ -304,6 +305,8 @@ describe("drive sync once", () => {
     await writeDriveState(root, state)
     await writeFile(join(root, "notes.txt"), "local")
     const api = mkApi([{ entries: [entry("notes.txt", "remote", 2)] }])
+    api.downloads.set("notes.txt@ver_1", "base")
+    api.downloads.set("notes.txt@ver_2", "remote")
 
     const result = await runDriveSyncOnce(root, api)
 
@@ -315,6 +318,26 @@ describe("drive sync once", () => {
       remote_entry_version: 2,
       remote_version_id: "ver_2",
     })
+  })
+
+  it("clean merges local and remote text edits, uploads merged content with remote entry version, and updates state", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-clean-merge-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.md"] = stateEntry("notes.md", "a\nb\nc\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.md"), "a\nlocal\nb\nc\n")
+    const remote = entry("notes.md", "a\nb\nremote\nc\n", 2)
+    const api = mkApi([{ entries: [remote] }])
+    api.downloads.set("notes.md@ver_1", "a\nb\nc\n")
+    api.downloads.set("notes.md@ver_2", "a\nb\nremote\nc\n")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.merged).toBe(1)
+    expect(result.conflicts).toBe(0)
+    expect(api.uploads).toEqual([{ id: "lib_1", path: "notes.md", sha256: sha256("a\nlocal\nb\nremote\nc\n"), expectedEntryVersion: 2 }])
+    expect(await readFile(join(root, "notes.md"), "utf8")).toBe("a\nlocal\nb\nremote\nc\n")
+    expect((await readDriveState(root)).conflicts["notes.md"]).toBeUndefined()
   })
 
   it("reports persisted unresolved conflicts even when no path changes in this run", async () => {
@@ -810,6 +833,8 @@ describe("drive sync once", () => {
     await writeDriveState(root, state)
     await writeFile(join(root, "notes.txt"), "local")
     const api = mkApi([{ entries: [entry("notes.txt", "remote", 2)] }])
+    api.downloads.set("notes.txt@ver_1", "base")
+    api.downloads.set("notes.txt@ver_2", "remote")
     const command = driveSyncCommand(api)
 
     await command.parseAsync(["node", "sync", "once", root])

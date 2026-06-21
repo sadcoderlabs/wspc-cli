@@ -1,6 +1,6 @@
 import { Command } from "commander"
 import { createWriteStream } from "node:fs"
-import { link, mkdir, readFile, rename, rm, unlink } from "node:fs/promises"
+import { link, mkdir, readFile, rename, rm, unlink, writeFile } from "node:fs/promises"
 import { basename, dirname, join, resolve } from "node:path"
 import { createHash, randomUUID } from "node:crypto"
 import { Readable, Transform } from "node:stream"
@@ -8,6 +8,7 @@ import { pipeline } from "node:stream/promises"
 import type { ReadableStream as NodeReadableStream } from "node:stream/web"
 import { createDriveApi } from "./api.js"
 import { decideDriveAction, type DriveAction } from "./decision.js"
+import { classifyMergeText, mergeText3 } from "./merge.js"
 import { resolveInsideRoot, validateDrivePath } from "./path-policy.js"
 import { hashDriveFile, scanDriveFiles } from "./scanner.js"
 import {
@@ -37,7 +38,7 @@ export interface DriveSyncApi {
   deleteFile(id: string, path: string, expectedEntryVersion: number): Promise<unknown>
 }
 
-export type DriveSyncPathAction = DriveAction["type"] | "error"
+export type DriveSyncPathAction = DriveAction["type"] | "error" | "merged"
 
 export interface DriveSyncSummary {
   uploaded: number
@@ -258,6 +259,24 @@ async function processPath(args: {
     }
 
     if (action.type === "conflict") {
+      if (action.reason === "local_and_remote_changed") {
+        const mergedState = await tryResolveConflict({
+          root,
+          state,
+          api,
+          path,
+          remote,
+          local,
+          onLocalMutation: () => {
+            durableStateRequired = true
+          },
+        })
+        if (mergedState) {
+          summary.merged += 1
+          summary.paths[summary.paths.length - 1] = { path, action: "merged" }
+          return { state: mergedState, stop: false }
+        }
+      }
       const nextState = await recordConflict(root, state, path, action.reason, remote)
       summary.conflicts += 1
       return { state: nextState, stop: false }
@@ -280,6 +299,72 @@ async function processPath(args: {
     return { state, stop: durableStateRequired }
   }
   return { state, stop: false }
+}
+
+async function tryResolveConflict(args: {
+  root: string
+  state: DriveState
+  api: DriveSyncApi
+  path: string
+  remote: RemoteEntry | undefined
+  local: { sha256: string; size_bytes: number } | undefined
+  onLocalMutation: () => void
+}): Promise<DriveState | undefined> {
+  const { root, state, api, path, remote, local, onLocalMutation } = args
+  const entry = state.entries[path]
+  const baseVersionId = entry?.current_version_id
+  const remoteVersionId = remote?.current_version_id
+  if (!entry || !remote || !local || baseVersionId === undefined || remoteVersionId === undefined) {
+    return undefined
+  }
+
+  const localPath = resolveInsideRoot(root, path)
+  const [baseBytes, remoteBytes, localBytes] = await Promise.all([
+    downloadBytes(api, state.library_id, path, baseVersionId),
+    downloadBytes(api, state.library_id, path, remoteVersionId),
+    readFile(localPath),
+  ])
+  const baseText = classifyMergeText(path, baseBytes, undefined)
+  const localText = classifyMergeText(path, localBytes, undefined)
+  const remoteText = classifyMergeText(path, remoteBytes, undefined)
+  if (!baseText.mergeable || !localText.mergeable || !remoteText.mergeable) {
+    return undefined
+  }
+
+  const merged = mergeText3(baseText.text, localText.text, remoteText.text)
+  if (!merged.clean) {
+    return undefined
+  }
+
+  await assertLocalStillScanned(localPath, local)
+  const mergedBytes = new TextEncoder().encode(merged.text)
+  const mergedDigest = createHash("sha256").update(mergedBytes).digest("hex")
+  await writeMergedLocalFile(root, path, mergedBytes, local, onLocalMutation)
+  const uploaded = await api.uploadFile(state.library_id, path, mergedBytes, mergedDigest, remote.entry_version)
+
+  const nextState = cloneDriveState(state)
+  nextState.entries[path] = stateEntryFromRemote(uploaded.entry, mergedDigest)
+  delete nextState.conflicts[path]
+  await commitDriveState(root, nextState)
+  return nextState
+}
+
+async function downloadBytes(api: DriveSyncApi, libraryId: string, path: string, versionId: string): Promise<Uint8Array> {
+  const response = await api.downloadFile(libraryId, path, versionId)
+  return new Uint8Array(await response.arrayBuffer())
+}
+
+async function assertLocalStillScanned(
+  localPath: string,
+  scanned: { sha256: string; size_bytes: number },
+): Promise<void> {
+  const snapshot = await hashDriveFile(localPath).catch((error: unknown) => {
+    if (isNotFoundError(error)) return undefined
+    throw error
+  })
+  if (!snapshot || snapshot.sha256 !== scanned.sha256 || snapshot.sizeBytes !== scanned.size_bytes) {
+    throw new Error("local file changed after scan")
+  }
 }
 
 function recordUnresolvedConflicts(summary: DriveSyncSummary, state: DriveState): void {
@@ -305,6 +390,71 @@ function recordUnresolvedConflicts(summary: DriveSyncSummary, state: DriveState)
     if (!reportedPaths.has(path)) {
       summary.paths.push({ path, action: "conflict", ...(conflictPaths ? { conflict_paths: conflictPaths } : {}) })
     }
+  }
+}
+
+async function writeMergedLocalFile(
+  root: string,
+  path: string,
+  bytes: Uint8Array,
+  scanned: { sha256: string; size_bytes: number },
+  onLocalMutation: () => void,
+): Promise<void> {
+  const target = resolveInsideRoot(root, path)
+  await mkdir(dirname(target), { recursive: true })
+  const tmp = join(dirname(target), `.${basename(target)}.wspc-merge-${randomUUID()}.tmp`)
+  try {
+    await writeFile(tmp, bytes, { flag: "wx" })
+    await installMergedLocalFile(root, path, tmp, scanned, onLocalMutation)
+  } finally {
+    await rm(tmp, { force: true }).catch(() => {})
+  }
+}
+
+async function installMergedLocalFile(
+  root: string,
+  path: string,
+  tmp: string,
+  scanned: { sha256: string; size_bytes: number },
+  onLocalMutation: () => void,
+): Promise<void> {
+  const target = resolveInsideRoot(root, path)
+  const backup = localMutationBackupPath(target)
+  let backupIsScannedLocal = false
+
+  try {
+    try {
+      await rename(target, backup)
+      onLocalMutation()
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        throw new Error("local file changed after scan")
+      }
+      throw error
+    }
+
+    const backupDigest = await hashDriveFile(backup)
+    if (!backupDigest || backupDigest.sha256 !== scanned.sha256 || backupDigest.sizeBytes !== scanned.size_bytes) {
+      await restoreBackupWhenPossible(backup, target)
+      throw new Error("local file changed after scan")
+    }
+    backupIsScannedLocal = true
+
+    try {
+      await installNoOverwrite(tmp, target)
+    } catch (error) {
+      const restored = await restoreBackupWhenPossible(backup, target)
+      if (!restored && backupIsScannedLocal) {
+        await unlink(backup).catch(() => {})
+      }
+      throw error
+    }
+    await unlink(backup)
+  } catch (error) {
+    if (!backupIsScannedLocal) {
+      await restoreBackupWhenPossible(backup, target)
+    }
+    throw error
   }
 }
 
