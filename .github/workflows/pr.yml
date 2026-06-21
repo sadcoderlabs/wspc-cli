@@ -2,8 +2,8 @@ name: PR check
 
 on:
   pull_request:
-  push:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
 
 jobs:
   check:
