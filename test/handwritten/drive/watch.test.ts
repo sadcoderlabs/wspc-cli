@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { runDriveWatch, type DriveWatchSource } from "../../../src/handwritten/commands/drive/watch.js"
+import {
+  runDriveWatch,
+  type DriveRealtimeSource,
+  type DriveWatchSource,
+} from "../../../src/handwritten/commands/drive/watch.js"
 
 const readState = async () => ({ library_id: "lib_1" }) as any
 
@@ -39,6 +43,37 @@ function fakeSource(): DriveWatchSource & {
     },
     waitForSubscription() {
       return subscribed
+    },
+  }
+}
+
+type RealtimeEvent = { debounce_ms?: number; immediate?: boolean; cursor?: string; path?: string; reason?: string }
+
+function fakeRealtimeSource(): DriveRealtimeSource & {
+  start: ReturnType<typeof vi.fn>
+  close: ReturnType<typeof vi.fn>
+  emitConnected(): void
+  emitEvent(event: RealtimeEvent): void
+  emitReconnect(delayMs: number, error: string): void
+  emitAuthFailed(error?: string): void
+} {
+  let handlers: Parameters<DriveRealtimeSource["start"]>[0] | undefined
+  return {
+    start: vi.fn(async (nextHandlers) => {
+      handlers = nextHandlers
+    }),
+    close: vi.fn(async () => {}),
+    emitConnected() {
+      handlers?.onConnected()
+    },
+    emitEvent(event) {
+      handlers?.onEvent(event)
+    },
+    emitReconnect(delayMs, error) {
+      handlers?.onReconnect(delayMs, error)
+    },
+    emitAuthFailed(error) {
+      handlers?.onAuthFailed(error)
     },
   }
 }
@@ -320,5 +355,146 @@ describe("drive watch", () => {
     expect(runSync).toHaveBeenCalledTimes(2)
     process.emit("SIGINT")
     await watching
+  })
+
+  it("debounces remote realtime events through the same sync queue", async () => {
+    const source = fakeSource()
+    const realtimeSource = fakeRealtimeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    try {
+      realtimeSource.emitEvent({ cursor: "c1", path: "notes.md", reason: "library_changed" })
+      await vi.advanceTimersByTimeAsync(1999)
+      expect(runSync).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+
+      expect(runSync).toHaveBeenCalledTimes(2)
+      expect(onEvent).toHaveBeenCalledWith({
+        kind: "drive_realtime_event",
+        message: "remote update received; syncing",
+        path: "notes.md",
+        reason: "library_changed",
+        cursor: "c1",
+      })
+    } finally {
+      process.emit("SIGINT")
+      await watching
+    }
+  })
+
+  it("coalesces local and remote events into one pending sync if local debounce fires first", async () => {
+    const source = fakeSource()
+    const realtimeSource = fakeRealtimeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    try {
+      source.emit("a.txt")
+      realtimeSource.emitEvent({ cursor: "c1" })
+      await vi.advanceTimersByTimeAsync(500)
+      expect(runSync).toHaveBeenCalledTimes(2)
+
+      await vi.advanceTimersByTimeAsync(1500)
+      expect(runSync).toHaveBeenCalledTimes(2)
+    } finally {
+      process.emit("SIGINT")
+      await watching
+    }
+  })
+
+  it("runs immediate remote realtime events without waiting for remote debounce", async () => {
+    const source = fakeSource()
+    const realtimeSource = fakeRealtimeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    try {
+      realtimeSource.emitEvent({ immediate: true, reason: "resync_required" })
+      await Promise.resolve()
+
+      expect(runSync).toHaveBeenCalledTimes(2)
+    } finally {
+      process.emit("SIGINT")
+      await watching
+    }
+  })
+
+  it("keeps local watch running after realtime auth failure", async () => {
+    const source = fakeSource()
+    const realtimeSource = fakeRealtimeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    try {
+      realtimeSource.emitAuthFailed()
+      expect(onEvent).toHaveBeenCalledWith({ kind: "drive_realtime_auth_failed", error: "auth failed" })
+
+      source.emit("after-auth.txt")
+      await vi.advanceTimersByTimeAsync(500)
+      expect(runSync).toHaveBeenCalledTimes(2)
+    } finally {
+      process.emit("SIGINT")
+      await watching
+    }
+  })
+
+  it("emits realtime connection status events", async () => {
+    const source = fakeSource()
+    const realtimeSource = fakeRealtimeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    try {
+      realtimeSource.emitConnected()
+      realtimeSource.emitReconnect(1000, "network failed")
+
+      expect(onEvent).toHaveBeenCalledWith({ kind: "drive_realtime_connected", library_id: "lib_1" })
+      expect(onEvent).toHaveBeenCalledWith({
+        kind: "drive_realtime_reconnecting",
+        delay_ms: 1000,
+        error: "network failed",
+      })
+    } finally {
+      process.emit("SIGINT")
+      await watching
+    }
+  })
+
+  it("closes realtime source on shutdown", async () => {
+    const source = fakeSource()
+    const realtimeSource = fakeRealtimeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    process.emit("SIGTERM")
+    await watching
+
+    expect(source.close).toHaveBeenCalledTimes(1)
+    expect(realtimeSource.close).toHaveBeenCalledTimes(1)
   })
 })

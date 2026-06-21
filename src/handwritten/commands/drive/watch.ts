@@ -10,20 +10,40 @@ export interface DriveWatchSource {
   close(): Promise<void>
 }
 
+export interface DriveRealtimeSource {
+  start(handlers: {
+    onConnected: () => void
+    onEvent: (event: {
+      debounce_ms?: number
+      immediate?: boolean
+      cursor?: string
+      path?: string
+      reason?: string
+    }) => void
+    onReconnect: (delayMs: number, error: string) => void
+    onAuthFailed: (error?: string) => void
+  }): Promise<void>
+  close(): Promise<void>
+}
+
 export interface DriveWatchOptions {
   source?: DriveWatchSource
+  realtimeSource?: DriveRealtimeSource
   readState?: typeof readDriveState
   runSync?: (root: string) => Promise<DriveSyncSummary>
   once?: boolean
   debounceMs?: number
+  remoteDebounceMs?: number
   onEvent?: (event: unknown) => void
 }
 
 export async function runDriveWatch(root: string, options: DriveWatchOptions = {}): Promise<void> {
   const runSync = options.runSync ?? runDriveSyncOnce
   const debounceMs = options.debounceMs ?? 500
+  const remoteDebounceMs = options.remoteDebounceMs ?? 2000
   const emit = options.onEvent ?? ((event) => render({ kind: "drive_watch", display: { shape: "object" } }, event))
   let debounceTimer: NodeJS.Timeout | undefined
+  let debounceDeadlineMs: number | undefined
   let retryTimer: NodeJS.Timeout | undefined
   let resolveRetryTimer: (() => void) | undefined
   let running = false
@@ -66,6 +86,28 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     if (debounceTimer === undefined) return
     clearTimeout(debounceTimer)
     debounceTimer = undefined
+    debounceDeadlineMs = undefined
+  }
+
+  function scheduleSync(delayMs: number): void {
+    if (running) {
+      rerunRequested = true
+      return
+    }
+    if (delayMs <= 0) {
+      clearDebounceTimer()
+      requestSync().catch(stopWithError)
+      return
+    }
+    const deadlineMs = Date.now() + delayMs
+    if (debounceTimer !== undefined && debounceDeadlineMs !== undefined && debounceDeadlineMs <= deadlineMs) return
+    clearDebounceTimer()
+    debounceDeadlineMs = deadlineMs
+    debounceTimer = setTimeout(() => {
+      debounceTimer = undefined
+      debounceDeadlineMs = undefined
+      requestSync().catch(stopWithError)
+    }, delayMs)
   }
 
   function clearRetryTimer(): void {
@@ -97,21 +139,35 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
 
   const state = await (options.readState ?? readDriveState)(root)
   const source = options.source ?? createChokidarSource(root)
+  const realtimeSource = options.realtimeSource
   try {
     source.onChange((path) => {
       if (isDriveInternalPath(root, path)) return
-      if (running) {
-        rerunRequested = true
-        return
-      }
-      clearDebounceTimer()
-      debounceTimer = setTimeout(() => {
-        debounceTimer = undefined
-        requestSync().catch(stopWithError)
-      }, debounceMs)
+      scheduleSync(debounceMs)
     })
 
     emit({ kind: "drive_watch_started", root, library_id: state.library_id })
+    realtimeSource
+      ?.start({
+        onConnected() {
+          emit({ kind: "drive_realtime_connected", library_id: state.library_id })
+        },
+        onEvent(event) {
+          emit(realtimeEvent(event))
+          if (event.immediate) {
+            scheduleSync(0)
+            return
+          }
+          scheduleSync(event.debounce_ms ?? remoteDebounceMs)
+        },
+        onReconnect(delayMs, error) {
+          emit({ kind: "drive_realtime_reconnecting", delay_ms: delayMs, error })
+        },
+        onAuthFailed(error) {
+          emit({ kind: "drive_realtime_auth_failed", error: error ?? "auth failed" })
+        },
+      })
+      .catch(stopWithError)
     await requestSync()
     if (options.once) return
     if (stopError !== undefined) throw stopError
@@ -125,7 +181,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     clearDebounceTimer()
     clearRetryTimer()
     cleanupSignalListeners()
-    await source.close()
+    await Promise.all([source.close(), realtimeSource?.close()])
   }
 }
 
@@ -176,6 +232,16 @@ function isRetryableWatchError(error: unknown): boolean {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function realtimeEvent(event: { cursor?: string; path?: string; reason?: string }): unknown {
+  return {
+    kind: "drive_realtime_event",
+    message: "remote update received; syncing",
+    ...(event.path === undefined ? {} : { path: event.path }),
+    ...(event.reason === undefined ? {} : { reason: event.reason }),
+    ...(event.cursor === undefined ? {} : { cursor: event.cursor }),
+  }
 }
 
 function waitForStopSignal(onRegistered: (stop: () => void, cleanup: () => void) => void): Promise<void> {
