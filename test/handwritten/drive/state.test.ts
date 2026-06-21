@@ -177,6 +177,63 @@ describe("drive state", () => {
     await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
   })
 
+  it("rejects invalid realtime cursor type", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-realtime-cursor-"))
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    await writeFile(join(root, ".wspc-drive", "state.json"), JSON.stringify({
+      schema_version: 1,
+      library_id: "lib_1",
+      created_at: "2026-06-21T00:00:00.000Z",
+      updated_at: "2026-06-21T00:00:00.000Z",
+      entries: {},
+      conflicts: {},
+      realtime: {
+        client_id: "drvcli_valid",
+        last_cursor: 42,
+      },
+    }))
+
+    await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
+  })
+
+  it("rejects invalid realtime timestamps", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-realtime-time-"))
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    await writeFile(join(root, ".wspc-drive", "state.json"), JSON.stringify({
+      schema_version: 1,
+      library_id: "lib_1",
+      created_at: "2026-06-21T00:00:00.000Z",
+      updated_at: "2026-06-21T00:00:00.000Z",
+      entries: {},
+      conflicts: {},
+      realtime: {
+        client_id: "drvcli_valid",
+        last_connected_at: "not-a-date",
+      },
+    }))
+
+    await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
+  })
+
+  it("rejects unknown realtime metadata keys", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-realtime-extra-"))
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    await writeFile(join(root, ".wspc-drive", "state.json"), JSON.stringify({
+      schema_version: 1,
+      library_id: "lib_1",
+      created_at: "2026-06-21T00:00:00.000Z",
+      updated_at: "2026-06-21T00:00:00.000Z",
+      entries: {},
+      conflicts: {},
+      realtime: {
+        client_id: "drvcli_valid",
+        access_token: "secret",
+      },
+    }))
+
+    await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
+  })
+
   it("creates an opaque realtime client id when missing", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-ensure-realtime-"))
     await initDriveState(root, "lib_a")

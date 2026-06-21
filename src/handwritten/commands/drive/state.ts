@@ -1,6 +1,7 @@
 import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { randomUUID } from "node:crypto"
 import { join } from "node:path"
+import { DateTime } from "luxon"
 
 export const DRIVE_DIR = ".wspc-drive"
 export const STATE_FILE = "state.json"
@@ -187,14 +188,20 @@ function isDriveConflict(value: unknown): value is DriveConflict {
 }
 
 function isDriveRealtimeState(value: unknown): value is DriveRealtimeState {
+  const allowedKeys = new Set(["client_id", "last_cursor", "last_connected_at", "last_event_at"])
   return (
     isRecord(value) &&
+    Object.keys(value).every((key) => allowedKeys.has(key)) &&
     typeof value.client_id === "string" &&
-    value.client_id.startsWith("drvcli_") &&
+    /^drvcli_[A-Za-z0-9_-]+$/.test(value.client_id) &&
     (value.last_cursor === undefined || typeof value.last_cursor === "string") &&
-    (value.last_connected_at === undefined || typeof value.last_connected_at === "string") &&
-    (value.last_event_at === undefined || typeof value.last_event_at === "string")
+    isOptionalIsoTimestamp(value.last_connected_at) &&
+    isOptionalIsoTimestamp(value.last_event_at)
   )
+}
+
+function isOptionalIsoTimestamp(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && DateTime.fromISO(value, { setZone: true }).isValid)
 }
 
 function isValidDriveState(value: unknown): value is DriveState {
