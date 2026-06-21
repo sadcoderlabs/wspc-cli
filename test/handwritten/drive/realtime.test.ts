@@ -78,6 +78,7 @@ describe("drive realtime helpers", () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it("builds websocket urls from api urls without token data", () => {
@@ -231,6 +232,29 @@ describe("drive realtime helpers", () => {
     expect(events).toContainEqual({ debounce_ms: 2000, cursor: "c2", path: "notes.md", reason: "library_changed" })
   })
 
+  it("emits library_changed events even when cursor persistence is locked", async () => {
+    const connect = fakeConnector()
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({
+      connect,
+      writeRealtimeState: async () => {
+        throw new Error("sync lock already exists")
+      },
+    }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({
+      type: "library_changed",
+      cursor: "c2",
+      path: "notes.md",
+    }))
+    await flushPromises()
+
+    expect(events).toContainEqual({ debounce_ms: 2000, cursor: "c2", path: "notes.md", reason: "library_changed" })
+    expect(events).toContainEqual({ warning: "realtime error" })
+    expect(events).not.toContainEqual({ reconnect: 1000, error: "realtime error" })
+  })
+
   it("emits resync_required events immediately", async () => {
     const connect = fakeConnector()
     const updates: DriveRealtimeState[] = []
@@ -371,6 +395,33 @@ describe("drive realtime helpers", () => {
 
     expect(events).toEqual([{ authFailed: "HTTP 401" }])
     expect(connect.connections).toHaveLength(1)
+  })
+
+  it("uses auth close codes after generic native websocket errors", async () => {
+    const listeners: Record<string, Array<(event: Event) => void>> = {}
+    class FakeWebSocket extends EventTarget {
+      constructor(readonly url: string, readonly init?: unknown) {
+        super()
+      }
+
+      override addEventListener(type: string, listener: EventListenerOrEventListenerObject | null): void {
+        if (typeof listener === "function") {
+          listeners[type] = [...(listeners[type] ?? []), listener as (event: Event) => void]
+        }
+      }
+
+      close(): void {}
+    }
+    vi.stubGlobal("WebSocket", FakeWebSocket)
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs())
+
+    await source.start(realtimeHandlers(events))
+    listeners.error?.forEach((listener) => listener(new Event("error")))
+    listeners.close?.forEach((listener) => listener(new CloseEvent("close", { code: 4401 })))
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(events).toEqual([{ authFailed: "HTTP 401" }])
   })
 
   it("ignores stale messages after a connection closes", async () => {

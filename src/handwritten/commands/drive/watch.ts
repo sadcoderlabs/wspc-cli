@@ -149,7 +149,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     realtimeSource = options.once ? undefined : options.realtimeSource
     if (!options.once && realtimeSource === undefined) {
       state = await ensureDriveRealtimeState(root)
-      const { baseUrl, headers } = await loadRealtimeAuthHeaders()
+      const { baseUrl, headers } = await loadRealtimeAuthHeaders({
+        verifyPath: `/drive/libraries/${encodeURIComponent(state.library_id)}`,
+      })
       const realtime = state.realtime
       if (realtime === undefined) {
         throw new Error("drive realtime state is required")

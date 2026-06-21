@@ -55,6 +55,14 @@ export function createDriveRealtimeSource(args: {
     await args.writeRealtimeState(next)
   }
 
+  async function persistBestEffort(next: DriveRealtimeState): Promise<void> {
+    try {
+      await persist(next)
+    } catch (error) {
+      handlers?.onWarning?.(redactedRealtimeError(error))
+    }
+  }
+
   function connectNow(): void {
     if (stopped || authFailed) return
     clearReconnectTimer()
@@ -64,13 +72,12 @@ export function createDriveRealtimeSource(args: {
       open() {
         if (id !== connectionId || stopped || authFailed) return
         reconnectDelayMs = 1000
-        void persist({ ...currentRealtime, last_connected_at: now().toISOString() })
+        void persistBestEffort({ ...currentRealtime, last_connected_at: now().toISOString() })
           .then(() => handlers?.onConnected())
-          .catch((error) => closeConnection(id, error))
       },
       message(data) {
         if (id !== connectionId || stopped || authFailed) return
-        void handleMessage(data).catch((error) => closeConnection(id, error))
+        void handleMessage(data).catch((error) => handlers?.onWarning?.(redactedRealtimeError(error)))
       },
       close(error) {
         closeConnection(id, error ?? "close")
@@ -102,30 +109,30 @@ export function createDriveRealtimeSource(args: {
   async function handleMessage(data: string): Promise<void> {
     const message = parseDriveRealtimeMessage(data)
     if (message.type === "ready") {
-      if (message.cursor !== undefined) {
-        await persist({ ...currentRealtime, last_cursor: message.cursor })
-      }
       if (message.replayed > 0) {
         handlers?.onEvent(optionalString({ debounce_ms: 2000, reason: "ready_replay" }, "cursor", message.cursor))
+      }
+      if (message.cursor !== undefined) {
+        await persistBestEffort({ ...currentRealtime, last_cursor: message.cursor })
       }
       return
     }
     if (message.type === "library_changed") {
-      if (message.cursor !== undefined) {
-        await persist({ ...currentRealtime, last_cursor: message.cursor, last_event_at: now().toISOString() })
-      }
       handlers?.onEvent(optionalString(optionalString({
         debounce_ms: 2000,
         reason: "library_changed",
       }, "cursor", message.cursor), "path", message.path))
+      if (message.cursor !== undefined) {
+        await persistBestEffort({ ...currentRealtime, last_cursor: message.cursor, last_event_at: now().toISOString() })
+      }
       return
     }
     if (message.type === "resync_required") {
       const reason = message.reason ?? "resync_required"
-      if (message.cursor !== undefined || isInvalidCursorReason(reason)) {
-        await persist(resyncRealtimeState(currentRealtime, message.cursor, reason, now().toISOString()))
-      }
       handlers?.onEvent(optionalString({ immediate: true, reason }, "cursor", message.cursor))
+      if (message.cursor !== undefined || isInvalidCursorReason(reason)) {
+        await persistBestEffort(resyncRealtimeState(currentRealtime, message.cursor, reason, now().toISOString()))
+      }
       return
     }
     if (message.type === "error") {
@@ -257,6 +264,7 @@ function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeCo
   }
   const ws = new WebSocketWithInit(url.toString(), init)
   let closed = false
+  let pendingError: unknown
   const closeOnce = (error?: unknown) => {
     if (closed) return
     closed = true
@@ -264,8 +272,13 @@ function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeCo
   }
   ws.addEventListener("open", () => handlers.open())
   ws.addEventListener("message", (event) => handlers.message(String(event.data)))
-  ws.addEventListener("close", (event) => closeOnce(webSocketCloseError(event)))
-  ws.addEventListener("error", () => closeOnce(new Error("network error")))
+  ws.addEventListener("close", (event) => closeOnce(webSocketCloseError(event) ?? pendingError))
+  ws.addEventListener("error", (event) => {
+    pendingError = webSocketError(event)
+    if (isRealtimeAuthError(pendingError)) {
+      closeOnce(pendingError)
+    }
+  })
   return { close: () => ws.close() }
 }
 
@@ -276,4 +289,12 @@ function webSocketCloseError(event: CloseEvent): Error | undefined {
   if (event.reason && isRealtimeAuthError(event.reason)) return new Error(event.reason)
   if (event.reason) return new Error(event.reason)
   return new Error(`WebSocket close ${event.code}`)
+}
+
+function webSocketError(event: Event): Error {
+  if (typeof ErrorEvent !== "undefined" && event instanceof ErrorEvent) {
+    const detail = event.error instanceof Error ? event.error.message : event.message
+    if (detail) return new Error(detail)
+  }
+  return new Error("network error")
 }

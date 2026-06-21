@@ -71,9 +71,14 @@ export async function loadAuthedFetch(
 }
 
 export async function loadRealtimeAuthHeaders(
-  opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
+  opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch; verifyPath?: string } = {},
 ): Promise<RealtimeAuthHeaders> {
   const { baseUrl, authInterceptor } = await loadClientParts(opts)
+  const verifyUrl = new URL(opts.verifyPath ?? "/auth/me", `${baseUrl.replace(/\/$/, "")}/`)
+  const verifyResponse = await authInterceptor.execute(new Request(verifyUrl))
+  if (!verifyResponse.ok) {
+    throw new Error(`realtime auth failed: HTTP ${verifyResponse.status}`)
+  }
   const request = await authInterceptor.onRequest(new Request(baseUrl))
   return { baseUrl, headers: request.headers }
 }

@@ -109,19 +109,21 @@ export async function initDriveState(root: string, libraryId: string): Promise<D
 }
 
 export async function ensureDriveRealtimeState(root: string): Promise<DriveState> {
-  const state = await readDriveState(root)
-  if (state.realtime?.client_id !== undefined) {
-    return state
-  }
-  const next: DriveState = {
-    ...state,
-    realtime: {
-      ...state.realtime,
-      client_id: `drvcli_${randomUUID().replace(/-/g, "")}`,
-    },
-  }
-  await writeDriveState(root, next)
-  return next
+  return withDriveLock(root, async () => {
+    const state = await readDriveState(root)
+    if (state.realtime?.client_id !== undefined) {
+      return state
+    }
+    const next: DriveState = {
+      ...state,
+      realtime: {
+        ...state.realtime,
+        client_id: `drvcli_${randomUUID().replace(/-/g, "")}`,
+      },
+    }
+    await writeDriveState(root, next)
+    return next
+  })
 }
 
 export async function writeDriveRealtimeState(root: string, realtime: DriveRealtimeState): Promise<void> {

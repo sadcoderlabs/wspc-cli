@@ -122,11 +122,70 @@ describe("loadSdkClient", () => {
       },
     })
 
-    const { baseUrl, headers } = await loadRealtimeAuthHeaders({ store })
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = input instanceof Request ? input : new Request(input, init)
+      expect(req.url).toBe("https://api.wspc.ai/auth/me")
+      expect(req.headers.get("authorization")).toBe("Bearer wspc_x")
+      return new Response(JSON.stringify({ email: "a@x.com" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    })
+
+    const { baseUrl, headers } = await loadRealtimeAuthHeaders({ store, fetchImpl: fetchImpl as unknown as typeof fetch })
 
     expect(baseUrl).toBe("https://api.wspc.ai")
     expect(new Headers(headers).get("authorization")).toBe("Bearer wspc_x")
     expect(new Headers(headers).get("user-agent")).toMatch(/^@wspc\/cli\//)
+  })
+
+  it("refreshes OAuth tokens before loading realtime auth headers", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-load-realtime-refresh-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      schema_version: 2,
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          client_id: "client_X",
+          current_account: "a@x.com",
+          accounts: {
+            "a@x.com": {
+              email: "a@x.com",
+              access_token: "at_0",
+              refresh_token: "rt_0",
+            },
+          },
+        },
+      },
+    })
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = input instanceof Request ? input : new Request(input, init)
+      if (req.url === "https://api.wspc.ai/auth/oauth/token") {
+        return new Response(JSON.stringify({ access_token: "at_1", refresh_token: "rt_1", expires_in: 900 }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        })
+      }
+      if (req.url === "https://api.wspc.ai/auth/me" && req.headers.get("authorization") === "Bearer at_0") {
+        return new Response("", { status: 401 })
+      }
+      if (req.url === "https://api.wspc.ai/auth/me" && req.headers.get("authorization") === "Bearer at_1") {
+        return new Response(JSON.stringify({ email: "a@x.com" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        })
+      }
+      throw new Error(`unexpected request ${req.url}`)
+    })
+
+    const { headers } = await loadRealtimeAuthHeaders({ store, fetchImpl: fetchImpl as unknown as typeof fetch })
+
+    expect(new Headers(headers).get("authorization")).toBe("Bearer at_1")
+    const config = await store.read()
+    expect(config.envs.prod?.accounts["a@x.com"]?.access_token).toBe("at_1")
+    expect(config.envs.prod?.accounts["a@x.com"]?.refresh_token).toBe("rt_1")
   })
 
   it("shares OAuth refresh state between generated SDK and direct authenticated fetch", async () => {

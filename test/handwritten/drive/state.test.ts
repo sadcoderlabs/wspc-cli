@@ -301,6 +301,15 @@ describe("drive state", () => {
     })
   })
 
+  it("creates realtime client ids under the drive lock", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-ensure-realtime-lock-"))
+    await initDriveState(root, "lib_a")
+
+    await withDriveLock(root, async () => {
+      await expect(ensureDriveRealtimeState(root)).rejects.toThrow(/sync lock already exists/)
+    })
+  })
+
   it("removes lock file after callback throws", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-release-"))
     await initDriveState(root, "lib_a")
