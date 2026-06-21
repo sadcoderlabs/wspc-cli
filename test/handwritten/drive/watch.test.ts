@@ -4,7 +4,18 @@ import { runDriveWatch, type DriveWatchSource } from "../../../src/handwritten/c
 const readState = async () => ({ library_id: "lib_1" }) as any
 
 function syncSummary(overrides: Partial<{ conflicts: number; errors: number }> = {}) {
-  return { uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [], ...overrides }
+  return {
+    uploaded: 0,
+    downloaded: 0,
+    deleted: 0,
+    unchanged: 0,
+    merged: 0,
+    conflicts: 0,
+    errors: 0,
+    conflict_paths: [],
+    paths: [],
+    ...overrides,
+  }
 }
 
 function fakeSource(): DriveWatchSource & {
@@ -44,7 +55,7 @@ describe("drive watch", () => {
   it("runs one sync on startup", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()
-    const runSync = vi.fn(async () => ({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] }))
+    const runSync = vi.fn(async () => syncSummary())
 
     await runDriveWatch("/tmp/root", { source, runSync, readState, onEvent, once: true })
 
@@ -60,7 +71,7 @@ describe("drive watch", () => {
     const readState = vi.fn(async () => {
       throw new Error("unsupported .wspc-drive/state.json schema")
     })
-    const runSync = vi.fn(async () => ({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] }))
+    const runSync = vi.fn(async () => syncSummary())
 
     await expect(runDriveWatch("/tmp/root", { source, runSync, readState, once: true })).rejects.toThrow(
       "unsupported .wspc-drive/state.json schema",
@@ -87,7 +98,7 @@ describe("drive watch", () => {
   it("debounces multiple file events into one sync", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()
-    const runSync = vi.fn(async () => ({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] }))
+    const runSync = vi.fn(async () => syncSummary())
     const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
     await source.waitForSubscription()
     await Promise.resolve()
@@ -107,7 +118,7 @@ describe("drive watch", () => {
   it("removes the counterpart signal listener on shutdown", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()
-    const runSync = vi.fn(async () => ({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] }))
+    const runSync = vi.fn(async () => syncSummary())
     const sigintBefore = process.listenerCount("SIGINT")
     const sigtermBefore = process.listenerCount("SIGTERM")
     const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
@@ -128,7 +139,7 @@ describe("drive watch", () => {
   it("clears pending debounce timers when shutting down", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()
-    const runSync = vi.fn(async () => ({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] }))
+    const runSync = vi.fn(async () => syncSummary())
     const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
     await source.waitForSubscription()
     await Promise.resolve()
@@ -150,7 +161,7 @@ describe("drive watch", () => {
     const fatalError = Object.assign(new Error("HTTP 401: login required"), { code: "WSPC_AUTH_EXPIRED" })
     const runSync = vi
       .fn()
-      .mockResolvedValueOnce({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] })
+      .mockResolvedValueOnce(syncSummary())
       .mockRejectedValueOnce(fatalError)
     const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
     await source.waitForSubscription()
@@ -170,9 +181,9 @@ describe("drive watch", () => {
     const onEvent = vi.fn()
     const runSync = vi
       .fn()
-      .mockResolvedValueOnce({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] })
+      .mockResolvedValueOnce(syncSummary())
       .mockRejectedValueOnce(new Error("HTTP 500: temporary failure"))
-      .mockResolvedValueOnce({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] })
+      .mockResolvedValueOnce(syncSummary())
     const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
     await source.waitForSubscription()
     await Promise.resolve()

@@ -96,9 +96,12 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       }
       return payload as UploadDriveFileResponse
     },
-    async downloadFile(id: string, path: string): Promise<Response> {
+    async downloadFile(id: string, path: string, versionId?: string): Promise<Response> {
       const url = driveContentUrl(client.baseUrl, id)
       url.searchParams.set("path", path)
+      if (versionId !== undefined) {
+        url.searchParams.set("version_id", versionId)
+      }
       const res = await client.fetch(url, { method: "GET" })
       if (!res.ok) {
         const text = await res.text()

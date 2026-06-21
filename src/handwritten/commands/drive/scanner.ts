@@ -97,7 +97,12 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
 
 function isInternalSyncArtifactName(name: string): boolean {
   if (!name.startsWith(".") || !name.endsWith(".tmp")) return false
-  return name.includes(".wspc-download-") || name.includes(".wspc-backup-")
+  return (
+    name.includes(".wspc-download-") ||
+    name.includes(".wspc-backup-") ||
+    name.includes(".wspc-conflict-") ||
+    name.includes(".wspc-merge-")
+  )
 }
 
 export type FileDigest = { sizeBytes: number; sha256: string }

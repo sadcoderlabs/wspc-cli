@@ -287,6 +287,22 @@ describe("createDriveApi", () => {
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
+  it("downloadFile includes version_id when provided", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = mkReq(input, init)
+      const url = new URL(req.url)
+      expect(url.pathname).toBe("/drive/libraries/lib_1/files/content")
+      expect(url.searchParams.get("path")).toBe("notes/today.md")
+      expect(url.searchParams.get("version_id")).toBe("ver_base")
+      return new Response("base", { status: 200 })
+    }) as typeof fetch
+    const api = await mkDriveApi(fetchImpl)
+
+    await api.downloadFile("lib_1", "notes/today.md", "ver_base")
+
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
   it("downloadFile encodes opaque library ids in raw content URLs", async () => {
     const downloadPath = "notes/hello.txt"
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

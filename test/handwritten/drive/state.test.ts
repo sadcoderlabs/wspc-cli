@@ -69,6 +69,59 @@ describe("drive state", () => {
     await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
   })
 
+  it("accepts extended conflict metadata while preserving schema version 1", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-conflict-meta-"))
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    await writeFile(join(root, ".wspc-drive", "state.json"), JSON.stringify({
+      schema_version: 1,
+      library_id: "lib_1",
+      created_at: "2026-06-21T00:00:00.000Z",
+      updated_at: "2026-06-21T00:00:00.000Z",
+      entries: {},
+      conflicts: {
+        "notes/today.md": {
+          detected_at: "2026-06-21T10:10:00.000Z",
+          reason: "local_and_remote_changed",
+          type: "edit_edit",
+          strategy: "conflict_copy",
+          base_version_id: "ver_base",
+          remote_version_id: "ver_remote",
+          remote_entry_version: 9,
+          conflict_paths: ["notes/today.remote-conflict-20260621T101000Z.ver_remo.md"],
+        },
+      },
+    }))
+
+    expect((await readDriveState(root)).conflicts["notes/today.md"]).toMatchObject({
+      type: "edit_edit",
+      strategy: "conflict_copy",
+      conflict_paths: ["notes/today.remote-conflict-20260621T101000Z.ver_remo.md"],
+    })
+  })
+
+  it("rejects malformed extended conflict metadata", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-conflict-meta-"))
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    await writeFile(join(root, ".wspc-drive", "state.json"), JSON.stringify({
+      schema_version: 1,
+      library_id: "lib_1",
+      created_at: "2026-06-21T00:00:00.000Z",
+      updated_at: "2026-06-21T00:00:00.000Z",
+      entries: {},
+      conflicts: {
+        "notes/today.md": {
+          detected_at: "2026-06-21T10:10:00.000Z",
+          reason: "local_and_remote_changed",
+          type: "edit_edit",
+          strategy: "conflict_copy",
+          conflict_paths: ["notes/today.remote-conflict-20260621T101000Z.ver_remo.md", 42],
+        },
+      },
+    }))
+
+    await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
+  })
+
   it("removes lock file after callback throws", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-release-"))
     await initDriveState(root, "lib_a")
