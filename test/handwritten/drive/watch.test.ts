@@ -130,6 +130,40 @@ describe("drive watch", () => {
     expect(source.close).toHaveBeenCalledTimes(1)
   })
 
+  it("does not start realtime source in once mode", async () => {
+    const source = fakeSource()
+    const realtimeSource = fakeRealtimeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+
+    await runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent, once: true })
+
+    expect(runSync).toHaveBeenCalledTimes(1)
+    expect(realtimeSource.start).not.toHaveBeenCalled()
+    expect(realtimeSource.close).not.toHaveBeenCalled()
+  })
+
+  it("stops retry backoff when realtime startup fails", async () => {
+    const source = fakeSource()
+    const realtimeSource = fakeRealtimeSource()
+    const startError = new Error("realtime startup failed")
+    realtimeSource.start.mockRejectedValueOnce(startError)
+    const onEvent = vi.fn()
+    const runSync = vi.fn().mockRejectedValue(new Error("HTTP 500: temporary failure"))
+
+    const watching = runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    const rejected = expect(watching).rejects.toThrow("realtime startup failed")
+    await Promise.resolve()
+
+    await rejected
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(runSync).toHaveBeenCalledTimes(1)
+    expect(source.close).toHaveBeenCalledTimes(1)
+    expect(realtimeSource.close).toHaveBeenCalledTimes(1)
+  })
+
   it("debounces multiple file events into one sync", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()

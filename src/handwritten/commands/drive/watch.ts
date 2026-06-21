@@ -71,6 +71,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
         } catch (error) {
           if (isAuthError(error) || isFatalWatchError(error) || !isRetryableWatchError(error)) throw error
           emit({ kind: "drive_watch_retry", delay_ms: backoffMs, error: errorMessage(error) })
+          if (stopped) return
           await waitForManagedTimer(backoffMs)
           if (stopped) return
           backoffMs = Math.min(backoffMs * 2, 60_000)
@@ -132,6 +133,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
 
   function stopWithError(error: unknown): void {
     stopError = error
+    stopped = true
     clearDebounceTimer()
     clearRetryTimer()
     stopWatch?.()
@@ -139,7 +141,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
 
   const state = await (options.readState ?? readDriveState)(root)
   const source = options.source ?? createChokidarSource(root)
-  const realtimeSource = options.realtimeSource
+  const realtimeSource = options.once ? undefined : options.realtimeSource
   try {
     source.onChange((path) => {
       if (isDriveInternalPath(root, path)) return
