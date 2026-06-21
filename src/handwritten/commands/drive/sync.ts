@@ -198,7 +198,7 @@ async function processPath(args: {
       const nextState = cloneDriveState(state)
       nextState.entries[path] = stateEntryFromRemote(uploaded.entry, uploadDigest, clock)
       delete nextState.conflicts[path]
-      await commitDriveState(root, nextState, clock)
+      await writeDriveState(root, nextState, clock)
       summary.uploaded += 1
       return { state: nextState, stop: false }
     }
@@ -212,7 +212,7 @@ async function processPath(args: {
       const nextState = cloneDriveState(state)
       nextState.entries[path] = stateEntryFromRemote(remote, digest, clock)
       delete nextState.conflicts[path]
-      await commitDriveState(root, nextState, clock)
+      await writeDriveState(root, nextState, clock)
       summary.downloaded += 1
       return { state: nextState, stop: false }
     }
@@ -225,7 +225,7 @@ async function processPath(args: {
       const nextState = cloneDriveState(state)
       delete nextState.entries[path]
       delete nextState.conflicts[path]
-      await commitDriveState(root, nextState, clock)
+      await writeDriveState(root, nextState, clock)
       summary.deleted += 1
       return { state: nextState, stop: false }
     }
@@ -237,7 +237,7 @@ async function processPath(args: {
       const nextState = cloneDriveState(state)
       delete nextState.entries[path]
       delete nextState.conflicts[path]
-      await commitDriveState(root, nextState, clock)
+      await writeDriveState(root, nextState, clock)
       summary.deleted += 1
       return { state: nextState, stop: false }
     }
@@ -247,7 +247,7 @@ async function processPath(args: {
       const nextState = cloneDriveState(state)
       nextState.entries[path] = stateEntryFromRemote(remote, local?.sha256 ?? remote.content_sha256, clock)
       delete nextState.conflicts[path]
-      await commitDriveState(root, nextState, clock)
+      await writeDriveState(root, nextState, clock)
       summary.unchanged += 1
       return { state: nextState, stop: false }
     }
@@ -256,7 +256,7 @@ async function processPath(args: {
       const nextState = cloneDriveState(state)
       delete nextState.entries[path]
       delete nextState.conflicts[path]
-      await commitDriveState(root, nextState, clock)
+      await writeDriveState(root, nextState, clock)
       summary.unchanged += 1
       return { state: nextState, stop: false }
     }
@@ -435,7 +435,7 @@ async function tryResolveConflict(args: {
   const nextState = cloneDriveState(state)
   nextState.entries[path] = stateEntryFromRemote(uploaded.entry, mergedDigest, clock)
   delete nextState.conflicts[path]
-  await commitDriveState(root, nextState, clock)
+  await writeDriveState(root, nextState, clock)
   return nextState
 }
 
@@ -478,7 +478,7 @@ async function recordRemoteConflictCopy(args: {
     remote_entry_version: remote.entry_version,
     conflict_paths: [copyPath],
   }
-  await commitDriveState(root, nextState, clock)
+  await writeDriveState(root, nextState, clock)
   return nextState
 }
 
@@ -959,10 +959,6 @@ function stateEntryFromRemote(remote: RemoteEntry, localSha256: string | undefin
   }
 }
 
-async function commitDriveState(root: string, nextState: DriveState, clock: DriveClock): Promise<void> {
-  await writeDriveState(root, nextState, clock)
-}
-
 function cloneDriveState(state: DriveState): DriveState {
   return {
     ...state,
@@ -981,7 +977,7 @@ async function recordConflict(
 ): Promise<DriveState> {
   const nextState = cloneDriveState(state)
   nextState.conflicts[path] = conflict(reason, remote, clock)
-  await commitDriveState(root, nextState, clock)
+  await writeDriveState(root, nextState, clock)
   return nextState
 }
 
@@ -1001,7 +997,7 @@ async function recordTypedConflict(
     strategy: metadata.strategy,
     base_version_id: state.entries[path]?.current_version_id,
   }
-  await commitDriveState(root, nextState, clock)
+  await writeDriveState(root, nextState, clock)
   return nextState
 }
 

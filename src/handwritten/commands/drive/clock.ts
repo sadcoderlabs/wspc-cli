@@ -17,5 +17,9 @@ export function driveIsoTimestamp(clock: DriveClock = systemDriveClock): string 
 }
 
 export function driveConflictTimestamp(clock: DriveClock = systemDriveClock): string {
-  return clock.now().toUTC().toFormat("yyyyLLdd'T'HHmmss'Z'")
+  const timestamp = clock.now().toUTC()
+  if (!timestamp.isValid) {
+    throw new Error("invalid drive clock timestamp")
+  }
+  return timestamp.toFormat("yyyyLLdd'T'HHmmss'Z'")
 }
