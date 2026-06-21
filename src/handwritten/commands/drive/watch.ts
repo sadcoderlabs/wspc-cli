@@ -23,8 +23,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
   const runSync = options.runSync ?? runDriveSyncOnce
   const debounceMs = options.debounceMs ?? 500
   const emit = options.onEvent ?? ((event) => render({ kind: "drive_watch", display: { shape: "object" } }, event))
-  let timer: NodeJS.Timeout | undefined
-  let resolveTimer: (() => void) | undefined
+  let debounceTimer: NodeJS.Timeout | undefined
+  let retryTimer: NodeJS.Timeout | undefined
+  let resolveRetryTimer: (() => void) | undefined
   let running = false
   let rerunRequested = false
   let backoffMs = 1000
@@ -48,7 +49,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           emit({ kind: "drive_sync_once", ...summary })
           backoffMs = 1000
         } catch (error) {
-          if (isAuthError(error) || isFatalWatchError(error)) throw error
+          if (isAuthError(error) || isFatalWatchError(error) || !isRetryableWatchError(error)) throw error
           emit({ kind: "drive_watch_retry", delay_ms: backoffMs, error: errorMessage(error) })
           await waitForManagedTimer(backoffMs)
           if (stopped) return
@@ -61,21 +62,27 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     }
   }
 
-  function clearPendingTimer(): void {
-    if (timer === undefined) return
-    clearTimeout(timer)
-    timer = undefined
-    resolveTimer?.()
-    resolveTimer = undefined
+  function clearDebounceTimer(): void {
+    if (debounceTimer === undefined) return
+    clearTimeout(debounceTimer)
+    debounceTimer = undefined
+  }
+
+  function clearRetryTimer(): void {
+    if (retryTimer === undefined) return
+    clearTimeout(retryTimer)
+    retryTimer = undefined
+    resolveRetryTimer?.()
+    resolveRetryTimer = undefined
   }
 
   function waitForManagedTimer(ms: number): Promise<void> {
-    clearPendingTimer()
+    clearRetryTimer()
     return new Promise<void>((resolve) => {
-      resolveTimer = resolve
-      timer = setTimeout(() => {
-        timer = undefined
-        resolveTimer = undefined
+      resolveRetryTimer = resolve
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined
+        resolveRetryTimer = undefined
         resolve()
       }, ms)
     })
@@ -83,7 +90,8 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
 
   function stopWithError(error: unknown): void {
     stopError = error
-    clearPendingTimer()
+    clearDebounceTimer()
+    clearRetryTimer()
     stopWatch?.()
   }
 
@@ -92,9 +100,13 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
   try {
     source.onChange((path) => {
       if (isDriveInternalPath(root, path)) return
-      clearPendingTimer()
-      timer = setTimeout(() => {
-        timer = undefined
+      if (running) {
+        rerunRequested = true
+        return
+      }
+      clearDebounceTimer()
+      debounceTimer = setTimeout(() => {
+        debounceTimer = undefined
         requestSync().catch(stopWithError)
       }, debounceMs)
     })
@@ -110,7 +122,8 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     if (stopError !== undefined) throw stopError
   } finally {
     stopped = true
-    clearPendingTimer()
+    clearDebounceTimer()
+    clearRetryTimer()
     cleanupSignalListeners()
     await source.close()
   }
@@ -153,6 +166,12 @@ function isAuthError(error: unknown): boolean {
 
 function isFatalWatchError(error: unknown): boolean {
   return /unsupported .*state\.json schema|sync lock already exists/i.test(errorMessage(error))
+}
+
+function isRetryableWatchError(error: unknown): boolean {
+  const status = typeof error === "object" && error !== null ? (error as { status?: unknown }).status : undefined
+  const message = errorMessage(error)
+  return status === 429 || (typeof status === "number" && status >= 500) || /\b(429|5\d\d|network|temporary|fetch)\b/i.test(message)
 }
 
 function errorMessage(error: unknown): string {

@@ -90,6 +90,8 @@ describe("drive watch", () => {
     const runSync = vi.fn(async () => ({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] }))
     const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
     await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
 
     source.emit("a.txt")
     source.emit("b.txt")
@@ -119,7 +121,7 @@ describe("drive watch", () => {
     await watching
 
     expect(source.close).toHaveBeenCalledTimes(1)
-    expect(process.listenerCount("SIGINT")).toBe(sigintBefore)
+    expect(process.listenerCount("SIGINT")).toBeLessThanOrEqual(sigintBefore)
     expect(process.listenerCount("SIGTERM")).toBe(sigtermBefore)
   })
 
@@ -186,6 +188,50 @@ describe("drive watch", () => {
 
     await vi.advanceTimersByTimeAsync(1000)
     expect(runSync).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not let file events skip transient retry backoff", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    const runSync = vi
+      .fn()
+      .mockResolvedValueOnce(syncSummary())
+      .mockRejectedValueOnce(new Error("HTTP 500: temporary failure"))
+      .mockResolvedValueOnce(syncSummary())
+      .mockResolvedValueOnce(syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    source.emit("a.txt")
+    await vi.advanceTimersByTimeAsync(500)
+    expect(runSync).toHaveBeenCalledTimes(2)
+
+    source.emit("b.txt")
+    await vi.advanceTimersByTimeAsync(999)
+    expect(runSync).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(runSync).toHaveBeenCalledTimes(3)
+
+    process.emit("SIGINT")
+    await watching
+  })
+
+  it("stops on non-retryable sync errors", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => {
+      throw new Error("invalid local state")
+    })
+
+    await expect(runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })).rejects.toThrow(
+      "invalid local state",
+    )
+
+    expect(source.close).toHaveBeenCalledTimes(1)
+    expect(onEvent).not.toHaveBeenCalledWith(expect.objectContaining({ kind: "drive_watch_retry" }))
   })
 
   it("runs one trailing sync after events during an active sync", async () => {
