@@ -44,10 +44,10 @@ export interface DriveSyncSummary {
   downloaded: number
   deleted: number
   unchanged: number
-  merged?: number
+  merged: number
   conflicts: number
   errors: number
-  conflict_paths?: string[]
+  conflict_paths: string[]
   paths: Array<{ path: string; action: DriveSyncPathAction; conflict_paths?: string[] }>
 }
 
@@ -288,7 +288,6 @@ function recordUnresolvedConflicts(summary: DriveSyncSummary, state: DriveState)
   for (const path of Object.keys(state.conflicts).sort((left, right) => left.localeCompare(right))) {
     const conflictPaths = state.conflicts[path]?.conflict_paths
     if (conflictPaths) {
-      summary.conflict_paths ??= []
       summary.conflict_paths.push(...conflictPaths)
     }
     if (!newlyRecorded.has(path)) {
