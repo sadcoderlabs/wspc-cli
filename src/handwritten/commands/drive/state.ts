@@ -19,8 +19,12 @@ export interface DriveStateEntry {
 export interface DriveConflict {
   detected_at: string
   reason: string
+  type?: "edit_edit" | "create_create" | "delete_edit" | "edit_delete"
+  strategy?: "clean_merge" | "conflict_copy" | "record_only"
+  base_version_id?: string
   remote_entry_version?: number
   remote_version_id?: string
+  conflict_paths?: string[]
 }
 
 export interface DriveState {
@@ -135,8 +139,26 @@ function isDriveConflict(value: unknown): value is DriveConflict {
     isRecord(value) &&
     typeof value.detected_at === "string" &&
     typeof value.reason === "string" &&
+    (
+      value.type === undefined ||
+      value.type === "edit_edit" ||
+      value.type === "create_create" ||
+      value.type === "delete_edit" ||
+      value.type === "edit_delete"
+    ) &&
+    (
+      value.strategy === undefined ||
+      value.strategy === "clean_merge" ||
+      value.strategy === "conflict_copy" ||
+      value.strategy === "record_only"
+    ) &&
+    (value.base_version_id === undefined || typeof value.base_version_id === "string") &&
     (value.remote_entry_version === undefined || typeof value.remote_entry_version === "number") &&
-    (value.remote_version_id === undefined || typeof value.remote_version_id === "string")
+    (value.remote_version_id === undefined || typeof value.remote_version_id === "string") &&
+    (
+      value.conflict_paths === undefined ||
+      (Array.isArray(value.conflict_paths) && value.conflict_paths.every((path) => typeof path === "string"))
+    )
   )
 }
 

@@ -44,9 +44,11 @@ export interface DriveSyncSummary {
   downloaded: number
   deleted: number
   unchanged: number
+  merged?: number
   conflicts: number
   errors: number
-  paths: Array<{ path: string; action: DriveSyncPathAction }>
+  conflict_paths?: string[]
+  paths: Array<{ path: string; action: DriveSyncPathAction; conflict_paths?: string[] }>
 }
 
 function emptySummary(): DriveSyncSummary {
@@ -55,8 +57,10 @@ function emptySummary(): DriveSyncSummary {
     downloaded: 0,
     deleted: 0,
     unchanged: 0,
+    merged: 0,
     conflicts: 0,
     errors: 0,
+    conflict_paths: [],
     paths: [],
   }
 }
@@ -282,16 +286,25 @@ function recordUnresolvedConflicts(summary: DriveSyncSummary, state: DriveState)
   const newlyRecorded = new Set(summary.paths.filter((result) => result.action === "conflict").map((result) => result.path))
   const reportedPaths = new Set(summary.paths.map((result) => result.path))
   for (const path of Object.keys(state.conflicts).sort((left, right) => left.localeCompare(right))) {
+    const conflictPaths = state.conflicts[path]?.conflict_paths
+    if (conflictPaths) {
+      summary.conflict_paths ??= []
+      summary.conflict_paths.push(...conflictPaths)
+    }
     if (!newlyRecorded.has(path)) {
       summary.conflicts += 1
     }
     const existingResult = summary.paths.find((result) => result.path === path)
     if (existingResult?.action === "unchanged") {
       existingResult.action = "conflict"
+      if (conflictPaths) existingResult.conflict_paths = conflictPaths
       continue
     }
+    if (existingResult?.action === "conflict" && conflictPaths) {
+      existingResult.conflict_paths = conflictPaths
+    }
     if (!reportedPaths.has(path)) {
-      summary.paths.push({ path, action: "conflict" })
+      summary.paths.push({ path, action: "conflict", ...(conflictPaths ? { conflict_paths: conflictPaths } : {}) })
     }
   }
 }

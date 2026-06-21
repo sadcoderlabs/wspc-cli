@@ -182,6 +182,17 @@ describe("drive sync once", () => {
     })
   })
 
+  it("includes merged count and conflict copy metadata in sync summaries", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-summary-shape-"))
+    await initDriveState(root, "lib_1")
+    const api = mkApi([{ entries: [] }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.merged).toBe(0)
+    expect(result.conflict_paths).toEqual([])
+  })
+
   it("downloads a remote file via temp rename and updates state", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-download-"))
     await initDriveState(root, "lib_1")
