@@ -1,26 +1,16 @@
 // AUTO-GENERATED — DO NOT EDIT (source: org_update)
 import { Command } from "commander"
 import { orgUpdate } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/sdk-result.js"
 
 export const orgUpdateCommand = new Command("rename")
   .description("Update the authenticated user's organization")
   .option("--name <value>", "The new name for the organization. Cannot be empty or purely whitespace.")
   .action(async (opts) => {
-    const client = await loadSdkClient()
-    const result = await orgUpdate({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
+    await runSdkCommand({ kind: "org_update", display: {"shape":"object","fields":["id","name","created_at","updated_at"],"format":{"id":"id-short","name":"truncate","created_at":"relative-time","updated_at":"relative-time"}} }, (client) => orgUpdate({
+      client,
       body: {
         name: opts.name,
       },
-    })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "org_update", display: {"shape":"object","fields":["id","name","created_at","updated_at"],"format":{"id":"id-short","name":"truncate","created_at":"relative-time","updated_at":"relative-time"}} }, result.data)
+    }))
   })

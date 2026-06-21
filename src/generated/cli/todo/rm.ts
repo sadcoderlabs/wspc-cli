@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_delete)
 import { Command } from "commander"
 import { todoDelete } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/sdk-result.js"
 
 export const todoDeleteCommand = new Command("rm")
   .description("Soft-delete a todo")
@@ -10,9 +9,8 @@ export const todoDeleteCommand = new Command("rm")
   .option("--expected-version <value>", "expected_version")
   .option("--cascade <value>", "cascade")
   .action(async (id, opts) => {
-    const client = await loadSdkClient()
-    const result = await todoDelete({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
+    await runSdkCommand({ kind: "todo_delete", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, (client) => todoDelete({
+      client,
       path: {
         id,
       },
@@ -20,13 +18,5 @@ export const todoDeleteCommand = new Command("rm")
         expected_version: opts.expectedVersion,
         cascade: opts.cascade,
       },
-    })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "todo_delete", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
+    }))
   })

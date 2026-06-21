@@ -26,15 +26,12 @@ describe("emitCommand", () => {
     expect(code).toContain('.option("-p, --project <value>"')
     expect(code).toContain('.option("--due-at <value>"')
     expect(code).toContain("todoCreate({")
-    // Emitted action must surface HTTP errors instead of printing "undefined"
-    expect(code).toContain("result.error || !result.response?.ok")
-    expect(code).toContain("process.exitCode = 1")
-    // Action dispatches output through the renderer with the operation's
-    // kind tag (operationId verbatim); the renderer itself swallows
-    // `undefined` data and chooses pretty vs JSON.
-    expect(code).toContain('render({ kind: "todo_create"')
-    expect(code).toContain("result.data")
-    expect(code).toContain('from "../../../handwritten/output/render.js"')
+    expect(code).toContain('import { runSdkCommand } from "../../../handwritten/commands/sdk-result.js"')
+    expect(code).toContain("await runSdkCommand(")
+    expect(code).not.toContain("return runSdkCommand(")
+    expect(code).toContain("client,")
+    expect(code).not.toContain("loadSdkClient")
+    expect(code).not.toContain('from "../../../handwritten/output/render.js"')
   })
 
   it("inlines x-cli.display hints into the render call", () => {

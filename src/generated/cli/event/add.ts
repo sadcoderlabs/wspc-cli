@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: event_create)
 import { Command } from "commander"
 import { eventCreate } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/sdk-result.js"
 import { parseTimeInput, resolveTimezone } from "../../../handwritten/utils/parse-time.js"
 import { parseDateOnly, inclusiveEndToExclusive } from "../../../handwritten/utils/parse-date.js"
 import { parseAttendee } from "../../../handwritten/utils/parse-attendee.js"
@@ -40,9 +39,8 @@ export const eventCreateCommand = new Command("add")
     }
     const attendeeRaw = opts.attendee as string[]
     const attendees = attendeeRaw.length > 0 ? attendeeRaw.map(parseAttendee) : undefined
-    const client = await loadSdkClient()
-    const result = await eventCreate({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
+    await runSdkCommand({ kind: "event_create", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","status":"status-badge","start":"relative-time","end":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, (client) => eventCreate({
+      client,
       body: {
         title,
         description: opts.description,
@@ -54,13 +52,5 @@ export const eventCreateCommand = new Command("add")
         attendees: attendees,
         idempotency_key: opts.idempotencyKey,
       },
-    })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "event_create", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","status":"status-badge","start":"relative-time","end":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
+    }))
   })

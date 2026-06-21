@@ -1,26 +1,16 @@
 // AUTO-GENERATED — DO NOT EDIT (source: project_list)
 import { Command } from "commander"
 import { projectList } from "../../../sdk/index.js"
-import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../../handwritten/commands/sdk-result.js"
 
 export const projectListCommand = new Command("ls")
   .description("List projects")
   .option("--include-deleted <value>", "Set to `true` to include soft-deleted projects in the response.")
   .action(async (opts) => {
-    const client = await loadSdkClient()
-    const result = await projectList({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
+    await runSdkCommand({ kind: "project_list", display: {"shape":"list","columns":["id","name","default_todo_type_id"],"format":{"id":"id-short","name":"truncate","default_todo_type_id":"id-short"},"emptyMessage":"no projects"} }, (client) => projectList({
+      client,
       query: {
         include_deleted: opts.includeDeleted,
       },
-    })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "project_list", display: {"shape":"list","columns":["id","name","default_todo_type_id"],"format":{"id":"id-short","name":"truncate","default_todo_type_id":"id-short"},"emptyMessage":"no projects"} }, result.data)
+    }))
   })

@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: event_list)
 import { Command } from "commander"
 import { eventList } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/sdk-result.js"
 import { parseTimeInput, resolveTimezone } from "../../../handwritten/utils/parse-time.js"
 
 export const eventListCommand = new Command("ls")
@@ -27,9 +26,8 @@ export const eventListCommand = new Command("ls")
     if (opts.to !== undefined) {
       toValue = parseTimeInput(opts.to as string, zone).toISO() ?? undefined
     }
-    const client = await loadSdkClient()
-    const result = await eventList({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
+    await runSdkCommand({ kind: "event_list", display: {"shape":"list","columns":["id","status","title","start","end"],"format":{"id":"id-short","status":"status-badge","title":"truncate","start":"relative-time","end":"relative-time"},"emptyMessage":"no events"} }, (client) => eventList({
+      client,
       query: {
         q: opts.q,
         start_from: fromValue,
@@ -41,13 +39,5 @@ export const eventListCommand = new Command("ls")
         include_deleted: opts.includeDeleted,
         include_past: opts.includePast,
       },
-    })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "event_list", display: {"shape":"list","columns":["id","status","title","start","end"],"format":{"id":"id-short","status":"status-badge","title":"truncate","start":"relative-time","end":"relative-time"},"emptyMessage":"no events"} }, result.data)
+    }))
   })
