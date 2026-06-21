@@ -74,6 +74,10 @@ describe("render", () => {
     expect(stripAnsi(cap.output())).toContain("no todos")
   })
 
+  it("does not throw for scalar list items", () => {
+    expect(() => render({ kind: "weird.list", display: { shape: "list" } }, ["one", "two"])).not.toThrow()
+  })
+
   it("auto-detects list shape without hints", () => {
     render({ kind: "unknown.list" }, { items: [{ id: "a" }, { id: "b" }] })
     expect(stripAnsi(cap.output())).toMatch(/ID/)
