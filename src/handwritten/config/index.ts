@@ -15,7 +15,7 @@ export interface AccountCreds {
   agent_label?: string
 }
 
-export type ConsistencyBookmarkService = "auth" | "todo" | "calendar" | "email" | "push"
+export type ConsistencyBookmarkService = "auth" | "todo" | "calendar" | "drive" | "email" | "push"
 
 export type ConsistencyBookmarks = Partial<Record<ConsistencyBookmarkService, string>>
 
@@ -47,7 +47,7 @@ const V1_CRED_KEYS = [
   "agent_label",
 ] as const
 
-const CONSISTENCY_BOOKMARK_SERVICES = ["auth", "todo", "calendar", "email", "push"] as const
+const CONSISTENCY_BOOKMARK_SERVICES = ["auth", "todo", "calendar", "drive", "email", "push"] as const
 
 function normalizeConsistencyBookmarks(raw: unknown): ConsistencyBookmarks | undefined {
   if (typeof raw !== "object" || raw === null) return undefined

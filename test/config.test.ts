@@ -173,6 +173,24 @@ describe("ConfigStore", () => {
     })
   })
 
+  it("preserves drive consistency bookmarks", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-drive-cfg-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          consistency_bookmarks: { drive: "drive_old" } as never,
+          accounts: {},
+        },
+      },
+    })
+
+    const config = await store.read()
+    expect(config.envs.prod?.consistency_bookmarks?.drive).toBe("drive_old")
+  })
+
   it("drops malformed service consistency bookmark values", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-config-bad-bookmarks-"))
     await fs.writeFile(

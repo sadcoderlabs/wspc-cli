@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { ConfigStore } from "../src/handwritten/config/index.js"
-import { loadAuthedFetch, loadSdkClient } from "../src/handwritten/auth/load-sdk-client.js"
+import { loadAuthedFetch, loadSdkClient, loadSdkClientWithAuthedFetch } from "../src/handwritten/auth/load-sdk-client.js"
 import { todoList } from "../src/generated/sdk/index.js"
 
 describe("loadSdkClient", () => {
@@ -106,6 +106,81 @@ describe("loadSdkClient", () => {
     expect(fetchImpl).toHaveBeenCalledOnce()
     const config = await store.read()
     expect(config.envs.prod?.consistency_bookmarks?.auth).toBe("auth_new")
+  })
+
+  it("shares OAuth refresh state between generated SDK and direct authenticated fetch", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-load-shared-refresh-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      schema_version: 2,
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          client_id: "client_X",
+          current_account: "a@x.com",
+          accounts: {
+            "a@x.com": {
+              email: "a@x.com",
+              access_token: "at_0",
+              refresh_token: "rt_0",
+            },
+          },
+        },
+      },
+    })
+    const refreshTokens: string[] = []
+    const protectedAuthHeaders: string[] = []
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = input instanceof Request ? input : new Request(input, init)
+      if (req.url === "https://api.wspc.ai/auth/oauth/token") {
+        const body = await req.text()
+        const params = new URLSearchParams(body)
+        refreshTokens.push(params.get("refresh_token") ?? "")
+        if (refreshTokens.length === 1) {
+          return new Response(JSON.stringify({ access_token: "at_1", refresh_token: "rt_1", expires_in: 900 }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          })
+        }
+        return new Response(JSON.stringify({ access_token: "at_2", refresh_token: "rt_2", expires_in: 900 }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        })
+      }
+
+      protectedAuthHeaders.push(req.headers.get("authorization") ?? "")
+      if (protectedAuthHeaders.length === 1 || protectedAuthHeaders.length === 3) {
+        return new Response("", { status: 401 })
+      }
+      if (req.url.startsWith("https://api.wspc.ai/todo/items")) {
+        return new Response(JSON.stringify({ todos: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        })
+      }
+      return new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    })
+
+    const client = await loadSdkClientWithAuthedFetch({
+      store,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    })
+
+    await todoList({
+      client: client._rawClient,
+      query: { project_id: "prj_1" },
+    })
+    await client.fetch("https://api.wspc.ai/drive/libraries/lib_1/files/content?path=notes%2Fhello.txt")
+
+    expect(refreshTokens).toEqual(["rt_0", "rt_1"])
+    expect(protectedAuthHeaders).toEqual(["Bearer at_0", "Bearer at_1", "Bearer at_1", "Bearer at_2"])
+    const config = await store.read()
+    expect(config.envs.prod?.accounts["a@x.com"]?.access_token).toBe("at_2")
+    expect(config.envs.prod?.accounts["a@x.com"]?.refresh_token).toBe("rt_2")
   })
 
   it("builds a client when OAuth tokens present in config", async () => {

@@ -2,7 +2,7 @@
 
 Official TypeScript SDK and CLI for [wspc.ai](https://wspc.ai).
 
-> Status: **v0 walking skeleton.** Covers the todo domain only.
+> Status: **v0 walking skeleton.** Covers todo commands plus the first manual Drive sync slice.
 
 ## Install
 
@@ -39,9 +39,29 @@ scopes todos per project. Run `wspc todo project ls` to discover ids.
 | `wspc todo project {add, ls}` | Project scope. |
 | `wspc todo type ls` | List todo types. |
 | `wspc todo rule ls` | List recurrence rules. |
+| `wspc drive bind --library <id> [path]` | Bind an existing Drive library to a local folder. |
+| `wspc drive sync once [path]` | Run one manual whole-file Drive sync pass. |
 | `wspc config` | Inspect / clear local config. |
 
 Pass `--help` to any subcommand for flags, aliases, and examples.
+
+## Drive sync
+
+Bind a local folder to an existing Drive library, then run sync explicitly:
+
+```bash
+wspc drive bind --library lib_xxx ./notes
+wspc drive sync once ./notes
+```
+
+`bind` does not create a server library. It verifies the existing library, writes
+`.wspc-drive/state.json`, and waits for an explicit `sync once`.
+
+`sync once` is the v1 safe manual sync path: it performs a full folder scan,
+compares local files with the remote manifest, uploads/downloads whole files,
+uses optimistic remote versions for updates/deletes, and records conflicts in
+local state instead of auto-merging them. It does not run a watcher, preserve
+empty directories, detect renames, or create remote libraries.
 
 ### Running a command as a specific account
 

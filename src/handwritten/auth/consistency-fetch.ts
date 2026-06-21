@@ -6,6 +6,7 @@ const SERVICE_HEADERS: Record<ConsistencyBookmarkService, string> = {
   auth: "x-cb-auth",
   todo: "x-cb-todo",
   calendar: "x-cb-cal",
+  drive: "x-cb-drive",
   email: "x-cb-email",
   push: "x-cb-push",
 }
@@ -94,7 +95,7 @@ export function createConsistencyFetch(opts: ConsistencyFetchOptions): typeof fe
       const value = response.headers.get(header)
       return value ? [[serviceName as ConsistencyBookmarkService, value] as const] : []
     })
-    const shouldCheckInvalidBookmark = injectedBookmarks.length > 0
+    const shouldCheckInvalidBookmark = injectedBookmarks.length > 0 && !response.ok
     const invalidBookmark = shouldCheckInvalidBookmark ? await responseHasInvalidBookmark(response) : false
     if (nextBookmarks.length === 0 && !invalidBookmark) return response
 

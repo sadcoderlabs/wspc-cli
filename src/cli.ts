@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander"
+import { realpathSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import { registerGeneratedCommands } from "./generated/cli/index.js"
 import { loginCommand } from "./handwritten/commands/login.js"
 import { logoutCommand } from "./handwritten/commands/logout.js"
@@ -9,7 +11,36 @@ import { accountCommand } from "./handwritten/commands/account.js"
 import { todoDoneCommand } from "./handwritten/commands/todo-done.js"
 import { sendCommand } from "./handwritten/commands/email/send.js"
 import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
+import { driveBindCommand } from "./handwritten/commands/drive/bind.js"
+import { driveSyncCommand } from "./handwritten/commands/drive/sync.js"
 import { VERSION, SPEC_SHA, SPEC_FETCHED_AT } from "./version.js"
+
+export function mountDriveCommands(program: Command): void {
+  let drive = program.commands.find((c) => c.name() === "drive")
+  if (!drive) {
+    drive = new Command("drive").description("Drive commands")
+    program.addCommand(drive)
+  }
+  if (!drive.commands.some((c) => c.name() === "bind")) {
+    drive.addCommand(driveBindCommand())
+  }
+  const sync = drive.commands.find((c) => c.name() === "sync")
+  if (!sync) {
+    drive.addCommand(driveSyncCommand())
+  } else if (!sync.commands.some((c) => c.name() === "once")) {
+    const once = driveSyncCommand().commands.find((c) => c.name() === "once")
+    if (once) sync.addCommand(once)
+  }
+}
+
+export function isCliEntrypoint(argv: string[] = process.argv, metaUrl: string = import.meta.url): boolean {
+  if (!argv[1]) return false
+  try {
+    return realpathSync(argv[1]) === realpathSync(fileURLToPath(metaUrl))
+  } catch {
+    return false
+  }
+}
 
 function buildProgram(): Command {
   const program = new Command()
@@ -36,6 +67,8 @@ function buildProgram(): Command {
   program.addCommand(accountCommand)
 
   registerGeneratedCommands(program)
+
+  mountDriveCommands(program)
 
   const todo = program.commands.find((c) => c.name() === "todo")
   if (todo) todo.addCommand(todoDoneCommand)
@@ -78,4 +111,6 @@ export async function dispatch(argv: string[], { allowRetry = true }: { allowRet
   }
 }
 
-dispatch(process.argv)
+if (isCliEntrypoint()) {
+  dispatch(process.argv)
+}
