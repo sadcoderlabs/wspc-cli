@@ -50,17 +50,34 @@ jobs:
         run: |
           VERSION="$(node -p 'require("./package.json").version')"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "SKIP_RELEASE=false" >> "$GITHUB_ENV"
           if [ "${{ inputs.dry_run }}" != "true" ]; then
+            TAG_EXISTS=false
+            PACKAGE_EXISTS=false
+            GITHUB_RELEASE_EXISTS=false
             if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
-              echo "Tag v$VERSION already exists."
-              exit 1
+              TAG_EXISTS=true
             fi
             if npm view "@wspc/cli@$VERSION" version >/dev/null 2>&1; then
-              echo "@wspc/cli@$VERSION is already published."
+              PACKAGE_EXISTS=true
+            fi
+            if gh release view "v$VERSION" >/dev/null 2>&1; then
+              GITHUB_RELEASE_EXISTS=true
+            fi
+            if [ "$TAG_EXISTS" = "true" ] && [ "$PACKAGE_EXISTS" = "true" ] && [ "$GITHUB_RELEASE_EXISTS" = "true" ]; then
+              echo "v$VERSION is already fully released; skipping publish, tag, and GitHub release."
+              echo "SKIP_RELEASE=true" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            if [ "$TAG_EXISTS" = "true" ] || [ "$PACKAGE_EXISTS" = "true" ] || [ "$GITHUB_RELEASE_EXISTS" = "true" ]; then
+              echo "v$VERSION is partially released (tag=$TAG_EXISTS npm=$PACKAGE_EXISTS github_release=$GITHUB_RELEASE_EXISTS)."
               exit 1
             fi
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish to npm
+        if: ${{ inputs.dry_run || env.SKIP_RELEASE != 'true' }}
         # Auth happens via OIDC (npm Trusted Publishing) — no NODE_AUTH_TOKEN
         # needed. The `--provenance` flag attaches a signed attestation tying
         # the published tarball to this exact commit + workflow run. npm docs
@@ -73,12 +90,12 @@ jobs:
             npm publish --provenance
           fi
       - name: Push tag
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && env.SKIP_RELEASE != 'true' }}
         run: |
           git tag -a "v$VERSION" -m "chore(release): $VERSION"
           git push origin "v$VERSION"
       - name: GitHub release
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && env.SKIP_RELEASE != 'true' }}
         run: gh release create "v$VERSION" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
