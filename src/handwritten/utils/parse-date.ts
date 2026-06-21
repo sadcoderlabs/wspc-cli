@@ -25,7 +25,3 @@ export function parseDateOnly(input: string): string {
 export function inclusiveEndToExclusive(date: string): string {
   return DateTime.fromISO(parseDateOnly(date)).plus({ days: 1 }).toISODate()!
 }
-
-export function exclusiveEndToInclusive(date: string): string {
-  return DateTime.fromISO(parseDateOnly(date)).minus({ days: 1 }).toISODate()!
-}
