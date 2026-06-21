@@ -116,6 +116,8 @@ describe("drive bind", () => {
     expect(res.status).toBe(0)
     expect(res.stdout).toContain("bind")
     expect(res.stdout).toContain("Bind a local folder to an existing Drive library")
+    expect(res.stdout).toContain("watch")
+    expect(res.stdout).toContain("Watch a bound Drive folder and sync local changes")
   })
 
   it("mounts bind onto an existing drive command tree", async () => {
@@ -129,7 +131,7 @@ describe("drive bind", () => {
 
     const driveRoots = program.commands.filter((cmd) => cmd.name() === "drive")
     expect(driveRoots).toHaveLength(1)
-    expect(driveRoots[0]!.commands.map((cmd) => cmd.name())).toEqual(["generated", "bind", "sync"])
+    expect(driveRoots[0]!.commands.map((cmd) => cmd.name())).toEqual(["generated", "bind", "sync", "watch"])
   })
 
   it("does not duplicate a generated drive bind command", async () => {
@@ -142,6 +144,18 @@ describe("drive bind", () => {
     mountDriveCommands(program)
 
     expect(drive.commands.filter((cmd) => cmd.name() === "bind")).toHaveLength(1)
+  })
+
+  it("does not duplicate a generated drive watch command", async () => {
+    const { mountDriveCommands } = await import("../../../src/cli.js")
+    const program = new Command("wspc")
+    const drive = new Command("drive").description("Generated Drive commands")
+    drive.command("watch")
+    program.addCommand(drive)
+
+    mountDriveCommands(program)
+
+    expect(drive.commands.filter((cmd) => cmd.name() === "watch")).toHaveLength(1)
   })
 
   it("adds sync once under a generated drive sync command without duplicating the sync root", async () => {
@@ -157,6 +171,7 @@ describe("drive bind", () => {
 
     expect(drive.commands.filter((cmd) => cmd.name() === "sync")).toHaveLength(1)
     expect(drive.commands.map((cmd) => cmd.name())).toContain("bind")
+    expect(drive.commands.map((cmd) => cmd.name())).toContain("watch")
     expect(sync.commands.map((cmd) => cmd.name())).toEqual(["other", "once"])
   })
 
