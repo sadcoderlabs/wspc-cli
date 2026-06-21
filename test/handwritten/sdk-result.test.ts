@@ -72,7 +72,7 @@ describe("runSdkCommand", () => {
     stderr.mockRestore()
   })
 
-  it("falls back to result.data when selected data is undefined", async () => {
+  it("renders undefined when selected data is undefined", async () => {
     mocks.loadSdkClient.mockResolvedValue({ _rawClient: {} })
 
     await runSdkCommand(
@@ -81,9 +81,6 @@ describe("runSdkCommand", () => {
       () => undefined,
     )
 
-    expect(mocks.render).toHaveBeenCalledWith(
-      { kind: "empty", display: { shape: "object" } },
-      { value: 1 },
-    )
+    expect(mocks.render).toHaveBeenCalledWith({ kind: "empty", display: { shape: "object" } }, undefined)
   })
 })

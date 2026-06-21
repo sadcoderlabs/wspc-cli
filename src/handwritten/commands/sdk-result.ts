@@ -25,6 +25,6 @@ export async function runSdkCommand<TData, TSelected = TData>(
     process.exitCode = 1
     return undefined
   }
-  render(ctx, selectData?.(result) ?? result.data)
+  render(ctx, selectData === undefined ? result.data : selectData(result))
   return result
 }
