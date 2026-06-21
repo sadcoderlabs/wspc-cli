@@ -41,13 +41,8 @@ export function normalizeRemoteManifest(
   }
 
   for (const group of byCaseFoldedPath.values()) {
-    const exactPathCounts = new Map<string, number>()
-    for (const entry of group) {
-      exactPathCounts.set(entry.path, (exactPathCounts.get(entry.path) ?? 0) + 1)
-    }
-
     if (group.length > 1) {
-      const hasExactDuplicate = Array.from(exactPathCounts.values()).some((count) => count > 1)
+      const hasExactDuplicate = new Set(group.map((entry) => entry.path)).size < group.length
       const reason = hasExactDuplicate ? "REMOTE_PATH_DUPLICATE" : "REMOTE_PATH_CASE_CONFLICT"
       for (const entry of group.sort((left, right) => left.path.localeCompare(right.path))) {
         pathErrors.push({
