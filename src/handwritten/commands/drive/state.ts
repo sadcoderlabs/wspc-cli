@@ -1,6 +1,7 @@
 import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { randomUUID } from "node:crypto"
 import { join } from "node:path"
+import { DateTime } from "luxon"
 
 export const DRIVE_DIR = ".wspc-drive"
 export const STATE_FILE = "state.json"
@@ -27,6 +28,13 @@ export interface DriveConflict {
   conflict_paths?: string[]
 }
 
+export interface DriveRealtimeState {
+  client_id: string
+  last_cursor?: string
+  last_connected_at?: string
+  last_event_at?: string
+}
+
 export interface DriveState {
   schema_version: 1
   library_id: string
@@ -34,6 +42,7 @@ export interface DriveState {
   updated_at: string
   entries: Record<string, DriveStateEntry>
   conflicts: Record<string, DriveConflict>
+  realtime?: DriveRealtimeState
 }
 
 export function statePath(root: string): string {
@@ -99,6 +108,31 @@ export async function initDriveState(root: string, libraryId: string): Promise<D
   return state
 }
 
+export async function ensureDriveRealtimeState(root: string): Promise<DriveState> {
+  return withDriveLock(root, async () => {
+    const state = await readDriveState(root)
+    if (state.realtime?.client_id !== undefined) {
+      return state
+    }
+    const next: DriveState = {
+      ...state,
+      realtime: {
+        ...state.realtime,
+        client_id: `drvcli_${randomUUID().replace(/-/g, "")}`,
+      },
+    }
+    await writeDriveState(root, next)
+    return next
+  })
+}
+
+export async function writeDriveRealtimeState(root: string, realtime: DriveRealtimeState): Promise<void> {
+  await withDriveLock(root, async () => {
+    const current = await readDriveState(root)
+    await writeDriveState(root, { ...current, realtime })
+  })
+}
+
 export async function withDriveLock<T>(root: string, fn: () => Promise<T>): Promise<T> {
   await mkdir(join(root, DRIVE_DIR), { recursive: true })
   const lockFile = join(root, DRIVE_DIR, "sync.lock")
@@ -162,6 +196,25 @@ function isDriveConflict(value: unknown): value is DriveConflict {
   )
 }
 
+function isDriveRealtimeState(value: unknown): value is DriveRealtimeState {
+  const allowedKeys = new Set(["client_id", "last_cursor", "last_connected_at", "last_event_at"])
+  return (
+    isRecord(value) &&
+    Object.keys(value).every((key) => allowedKeys.has(key)) &&
+    (value.client_id === undefined || (typeof value.client_id === "string" && /^drvcli_[A-Za-z0-9_-]+$/.test(value.client_id))) &&
+    (value.last_cursor === undefined || typeof value.last_cursor === "string") &&
+    isOptionalIsoTimestamp(value.last_connected_at) &&
+    isOptionalIsoTimestamp(value.last_event_at)
+  )
+}
+
+function isOptionalIsoTimestamp(value: unknown): boolean {
+  if (value === undefined) return true
+  if (typeof value !== "string") return false
+  if (!/T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return false
+  return DateTime.fromISO(value, { setZone: true }).isValid
+}
+
 function isValidDriveState(value: unknown): value is DriveState {
   if (!isRecord(value)) return false
   if (
@@ -170,7 +223,8 @@ function isValidDriveState(value: unknown): value is DriveState {
     typeof value.created_at !== "string" ||
     typeof value.updated_at !== "string" ||
     !isRecord(value.entries) ||
-    !isRecord(value.conflicts)
+    !isRecord(value.conflicts) ||
+    (value.realtime !== undefined && !isDriveRealtimeState(value.realtime))
   ) {
     return false
   }

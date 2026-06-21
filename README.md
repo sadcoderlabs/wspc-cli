@@ -2,7 +2,7 @@
 
 Official TypeScript SDK and CLI for [wspc.ai](https://wspc.ai).
 
-> Status: **v0 walking skeleton.** Covers todo commands plus the first manual Drive sync slice.
+> Status: **v0 walking skeleton.** Covers todo commands plus the first Drive bind / sync / watch slice.
 
 ## Install
 
@@ -41,27 +41,44 @@ scopes todos per project. Run `wspc todo project ls` to discover ids.
 | `wspc todo rule ls` | List recurrence rules. |
 | `wspc drive bind --library <id> [path]` | Bind an existing Drive library to a local folder. |
 | `wspc drive sync once [path]` | Run one manual whole-file Drive sync pass. |
+| `wspc drive watch [path]` | Keep a bound Drive folder in foreground watch mode. |
 | `wspc config` | Inspect / clear local config. |
 
 Pass `--help` to any subcommand for flags, aliases, and examples.
 
 ## Drive sync
 
-Bind a local folder to an existing Drive library, then run sync explicitly:
+把本機資料夾綁到既有 Drive library，然後先用一次性 sync 驗證狀態：
 
 ```bash
 wspc drive bind --library lib_xxx ./notes
 wspc drive sync once ./notes
 ```
 
-`bind` does not create a server library. It verifies the existing library, writes
-`.wspc-drive/state.json`, and waits for an explicit `sync once`.
+`bind` 不會建立 server library。它只會驗證既有 library、寫入
+`.wspc-drive/state.json`，然後等待明確的 `sync once` 或 `watch`。
 
-`sync once` is the v1 safe manual sync path: it performs a full folder scan,
-compares local files with the remote manifest, uploads/downloads whole files,
-uses optimistic remote versions for updates/deletes, and records conflicts in
-local state instead of auto-merging them. It does not run a watcher, preserve
-empty directories, detect renames, or create remote libraries.
+`sync once` 是安全的一次性 sync path：它會完整掃描資料夾、比對 remote
+manifest、上傳 / 下載 whole files、用 optimistic remote versions 做 update /
+delete，並把 conflicts 記在本機 state，而不是自動 merge。它不會啟動 watcher、
+保留空目錄、偵測 rename，或建立 remote libraries。
+
+需要 foreground 監看時使用：
+
+```bash
+wspc drive watch ./notes
+```
+
+`watch` 會共用同一個 `sync once` correctness boundary。本機檔案事件與 Drive
+realtime WebSocket event 都只是 sync hint：CLI 收到 event 後排程完整 sync pass，
+不會直接依 realtime payload 改檔案或宣稱檔案已同步。realtime connection 會沿用
+既有 CLI auth，token 只留在 memory，不寫入 `.wspc-drive/state.json` 或 output。
+
+watch output 會顯示 `drive_watch_started`、`drive_sync_once`、
+`drive_realtime_connected`、`drive_realtime_event`、
+`drive_realtime_reconnecting`、`drive_realtime_warning` 或
+`drive_realtime_auth_failed`。在 `--json` / pipe 模式下，這些 event 會以
+newline-delimited JSON objects 輸出，方便 scripts 追蹤 foreground watch 狀態。
 
 ### Running a command as a specific account
 
