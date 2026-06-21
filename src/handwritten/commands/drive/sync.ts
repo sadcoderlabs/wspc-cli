@@ -319,11 +319,22 @@ async function tryResolveConflict(args: {
   }
 
   const localPath = resolveInsideRoot(root, path)
-  const [baseBytes, remoteBytes, localBytes] = await Promise.all([
-    downloadBytes(api, state.library_id, path, baseVersionId),
-    downloadBytes(api, state.library_id, path, remoteVersionId),
-    readFile(localPath),
-  ])
+  let baseBytes: Uint8Array
+  let remoteBytes: Uint8Array
+  try {
+    const [downloadedBaseBytes, downloadedRemoteBytes] = await Promise.all([
+      downloadBytes(api, state.library_id, path, baseVersionId),
+      downloadBytes(api, state.library_id, path, remoteVersionId),
+    ])
+    baseBytes = downloadedBaseBytes
+    remoteBytes = downloadedRemoteBytes
+  } catch (error) {
+    if (isExpectedVersionDownloadMissing(error)) {
+      return undefined
+    }
+    throw error
+  }
+  const localBytes = await readFile(localPath)
   const baseText = classifyMergeText(path, baseBytes, undefined)
   const localText = classifyMergeText(path, localBytes, undefined)
   const remoteText = classifyMergeText(path, remoteBytes, undefined)
@@ -352,6 +363,14 @@ async function tryResolveConflict(args: {
 async function downloadBytes(api: DriveSyncApi, libraryId: string, path: string, versionId: string): Promise<Uint8Array> {
   const response = await api.downloadFile(libraryId, path, versionId)
   return new Uint8Array(await response.arrayBuffer())
+}
+
+function isExpectedVersionDownloadMissing(error: unknown): boolean {
+  const structured = error as { code?: unknown; status?: unknown; response?: { status?: unknown } } | undefined
+  if (structured?.status === 404 || structured?.status === 410) return true
+  if (structured?.response?.status === 404 || structured?.response?.status === 410) return true
+  if (structured?.code === "VERSION_NOT_FOUND" || structured?.code === "NOT_FOUND") return true
+  return /\b(?:HTTP 40[410]|missing version|version not found|not found)\b/i.test(errorMessage(error))
 }
 
 async function assertLocalStillScanned(
@@ -443,10 +462,7 @@ async function installMergedLocalFile(
     try {
       await installNoOverwrite(tmp, target)
     } catch (error) {
-      const restored = await restoreBackupWhenPossible(backup, target)
-      if (!restored && backupIsScannedLocal) {
-        await unlink(backup).catch(() => {})
-      }
+      await restoreBackupWhenPossible(backup, target)
       throw error
     }
     await unlink(backup)
