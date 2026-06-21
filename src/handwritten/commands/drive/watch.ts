@@ -24,7 +24,6 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
   const runSync = options.runSync ?? runDriveSyncOnce
   const sleep = options.sleep ?? ((ms) => new Promise<void>((resolveSleep) => setTimeout(resolveSleep, ms)))
   const debounceMs = options.debounceMs ?? 500
-  const source = options.source ?? createChokidarSource(root)
   const emit = options.onEvent ?? ((event) => render({ kind: "drive_watch", display: { shape: "object" } }, event))
   let timer: NodeJS.Timeout | undefined
   let running = false
@@ -57,13 +56,14 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     }
   }
 
+  const state = await (options.readState ?? readDriveState)(root)
+  const source = options.source ?? createChokidarSource(root)
   source.onChange((path) => {
     if (isDriveInternalPath(root, path)) return
     if (timer !== undefined) clearTimeout(timer)
     timer = setTimeout(() => void requestSync(), debounceMs)
   })
 
-  const state = await (options.readState ?? readDriveState)(root)
   emit({ kind: "drive_watch_started", root, library_id: state.library_id })
   await requestSync()
   if (options.once) {
