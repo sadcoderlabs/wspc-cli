@@ -13,6 +13,7 @@ import { sendCommand } from "./handwritten/commands/email/send.js"
 import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
 import { driveBindCommand } from "./handwritten/commands/drive/bind.js"
 import { driveSyncCommand } from "./handwritten/commands/drive/sync.js"
+import { driveWatchCommand } from "./handwritten/commands/drive/watch.js"
 import { VERSION, SPEC_SHA, SPEC_FETCHED_AT } from "./version.js"
 
 export function mountDriveCommands(program: Command): void {
@@ -30,6 +31,9 @@ export function mountDriveCommands(program: Command): void {
   } else if (!sync.commands.some((c) => c.name() === "once")) {
     const once = driveSyncCommand().commands.find((c) => c.name() === "once")
     if (once) sync.addCommand(once)
+  }
+  if (!drive.commands.some((c) => c.name() === "watch")) {
+    drive.addCommand(driveWatchCommand())
   }
 }
 

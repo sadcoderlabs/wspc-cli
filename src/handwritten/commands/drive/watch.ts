@@ -1,0 +1,192 @@
+import { Command } from "commander"
+import chokidar from "chokidar"
+import { relative, resolve } from "node:path"
+import { render } from "../../output/render.js"
+import { DRIVE_DIR, readDriveState } from "./state.js"
+import { runDriveSyncOnce, type DriveSyncSummary } from "./sync.js"
+
+export interface DriveWatchSource {
+  onChange(handler: (path: string) => void): void
+  close(): Promise<void>
+}
+
+export interface DriveWatchOptions {
+  source?: DriveWatchSource
+  readState?: typeof readDriveState
+  runSync?: (root: string) => Promise<DriveSyncSummary>
+  once?: boolean
+  debounceMs?: number
+  onEvent?: (event: unknown) => void
+}
+
+export async function runDriveWatch(root: string, options: DriveWatchOptions = {}): Promise<void> {
+  const runSync = options.runSync ?? runDriveSyncOnce
+  const debounceMs = options.debounceMs ?? 500
+  const emit = options.onEvent ?? ((event) => render({ kind: "drive_watch", display: { shape: "object" } }, event))
+  let debounceTimer: NodeJS.Timeout | undefined
+  let retryTimer: NodeJS.Timeout | undefined
+  let resolveRetryTimer: (() => void) | undefined
+  let running = false
+  let rerunRequested = false
+  let backoffMs = 1000
+  let stopped = false
+  let stopWatch: (() => void) | undefined
+  let stopError: unknown
+  let cleanupSignalListeners = () => {}
+
+  async function requestSync(): Promise<void> {
+    if (stopped) return
+    if (running) {
+      rerunRequested = true
+      return
+    }
+    running = true
+    try {
+      do {
+        rerunRequested = false
+        try {
+          const summary = await runSync(root)
+          emit({ kind: "drive_sync_once", ...summary })
+          backoffMs = 1000
+        } catch (error) {
+          if (isAuthError(error) || isFatalWatchError(error) || !isRetryableWatchError(error)) throw error
+          emit({ kind: "drive_watch_retry", delay_ms: backoffMs, error: errorMessage(error) })
+          await waitForManagedTimer(backoffMs)
+          if (stopped) return
+          backoffMs = Math.min(backoffMs * 2, 60_000)
+          rerunRequested = true
+        }
+      } while (rerunRequested && !stopped)
+    } finally {
+      running = false
+    }
+  }
+
+  function clearDebounceTimer(): void {
+    if (debounceTimer === undefined) return
+    clearTimeout(debounceTimer)
+    debounceTimer = undefined
+  }
+
+  function clearRetryTimer(): void {
+    if (retryTimer === undefined) return
+    clearTimeout(retryTimer)
+    retryTimer = undefined
+    resolveRetryTimer?.()
+    resolveRetryTimer = undefined
+  }
+
+  function waitForManagedTimer(ms: number): Promise<void> {
+    clearRetryTimer()
+    return new Promise<void>((resolve) => {
+      resolveRetryTimer = resolve
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined
+        resolveRetryTimer = undefined
+        resolve()
+      }, ms)
+    })
+  }
+
+  function stopWithError(error: unknown): void {
+    stopError = error
+    clearDebounceTimer()
+    clearRetryTimer()
+    stopWatch?.()
+  }
+
+  const state = await (options.readState ?? readDriveState)(root)
+  const source = options.source ?? createChokidarSource(root)
+  try {
+    source.onChange((path) => {
+      if (isDriveInternalPath(root, path)) return
+      if (running) {
+        rerunRequested = true
+        return
+      }
+      clearDebounceTimer()
+      debounceTimer = setTimeout(() => {
+        debounceTimer = undefined
+        requestSync().catch(stopWithError)
+      }, debounceMs)
+    })
+
+    emit({ kind: "drive_watch_started", root, library_id: state.library_id })
+    await requestSync()
+    if (options.once) return
+    if (stopError !== undefined) throw stopError
+    await waitForStopSignal((stop, removeListeners) => {
+      stopWatch = stop
+      cleanupSignalListeners = removeListeners
+    })
+    if (stopError !== undefined) throw stopError
+  } finally {
+    stopped = true
+    clearDebounceTimer()
+    clearRetryTimer()
+    cleanupSignalListeners()
+    await source.close()
+  }
+}
+
+export function driveWatchCommand(options: DriveWatchOptions = {}): Command {
+  return new Command("watch")
+    .description("Watch a bound Drive folder and sync local changes")
+    .argument("[path]", "local folder path", ".")
+    .action(async (path: string) => {
+      await runDriveWatch(resolve(path), options)
+    })
+}
+
+function createChokidarSource(root: string): DriveWatchSource {
+  const watcher = chokidar.watch(root, {
+    ignoreInitial: true,
+    ignored: (path) => isDriveInternalPath(root, path),
+  })
+  return {
+    onChange(handler) {
+      watcher.on("all", (_event, path) => handler(path))
+    },
+    async close() {
+      await watcher.close()
+    },
+  }
+}
+
+function isDriveInternalPath(root: string, path: string): boolean {
+  const rel = relative(root, path)
+  return rel === DRIVE_DIR || rel.startsWith(`${DRIVE_DIR}/`) || rel.startsWith(`${DRIVE_DIR}\\`)
+}
+
+function isAuthError(error: unknown): boolean {
+  const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined
+  const message = errorMessage(error)
+  return code === "WSPC_AUTH_EXPIRED" || /\b(401|403|auth|authorization)\b/i.test(message)
+}
+
+function isFatalWatchError(error: unknown): boolean {
+  return /unsupported .*state\.json schema|sync lock already exists/i.test(errorMessage(error))
+}
+
+function isRetryableWatchError(error: unknown): boolean {
+  const status = typeof error === "object" && error !== null ? (error as { status?: unknown }).status : undefined
+  const message = errorMessage(error)
+  return status === 429 || (typeof status === "number" && status >= 500) || /\b(429|5\d\d|network|temporary|fetch)\b/i.test(message)
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function waitForStopSignal(onRegistered: (stop: () => void, cleanup: () => void) => void): Promise<void> {
+  return new Promise<void>((resolveStop) => {
+    const stop = () => resolveStop()
+    const cleanup = () => {
+      process.off("SIGINT", stop)
+      process.off("SIGTERM", stop)
+    }
+    onRegistered(stop, cleanup)
+    process.once("SIGINT", stop)
+    process.once("SIGTERM", stop)
+  })
+}
