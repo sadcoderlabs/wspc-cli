@@ -1,8 +1,10 @@
 import { Command } from "commander"
 import chokidar from "chokidar"
 import { relative, resolve } from "node:path"
+import { loadAuthedFetch } from "../../auth/load-sdk-client.js"
 import { render } from "../../output/render.js"
-import { DRIVE_DIR, readDriveState } from "./state.js"
+import { createDriveRealtimeSource } from "./realtime.js"
+import { DRIVE_DIR, ensureDriveRealtimeState, readDriveState, writeDriveState } from "./state.js"
 import { runDriveSyncOnce, type DriveSyncSummary } from "./sync.js"
 
 export interface DriveWatchSource {
@@ -139,9 +141,26 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     stopWatch?.()
   }
 
-  const state = await (options.readState ?? readDriveState)(root)
+  let state = await (options.readState ?? readDriveState)(root)
   const source = options.source ?? createChokidarSource(root)
-  const realtimeSource = options.once ? undefined : options.realtimeSource
+  let realtimeSource = options.once ? undefined : options.realtimeSource
+  if (!options.once && realtimeSource === undefined) {
+    state = await ensureDriveRealtimeState(root)
+    const { baseUrl } = await loadAuthedFetch()
+    const realtime = state.realtime
+    if (realtime === undefined) {
+      throw new Error("drive realtime state is required")
+    }
+    realtimeSource = createDriveRealtimeSource({
+      baseUrl,
+      libraryId: state.library_id,
+      realtime,
+      writeRealtimeState: async (next) => {
+        const current = await readDriveState(root)
+        await writeDriveState(root, { ...current, realtime: next })
+      },
+    })
+  }
   try {
     source.onChange((path) => {
       if (isDriveInternalPath(root, path)) return

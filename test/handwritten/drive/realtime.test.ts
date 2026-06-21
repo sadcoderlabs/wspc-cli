@@ -1,11 +1,78 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   buildDriveRealtimeUrl,
+  createDriveRealtimeSource,
   parseDriveRealtimeMessage,
   redactedRealtimeError,
+  type DriveRealtimeConnector,
 } from "../../../src/handwritten/commands/drive/realtime.js"
+import type { DriveRealtimeState } from "../../../src/handwritten/commands/drive/state.js"
+
+type ConnectorHandlers = Parameters<DriveRealtimeConnector>[1]
+
+function fakeConnector(): DriveRealtimeConnector & {
+  connections: Array<{
+    url: URL
+    handlers: ConnectorHandlers
+    close: ReturnType<typeof vi.fn>
+  }>
+} {
+  const connections: Array<{
+    url: URL
+    handlers: ConnectorHandlers
+    close: ReturnType<typeof vi.fn>
+  }> = []
+  const connect: DriveRealtimeConnector = (url, handlers) => {
+    const connection = {
+      url,
+      handlers,
+      close: vi.fn(),
+    }
+    connections.push(connection)
+    return { close: connection.close }
+  }
+  return Object.assign(connect, { connections })
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+function realtimeHandlers(events: unknown[] = []) {
+  return {
+    onConnected: vi.fn(() => events.push("connected")),
+    onEvent: vi.fn((event) => events.push(event)),
+    onReconnect: vi.fn((delayMs, error) => events.push({ reconnect: delayMs, error })),
+    onAuthFailed: vi.fn((error) => events.push({ authFailed: error })),
+  }
+}
+
+function sourceArgs(overrides: Partial<{
+  realtime: DriveRealtimeState
+  writeRealtimeState: (next: DriveRealtimeState) => Promise<void>
+  connect: DriveRealtimeConnector
+  now: () => Date
+}> = {}) {
+  return {
+    baseUrl: "https://api.wspc.ai",
+    libraryId: "lib_1",
+    realtime: { client_id: "drvcli_abc", ...overrides.realtime },
+    writeRealtimeState: overrides.writeRealtimeState ?? (async () => {}),
+    connect: overrides.connect,
+    now: overrides.now,
+  }
+}
 
 describe("drive realtime helpers", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it("builds websocket urls from api urls without token data", () => {
     expect(buildDriveRealtimeUrl("https://api.wspc.ai", "lib_1", { client_id: "drvcli_abc" }).toString()).toBe(
       "wss://api.wspc.ai/drive/libraries/lib_1/realtime?client_id=drvcli_abc",
@@ -72,5 +139,186 @@ describe("drive realtime helpers", () => {
   it("redacts realtime errors", () => {
     expect(redactedRealtimeError(new Error("HTTP 403: Bearer secret-token"))).toBe("HTTP 403")
     expect(redactedRealtimeError(new Error("WebSocket network close: secret-token"))).toBe("network error")
+  })
+
+  it("connects and persists the last connected timestamp on open", async () => {
+    const connect = fakeConnector()
+    const updates: DriveRealtimeState[] = []
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({
+      connect,
+      now: () => new Date("2026-06-21T10:00:00.000Z"),
+      writeRealtimeState: async (next) => {
+        updates.push(next)
+      },
+    }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.open()
+    await flushPromises()
+
+    expect(connect.connections[0]?.url.toString()).toBe(
+      "wss://api.wspc.ai/drive/libraries/lib_1/realtime?client_id=drvcli_abc",
+    )
+    expect(updates).toEqual([{ client_id: "drvcli_abc", last_connected_at: "2026-06-21T10:00:00.000Z" }])
+    expect(events).toEqual(["connected"])
+  })
+
+  it("persists ready replay cursors and emits a debounced replay event", async () => {
+    const connect = fakeConnector()
+    const updates: DriveRealtimeState[] = []
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({
+      connect,
+      writeRealtimeState: async (next) => {
+        updates.push(next)
+      },
+    }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({ type: "ready", cursor: "c1", replayed: 2 }))
+    await flushPromises()
+
+    expect(updates).toEqual([{ client_id: "drvcli_abc", last_cursor: "c1" }])
+    expect(events).toContainEqual({ debounce_ms: 2000, cursor: "c1", reason: "ready_replay" })
+  })
+
+  it("persists library_changed cursors and emits a debounced change event", async () => {
+    const connect = fakeConnector()
+    const updates: DriveRealtimeState[] = []
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({
+      connect,
+      now: () => new Date("2026-06-21T10:05:00.000Z"),
+      writeRealtimeState: async (next) => {
+        updates.push(next)
+      },
+    }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({
+      type: "library_changed",
+      cursor: "c2",
+      path: "notes.md",
+    }))
+    await flushPromises()
+
+    expect(updates).toEqual([{
+      client_id: "drvcli_abc",
+      last_cursor: "c2",
+      last_event_at: "2026-06-21T10:05:00.000Z",
+    }])
+    expect(events).toContainEqual({ debounce_ms: 2000, cursor: "c2", path: "notes.md", reason: "library_changed" })
+  })
+
+  it("emits resync_required events immediately", async () => {
+    const connect = fakeConnector()
+    const updates: DriveRealtimeState[] = []
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({
+      connect,
+      now: () => new Date("2026-06-21T10:06:00.000Z"),
+      writeRealtimeState: async (next) => {
+        updates.push(next)
+      },
+    }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({
+      type: "resync_required",
+      cursor: "c3",
+      reason: "server_gap",
+    }))
+    await flushPromises()
+
+    expect(updates).toEqual([{
+      client_id: "drvcli_abc",
+      last_cursor: "c3",
+      last_event_at: "2026-06-21T10:06:00.000Z",
+    }])
+    expect(events).toContainEqual({ immediate: true, cursor: "c3", reason: "server_gap" })
+  })
+
+  it("clears invalid cursors before persisting resync_required", async () => {
+    const connect = fakeConnector()
+    const updates: DriveRealtimeState[] = []
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({
+      connect,
+      realtime: { client_id: "drvcli_abc", last_cursor: "old" },
+      now: () => new Date("2026-06-21T10:07:00.000Z"),
+      writeRealtimeState: async (next) => {
+        updates.push(next)
+      },
+    }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({
+      type: "resync_required",
+      reason: "cursor_invalid",
+    }))
+    await flushPromises()
+
+    expect(updates).toEqual([{
+      client_id: "drvcli_abc",
+      last_event_at: "2026-06-21T10:07:00.000Z",
+    }])
+    expect(events).toContainEqual({ immediate: true, reason: "cursor_invalid" })
+  })
+
+  it("ignores unknown realtime messages", async () => {
+    const connect = fakeConnector()
+    const updates: DriveRealtimeState[] = []
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({
+      connect,
+      writeRealtimeState: async (next) => {
+        updates.push(next)
+      },
+    }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({ type: "mystery", token: "secret" }))
+    await flushPromises()
+
+    expect(updates).toEqual([])
+    expect(events).toEqual([])
+  })
+
+  it("emits reconnect on close and reconnects with exponential backoff", async () => {
+    const connect = fakeConnector()
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({ connect }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.close(new Error("network close"))
+
+    expect(events).toContainEqual({ reconnect: 1000, error: "network error" })
+    expect(connect.connections).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(999)
+    expect(connect.connections).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(connect.connections).toHaveLength(2)
+    connect.connections[1]?.handlers.close(new Error("network close"))
+    expect(events).toContainEqual({ reconnect: 2000, error: "network error" })
+  })
+
+  it("stops reconnecting after auth errors", async () => {
+    const connect = fakeConnector()
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({ connect }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({
+      type: "error",
+      code: "forbidden",
+      message: "HTTP 403: Bearer secret-token",
+    }))
+    connect.connections[0]?.handlers.close(new Error("HTTP 403: Bearer secret-token"))
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(events).toContainEqual({ authFailed: "HTTP 403" })
+    expect(connect.connections).toHaveLength(1)
   })
 })

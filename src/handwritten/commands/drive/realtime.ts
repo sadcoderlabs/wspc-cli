@@ -1,4 +1,5 @@
 import type { DriveRealtimeState } from "./state.js"
+import type { DriveRealtimeSource } from "./watch.js"
 
 export type DriveRealtimeMessage =
   | { type: "ready"; cursor?: string; replayed: number }
@@ -6,6 +7,142 @@ export type DriveRealtimeMessage =
   | { type: "resync_required"; cursor?: string; reason?: string }
   | { type: "error"; code?: string; message?: string }
   | { type: "unknown"; message_type?: string }
+
+export type DriveRealtimeConnector = (url: URL, handlers: {
+  open: () => void
+  message: (data: string) => void
+  close: (error?: unknown) => void
+}) => { close: () => void }
+
+type DriveRealtimeHandlers = Parameters<DriveRealtimeSource["start"]>[0]
+
+export function createDriveRealtimeSource(args: {
+  baseUrl: string
+  libraryId: string
+  realtime: DriveRealtimeState
+  writeRealtimeState: (next: DriveRealtimeState) => Promise<void>
+  connect?: DriveRealtimeConnector
+  now?: () => Date
+  setTimeout?: typeof setTimeout
+  clearTimeout?: typeof clearTimeout
+}): DriveRealtimeSource {
+  const connect = args.connect ?? nativeWebSocketConnector
+  const now = args.now ?? (() => new Date())
+  const scheduleTimeout = args.setTimeout ?? setTimeout
+  const cancelTimeout = args.clearTimeout ?? clearTimeout
+  let currentRealtime = { ...args.realtime }
+  let handlers: DriveRealtimeHandlers | undefined
+  let activeSocket: { close: () => void } | undefined
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+  let reconnectDelayMs = 1000
+  let stopped = false
+  let authFailed = false
+  let connectionId = 0
+
+  function clearReconnectTimer(): void {
+    if (reconnectTimer === undefined) return
+    cancelTimeout(reconnectTimer)
+    reconnectTimer = undefined
+  }
+
+  async function persist(next: DriveRealtimeState): Promise<void> {
+    currentRealtime = next
+    await args.writeRealtimeState(next)
+  }
+
+  function connectNow(): void {
+    if (stopped || authFailed) return
+    clearReconnectTimer()
+    const id = ++connectionId
+    const url = buildDriveRealtimeUrl(args.baseUrl, args.libraryId, currentRealtime)
+    activeSocket = connect(url, {
+      open() {
+        if (id !== connectionId || stopped || authFailed) return
+        reconnectDelayMs = 1000
+        void persist({ ...currentRealtime, last_connected_at: now().toISOString() })
+          .then(() => handlers?.onConnected())
+          .catch((error) => closeConnection(id, error))
+      },
+      message(data) {
+        if (id !== connectionId || stopped || authFailed) return
+        void handleMessage(data).catch((error) => closeConnection(id, error))
+      },
+      close(error) {
+        closeConnection(id, error ?? "close")
+      },
+    })
+  }
+
+  function closeConnection(id: number, error: unknown): void {
+    if (id !== connectionId || stopped || authFailed) return
+    activeSocket = undefined
+    const delayMs = reconnectDelayMs
+    handlers?.onReconnect(delayMs, redactedRealtimeError(error))
+    reconnectTimer = scheduleTimeout(() => {
+      reconnectTimer = undefined
+      connectNow()
+    }, delayMs)
+    reconnectDelayMs = Math.min(delayMs * 2, 60_000)
+  }
+
+  async function handleMessage(data: string): Promise<void> {
+    const message = parseDriveRealtimeMessage(data)
+    if (message.type === "ready") {
+      if (message.cursor !== undefined) {
+        await persist({ ...currentRealtime, last_cursor: message.cursor })
+      }
+      if (message.replayed > 0) {
+        handlers?.onEvent(optionalString({ debounce_ms: 2000, reason: "ready_replay" }, "cursor", message.cursor))
+      }
+      return
+    }
+    if (message.type === "library_changed") {
+      if (message.cursor !== undefined) {
+        await persist({ ...currentRealtime, last_cursor: message.cursor, last_event_at: now().toISOString() })
+      }
+      handlers?.onEvent(optionalString(optionalString({
+        debounce_ms: 2000,
+        reason: "library_changed",
+      }, "cursor", message.cursor), "path", message.path))
+      return
+    }
+    if (message.type === "resync_required") {
+      const reason = message.reason ?? "resync_required"
+      if (message.cursor !== undefined || isInvalidCursorReason(reason)) {
+        await persist(resyncRealtimeState(currentRealtime, message.cursor, reason, now().toISOString()))
+      }
+      handlers?.onEvent(optionalString({ immediate: true, reason }, "cursor", message.cursor))
+      return
+    }
+    if (message.type === "error") {
+      const error = message.message ?? message.code ?? "realtime error"
+      if (isRealtimeAuthError(error) || isRealtimeAuthError(message.code)) {
+        authFailed = true
+        clearReconnectTimer()
+        handlers?.onAuthFailed(redactedRealtimeError(error))
+        activeSocket?.close()
+        activeSocket = undefined
+        return
+      }
+      handlers?.onReconnect(reconnectDelayMs, redactedRealtimeError(error))
+    }
+  }
+
+  return {
+    async start(nextHandlers) {
+      handlers = nextHandlers
+      stopped = false
+      authFailed = false
+      connectNow()
+    },
+    async close() {
+      stopped = true
+      clearReconnectTimer()
+      activeSocket?.close()
+      activeSocket = undefined
+    },
+  }
+}
 
 export function buildDriveRealtimeUrl(baseUrl: string, libraryId: string, realtime: DriveRealtimeState): URL {
   if (realtime.client_id.length === 0) {
@@ -74,9 +211,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
+function resyncRealtimeState(realtime: DriveRealtimeState, cursor: string | undefined, reason: string, lastEventAt: string): DriveRealtimeState {
+  if (isInvalidCursorReason(reason)) {
+    const { last_cursor: _lastCursor, ...next } = realtime
+    return { ...next, last_event_at: lastEventAt }
+  }
+  return optionalString({ ...realtime, last_event_at: lastEventAt }, "last_cursor", cursor)
+}
+
+function isInvalidCursorReason(reason: string): boolean {
+  return /\bcursor[_ -]?(invalid|expired|gone|missing|not[_ -]?found)\b|\binvalid[_ -]?cursor\b/i.test(reason)
+}
+
+function isRealtimeAuthError(error: unknown): boolean {
+  return /\b(401|403|auth|authorization|unauthorized|forbidden)\b/i.test(String(error))
+}
+
 function optionalString<T extends object, K extends string>(target: T, key: K, value: unknown): T | (T & Record<K, string>) {
   if (typeof value !== "string") {
     return target
   }
   return { ...target, [key]: value } as T & Record<K, string>
+}
+
+function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeConnector>[1]): { close: () => void } {
+  const ws = new WebSocket(url.toString())
+  let closed = false
+  const closeOnce = (error?: unknown) => {
+    if (closed) return
+    closed = true
+    handlers.close(error)
+  }
+  ws.addEventListener("open", () => handlers.open())
+  ws.addEventListener("message", (event) => handlers.message(String(event.data)))
+  ws.addEventListener("close", () => closeOnce())
+  ws.addEventListener("error", () => closeOnce(new Error("network error")))
+  return { close: () => ws.close() }
 }

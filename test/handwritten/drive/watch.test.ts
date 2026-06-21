@@ -125,7 +125,13 @@ describe("drive watch", () => {
       throw fatalError
     })
 
-    await expect(runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })).rejects.toThrow("login required")
+    await expect(runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })).rejects.toThrow("login required")
 
     expect(source.close).toHaveBeenCalledTimes(1)
   })
@@ -168,7 +174,13 @@ describe("drive watch", () => {
     const source = fakeSource()
     const onEvent = vi.fn()
     const runSync = vi.fn(async () => syncSummary())
-    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
     await source.waitForSubscription()
     await Promise.resolve()
     await Promise.resolve()
@@ -190,7 +202,13 @@ describe("drive watch", () => {
     const runSync = vi.fn(async () => syncSummary())
     const sigintBefore = process.listenerCount("SIGINT")
     const sigtermBefore = process.listenerCount("SIGTERM")
-    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
     await source.waitForSubscription()
     await Promise.resolve()
     await Promise.resolve()
@@ -209,7 +227,13 @@ describe("drive watch", () => {
     const source = fakeSource()
     const onEvent = vi.fn()
     const runSync = vi.fn(async () => syncSummary())
-    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
     await source.waitForSubscription()
     await Promise.resolve()
     await Promise.resolve()
@@ -232,7 +256,13 @@ describe("drive watch", () => {
       .fn()
       .mockResolvedValueOnce(syncSummary())
       .mockRejectedValueOnce(fatalError)
-    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
     await source.waitForSubscription()
     await Promise.resolve()
     await Promise.resolve()
@@ -253,7 +283,13 @@ describe("drive watch", () => {
       .mockResolvedValueOnce(syncSummary())
       .mockRejectedValueOnce(new Error("HTTP 500: temporary failure"))
       .mockResolvedValueOnce(syncSummary())
-    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
     await source.waitForSubscription()
     await Promise.resolve()
     await Promise.resolve()
@@ -279,7 +315,13 @@ describe("drive watch", () => {
       .mockRejectedValueOnce(new Error("HTTP 500: temporary failure"))
       .mockResolvedValueOnce(syncSummary())
       .mockResolvedValueOnce(syncSummary())
-    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
     await source.waitForSubscription()
     await Promise.resolve()
     await Promise.resolve()
@@ -306,7 +348,13 @@ describe("drive watch", () => {
       throw new Error("invalid local state")
     })
 
-    await expect(runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })).rejects.toThrow(
+    await expect(runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })).rejects.toThrow(
       "invalid local state",
     )
 
@@ -342,7 +390,13 @@ describe("drive watch", () => {
     const source = fakeSource()
     const onEvent = vi.fn()
     const runSync = vi.fn(async () => syncSummary())
-    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
     await source.waitForSubscription()
     await Promise.resolve()
     await Promise.resolve()
@@ -377,7 +431,13 @@ describe("drive watch", () => {
     const source = fakeSource()
     const onEvent = vi.fn()
     const runSync = vi.fn().mockResolvedValueOnce(syncSummary({ conflicts: 1 })).mockResolvedValueOnce(syncSummary())
-    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
     await source.waitForSubscription()
     await Promise.resolve()
     await Promise.resolve()
