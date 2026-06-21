@@ -15780,6 +15780,23 @@
             "example": "opaque-consistency-bookmark"
           }
         ],
+        "x-cli": {
+          "command": "drive library add",
+          "positional": [
+            "name"
+          ],
+          "display": {
+            "shape": "object",
+            "columns": [
+              "id",
+              "name",
+              "version",
+              "file_count",
+              "storage_bytes",
+              "updated_at"
+            ]
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -16174,6 +16191,21 @@
             "in": "query"
           }
         ],
+        "x-cli": {
+          "command": "drive library ls",
+          "display": {
+            "shape": "list",
+            "dataPath": "libraries",
+            "columns": [
+              "id",
+              "name",
+              "file_count",
+              "storage_bytes",
+              "updated_at"
+            ],
+            "emptyMessage": "no drive libraries"
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -16542,6 +16574,22 @@
             "in": "path"
           }
         ],
+        "x-cli": {
+          "command": "drive file rm",
+          "positional": [
+            "id",
+            "path"
+          ],
+          "display": {
+            "shape": "object",
+            "dataPath": "entry",
+            "columns": [
+              "path",
+              "entry_version",
+              "deleted_at"
+            ]
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -16925,6 +16973,23 @@
             "in": "path"
           }
         ],
+        "x-cli": {
+          "command": "drive library rm",
+          "positional": [
+            "id"
+          ],
+          "display": {
+            "shape": "object",
+            "columns": [
+              "id",
+              "name",
+              "version",
+              "file_count",
+              "storage_bytes",
+              "updated_at"
+            ]
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -17303,6 +17368,23 @@
             "in": "path"
           }
         ],
+        "x-cli": {
+          "command": "drive library show",
+          "positional": [
+            "id"
+          ],
+          "display": {
+            "shape": "object",
+            "columns": [
+              "id",
+              "name",
+              "version",
+              "file_count",
+              "storage_bytes",
+              "updated_at"
+            ]
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -17665,6 +17747,23 @@
             "in": "path"
           }
         ],
+        "x-cli": {
+          "command": "drive library update",
+          "positional": [
+            "id"
+          ],
+          "display": {
+            "shape": "object",
+            "columns": [
+              "id",
+              "name",
+              "version",
+              "file_count",
+              "storage_bytes",
+              "updated_at"
+            ]
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -18070,6 +18169,10 @@
             "in": "query"
           }
         ],
+        "x-cli": {
+          "command": "_handwritten",
+          "hidden": true
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -18462,6 +18565,10 @@
             "in": "query"
           }
         ],
+        "x-cli": {
+          "command": "_handwritten",
+          "hidden": true
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -18862,6 +18969,23 @@
             "in": "query"
           }
         ],
+        "x-cli": {
+          "command": "drive manifest get",
+          "positional": [
+            "id"
+          ],
+          "display": {
+            "shape": "list",
+            "dataPath": "entries",
+            "columns": [
+              "path",
+              "entry_version",
+              "size_bytes",
+              "updated_at"
+            ],
+            "emptyMessage": "no drive files"
+          }
+        },
         "x-codeSamples": [
           {
             "lang": "shell",
