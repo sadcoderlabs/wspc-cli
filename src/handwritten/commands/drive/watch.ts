@@ -16,24 +16,25 @@ export interface DriveWatchOptions {
   runSync?: (root: string) => Promise<DriveSyncSummary>
   once?: boolean
   debounceMs?: number
-  sleep?: (ms: number) => Promise<void>
   onEvent?: (event: unknown) => void
 }
 
 export async function runDriveWatch(root: string, options: DriveWatchOptions = {}): Promise<void> {
   const runSync = options.runSync ?? runDriveSyncOnce
-  const sleep = options.sleep ?? ((ms) => new Promise<void>((resolveSleep) => setTimeout(resolveSleep, ms)))
   const debounceMs = options.debounceMs ?? 500
   const emit = options.onEvent ?? ((event) => render({ kind: "drive_watch", display: { shape: "object" } }, event))
   let timer: NodeJS.Timeout | undefined
+  let resolveTimer: (() => void) | undefined
   let running = false
   let rerunRequested = false
   let backoffMs = 1000
+  let stopped = false
   let stopWatch: (() => void) | undefined
   let stopError: unknown
   let cleanupSignalListeners = () => {}
 
   async function requestSync(): Promise<void> {
+    if (stopped) return
     if (running) {
       rerunRequested = true
       return
@@ -49,11 +50,12 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
         } catch (error) {
           if (isAuthError(error) || isFatalWatchError(error)) throw error
           emit({ kind: "drive_watch_retry", delay_ms: backoffMs, error: errorMessage(error) })
-          await sleep(backoffMs)
+          await waitForManagedTimer(backoffMs)
+          if (stopped) return
           backoffMs = Math.min(backoffMs * 2, 60_000)
           rerunRequested = true
         }
-      } while (rerunRequested)
+      } while (rerunRequested && !stopped)
     } finally {
       running = false
     }
@@ -63,6 +65,20 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     if (timer === undefined) return
     clearTimeout(timer)
     timer = undefined
+    resolveTimer?.()
+    resolveTimer = undefined
+  }
+
+  function waitForManagedTimer(ms: number): Promise<void> {
+    clearPendingTimer()
+    return new Promise<void>((resolve) => {
+      resolveTimer = resolve
+      timer = setTimeout(() => {
+        timer = undefined
+        resolveTimer = undefined
+        resolve()
+      }, ms)
+    })
   }
 
   function stopWithError(error: unknown): void {
@@ -93,6 +109,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     })
     if (stopError !== undefined) throw stopError
   } finally {
+    stopped = true
     clearPendingTimer()
     cleanupSignalListeners()
     await source.close()

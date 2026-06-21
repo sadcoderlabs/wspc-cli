@@ -158,4 +158,29 @@ describe("drive watch", () => {
     await rejected
     expect(source.close).toHaveBeenCalledTimes(1)
   })
+
+  it("cancels transient retry backoff on shutdown", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    const runSync = vi
+      .fn()
+      .mockResolvedValueOnce({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] })
+      .mockRejectedValueOnce(new Error("HTTP 500: temporary failure"))
+      .mockResolvedValueOnce({ uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [] })
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    source.emit("a.txt")
+    await vi.advanceTimersByTimeAsync(500)
+    expect(runSync).toHaveBeenCalledTimes(2)
+
+    process.emit("SIGTERM")
+    await watching
+    expect(source.close).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(runSync).toHaveBeenCalledTimes(2)
+  })
 })
