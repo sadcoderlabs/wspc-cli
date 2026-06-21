@@ -192,8 +192,7 @@ function isDriveRealtimeState(value: unknown): value is DriveRealtimeState {
   return (
     isRecord(value) &&
     Object.keys(value).every((key) => allowedKeys.has(key)) &&
-    typeof value.client_id === "string" &&
-    /^drvcli_[A-Za-z0-9_-]+$/.test(value.client_id) &&
+    (value.client_id === undefined || (typeof value.client_id === "string" && /^drvcli_[A-Za-z0-9_-]+$/.test(value.client_id))) &&
     (value.last_cursor === undefined || typeof value.last_cursor === "string") &&
     isOptionalIsoTimestamp(value.last_connected_at) &&
     isOptionalIsoTimestamp(value.last_event_at)
@@ -201,7 +200,10 @@ function isDriveRealtimeState(value: unknown): value is DriveRealtimeState {
 }
 
 function isOptionalIsoTimestamp(value: unknown): boolean {
-  return value === undefined || (typeof value === "string" && DateTime.fromISO(value, { setZone: true }).isValid)
+  if (value === undefined) return true
+  if (typeof value !== "string") return false
+  if (!/T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return false
+  return DateTime.fromISO(value, { setZone: true }).isValid
 }
 
 function isValidDriveState(value: unknown): value is DriveState {

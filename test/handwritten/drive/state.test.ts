@@ -215,6 +215,25 @@ describe("drive state", () => {
     await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
   })
 
+  it("rejects realtime timestamps without time and offset", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-realtime-boundary-"))
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    await writeFile(join(root, ".wspc-drive", "state.json"), JSON.stringify({
+      schema_version: 1,
+      library_id: "lib_1",
+      created_at: "2026-06-21T00:00:00.000Z",
+      updated_at: "2026-06-21T00:00:00.000Z",
+      entries: {},
+      conflicts: {},
+      realtime: {
+        client_id: "drvcli_valid",
+        last_connected_at: "2026-06-21",
+      },
+    }))
+
+    await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
+  })
+
   it("rejects unknown realtime metadata keys", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-realtime-extra-"))
     await mkdir(join(root, ".wspc-drive"), { recursive: true })
@@ -244,6 +263,30 @@ describe("drive state", () => {
     await expect(readDriveState(root)).resolves.toMatchObject({
       realtime: state.realtime,
     })
+  })
+
+  it("adds a realtime client id while preserving existing cursor metadata", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-ensure-realtime-cursor-"))
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    await writeFile(join(root, ".wspc-drive", "state.json"), JSON.stringify({
+      schema_version: 1,
+      library_id: "lib_1",
+      created_at: "2026-06-21T00:00:00.000Z",
+      updated_at: "2026-06-21T00:00:00.000Z",
+      entries: {},
+      conflicts: {},
+      realtime: {
+        last_cursor: "000123",
+      },
+    }))
+
+    const state = await ensureDriveRealtimeState(root)
+
+    expect(state.realtime).toMatchObject({
+      client_id: expect.stringMatching(/^drvcli_[A-Za-z0-9_-]+$/),
+      last_cursor: "000123",
+    })
+    expect((await readDriveState(root)).realtime).toEqual(state.realtime)
   })
 
   it("removes lock file after callback throws", async () => {
