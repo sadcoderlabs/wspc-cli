@@ -1,8 +1,7 @@
 import { Command } from "commander"
-import { loadSdkClient } from "../auth/load-sdk-client.js"
 import { todoUpdate } from "../../generated/sdk/index.js"
-import { render } from "../output/render.js"
 import type { XCliDisplay } from "../output/types.js"
+import { runSdkCommand } from "./sdk-result.js"
 
 /**
  * Mirrors the `display` block on the spec's `todo_update` operation. We
@@ -33,18 +32,11 @@ export const todoDoneCommand = new Command("done")
   .description("Mark a todo done (sugar for `update <id> --status done`)")
   .argument("<id>", "Todo id")
   .action(async (id: string) => {
-    const client = await loadSdkClient()
-    const result = await todoUpdate({
-      client: client._rawClient,
-      path: { id },
-      body: { status: "done" } as never,
-    })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "todo_update", display: TODO_UPDATE_DISPLAY }, result.data)
+    await runSdkCommand({ kind: "todo_update", display: TODO_UPDATE_DISPLAY }, (client) =>
+      todoUpdate({
+        client,
+        path: { id },
+        body: { status: "done" } as never,
+      }),
+    )
   })

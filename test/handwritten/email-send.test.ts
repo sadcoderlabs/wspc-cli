@@ -121,4 +121,24 @@ describe("wspc email send", () => {
     errSpy.mockRestore()
     process.exitCode = undefined
   })
+
+  it("prints SDK HTTP errors", async () => {
+    process.exitCode = undefined
+    const errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+    sendMock.mockResolvedValueOnce({
+      error: { message: "bad request" },
+      response: { ok: false, status: 400 },
+    })
+
+    await sendCommand.parseAsync([
+      "node", "send",
+      "--from", "a@d", "--to", "x@y", "--subject", "S", "--text", "T",
+      "--idempotency-key", "k-http",
+    ])
+
+    expect(process.exitCode).toBe(1)
+    expect(errSpy).toHaveBeenCalledWith("HTTP 400: {\n  \"message\": \"bad request\"\n}\n")
+    errSpy.mockRestore()
+    process.exitCode = undefined
+  })
 })

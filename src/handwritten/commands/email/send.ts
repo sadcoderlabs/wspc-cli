@@ -2,9 +2,8 @@ import { Command } from "commander"
 import { readFile, stat } from "node:fs/promises"
 import { basename } from "node:path"
 import { emailSend } from "../../../generated/sdk/index.js"
-import { loadSdkClient } from "../../auth/load-sdk-client.js"
 import { mimeFromExt } from "../../utils/mime-from-ext.js"
-import { render } from "../../output/render.js"
+import { runSdkCommand } from "../sdk-result.js"
 
 const MAX_PER_ATTACHMENT = 5 * 1024 * 1024
 const MAX_TOTAL_ATTACHMENT = 25 * 1024 * 1024
@@ -128,21 +127,13 @@ export const sendCommand = new Command("send")
     }
     if (attachments.length > 0) body.attachments = attachments
 
-    const client = await loadSdkClient()
-    const result = await emailSend({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      body,
-    } as never)
-
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render(
+    await runSdkCommand(
       { kind: "object", display: { shape: "object", format: { id: "id-short" } } },
-      result.data!.email,
+      (client) =>
+        emailSend({
+          client,
+          body,
+        } as never),
+      (result) => result.data?.email,
     )
   })
