@@ -3,6 +3,10 @@ import { runDriveWatch, type DriveWatchSource } from "../../../src/handwritten/c
 
 const readState = async () => ({ library_id: "lib_1" }) as any
 
+function syncSummary(overrides: Partial<{ conflicts: number; errors: number }> = {}) {
+  return { uploaded: 0, downloaded: 0, deleted: 0, unchanged: 0, conflicts: 0, errors: 0, paths: [], ...overrides }
+}
+
 function fakeSource(): DriveWatchSource & {
   close: ReturnType<typeof vi.fn>
   emit(path: string): void
@@ -182,5 +186,82 @@ describe("drive watch", () => {
 
     await vi.advanceTimersByTimeAsync(1000)
     expect(runSync).toHaveBeenCalledTimes(2)
+  })
+
+  it("runs one trailing sync after events during an active sync", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    let releaseFirstSync!: () => void
+    const firstSync = new Promise((resolve) => {
+      releaseFirstSync = () => resolve(syncSummary())
+    })
+    const runSync = vi.fn().mockImplementationOnce(() => firstSync).mockResolvedValue(syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent, once: true })
+    await source.waitForSubscription()
+
+    expect(runSync).toHaveBeenCalledTimes(1)
+    source.emit("a.txt")
+    await vi.advanceTimersByTimeAsync(500)
+    expect(runSync).toHaveBeenCalledTimes(1)
+
+    releaseFirstSync()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(runSync).toHaveBeenCalledTimes(2)
+
+    await watching
+  })
+
+  it("ignores internal drive state events", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    source.emit("/tmp/root/.wspc-drive/state.json")
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(runSync).toHaveBeenCalledTimes(1)
+    process.emit("SIGTERM")
+    await watching
+  })
+
+  it("backs off and retries transient errors until a sync succeeds", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn().mockRejectedValueOnce(new Error("HTTP 500: boom")).mockResolvedValueOnce(syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent, once: true })
+    await source.waitForSubscription()
+    await Promise.resolve()
+
+    expect(runSync).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(999)
+    expect(runSync).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    await watching
+
+    expect(runSync).toHaveBeenCalledTimes(2)
+    expect(onEvent).toHaveBeenCalledWith({ kind: "drive_watch_retry", delay_ms: 1000, error: "HTTP 500: boom" })
+  })
+
+  it("keeps watching after conflict summaries", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn().mockResolvedValueOnce(syncSummary({ conflicts: 1 })).mockResolvedValueOnce(syncSummary())
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(runSync).toHaveBeenCalledTimes(1)
+    source.emit("fixed.txt")
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(runSync).toHaveBeenCalledTimes(2)
+    process.emit("SIGINT")
+    await watching
   })
 })
