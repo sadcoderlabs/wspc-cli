@@ -70,9 +70,8 @@ export function mergeText3(base: string, local: string, remote: string): MergeTe
   return { clean: true, text: mergedLines.join(localNewline) }
 }
 
-export function conflictCopyPath(path: string, side: ConflictSide, now: Date, versionId: string): string {
+export function conflictCopyPath(path: string, side: ConflictSide, timestamp: string, versionId: string): string {
   const parsed = pathPosix.parse(path)
-  const timestamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")
   const shortVersionId = safeShortVersionId(versionId)
   const fileName = `${parsed.name}.${side}-conflict-${timestamp}-${shortVersionId}${parsed.ext}`
 

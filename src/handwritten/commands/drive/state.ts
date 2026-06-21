@@ -2,6 +2,7 @@ import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { randomUUID } from "node:crypto"
 import { join } from "node:path"
 import { DateTime } from "luxon"
+import { driveIsoTimestamp, type DriveClock } from "./clock.js"
 
 export const DRIVE_DIR = ".wspc-drive"
 export const STATE_FILE = "state.json"
@@ -58,13 +59,13 @@ export async function readDriveState(root: string): Promise<DriveState> {
   return parsed
 }
 
-export async function writeDriveState(root: string, state: DriveState): Promise<void> {
+export async function writeDriveState(root: string, state: DriveState, clock?: DriveClock): Promise<void> {
   await mkdir(join(root, DRIVE_DIR), { recursive: true })
   const tmp = join(root, DRIVE_DIR, `state.json.tmp-${process.pid}-${randomUUID()}`)
   const snapshot = JSON.stringify(
     {
       ...state,
-      updated_at: new Date().toISOString(),
+      updated_at: driveIsoTimestamp(clock),
     },
     null,
     2,
@@ -84,7 +85,7 @@ export async function writeDriveState(root: string, state: DriveState): Promise<
   }
 }
 
-export async function initDriveState(root: string, libraryId: string): Promise<DriveState> {
+export async function initDriveState(root: string, libraryId: string, clock?: DriveClock): Promise<DriveState> {
   await mkdir(join(root, DRIVE_DIR), { recursive: true })
   try {
     const existing = await readDriveState(root)
@@ -95,7 +96,7 @@ export async function initDriveState(root: string, libraryId: string): Promise<D
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
   }
-  const now = new Date().toISOString()
+  const now = driveIsoTimestamp(clock)
   const state: DriveState = {
     schema_version: 1,
     library_id: libraryId,
@@ -104,7 +105,7 @@ export async function initDriveState(root: string, libraryId: string): Promise<D
     entries: {},
     conflicts: {},
   }
-  await writeDriveState(root, state)
+  await writeDriveState(root, state, clock)
   return state
 }
 
