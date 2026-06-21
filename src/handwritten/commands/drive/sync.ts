@@ -8,6 +8,7 @@ import { pipeline } from "node:stream/promises"
 import type { ReadableStream as NodeReadableStream } from "node:stream/web"
 import { createDriveApi } from "./api.js"
 import { decideDriveAction, type DriveAction } from "./decision.js"
+import { normalizeRemoteManifest } from "./manifest.js"
 import { classifyMergeText, conflictCopyPath, mergeText3 } from "./merge.js"
 import { resolveInsideRoot, validateDrivePath } from "./path-policy.js"
 import { hashDriveFile, scanDriveFiles } from "./scanner.js"
@@ -121,56 +122,21 @@ async function fetchRemoteManifest(
   summary: DriveSyncSummary,
   blockedPaths: Set<string>,
 ): Promise<Record<string, RemoteEntry>> {
-  const candidates: RemoteEntry[] = []
-  const remoteFiles: Record<string, RemoteEntry> = {}
+  const entries: RemoteEntry[] = []
   let cursor: string | undefined
   do {
     const page = await api.getManifest(state.library_id, cursor)
-    for (const entry of page.entries) {
-      try {
-        validateRemoteEntry(root, entry)
-        candidates.push(entry)
-      } catch (error) {
-        await recordPathError(summary, blockedPaths, entry.path, error)
-      }
-    }
+    entries.push(...page.entries)
     cursor = page.next_cursor ?? undefined
   } while (cursor !== undefined)
 
-  const byCaseFoldedPath = new Map<string, RemoteEntry[]>()
-  for (const entry of candidates) {
-    const folded = entry.path.toLowerCase()
-    const group = byCaseFoldedPath.get(folded) ?? []
-    group.push(entry)
-    byCaseFoldedPath.set(folded, group)
+  const normalized = normalizeRemoteManifest(root, entries)
+  for (const pathError of normalized.pathErrors) {
+    await recordPathError(summary, blockedPaths, pathError.path, pathError.error, {
+      appendPathResult: pathError.appendPathResult,
+    })
   }
-
-  for (const group of byCaseFoldedPath.values()) {
-    const exactPathCounts = new Map<string, number>()
-    for (const entry of group) {
-      exactPathCounts.set(entry.path, (exactPathCounts.get(entry.path) ?? 0) + 1)
-    }
-
-    if (group.length > 1) {
-      const hasExactDuplicate = Array.from(exactPathCounts.values()).some((count) => count > 1)
-      const reason = hasExactDuplicate ? "REMOTE_PATH_DUPLICATE" : "REMOTE_PATH_CASE_CONFLICT"
-      for (const entry of group.sort((left, right) => left.path.localeCompare(right.path))) {
-        await recordPathError(summary, blockedPaths, entry.path, new Error(`${reason}: ${entry.path}`), {
-          appendPathResult: true,
-        })
-      }
-      continue
-    }
-
-    const [entry] = group
-    if (entry) remoteFiles[entry.path] = entry
-  }
-  return remoteFiles
-}
-
-function validateRemoteEntry(root: string, entry: RemoteEntry): void {
-  validateDrivePath(entry.path)
-  resolveInsideRoot(root, entry.path)
+  return normalized.remoteFiles
 }
 
 async function processPath(args: {
