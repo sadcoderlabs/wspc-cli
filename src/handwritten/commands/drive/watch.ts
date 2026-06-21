@@ -29,6 +29,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
   let running = false
   let rerunRequested = false
   let backoffMs = 1000
+  let stopWatch: (() => void) | undefined
+  let stopError: unknown
+  let cleanupSignalListeners = () => {}
 
   async function requestSync(): Promise<void> {
     if (running) {
@@ -56,25 +59,44 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     }
   }
 
+  function clearPendingTimer(): void {
+    if (timer === undefined) return
+    clearTimeout(timer)
+    timer = undefined
+  }
+
+  function stopWithError(error: unknown): void {
+    stopError = error
+    clearPendingTimer()
+    stopWatch?.()
+  }
+
   const state = await (options.readState ?? readDriveState)(root)
   const source = options.source ?? createChokidarSource(root)
-  source.onChange((path) => {
-    if (isDriveInternalPath(root, path)) return
-    if (timer !== undefined) clearTimeout(timer)
-    timer = setTimeout(() => void requestSync(), debounceMs)
-  })
+  try {
+    source.onChange((path) => {
+      if (isDriveInternalPath(root, path)) return
+      clearPendingTimer()
+      timer = setTimeout(() => {
+        timer = undefined
+        requestSync().catch(stopWithError)
+      }, debounceMs)
+    })
 
-  emit({ kind: "drive_watch_started", root, library_id: state.library_id })
-  await requestSync()
-  if (options.once) {
+    emit({ kind: "drive_watch_started", root, library_id: state.library_id })
+    await requestSync()
+    if (options.once) return
+    if (stopError !== undefined) throw stopError
+    await waitForStopSignal((stop, removeListeners) => {
+      stopWatch = stop
+      cleanupSignalListeners = removeListeners
+    })
+    if (stopError !== undefined) throw stopError
+  } finally {
+    clearPendingTimer()
+    cleanupSignalListeners()
     await source.close()
-    return
   }
-  await new Promise<void>((resolveStop) => {
-    process.once("SIGINT", resolveStop)
-    process.once("SIGTERM", resolveStop)
-  })
-  await source.close()
 }
 
 export function driveWatchCommand(options: DriveWatchOptions = {}): Command {
@@ -118,4 +140,17 @@ function isFatalWatchError(error: unknown): boolean {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function waitForStopSignal(onRegistered: (stop: () => void, cleanup: () => void) => void): Promise<void> {
+  return new Promise<void>((resolveStop) => {
+    const stop = () => resolveStop()
+    const cleanup = () => {
+      process.off("SIGINT", stop)
+      process.off("SIGTERM", stop)
+    }
+    onRegistered(stop, cleanup)
+    process.once("SIGINT", stop)
+    process.once("SIGTERM", stop)
+  })
 }
