@@ -47,7 +47,9 @@ describe("drive scanner", () => {
     await mkdir(join(root, "docs"), { recursive: true })
     await writeFile(join(root, ".secret"), "hidden")
     await writeFile(join(root, ".notes.txt.wspc-download-123.tmp"), "download tmp")
+    await writeFile(join(root, ".notes.txt.wspc-conflict-789.tmp"), "conflict tmp")
     await writeFile(join(root, "docs", ".readme.md.wspc-backup-456.tmp"), "backup tmp")
+    await writeFile(join(root, "docs", ".readme.md.wspc-merge-abc.tmp"), "merge tmp")
     await writeFile(join(root, "docs", "readme.md"), "readme")
 
     const files = await scanDriveFiles(root)

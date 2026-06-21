@@ -24,6 +24,7 @@ import type { DriveManifestResponse, UploadDriveFileResponse } from "../../../ge
 
 type RemoteEntry = DriveManifestResponse["entries"][number]
 type ProcessPathResult = { state: DriveState; stop: boolean }
+type MergedLocalInstall = { finalize: () => Promise<void>; restore: () => Promise<void> }
 
 export interface DriveSyncApi {
   getManifest(id: string, cursor?: string): Promise<DriveManifestResponse>
@@ -414,8 +415,15 @@ async function tryResolveConflict(args: {
   await assertLocalStillScanned(localPath, local)
   const mergedBytes = new TextEncoder().encode(merged.text)
   const mergedDigest = createHash("sha256").update(mergedBytes).digest("hex")
-  await writeMergedLocalFile(root, path, mergedBytes, local, onLocalMutation)
-  const uploaded = await api.uploadFile(state.library_id, path, mergedBytes, mergedDigest, remote.entry_version)
+  const install = await writeMergedLocalFile(root, path, mergedBytes, mergedDigest, local, onLocalMutation)
+  let uploaded: UploadDriveFileResponse
+  try {
+    uploaded = await api.uploadFile(state.library_id, path, mergedBytes, mergedDigest, remote.entry_version)
+  } catch (error) {
+    await install.restore()
+    throw error
+  }
+  await install.finalize()
 
   const nextState = cloneDriveState(state)
   nextState.entries[path] = stateEntryFromRemote(uploaded.entry, mergedDigest)
@@ -592,15 +600,16 @@ async function writeMergedLocalFile(
   root: string,
   path: string,
   bytes: Uint8Array,
+  digest: string,
   scanned: { sha256: string; size_bytes: number },
   onLocalMutation: () => void,
-): Promise<void> {
+): Promise<MergedLocalInstall> {
   const target = resolveInsideRoot(root, path)
   await mkdir(dirname(target), { recursive: true })
   const tmp = join(dirname(target), `.${basename(target)}.wspc-merge-${randomUUID()}.tmp`)
   try {
     await writeFile(tmp, bytes, { flag: "wx" })
-    await installMergedLocalFile(root, path, tmp, scanned, onLocalMutation)
+    return await installMergedLocalFile(root, path, tmp, scanned, digest, bytes.byteLength, onLocalMutation)
   } finally {
     await rm(tmp, { force: true }).catch(() => {})
   }
@@ -611,8 +620,10 @@ async function installMergedLocalFile(
   path: string,
   tmp: string,
   scanned: { sha256: string; size_bytes: number },
+  mergedSha256: string,
+  mergedSizeBytes: number,
   onLocalMutation: () => void,
-): Promise<void> {
+): Promise<MergedLocalInstall> {
   const target = resolveInsideRoot(root, path)
   const backup = localMutationBackupPath(target)
   let backupIsScannedLocal = false
@@ -641,12 +652,48 @@ async function installMergedLocalFile(
       await restoreBackupWhenPossible(backup, target)
       throw error
     }
-    await unlink(backup)
+    return {
+      finalize: async () => {
+        await rm(backup, { force: true }).catch(() => {})
+      },
+      restore: async () => {
+        await restoreMergedLocalFile(target, backup, scanned.sha256, scanned.size_bytes, mergedSha256, mergedSizeBytes)
+      },
+    }
   } catch (error) {
     if (!backupIsScannedLocal) {
       await restoreBackupWhenPossible(backup, target)
     }
     throw error
+  }
+}
+
+async function restoreMergedLocalFile(
+  target: string,
+  backup: string,
+  backupSha256: string,
+  backupSizeBytes: number,
+  mergedSha256: string,
+  mergedSizeBytes: number,
+): Promise<void> {
+  const targetDigest = await hashDriveFile(target).catch((error: unknown) => {
+    if (isNotFoundError(error)) return undefined
+    throw error
+  })
+  if (
+    targetDigest !== undefined &&
+    (targetDigest.sha256 !== mergedSha256 || targetDigest.sizeBytes !== mergedSizeBytes)
+  ) {
+    return
+  }
+  if (targetDigest !== undefined) {
+    await unlink(target)
+  }
+  const restored = await restoreBackupWhenPossible(backup, target)
+  if (!restored) return
+  const restoredDigest = await hashDriveFile(target)
+  if (!restoredDigest || restoredDigest.sha256 !== backupSha256 || restoredDigest.sizeBytes !== backupSizeBytes) {
+    throw new Error("local file restore failed")
   }
 }
 

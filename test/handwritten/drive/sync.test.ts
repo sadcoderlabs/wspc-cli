@@ -653,6 +653,7 @@ describe("drive sync once", () => {
     expect(api.uploadFile).toHaveBeenCalledTimes(1)
     expect(result.conflicts).toBe(1)
     expect(result.errors).toBe(0)
+    expect(await readFile(join(root, "notes.md"), "utf8")).toBe("a\nlocal\nb\nc\n")
     expect((await readDriveState(root)).conflicts["notes.md"]).toMatchObject({
       reason: "VERSION_CONFLICT",
     })
