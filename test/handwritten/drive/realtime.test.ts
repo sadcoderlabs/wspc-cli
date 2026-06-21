@@ -17,12 +17,13 @@ describe("drive realtime helpers", () => {
       "ws://127.0.0.1:8787/drive/libraries/lib%2Fa/realtime?cursor=cur_1&client_id=drvcli_abc",
     )
 
-    const url = buildDriveRealtimeUrl("https://api.wspc.ai?token=secret-token", "lib_1", {
+    const url = buildDriveRealtimeUrl("https://api.wspc.ai?token=secret-token#token=secret-fragment", "lib_1", {
       client_id: "drvcli_abc",
     })
     expect(url.searchParams.get("client_id")).toBe("drvcli_abc")
     expect(url.searchParams.has("cursor")).toBe(false)
     expect(url.searchParams.has("token")).toBe(false)
+    expect(url.hash).toBe("")
   })
 
   it("requires a realtime client id", () => {

@@ -15,6 +15,7 @@ export function buildDriveRealtimeUrl(baseUrl: string, libraryId: string, realti
   url.protocol = url.protocol === "http:" ? "ws:" : "wss:"
   url.pathname = `/drive/libraries/${encodeURIComponent(libraryId)}/realtime`
   url.search = ""
+  url.hash = ""
   if (realtime.last_cursor !== undefined) {
     url.searchParams.set("cursor", realtime.last_cursor)
   }
