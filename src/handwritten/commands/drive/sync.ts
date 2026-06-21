@@ -33,7 +33,7 @@ export interface DriveSyncApi {
     sha256: string,
     expectedEntryVersion?: number,
   ): Promise<UploadDriveFileResponse>
-  downloadFile(id: string, path: string): Promise<Response>
+  downloadFile(id: string, path: string, versionId?: string): Promise<Response>
   deleteFile(id: string, path: string, expectedEntryVersion: number): Promise<unknown>
 }
 
