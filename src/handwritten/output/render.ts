@@ -79,24 +79,26 @@ export function render(ctx: RenderContext, data: unknown): void {
 }
 
 function renderPaginationFooter(data: unknown): void {
-  if (data === null || typeof data !== "object") return
-  const d = data as Record<string, unknown>
-  if (typeof d.next_cursor === "string" && d.next_cursor.length > 0) {
-    process.stdout.write(dim(`  … more results — re-run with --cursor ${d.next_cursor}`) + "\n")
+  if (!isRecord(data)) return
+  const nextCursor = getString(data, "next_cursor")
+  if (nextCursor !== undefined && nextCursor.length > 0) {
+    process.stdout.write(dim(`  … more results — re-run with --cursor ${nextCursor}`) + "\n")
   }
-  const id = typeof d.id === "string" ? d.id : "<id>"
-  if (typeof d.children_next_cursor === "string" && d.children_next_cursor.length > 0) {
+  const id = getString(data, "id") ?? "<id>"
+  const childrenNextCursor = getString(data, "children_next_cursor")
+  if (childrenNextCursor !== undefined && childrenNextCursor.length > 0) {
     process.stdout.write(dim(`  … more children — wspc todo ls --parent ${id}`) + "\n")
   }
-  if (typeof d.comments_next_cursor === "string" && d.comments_next_cursor.length > 0) {
+  const commentsNextCursor = getString(data, "comments_next_cursor")
+  if (commentsNextCursor !== undefined && commentsNextCursor.length > 0) {
     process.stdout.write(dim(`  … more comments — wspc todo comment ls ${id}`) + "\n")
   }
 }
 
 function drillDataPath(data: unknown, dataPath: string | undefined): unknown {
   if (!dataPath) return data
-  if (data === null || typeof data !== "object") return data
-  const value = (data as Record<string, unknown>)[dataPath]
+  if (!isRecord(data)) return data
+  const value = data[dataPath]
   // If the wrapper key is missing, fall back to the original payload so the
   // user still sees something useful instead of "undefined".
   return value === undefined ? data : value
@@ -136,12 +138,12 @@ function renderGeneric(data: unknown, hints?: XCliDisplay): void {
 
 function detectShape(data: unknown): "list" | "object" | "scalar" {
   if (Array.isArray(data)) return "list"
-  if (typeof data === "object" && data !== null) {
+  if (isRecord(data)) {
     // wspc list responses wrap items in a single array property, e.g.
     // `{ todos: [...] }` or `{ projects: [...] }`. We treat any object with
     // exactly one array-valued top-level key as a list.
     const keys = Object.keys(data)
-    const arrayKeys = keys.filter((k) => Array.isArray((data as Record<string, unknown>)[k]))
+    const arrayKeys = keys.filter((k) => getArray(data, k) !== undefined)
     if (arrayKeys.length === 1) return "list"
     return "object"
   }
@@ -150,9 +152,10 @@ function detectShape(data: unknown): "list" | "object" | "scalar" {
 
 function extractItems(data: unknown): unknown[] {
   if (Array.isArray(data)) return data
-  if (typeof data === "object" && data !== null) {
-    for (const v of Object.values(data)) {
-      if (Array.isArray(v)) return v
+  if (isRecord(data)) {
+    for (const key of Object.keys(data)) {
+      const value = getArray(data, key)
+      if (value !== undefined) return value
     }
   }
   return []
@@ -164,13 +167,13 @@ function renderList(data: unknown, hints?: XCliDisplay): void {
     process.stdout.write(dim("  " + (hints?.emptyMessage ?? "no items")) + "\n")
     return
   }
-  const first = items[0] as Record<string, unknown>
+  const first = isRecord(items[0]) ? items[0] : {}
   const columns = pickColumns(first, hints?.columns)
   const format = hints?.format ?? {}
   const headers = columns.map((c) => c.toUpperCase())
   const rows = items.map((item) =>
     columns.map((col) =>
-      formatCell((item as Record<string, unknown>)[col], format[col], hints?.enumColorMap?.[col]),
+      formatCell(isRecord(item) ? item[col] : undefined, format[col], hints?.enumColorMap?.[col]),
     ),
   )
   process.stdout.write(table(headers, rows))
@@ -197,19 +200,19 @@ function pickColumns(first: Record<string, unknown>, hint?: string[]): string[] 
  * sections without re-implementing the field/format pipeline.
  */
 export function renderObject(data: unknown, hints?: XCliDisplay): void {
-  if (typeof data !== "object" || data === null) {
+  if (!isRecord(data)) {
     renderScalar(data)
     return
   }
   // Many wspc responses wrap the resource in a single-key envelope
   // (`{ todo: {...} }`). Peel one level so the user sees fields directly.
-  let obj = data as Record<string, unknown>
+  let obj = data
   const topKeys = Object.keys(obj)
   if (topKeys.length === 1) {
     const onlyKey = topKeys[0] as string
     const inner = obj[onlyKey]
-    if (inner && typeof inner === "object" && !Array.isArray(inner)) {
-      obj = inner as Record<string, unknown>
+    if (isRecord(inner)) {
+      obj = inner
     }
   }
   const fields =
@@ -228,7 +231,10 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
   const arrayFields = hints?.fields
     ? []
     : Object.keys(obj).filter(
-        (k) => Array.isArray(obj[k]) && (obj[k] as unknown[]).length > 0,
+        (k) => {
+          const value = getArray(obj, k)
+          return value !== undefined && value.length > 0
+        },
       )
 
   // Format every scalar field up front (object mode never truncates), then
@@ -262,7 +268,8 @@ export function renderObject(data: unknown, hints?: XCliDisplay): void {
   for (const f of arrayFields) {
     const uncapped = f === "children" || f === "comments"
     const max = uncapped ? Number.POSITIVE_INFINITY : ARRAY_FIELD_MAX_ITEMS
-    renderArrayField(f, obj[f] as unknown[], labelWidth, max)
+    const items = getArray(obj, f)
+    if (items !== undefined) renderArrayField(f, items, labelWidth, max)
   }
   const hadAbove = inlineFinal.length > 0 || arrayFields.length > 0
   blocks.forEach(([f, value], i) => {
@@ -322,12 +329,14 @@ function formatArrayItem(item: unknown): string {
  * isn't todo-like so the caller can fall back to compact JSON.
  */
 function formatTodoLike(item: unknown): string | null {
-  if (!item || typeof item !== "object" || Array.isArray(item)) return null
-  const rec = item as Record<string, unknown>
-  if (typeof rec.id !== "string" || typeof rec.title !== "string") return null
-  const id = idShort(rec.id)
-  const status = typeof rec.status === "string" ? statusBadge(rec.status) : ""
-  return status ? `${id}  ${status}  ${rec.title}` : `${id}  ${rec.title}`
+  if (!isRecord(item)) return null
+  const idValue = getString(item, "id")
+  const title = getString(item, "title")
+  if (idValue === undefined || title === undefined) return null
+  const status = getString(item, "status")
+  const id = idShort(idValue)
+  const statusText = status === undefined ? "" : statusBadge(status)
+  return statusText ? `${id}  ${statusText}  ${title}` : `${id}  ${title}`
 }
 
 /**
@@ -337,12 +346,13 @@ function formatTodoLike(item: unknown): string | null {
  * when the input isn't comment-like so the caller can fall back.
  */
 function formatCommentLike(item: unknown): string | null {
-  if (!item || typeof item !== "object" || Array.isArray(item)) return null
-  const rec = item as Record<string, unknown>
-  if (typeof rec.id !== "string" || typeof rec.content !== "string") return null
-  const id = idShort(rec.id)
-  const when = rec.created_at !== undefined ? `${relativeTime(rec.created_at)}  ` : ""
-  const snippet = truncate(rec.content, 60)
+  if (!isRecord(item)) return null
+  const idValue = getString(item, "id")
+  const content = getString(item, "content")
+  if (idValue === undefined || content === undefined) return null
+  const id = idShort(idValue)
+  const when = item.created_at !== undefined ? `${relativeTime(item.created_at)}  ` : ""
+  const snippet = truncate(content, 60)
   return `${id}  ${when}${snippet}`
 }
 
@@ -353,14 +363,11 @@ function formatCommentLike(item: unknown): string | null {
  * compact JSON.
  */
 function formatAttendeeLike(item: unknown): string | null {
-  if (!item || typeof item !== "object" || Array.isArray(item)) return null
-  const rec = item as Record<string, unknown>
-  const email = typeof rec.email === "string" ? rec.email : null
+  if (!isRecord(item)) return null
+  const email = getString(item, "email")
   if (!email) return null
-  const name =
-    typeof rec.display_name === "string" && rec.display_name.length > 0
-      ? rec.display_name
-      : null
+  const displayName = getString(item, "display_name")
+  const name = displayName !== undefined && displayName.length > 0 ? displayName : undefined
   return name ? `${name} <${email}>` : `<${email}>`
 }
 
@@ -382,6 +389,20 @@ function renderScalar(data: unknown): void {
 
 function isScalar(v: unknown): boolean {
   return v === null || (typeof v !== "object" && typeof v !== "function")
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function getString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key]
+  return typeof value === "string" ? value : undefined
+}
+
+function getArray(record: Record<string, unknown>, key: string): unknown[] | undefined {
+  const value = record[key]
+  return Array.isArray(value) ? value : undefined
 }
 
 function formatCell(
