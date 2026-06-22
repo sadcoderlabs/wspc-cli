@@ -56,6 +56,7 @@ import { todoListCommand } from "./todo/ls.js"
 import { todoTypeListCommand } from "./todo/type/ls.js"
 import { todoCommentDeleteCommand } from "./todo/comment/rm.js"
 import { todoCommentUpdateCommand } from "./todo/comment/edit.js"
+import { projectDeleteCommand } from "./todo/project/rm.js"
 import { recurrenceRuleDeleteCommand } from "./todo/rule/rm.js"
 import { recurrenceRuleGetCommand } from "./todo/rule/show.js"
 import { todoDeleteCommand } from "./todo/rm.js"
@@ -132,6 +133,7 @@ export function registerGeneratedCommands(root: Command): void {
   const root_todo_project = root_todo.command("project").description("project commands")
   root_todo_project.addCommand(projectCreateCommand)
   root_todo_project.addCommand(projectListCommand)
+  root_todo_project.addCommand(projectDeleteCommand)
   const root_todo_rule = root_todo.command("rule").description("rule commands")
   root_todo_rule.addCommand(recurrenceRuleCreateCommand)
   root_todo_rule.addCommand(recurrenceRuleListCommand)
