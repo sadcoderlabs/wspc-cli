@@ -111,7 +111,11 @@ export function createDriveRealtimeSource(args: {
     const message = parseDriveRealtimeMessage(data)
     if (message.type === "ready") {
       if (message.replayed > 0) {
-        handlers?.onEvent(optionalString({ debounce_ms: 2000, reason: "ready_replay" }, "cursor", message.cursor))
+        handlers?.onEvent({
+          debounce_ms: 2000,
+          reason: "ready_replay",
+          ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
+        })
       }
       if (message.cursor !== undefined) {
         await persistBestEffort({ ...currentRealtime, last_cursor: message.cursor })
@@ -119,10 +123,12 @@ export function createDriveRealtimeSource(args: {
       return
     }
     if (message.type === "library_changed") {
-      handlers?.onEvent(optionalString(optionalString({
+      handlers?.onEvent({
         debounce_ms: 2000,
         reason: "library_changed",
-      }, "cursor", message.cursor), "path", message.path))
+        ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
+        ...(message.path === undefined ? {} : { path: message.path }),
+      })
       if (message.cursor !== undefined) {
         await persistBestEffort({ ...currentRealtime, last_cursor: message.cursor, last_event_at: driveIsoTimestamp(clock) })
       }
@@ -130,7 +136,11 @@ export function createDriveRealtimeSource(args: {
     }
     if (message.type === "resync_required") {
       const reason = message.reason ?? "resync_required"
-      handlers?.onEvent(optionalString({ immediate: true, reason }, "cursor", message.cursor))
+      handlers?.onEvent({
+        immediate: true,
+        reason,
+        ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
+      })
       if (message.cursor !== undefined || isInvalidCursorReason(reason)) {
         await persistBestEffort(resyncRealtimeState(currentRealtime, message.cursor, reason, driveIsoTimestamp(clock)))
       }
@@ -199,22 +209,37 @@ export function parseDriveRealtimeMessage(raw: string): DriveRealtimeMessage {
   const messageType = typeof value.type === "string" ? value.type : undefined
   const cursor = typeof value.cursor === "string" ? value.cursor : undefined
   if (messageType === "ready") {
-    return optionalString({ type: "ready", replayed: typeof value.replayed === "number" ? value.replayed : 0 }, "cursor", cursor)
+    return {
+      type: "ready",
+      replayed: typeof value.replayed === "number" ? value.replayed : 0,
+      ...(cursor === undefined ? {} : { cursor }),
+    }
   }
   if (messageType === "library_changed") {
-    return optionalString(optionalString({ type: "library_changed" }, "cursor", cursor), "path", value.path)
+    return {
+      type: "library_changed",
+      ...(cursor === undefined ? {} : { cursor }),
+      ...(typeof value.path === "string" ? { path: value.path } : {}),
+    }
   }
   if (messageType === "resync_required") {
-    return optionalString(optionalString({ type: "resync_required" }, "cursor", cursor), "reason", value.reason)
+    return {
+      type: "resync_required",
+      ...(cursor === undefined ? {} : { cursor }),
+      ...(typeof value.reason === "string" ? { reason: value.reason } : {}),
+    }
   }
   if (messageType === "error") {
-    return optionalString(
-      optionalString({ type: "error" }, "code", value.code),
-      "message",
-      typeof value.message === "string" ? redactedRealtimeError(value.message) : undefined,
-    )
+    return {
+      type: "error",
+      ...(typeof value.code === "string" ? { code: value.code } : {}),
+      ...(typeof value.message === "string" ? { message: redactedRealtimeError(value.message) } : {}),
+    }
   }
-  return optionalString({ type: "unknown" }, "message_type", messageType)
+  return {
+    type: "unknown",
+    ...(messageType === undefined ? {} : { message_type: messageType }),
+  }
 }
 
 export function redactedRealtimeError(error: unknown): string {
@@ -241,7 +266,11 @@ function resyncRealtimeState(realtime: DriveRealtimeState, cursor: string | unde
     const { last_cursor: _lastCursor, ...next } = realtime
     return { ...next, last_event_at: lastEventAt }
   }
-  return optionalString({ ...realtime, last_event_at: lastEventAt }, "last_cursor", cursor)
+  return {
+    ...realtime,
+    last_event_at: lastEventAt,
+    ...(cursor === undefined ? {} : { last_cursor: cursor }),
+  }
 }
 
 function isInvalidCursorReason(reason: string): boolean {
@@ -250,13 +279,6 @@ function isInvalidCursorReason(reason: string): boolean {
 
 function isRealtimeAuthError(error: unknown): boolean {
   return /\b(401|403|auth|authorization|unauthorized|forbidden)\b/i.test(String(error))
-}
-
-function optionalString<T extends object, K extends string>(target: T, key: K, value: unknown): T | (T & Record<K, string>) {
-  if (typeof value !== "string") {
-    return target
-  }
-  return { ...target, [key]: value } as T & Record<K, string>
 }
 
 function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeConnector>[1], init?: DriveRealtimeConnectorInit): { close: () => void } {
