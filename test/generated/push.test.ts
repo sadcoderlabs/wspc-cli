@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 
 const mockPushConfigSet = vi.fn()
 const mockPushConfigGet = vi.fn()
@@ -38,6 +38,10 @@ beforeEach(() => {
   mockPushConfigGet.mockResolvedValue({ data: { configs: [] }, response: { ok: true, status: 200 } })
   mockPushConfigDelete.mockResolvedValue({ data: {}, response: { ok: true, status: 200 } })
   mockPushTest.mockResolvedValue({ data: { ok: true }, response: { ok: true, status: 200 } })
+})
+
+afterEach(() => {
+  process.exitCode = undefined
 })
 
 describe("wspc push (generated)", () => {
@@ -109,7 +113,6 @@ describe("wspc push (generated)", () => {
   })
 
   it("push test sets exitCode=1 when ok is false", async () => {
-    process.exitCode = undefined
     mockPushTest.mockResolvedValue({
       data: { ok: false },
       response: { ok: true, status: 200 },
@@ -121,6 +124,5 @@ describe("wspc push (generated)", () => {
       transport: "telegram",
     })
     expect(process.exitCode).toBe(1)
-    process.exitCode = undefined
   })
 })

@@ -1,20 +1,20 @@
 # Generated exitOnField exitCode 實作計畫
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **給 agentic workers：** 必要 sub-skill：使用 superpowers:subagent-driven-development（建議）或 superpowers:executing-plans 逐 task 執行本計畫。步驟使用 checkbox（`- [ ]`）語法追蹤。
 
-**Goal:** 讓 generated `exitOnField` command 設定 `process.exitCode = 1`，不再強制 `process.exit(1)`。
+**目標：** 讓 generated `exitOnField` command 設定 `process.exitCode = 1`，不再強制 `process.exit(1)`。
 
-**Architecture:** 修改 codegen test 與 generated command test 先形成 RED，再把 generator emission 從 `process.exit(1)` 改成 `process.exitCode = 1`。Generated runtime 檔案只透過 `npm run generate` 更新，不手改。
+**架構：** 修改 codegen test 與 generated command test 先形成 RED，再把 generator emission 從 `process.exit(1)` 改成 `process.exitCode = 1`。Generated runtime 檔案只透過 `npm run generate` 更新，不手改。
 
-**Tech Stack:** TypeScript、Vitest、repo 既有 CLI codegen。
+**技術棧：** TypeScript、Vitest、repo 既有 CLI codegen。
 
 ---
 
 ### Task 1: Codegen test 與 generator
 
-**Files:**
-- Modify: `tools/cli-codegen/emit.test.ts`
-- Modify: `tools/cli-codegen/emit.ts`
+**檔案：**
+- 修改：`tools/cli-codegen/emit.test.ts`
+- 修改：`tools/cli-codegen/emit.ts`
 
 - [ ] **Step 1: 寫出失敗的 generator test**
 
@@ -36,10 +36,10 @@
 
 ### Task 2: Generated output 與 runtime test
 
-**Files:**
-- Modify: `test/generated/push.test.ts`
-- Generate: `src/generated/cli/push/test.ts`
-- Modify: `docs/improve/README.md`
+**檔案：**
+- 修改：`test/generated/push.test.ts`
+- 產生：`src/generated/cli/push/test.ts`
+- 修改：`docs/improve/README.md`
 
 - [ ] **Step 1: 更新 runtime test**
 
