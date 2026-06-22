@@ -1,4 +1,4 @@
-import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises"
+import { mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import { randomUUID } from "node:crypto"
 import { join } from "node:path"
 import { DateTime } from "luxon"
@@ -6,6 +6,7 @@ import { driveIsoTimestamp, type DriveClock } from "./clock.js"
 
 export const DRIVE_DIR = ".wspc-drive"
 export const STATE_FILE = "state.json"
+const STALE_LOCK_MS = 10 * 60 * 1000
 
 export interface DriveStateEntry {
   entry_id: string
@@ -137,11 +138,22 @@ export async function writeDriveRealtimeState(root: string, realtime: DriveRealt
 export async function withDriveLock<T>(root: string, fn: () => Promise<T>): Promise<T> {
   await mkdir(join(root, DRIVE_DIR), { recursive: true })
   const lockFile = join(root, DRIVE_DIR, "sync.lock")
-  const fh = await open(lockFile, "wx").catch((error) => {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+  const fh = await open(lockFile, "wx").catch(async (error) => {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
+    const lockStat = await stat(lockFile).catch((statError) => {
+      if ((statError as NodeJS.ErrnoException).code === "ENOENT") return undefined
+      throw statError
+    })
+    if (lockStat && Date.now() - lockStat.mtimeMs <= STALE_LOCK_MS) {
       throw new Error("sync lock already exists")
     }
-    throw error
+    await rm(lockFile, { force: true })
+    return open(lockFile, "wx").catch((retryError) => {
+      if ((retryError as NodeJS.ErrnoException).code === "EEXIST") {
+        throw new Error("sync lock already exists")
+      }
+      throw retryError
+    })
   })
   try {
     return await fn()

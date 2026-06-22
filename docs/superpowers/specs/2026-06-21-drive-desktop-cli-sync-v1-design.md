@@ -104,7 +104,7 @@ State 只保存 library binding 與 sync metadata。它絕不保存 access token
 
 State 寫入使用 `.wspc-drive/` 內的 temp file，flush 後 rename 成 `state.json`。讀取時忽略 temp files。
 
-Sync lock 是 `.wspc-drive/sync.lock`。v1 若看到 lock 已存在就失敗，不實作 stale-lock recovery。
+Sync lock 是 `.wspc-drive/sync.lock`。Fresh lock 代表其他 sync 仍在執行，必須以 `sync lock already exists` 失敗；超過 10 分鐘的 lock 視為保守的 stale lock，可先移除再重新用 exclusive create 取得 lock。
 
 ## Path 政策
 
@@ -169,7 +169,7 @@ Rename 會被視為 old-path delete 加 new-path create。
 `drive sync once` 在以下狀況非零結束：
 
 - 缺少 `.wspc-drive/state.json`
-- lock 已存在
+- fresh lock 已存在
 - invalid local 或 remote path
 - case-only path collision
 - network、auth、rate-limit 或 server failure
@@ -185,7 +185,7 @@ Human output 應是 compact summary：uploaded、downloaded、deleted、unchange
 最小測試覆蓋：
 
 - Command tests：`drive bind` 成功 validation/write、拒絕 mismatched existing binding、validation failure 不寫檔。
-- State tests：atomic write、temp files ignored、schema guard、existing lock。
+- State tests：atomic write、temp files ignored、schema guard、fresh lock rejection、stale lock recovery。
 - Path/scanner tests：unsafe path rejection、symlink 與 non-regular skip、dotfile include、`.wspc-drive/` exclude、case collision detection。
 - 一個 table-driven decision test，覆蓋 sync table 每一列。
 - API-boundary tests：證明 library validation、manifest、delete 使用 generated JSON calls，而 upload、download 使用 direct fetch。
@@ -202,5 +202,4 @@ Human output 應是 compact summary：uploaded、downloaded、deleted、unchange
 - automatic text merge
 - binary conflict copies
 - rename detection
-- stale-lock recovery
 - empty directory preservation

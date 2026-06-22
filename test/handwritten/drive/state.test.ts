@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, utimes, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { DateTime } from "luxon"
@@ -49,6 +49,30 @@ describe("drive state", () => {
     await withDriveLock(root, async () => {
       await expect(withDriveLock(root, async () => undefined)).rejects.toThrow(/sync lock already exists/)
     })
+  })
+
+  it("rejects a fresh existing lock file", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-fresh-"))
+    await initDriveState(root, "lib_a")
+    await writeFile(join(root, ".wspc-drive", "sync.lock"), "")
+
+    await expect(withDriveLock(root, async () => undefined)).rejects.toThrow(/sync lock already exists/)
+  })
+
+  it("recovers a stale existing lock file", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-stale-"))
+    await initDriveState(root, "lib_a")
+    const lockFile = join(root, ".wspc-drive", "sync.lock")
+    await writeFile(lockFile, "")
+    const staleTime = new Date(Date.now() - 11 * 60 * 1000)
+    await utimes(lockFile, staleTime, staleTime)
+    let ran = false
+
+    await withDriveLock(root, async () => {
+      ran = true
+    })
+
+    expect(ran).toBe(true)
   })
 
   it("rejects unsupported schema", async () => {
