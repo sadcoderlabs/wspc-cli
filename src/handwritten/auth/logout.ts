@@ -23,6 +23,7 @@ export interface RunLogoutResult {
 export async function runLogout(opts: RunLogoutOptions): Promise<RunLogoutResult> {
   let removed: string[] = []
   let newActive: string | undefined
+  let removedSingleAccount = false
 
   await opts.store.update((c) => {
     const envName = opts.envName ?? c.current_env
@@ -46,6 +47,7 @@ export async function runLogout(opts: RunLogoutOptions): Promise<RunLogoutResult
 
     delete env.accounts[target]
     removed = [target]
+    removedSingleAccount = true
     if (env.current_account === target) {
       const remaining = Object.keys(env.accounts)
       env.current_account = remaining.length === 1 ? remaining[0] : undefined
@@ -53,5 +55,5 @@ export async function runLogout(opts: RunLogoutOptions): Promise<RunLogoutResult
     newActive = env.current_account
   })
 
-  return newActive === undefined ? { removed } : { removed, newActive }
+  return removedSingleAccount ? { removed, newActive } : { removed }
 }
