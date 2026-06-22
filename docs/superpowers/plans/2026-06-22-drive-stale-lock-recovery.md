@@ -49,7 +49,7 @@
 
 把 `docs/improve/README.md` 內 plan 005 的狀態從 `TODO` 改成 `DONE`。
 
-- [ ] **步驟 4: 最終檢查**
+- [x] **步驟 4: 最終檢查**
 
 執行：
 
