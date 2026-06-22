@@ -108,8 +108,8 @@ describe("wspc push (generated)", () => {
     })
   })
 
-  it("push test triggers process.exit(1) when ok is false", async () => {
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never)
+  it("push test sets exitCode=1 when ok is false", async () => {
+    process.exitCode = undefined
     mockPushTest.mockResolvedValue({
       data: { ok: false },
       response: { ok: true, status: 200 },
@@ -120,7 +120,7 @@ describe("wspc push (generated)", () => {
     expect(mockPushTest.mock.calls[0]?.[0]?.body).toEqual({
       transport: "telegram",
     })
-    expect(exitSpy).toHaveBeenCalledWith(1)
-    exitSpy.mockRestore()
+    expect(process.exitCode).toBe(1)
+    process.exitCode = undefined
   })
 })

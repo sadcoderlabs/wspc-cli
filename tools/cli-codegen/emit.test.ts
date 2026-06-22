@@ -235,7 +235,7 @@ describe("emitCommand: JSON body fields", () => {
 })
 
 describe("emitCommand: exitOnField", () => {
-  it("emits process.exit(1) check on specified response field", () => {
+  it("emits process.exitCode check on specified response field", () => {
     const out = emitCommand({
       operationId: "org_push_keys",
       method: "post",
@@ -256,7 +256,7 @@ describe("emitCommand: exitOnField", () => {
 
     expect(code).toContain("render({ kind: \"org_push_keys\", display: {\"shape\":\"object\"} }, result.data)")
     expect(code).toContain("if (result.data?.ok === false) {")
-    expect(code).toContain("process.exit(1)")
+    expect(code).toContain("process.exitCode = 1")
   })
 
   it("handles nested paths and string values for exitOnField", () => {
@@ -279,7 +279,7 @@ describe("emitCommand: exitOnField", () => {
     const code = out!
 
     expect(code).toContain("if (result.data?.status?.error === \"partial_failure\") {")
-    expect(code).toContain("process.exit(1)")
+    expect(code).toContain("process.exitCode = 1")
   })
 
   it("handles empty string, null/undefined, and malformed path in exitOnField safely", () => {
@@ -338,5 +338,4 @@ describe("emitCommand: exitOnField", () => {
     expect(outNull!).toContain("if (result.data === true) {")
   })
 })
-
 

@@ -452,7 +452,7 @@ export function emitCommand(input: EmitInput): string | null {
     const accessExpr = pathParts.length > 0 ? `result.data?.${pathParts.join("?.")}` : `result.data`
     exitLines.push(
       `    if (${accessExpr} === ${JSON.stringify(exitOnField.failOn)}) {`,
-      `      process.exit(1)`,
+      `      process.exitCode = 1`,
       `    }`,
     )
   }

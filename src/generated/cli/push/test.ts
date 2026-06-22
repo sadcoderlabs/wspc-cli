@@ -24,6 +24,6 @@ export const pushTestCommand = new Command("test")
     }
     render({ kind: "push_test", display: {"shape":"object","fields":["ok","status","detail","durationMs"],"format":{"ok":"bool-badge"}} }, result.data)
     if (result.data?.ok === false) {
-      process.exit(1)
+      process.exitCode = 1
     }
   })
