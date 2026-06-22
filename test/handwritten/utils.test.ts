@@ -6,7 +6,6 @@ import {
 import {
   parseDateOnly,
   inclusiveEndToExclusive,
-  exclusiveEndToInclusive,
   ParseDateError,
 } from "../../src/handwritten/utils/parse-date.js"
 import {
@@ -67,16 +66,6 @@ describe("inclusiveEndToExclusive", () => {
 
   it("crosses month boundary", () => {
     expect(inclusiveEndToExclusive("2026-05-31")).toBe("2026-06-01")
-  })
-})
-
-describe("exclusiveEndToInclusive", () => {
-  it("subtracts one day", () => {
-    expect(exclusiveEndToInclusive("2026-05-11")).toBe("2026-05-10")
-  })
-
-  it("crosses month boundary", () => {
-    expect(exclusiveEndToInclusive("2026-06-01")).toBe("2026-05-31")
   })
 })
 
