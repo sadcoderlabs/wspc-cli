@@ -37,24 +37,24 @@ registerRenderer("config_show", (data) => {
 
 /** Set a config field on the active account of the current env. Exported for tests. */
 export async function setConfigKey(store: ConfigStore, key: string, value: string): Promise<void> {
-  const c = await store.read()
-  const resolved = resolveAccount(c, { accountOverride: process.env.WSPC_ACCOUNT })
-  const env = c.envs[resolved.envName]
-  if (!env) throw new Error(`env "${resolved.envName}" not found`)
-  const acct = env.accounts[resolved.email]
-  if (!acct) throw new Error(`account "${resolved.email}" not found`)
-  switch (key) {
-    case "actor":
-      if (value !== "user" && value !== "agent") throw new Error("actor must be 'user' or 'agent'")
-      acct.actor = value
-      break
-    case "agent-label":
-      acct.agent_label = value
-      break
-    default:
-      throw new Error(`unknown config key: ${key}`)
-  }
-  await store.write(c)
+  await store.update((c) => {
+    const resolved = resolveAccount(c, { accountOverride: process.env.WSPC_ACCOUNT })
+    const env = c.envs[resolved.envName]
+    if (!env) throw new Error(`env "${resolved.envName}" not found`)
+    const acct = env.accounts[resolved.email]
+    if (!acct) throw new Error(`account "${resolved.email}" not found`)
+    switch (key) {
+      case "actor":
+        if (value !== "user" && value !== "agent") throw new Error("actor must be 'user' or 'agent'")
+        acct.actor = value
+        break
+      case "agent-label":
+        acct.agent_label = value
+        break
+      default:
+        throw new Error(`unknown config key: ${key}`)
+    }
+  })
 }
 
 configCommand
@@ -95,9 +95,9 @@ configCommand
   .description("Switch current_env")
   .action(async (env: string) => {
     const store = new ConfigStore()
-    const c = await store.read()
-    if (!c.envs[env]) throw new Error(`env "${env}" not found`)
-    c.current_env = env
-    await store.write(c)
+    await store.update((c) => {
+      if (!c.envs[env]) throw new Error(`env "${env}" not found`)
+      c.current_env = env
+    })
     process.stdout.write(`✓ current_env=${env}\n`)
   })

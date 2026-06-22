@@ -21,32 +21,37 @@ export interface RunLogoutResult {
  * to active; if more than one remains, active is cleared (requires switch).
  */
 export async function runLogout(opts: RunLogoutOptions): Promise<RunLogoutResult> {
-  const c = await opts.store.read()
-  const envName = opts.envName ?? c.current_env
-  if (!envName || !c.envs[envName]) return { removed: [] }
-  const env = c.envs[envName]
-  env.accounts ??= {}
+  let removed: string[] = []
+  let newActive: string | undefined
 
-  if (opts.all) {
-    const removed = Object.keys(env.accounts)
-    env.accounts = {}
-    env.current_account = undefined
-    await opts.store.write(c)
-    return { removed }
-  }
+  await opts.store.update((c) => {
+    const envName = opts.envName ?? c.current_env
+    if (!envName || !c.envs[envName]) return
+    const env = c.envs[envName]
+    env.accounts ??= {}
 
-  const target =
-    opts.email ??
-    env.current_account ??
-    (Object.keys(env.accounts).length === 1 ? Object.keys(env.accounts)[0] : undefined)
+    if (opts.all) {
+      removed = Object.keys(env.accounts)
+      env.accounts = {}
+      env.current_account = undefined
+      return
+    }
 
-  if (!target || !env.accounts[target]) return { removed: [] }
+    const target =
+      opts.email ??
+      env.current_account ??
+      (Object.keys(env.accounts).length === 1 ? Object.keys(env.accounts)[0] : undefined)
 
-  delete env.accounts[target]
-  if (env.current_account === target) {
-    const remaining = Object.keys(env.accounts)
-    env.current_account = remaining.length === 1 ? remaining[0] : undefined
-  }
-  await opts.store.write(c)
-  return { removed: [target], newActive: env.current_account }
+    if (!target || !env.accounts[target]) return
+
+    delete env.accounts[target]
+    removed = [target]
+    if (env.current_account === target) {
+      const remaining = Object.keys(env.accounts)
+      env.current_account = remaining.length === 1 ? remaining[0] : undefined
+    }
+    newActive = env.current_account
+  })
+
+  return newActive === undefined ? { removed } : { removed, newActive }
 }

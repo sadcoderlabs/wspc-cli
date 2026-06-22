@@ -26,15 +26,15 @@ export async function listAccounts(store: ConfigStore): Promise<AccountRow[]> {
 }
 
 export async function switchAccount(store: ConfigStore, email: string): Promise<void> {
-  const c = await store.read()
-  const envName = c.current_env
-  if (!envName || !c.envs[envName]) throw new Error("no current env; run `wspc login` first")
-  const env = c.envs[envName]
-  if (!env.accounts?.[email]) {
-    throw new Error(`no account '${email}' in env '${envName}'. Run \`wspc account ls\` or \`wspc login\`.`)
-  }
-  env.current_account = email
-  await store.write(c)
+  await store.update((c) => {
+    const envName = c.current_env
+    if (!envName || !c.envs[envName]) throw new Error("no current env; run `wspc login` first")
+    const env = c.envs[envName]
+    if (!env.accounts?.[email]) {
+      throw new Error(`no account '${email}' in env '${envName}'. Run \`wspc account ls\` or \`wspc login\`.`)
+    }
+    env.current_account = email
+  })
 }
 
 registerRenderer("account_ls", (data) => {
