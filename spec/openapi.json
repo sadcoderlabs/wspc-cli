@@ -30695,8 +30695,26 @@
           "Projects"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "todo project rm",
+          "positional": [
+            "id"
+          ],
+          "examples": [
+            "wspc todo project rm prj_01HW3K"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "org_id": "id-short",
+              "creator_user_id": "id-short",
+              "default_todo_type_id": "id-short",
+              "name": "truncate",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "summary": "Soft-delete a project",
         "description": "### 🎯 Overview & Purpose\nSoft-delete/archive a project workspace.\n\n### 🔍 When to Use\n* Use this to archive a completed project and hide it from default listings without losing historical metrics.\n\n### 💡 Key Features & Constraints\n* **Cascading Effects**: Deleting a project automatically soft-deletes the project record and cascades to soft-delete all todos created under it.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the project ID does not exist or has already been archived.",
@@ -30737,7 +30755,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc project rm prj_01HW3K"
+            "source": "wspc todo project rm prj_01HW3K"
           }
         ],
         "responses": {
