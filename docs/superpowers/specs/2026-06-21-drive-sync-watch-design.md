@@ -25,7 +25,7 @@
 - operation queue。
 - ignore rules。
 - rename detection。
-- stale-lock recovery。
+- watch 自己不重作 stale lock recovery；`sync once` 的 lock 層可回收超過 10 分鐘的 stale lock。
 - automatic merge 或 conflict copy。
 - background daemon / launch agent / system tray。
 
@@ -108,6 +108,7 @@ watch 只處理長跑 process 的錯誤策略：
 | --- | --- |
 | 缺少 state / unsupported schema | 非零結束 |
 | `sync lock already exists` | 非零結束，避免和另一個 sync process 競爭 |
+| stale `.wspc-drive/sync.lock` | 交給 `sync once` lock 層回收後繼續執行 |
 | auth expired / authorization required / 401 / 403 | 停止自動 retry，提示使用者重新 login |
 | network / 429 / 5xx / temporary fetch failure | 保留 process，exponential backoff 後重跑 full sync |
 | unresolved conflict | 印出 summary，process 保持執行，後續事件仍可同步其他 path |
