@@ -1,6 +1,6 @@
 # Plan 005: Add stale Drive sync lock recovery
 
-> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report. When done, update this plan's row in `plans/README.md`.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report. When done, update this plan's row in `docs/improve/README.md`.
 >
 > **Drift check (run first)**: `git diff --stat 1bb2860..HEAD -- src/handwritten/commands/drive/state.ts src/handwritten/commands/drive/watch.ts test/handwritten/drive/state.test.ts test/handwritten/drive/watch.test.ts docs/superpowers/specs/2026-06-21-drive-desktop-cli-sync-v1-design.md docs/superpowers/specs/2026-06-21-drive-sync-watch-design.md`
 > If any in-scope file changed since this plan was written, compare the "Current state" excerpts against the live code before proceeding; on mismatch, stop.
@@ -139,7 +139,7 @@ If watch tests assume every existing lock is fatal, update only the stale-lock-s
 - [ ] Stale `sync.lock` is recovered and callback runs.
 - [ ] Specs no longer claim stale-lock recovery is out of scope.
 - [ ] Focused tests, typecheck, full tests, and `git diff --check` pass.
-- [ ] `plans/README.md` status row updated.
+- [ ] `docs/improve/README.md` status row updated.
 
 ## STOP conditions
 
