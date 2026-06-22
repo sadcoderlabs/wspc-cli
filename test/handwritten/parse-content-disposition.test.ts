@@ -23,6 +23,8 @@ describe("parseContentDispositionFilename", () => {
       .toBeUndefined()
     expect(parseContentDispositionFilename(`attachment; filename=.`))
       .toBeUndefined()
+    expect(parseContentDispositionFilename(`attachment; filename=""`))
+      .toBeUndefined()
   })
 
   it("returns undefined for missing header", () => {

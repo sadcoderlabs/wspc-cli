@@ -9,7 +9,7 @@ export function parseContentDispositionFilename(
 ): string | undefined {
   if (!header) return undefined
   if (!header.toLowerCase().startsWith("attachment")) return undefined
-  const quoted = header.match(/filename="([^"]+)"/i)
+  const quoted = header.match(/filename="([^"]*)"/i)
   const unquoted = header.match(/filename=([^;\s]+)/i)
   const filename = quoted?.[1] ?? unquoted?.[1]
   if (!filename || filename === "." || filename === "..") return undefined
