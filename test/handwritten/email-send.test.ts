@@ -76,6 +76,24 @@ describe("wspc email send", () => {
     })
   })
 
+  it("--attach unknown extension falls back to octet-stream", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "wspc-test-"))
+    const file = join(dir, "payload.weird")
+    writeFileSync(file, "raw")
+    await sendCommand.parseAsync([
+      "node", "send",
+      "--from", "a@d", "--to", "x@y", "--subject", "S", "--text", "T",
+      "--idempotency-key", "k-unknown", "--attach", file,
+    ])
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const body = sendMock.mock.calls[0]![0].body
+    expect(body.attachments[0]).toMatchObject({
+      filename: "payload.weird",
+      content_type: "application/octet-stream",
+      content_base64: Buffer.from("raw").toString("base64"),
+    })
+  })
+
   it("--attach inbound ref becomes reference attachment", async () => {
     await sendCommand.parseAsync([
       "node", "send",

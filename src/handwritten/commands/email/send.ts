@@ -1,19 +1,38 @@
 import { Command } from "commander"
 import { readFile, stat } from "node:fs/promises"
-import { basename } from "node:path"
+import { basename, extname } from "node:path"
 import { emailSend } from "../../../generated/sdk/index.js"
 import { loadSdkClient } from "../../auth/load-sdk-client.js"
-import { mimeFromExt } from "../../utils/mime-from-ext.js"
 import { render } from "../../output/render.js"
 
 const MAX_PER_ATTACHMENT = 5 * 1024 * 1024
 const MAX_TOTAL_ATTACHMENT = 25 * 1024 * 1024
 const MAX_TEXT_BYTES = 100 * 1024
 const INBOUND_REF_RE = /^[a-z]+_[A-Z0-9]+:\d+$/
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  txt: "text/plain",
+  csv: "text/csv",
+  md: "text/markdown",
+  html: "text/html",
+  json: "application/json",
+  ics: "text/calendar",
+  zip: "application/zip",
+}
 
 type Attachment =
   | { filename: string; content_type: string; content_base64: string }
   | { from_inbound_email_id: string; idx: number }
+
+function mimeFromExt(filename: string): string {
+  const ext = extname(filename).slice(1).toLowerCase()
+  return MIME_BY_EXT[ext] ?? "application/octet-stream"
+}
 
 async function resolveAttachment(input: string): Promise<{ att: Attachment; size: number }> {
   // Try as file first; fall back to ref regex.
