@@ -48,10 +48,9 @@ export async function backfillActiveEmail(
   email: string,
   userId?: string,
 ): Promise<void> {
-  const cfg = await store.read()
-  if (rekeyLegacyAccount(cfg, envName, email, userId)) {
-    await store.write(cfg)
-  }
+  await store.update((cfg) => {
+    rekeyLegacyAccount(cfg, envName, email, userId)
+  })
 }
 
 export const whoamiCommand = new Command("whoami")

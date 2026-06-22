@@ -3,6 +3,35 @@ import { promises as fs } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { ConfigStore } from "../src/handwritten/config/index.js"
+import { switchAccount } from "../src/handwritten/commands/account.js"
+
+class DelayedDirectWriteConfigStore extends ConfigStore {
+  private updateDepth = 0
+  private delayedWrite?: { started: () => void; release: Promise<void> }
+
+  delayNextDirectWrite(delayedWrite: { started: () => void; release: Promise<void> }): void {
+    this.delayedWrite = delayedWrite
+  }
+
+  override async update(mutate: Parameters<ConfigStore["update"]>[0]): Promise<void> {
+    this.updateDepth += 1
+    try {
+      await super.update(mutate)
+    } finally {
+      this.updateDepth -= 1
+    }
+  }
+
+  override async write(config: Parameters<ConfigStore["write"]>[0]): Promise<void> {
+    const delayedWrite = this.updateDepth === 0 ? this.delayedWrite : undefined
+    if (delayedWrite) {
+      this.delayedWrite = undefined
+      delayedWrite.started()
+      await delayedWrite.release
+    }
+    await super.write(config)
+  }
+}
 
 // Regression coverage for the multi-session token clobber: two independent
 // write paths (token refresh + consistency bookmark) both did an unlocked
@@ -15,7 +44,7 @@ describe("ConfigStore.update (locked read-modify-write)", () => {
 
   beforeEach(async () => {
     dir = await fs.mkdtemp(join(tmpdir(), "wspc-config-lock-"))
-    store = new ConfigStore({ configDir: dir })
+    store = new DelayedDirectWriteConfigStore({ configDir: dir })
     await store.write({
       schema_version: 2,
       current_env: "prod",
@@ -53,6 +82,39 @@ describe("ConfigStore.update (locked read-modify-write)", () => {
     ])
     const c = await store.read()
     expect(c.envs.prod!.accounts["a@x.com"]!.refresh_token).toBe("RT1")
+    expect(c.envs.prod!.consistency_bookmarks?.todo).toBe("B2")
+  })
+
+  it("command mutations do not clobber interleaved bookmark updates", async () => {
+    const delayedStore = store as DelayedDirectWriteConfigStore
+    let releaseWrite!: () => void
+    const release = new Promise<void>((resolve) => {
+      releaseWrite = resolve
+    })
+    const writeStarted = new Promise<void>((resolve) => {
+      delayedStore.delayNextDirectWrite({ started: resolve, release })
+    })
+
+    await store.update((cfg) => {
+      cfg.envs.prod!.accounts["b@x.com"] = { email: "b@x.com" }
+    })
+
+    const switchPromise = switchAccount(store, "b@x.com")
+    const first = await Promise.race([
+      writeStarted.then(() => "delayed" as const),
+      switchPromise.then(() => "completed" as const),
+    ])
+    await store.update((cfg) => {
+      cfg.envs.prod!.consistency_bookmarks ??= {}
+      cfg.envs.prod!.consistency_bookmarks.todo = "B2"
+    })
+    if (first === "delayed") {
+      releaseWrite()
+      await switchPromise
+    }
+
+    const c = await store.read()
+    expect(c.envs.prod!.current_account).toBe("b@x.com")
     expect(c.envs.prod!.consistency_bookmarks?.todo).toBe("B2")
   })
 

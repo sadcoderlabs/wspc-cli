@@ -30,7 +30,7 @@ describe("runLogout", () => {
     const store = new ConfigStore({ configDir: dir })
     await store.write(twoAccounts())
     const res = await runLogout({ store })
-    expect(res.removed).toEqual(["a@x.com"])
+    expect(res).toEqual({ removed: ["a@x.com"], newActive: "b@x.com" })
     const c = await store.read()
     expect(Object.keys(c.envs.prod!.accounts)).toEqual(["b@x.com"])
     expect(c.envs.prod!.current_account).toBe("b@x.com")
@@ -52,7 +52,8 @@ describe("runLogout", () => {
     const c0 = twoAccounts()
     c0.envs.prod!.accounts["c@x.com"] = { email: "c@x.com", access_token: "at_c", refresh_token: "rt_c" }
     await store.write(c0)
-    await runLogout({ store }) // removes active a@x.com, b & c remain
+    const res = await runLogout({ store }) // removes active a@x.com, b & c remain
+    expect(res).toEqual({ removed: ["a@x.com"], newActive: undefined })
     const c = await store.read()
     expect(Object.keys(c.envs.prod!.accounts).sort()).toEqual(["b@x.com", "c@x.com"])
     expect(c.envs.prod!.current_account).toBeUndefined()

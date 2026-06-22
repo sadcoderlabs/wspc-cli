@@ -29,13 +29,15 @@ export async function ensureClientId(opts: EnsureClientIdOptions): Promise<strin
     apiBase: opts.baseUrl,
     fetchImpl: opts.fetchImpl,
   })
-  const c = await opts.store.read()
-  const existing = c.envs[opts.envName]?.client_id
+  let existing: string | undefined
+  await opts.store.update((c) => {
+    existing = c.envs[opts.envName]?.client_id
+    if (existing) return
+    const targetEnv = (c.envs[opts.envName] ??= { api_base: opts.baseUrl, accounts: {} })
+    targetEnv.api_base = opts.baseUrl
+    targetEnv.accounts ??= {}
+  })
   if (existing) return existing
-  const targetEnv = (c.envs[opts.envName] ??= { api_base: opts.baseUrl, accounts: {} })
-  targetEnv.api_base = opts.baseUrl
-  targetEnv.accounts ??= {}
-  await opts.store.write(c)
 
   const res = await fetchImpl(`${opts.baseUrl}/auth/oauth/register`, {
     method: "POST",
@@ -53,11 +55,16 @@ export async function ensureClientId(opts: EnsureClientIdOptions): Promise<strin
   const body = (await res.json()) as RegisterResponse
   if (!body.client_id) throw new Error("client_registration_failed: missing client_id in response")
 
-  // Re-read in case other fields were updated between read and now.
-  const fresh = await opts.store.read()
-  const env = fresh.envs[opts.envName] ?? { api_base: opts.baseUrl, accounts: {} }
-  env.client_id = body.client_id
-  fresh.envs[opts.envName] = env
-  await opts.store.write(fresh)
-  return body.client_id
+  let clientId = body.client_id
+  await opts.store.update((c) => {
+    const env = (c.envs[opts.envName] ??= { api_base: opts.baseUrl, accounts: {} })
+    env.api_base = opts.baseUrl
+    env.accounts ??= {}
+    if (env.client_id) {
+      clientId = env.client_id
+      return
+    }
+    env.client_id = body.client_id
+  })
+  return clientId
 }

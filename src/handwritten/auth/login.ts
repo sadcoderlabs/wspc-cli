@@ -78,10 +78,10 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
       defaultFetchMe(o))
 
   if (opts.apiKey) {
-    const initial = await opts.store.read()
-    getOrCreateEnv(initial, envName, opts.baseUrl)
-    initial.current_env = envName
-    await opts.store.write(initial)
+    await opts.store.update((initial) => {
+      getOrCreateEnv(initial, envName, opts.baseUrl)
+      initial.current_env = envName
+    })
 
     const who = await me({
       baseUrl: opts.baseUrl,
@@ -89,23 +89,23 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
       store: opts.store,
       envName,
     })
-    const c = await opts.store.read()
-    const env = getOrCreateEnv(c, envName, opts.baseUrl)
-    const prev = env.accounts[who.email] ?? { email: who.email }
-    const acct = (env.accounts[who.email] = {
-      ...prev,
-      email: who.email,
-      user_id: who.user_id,
-      api_key: opts.apiKey,
+    await opts.store.update((c) => {
+      const env = getOrCreateEnv(c, envName, opts.baseUrl)
+      const prev = env.accounts[who.email] ?? { email: who.email }
+      const acct = (env.accounts[who.email] = {
+        ...prev,
+        email: who.email,
+        user_id: who.user_id,
+        api_key: opts.apiKey,
+      })
+      // api-key login is mutually exclusive with stored OAuth tokens.
+      delete acct.refresh_token
+      delete acct.access_token
+      delete acct.access_token_expires_at
+      env.current_account = who.email
+      if (who.email !== LEGACY_ACCOUNT_KEY) delete env.accounts[LEGACY_ACCOUNT_KEY]
+      c.current_env = envName
     })
-    // api-key login is mutually exclusive with stored OAuth tokens.
-    delete acct.refresh_token
-    delete acct.access_token
-    delete acct.access_token_expires_at
-    env.current_account = who.email
-    if (who.email !== LEGACY_ACCOUNT_KEY) delete env.accounts[LEGACY_ACCOUNT_KEY]
-    c.current_env = envName
-    await opts.store.write(c)
     opts.output.write(`${green("✓")} logged in (api key) as ${bold(who.email)} ${dim(`→ env "${envName}"`)}`)
     return
   }
@@ -135,24 +135,23 @@ export async function runLogin(opts: RunLoginOptions): Promise<void> {
     envName,
   })
 
-  // Re-read: ensureClient may have written client_id while we ran the flow.
-  const c = await opts.store.read()
-  const env = getOrCreateEnv(c, envName, opts.baseUrl)
-  const prev = env.accounts[who.email] ?? { email: who.email }
-  const acct = (env.accounts[who.email] = {
-    ...prev,
-    email: who.email,
-    user_id: who.user_id,
-    refresh_token: result.refresh_token,
-    access_token: result.access_token,
-    access_token_expires_at: now() + result.expires_in * 1000,
+  await opts.store.update((c) => {
+    const env = getOrCreateEnv(c, envName, opts.baseUrl)
+    const prev = env.accounts[who.email] ?? { email: who.email }
+    const acct = (env.accounts[who.email] = {
+      ...prev,
+      email: who.email,
+      user_id: who.user_id,
+      refresh_token: result.refresh_token,
+      access_token: result.access_token,
+      access_token_expires_at: now() + result.expires_in * 1000,
+    })
+    // login is OAuth now — drop any stale api_key on this account.
+    delete acct.api_key
+    env.current_account = who.email
+    if (who.email !== LEGACY_ACCOUNT_KEY) delete env.accounts[LEGACY_ACCOUNT_KEY]
+    c.current_env = envName
   })
-  // login is OAuth now — drop any stale api_key on this account.
-  delete acct.api_key
-  env.current_account = who.email
-  if (who.email !== LEGACY_ACCOUNT_KEY) delete env.accounts[LEGACY_ACCOUNT_KEY]
-  c.current_env = envName
-  await opts.store.write(c)
   opts.output.writeJson({ event: "login_success", email: who.email })
   opts.output.write(`${green("✓")} logged in as ${bold(who.email)} ${dim(`→ env "${envName}"`)}`)
 }
