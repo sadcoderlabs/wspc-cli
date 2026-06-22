@@ -1,6 +1,6 @@
 # Plan 001: Route config mutations through `ConfigStore.update()`
 
-> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report. When done, update this plan's row in `plans/README.md`.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report. When done, update this plan's row in `docs/improve/README.md`.
 >
 > **Drift check (run first)**: `git diff --stat 1bb2860..HEAD -- src/handwritten/config/index.ts src/handwritten/auth/login.ts src/handwritten/auth/logout.ts src/handwritten/auth/client-registration.ts src/handwritten/commands/account.ts src/handwritten/commands/config.ts src/handwritten/commands/whoami.ts test/config-lock.test.ts test/login.test.ts test/logout-whoami.test.ts test/account-cmd.test.ts test/config-cmd.test.ts test/whoami-rekey.test.ts test/client-registration.test.ts`
 > If any in-scope file changed since this plan was written, compare the "Current state" excerpts against the live code before proceeding; on mismatch, stop.
@@ -157,7 +157,7 @@ Only acceptable remaining matches should be inside `src/handwritten/config/index
 - [ ] New regression test fails before the fix and passes after.
 - [ ] Focused tests, typecheck, full tests, and `git diff --check` pass.
 - [ ] No generated files are modified.
-- [ ] `plans/README.md` status row updated.
+- [ ] `docs/improve/README.md` status row updated.
 
 ## STOP conditions
 

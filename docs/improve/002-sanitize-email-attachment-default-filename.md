@@ -1,6 +1,6 @@
 # Plan 002: Sanitize default email attachment filenames
 
-> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report. When done, update this plan's row in `plans/README.md`.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report. When done, update this plan's row in `docs/improve/README.md`.
 >
 > **Drift check (run first)**: `git diff --stat 1bb2860..HEAD -- src/handwritten/commands/email/attachment.ts src/handwritten/utils/parse-content-disposition.ts test/handwritten/email-attachment.test.ts test/handwritten/parse-content-disposition.test.ts`
 > If any in-scope file changed since this plan was written, compare the "Current state" excerpts against the live code before proceeding; on mismatch, stop.
@@ -118,7 +118,7 @@ Confirm `attachment.ts` still uses the parser result as a default only. If the p
 - [ ] Explicit `--output` still accepts user-supplied paths.
 - [ ] Focused tests, typecheck, and `git diff --check` pass.
 - [ ] No new dependency.
-- [ ] `plans/README.md` status row updated.
+- [ ] `docs/improve/README.md` status row updated.
 
 ## STOP conditions
 

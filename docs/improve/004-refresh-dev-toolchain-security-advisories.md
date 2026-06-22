@@ -1,6 +1,6 @@
 # Plan 004: Refresh dev toolchain security advisories
 
-> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report. When done, update this plan's row in `plans/README.md`.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report. When done, update this plan's row in `docs/improve/README.md`.
 >
 > **Drift check (run first)**: `git diff --stat 1bb2860..HEAD -- package.json package-lock.json vitest.config.ts tsup.config.ts openapi-ts.config.ts`
 > If any in-scope file changed since this plan was written, compare the "Current state" excerpts against the live code before proceeding; on mismatch, stop.
@@ -138,7 +138,7 @@ This is dependency/tooling work, so tests are verification commands rather than 
 - [ ] `package-lock.json` reflects the minimal dependency update.
 - [ ] No source files changed unless required by tool config compatibility.
 - [ ] Typecheck, tests, build, generated drift check, and `git diff --check` pass.
-- [ ] `plans/README.md` status row updated.
+- [ ] `docs/improve/README.md` status row updated.
 
 ## STOP conditions
 
