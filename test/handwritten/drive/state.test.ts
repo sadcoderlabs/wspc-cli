@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
+import { DateTime } from "luxon"
 import {
   ensureDriveRealtimeState,
   initDriveState,
@@ -11,13 +12,20 @@ import {
   writeDriveRealtimeState,
   type DriveState,
 } from "../../../src/handwritten/commands/drive/state.js"
+import type { DriveClock } from "../../../src/handwritten/commands/drive/clock.js"
+
+const fixedClock: DriveClock = {
+  now: () => DateTime.fromISO("2026-06-21T10:10:00.123Z", { setZone: true }),
+}
 
 describe("drive state", () => {
   it("creates and reads empty state", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-"))
-    await initDriveState(root, "lib_123")
+    await initDriveState(root, "lib_123", fixedClock)
     const state = await readDriveState(root)
     expect(state.library_id).toBe("lib_123")
+    expect(state.created_at).toBe("2026-06-21T10:10:00.123Z")
+    expect(state.updated_at).toBe("2026-06-21T10:10:00.123Z")
     expect(state.entries).toEqual({})
     expect(state.conflicts).toEqual({})
   })
@@ -346,9 +354,9 @@ describe("drive state", () => {
       conflicts: {},
     }
 
-    await writeDriveState(root, state)
+    await writeDriveState(root, state, fixedClock)
     const read = await readDriveState(root)
     expect(read.schema_version).toBe(1)
-    expect(read.updated_at).not.toEqual(state.updated_at)
+    expect(read.updated_at).toBe("2026-06-21T10:10:00.123Z")
   })
 })
