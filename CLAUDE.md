@@ -18,6 +18,7 @@
 
 - **TDD 優先**：實作功能前先寫失敗測試，跑一次確認失敗，再實作。Spec 與 plan 預設這個流程。
 - **小 commit**：每完成一個 task 就 commit，commit message 用 conventional 格式（`feat(scope): ...`、`fix(scope): ...`、`docs(scope): ...`、`chore: ...`）。
+- **Generated 產物不手改**：refactoring 時不要修改 `src/generated/` 內檔案；那是 OpenAPI / CLI codegen 產物。若 generated output 需要變更，改 OpenAPI metadata、`tools/cli-codegen/` 或 handwritten/source layer，再重新 generate。
 - **不寫無謂註解**：好的命名取代註解；只在 why 不明顯（隱藏約束、特殊 workaround、會讓讀者驚訝的行為）時補一行英文。
 - **空值表示**：除非第三方 library 已經使用 `null` 為 API 輸入 / 輸出，一律使用 `undefined` 代表空值。
 - **時間 / 日期 / 時區處理**：碰時間數學、解析、格式化、時區轉換一律用 [Luxon](https://github.com/moment/luxon) `DateTime`；`Date.now()` 取現在 Unix ms 仍合法；boundary 序列化採 ISO 8601 + offset（使用者語意時間）/ Unix ms（系統 timestamp）/ ISO date-only（全天事件）。完整規則、禁止清單、範例見 [time handling convention spec](docs/superpowers/specs/2026-05-06-time-handling-convention-design.md)。
