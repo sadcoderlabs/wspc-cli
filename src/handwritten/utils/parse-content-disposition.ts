@@ -10,8 +10,14 @@ export function parseContentDispositionFilename(
   if (!header) return undefined
   if (!header.toLowerCase().startsWith("attachment")) return undefined
   const quoted = header.match(/filename="([^"]+)"/i)
-  if (quoted) return quoted[1]
+  if (quoted) return safeLocalFilename(quoted[1])
   const unquoted = header.match(/filename=([^;\s]+)/i)
-  if (unquoted) return unquoted[1]
+  if (unquoted) return safeLocalFilename(unquoted[1])
   return undefined
+}
+
+function safeLocalFilename(filename: string): string | undefined {
+  if (!filename || filename === "." || filename === "..") return undefined
+  if (filename.includes("/") || filename.includes("\\")) return undefined
+  return filename
 }

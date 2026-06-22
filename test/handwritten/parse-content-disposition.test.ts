@@ -12,6 +12,19 @@ describe("parseContentDispositionFilename", () => {
       .toBe("report.pdf")
   })
 
+  it("rejects unsafe local filenames", () => {
+    expect(parseContentDispositionFilename(`attachment; filename="../escape.txt"`))
+      .toBeUndefined()
+    expect(parseContentDispositionFilename(`attachment; filename="nested/file.txt"`))
+      .toBeUndefined()
+    expect(parseContentDispositionFilename(`attachment; filename="nested\\file.txt"`))
+      .toBeUndefined()
+    expect(parseContentDispositionFilename(`attachment; filename=..`))
+      .toBeUndefined()
+    expect(parseContentDispositionFilename(`attachment; filename=.`))
+      .toBeUndefined()
+  })
+
   it("returns undefined for missing header", () => {
     expect(parseContentDispositionFilename(null)).toBeUndefined()
     expect(parseContentDispositionFilename(undefined)).toBeUndefined()

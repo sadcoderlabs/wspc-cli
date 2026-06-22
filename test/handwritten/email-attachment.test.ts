@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
-import { mkdtempSync, readFileSync, existsSync } from "node:fs"
+import { mkdtempSync, readFileSync, existsSync, mkdirSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -46,6 +46,24 @@ describe("wspc email attachment", () => {
     )
     await attachmentCommand.parseAsync(["node", "attachment", "eml_X", "0"])
     expect(existsSync(join(dir, "from-header.bin"))).toBe(true)
+  })
+
+  it("falls back when Content-Disposition filename is a parent path", async () => {
+    const parent = mkdtempSync(join(tmpdir(), "wspc-test-parent-"))
+    const dir = join(parent, "cwd")
+    mkdirSync(dir)
+    process.chdir(dir)
+    fetchMock.mockResolvedValue(
+      new Response(new Uint8Array([9]), {
+        status: 200,
+        headers: { "content-disposition": 'attachment; filename="../escape.txt"' },
+      }),
+    )
+
+    await attachmentCommand.parseAsync(["node", "attachment", "eml_X", "0"])
+
+    expect(existsSync(join(dir, "eml_X-0.bin"))).toBe(true)
+    expect(existsSync(join(parent, "escape.txt"))).toBe(false)
   })
 
   it("prints error and sets exitCode=1 on 404", async () => {
