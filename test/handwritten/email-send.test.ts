@@ -44,6 +44,21 @@ describe("wspc email send", () => {
     expect(body.attachments).toBeUndefined()
   })
 
+  it("auto-generates idempotency_key when --idempotency-key omitted", async () => {
+    await sendCommand.parseAsync([
+      "node", "send",
+      "--from", "a@d", "--to", "x@y", "--subject", "S", "--text", "T",
+    ])
+    expect(sendMock).toHaveBeenCalledOnce()
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const body = sendMock.mock.calls[0]![0].body
+    expect(typeof body.idempotency_key).toBe("string")
+    // RFC 4122 UUID shape — server requires a 1-200 char key.
+    expect(body.idempotency_key).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    )
+  })
+
   it("reply mode omits to/subject when --reply set", async () => {
     await sendCommand.parseAsync([
       "node", "send",

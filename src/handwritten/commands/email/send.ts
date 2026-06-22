@@ -1,4 +1,5 @@
 import { Command } from "commander"
+import { randomUUID } from "node:crypto"
 import { readFile, stat } from "node:fs/promises"
 import { basename } from "node:path"
 import { emailSend } from "../../../generated/sdk/index.js"
@@ -54,7 +55,7 @@ export const sendCommand = new Command("send")
   .option("--text-file <path>", "read text body from file")
   .option("--reply <id>", "inbound email id to reply to")
   .option("--attach <path-or-ref...>", "attachment (file path or eml_xxx:idx)", [])
-  .requiredOption("--idempotency-key <key>", "idempotency key")
+  .option("--idempotency-key <key>", "idempotency key (auto-generated if omitted)")
   .action(async (opts) => {
     const isReply = Boolean(opts.reply)
     const to = opts.to as string[]
@@ -118,7 +119,9 @@ export const sendCommand = new Command("send")
     const body: Record<string, unknown> = {
       from_alias_email: opts.from,
       text,
-      idempotency_key: opts.idempotencyKey,
+      // Server requires an idempotency_key; a fresh random one makes each send a
+      // distinct request, which is the right default for one-shot CLI sends.
+      idempotency_key: opts.idempotencyKey ?? randomUUID(),
     }
     if (isReply) {
       body.in_reply_to_email_id = opts.reply
