@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises"
-import { join } from "node:path"
+import { basename, join } from "node:path"
 import { tmpdir } from "node:os"
 import { Readable } from "node:stream"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -157,7 +157,7 @@ async function importScannerWithMockFiles(files: Record<string, string>): Promis
       ),
       lstat: vi.fn(async () => fakeStats()),
       open: vi.fn(async (path: string) => {
-        const name = path.split("/").at(-1) ?? ""
+        const name = basename(path)
         const content = files[name]
         if (content === undefined) throw new Error(`unexpected mock file: ${path}`)
         return {
