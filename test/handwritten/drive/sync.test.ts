@@ -17,6 +17,10 @@ const stateWriteControl = vi.hoisted(() => ({
 
 const scannerControl = vi.hoisted(() => ({
   afterHash: undefined as undefined | ((path: string) => Promise<void> | void),
+  // Inject a scanner path error for an otherwise unrepresentable local name.
+  // A real backslash filename can't exist on Windows (it's a path separator),
+  // so we surface the error through onPathError instead of the filesystem.
+  injectLocalPathError: undefined as undefined | string,
 }))
 
 vi.mock("../../../src/handwritten/commands/drive/state.js", async (importOriginal) => {
@@ -42,6 +46,13 @@ vi.mock("../../../src/handwritten/commands/drive/scanner.js", async (importOrigi
       const result = await actual.hashDriveFile(path)
       await scannerControl.afterHash?.(path)
       return result
+    }),
+    scanDriveFiles: vi.fn(async (root: string, options?: Parameters<typeof actual.scanDriveFiles>[1]) => {
+      const badPath = scannerControl.injectLocalPathError
+      if (badPath !== undefined) {
+        await options?.onPathError?.(badPath, new Error("invalid drive path: backslash"))
+      }
+      return actual.scanDriveFiles(root, options)
     }),
   }
 })
@@ -163,6 +174,7 @@ describe("drive sync once", () => {
     process.exitCode = undefined
     stateWriteControl.failNext = undefined
     scannerControl.afterHash = undefined
+    scannerControl.injectLocalPathError = undefined
     vi.clearAllMocks()
   })
 
@@ -759,7 +771,7 @@ describe("drive sync once", () => {
   it("records invalid local paths as path errors without uploading them", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-invalid-local-"))
     await initDriveState(root, "lib_1")
-    await writeFile(join(root, "bad\\name.txt"), "unsafe")
+    scannerControl.injectLocalPathError = "bad\\name.txt"
     const api = mkApi([{ entries: [] }])
 
     const result = await runDriveSyncOnce(root, api)

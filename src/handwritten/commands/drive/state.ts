@@ -74,7 +74,9 @@ export async function writeDriveState(root: string, state: DriveState, clock?: D
   const fullPath = statePath(root)
   try {
     await writeFile(tmp, snapshot, { mode: 0o600 })
-    const fh = await open(tmp, "r")
+    // Open "r+" not "r": Windows FlushFileBuffers (fsync) rejects a
+    // read-only handle with EPERM, so the sync needs write access.
+    const fh = await open(tmp, "r+")
     try {
       await fh.sync()
     } finally {
