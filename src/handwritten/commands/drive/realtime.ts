@@ -252,9 +252,25 @@ export function redactedRealtimeError(error: unknown): string {
     return "auth failed"
   }
   if (/\bnetwork|fetch|close\b/i.test(text)) {
-    return "network error"
+    return withRealtimeCode("network error", error)
   }
-  return "realtime error"
+  return withRealtimeCode("realtime error", error)
+}
+
+// Append a safe diagnostic token — a Node system error code (ECONNRESET,
+// ETIMEDOUT, ...) or a numeric WebSocket close code — so a bare "realtime
+// error" carries something actionable. Never includes the message payload or
+// URL, keeping the redaction boundary intact.
+function withRealtimeCode(label: string, error: unknown): string {
+  if (typeof error !== "object" || error === null) return label
+  const code = (error as { code?: unknown }).code
+  if (typeof code === "string" && /^[A-Z][A-Z0-9_]{1,31}$/.test(code)) {
+    return `${label} (${code})`
+  }
+  if (typeof code === "number" && Number.isInteger(code)) {
+    return `${label} (${code})`
+  }
+  return label
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

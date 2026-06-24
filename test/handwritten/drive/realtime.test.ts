@@ -151,6 +151,20 @@ describe("drive realtime helpers", () => {
     expect(redactedRealtimeError(new Error("WebSocket network close: secret-token"))).toBe("network error")
   })
 
+  it("appends a safe diagnostic code without leaking the message", () => {
+    const reset = Object.assign(new Error("network down: wss://host/secret"), { code: "ECONNRESET" })
+    expect(redactedRealtimeError(reset)).toBe("network error (ECONNRESET)")
+
+    const closed = Object.assign(new Error("unexpected failure"), { code: 1006 })
+    expect(redactedRealtimeError(closed)).toBe("realtime error (1006)")
+
+    // Unsafe-looking codes (payload-shaped) are dropped, not surfaced.
+    const leaky = Object.assign(new Error("boom"), { code: "Bearer secret-token" })
+    expect(redactedRealtimeError(leaky)).toBe("realtime error")
+
+    expect(redactedRealtimeError(new Error("opaque failure"))).toBe("realtime error")
+  })
+
   it("connects and persists the last connected timestamp on open", async () => {
     const connect = fakeConnector()
     const updates: DriveRealtimeState[] = []
