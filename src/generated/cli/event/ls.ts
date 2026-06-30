@@ -14,7 +14,7 @@ export const eventListCommand = new Command("ls")
   .option("--end-to <value>", "Inclusive upper bound on the event `end`.")
   .option("--cursor <value>", "Opaque pagination cursor returned in `next_cursor` of a previous response.")
   .option("--limit <value>", "Maximum number of events to return. Clamped to `[1, 200]`. Default is server-defined.")
-  .option("--include-deleted <value>", "When `true`, include soft-deleted events. Default `false`.")
+  .option("--include-deleted", "include_deleted")
   .option("--include-past <value>", "When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win.")
   .option("--tz <zone>", "IANA timezone for relative time parsing")
   .action(async (opts) => {

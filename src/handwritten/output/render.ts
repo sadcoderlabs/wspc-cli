@@ -171,11 +171,20 @@ function renderList(data: unknown, hints?: XCliDisplay): void {
   const columns = pickColumns(first, hints?.columns)
   const format = hints?.format ?? {}
   const headers = columns.map((c) => c.toUpperCase())
-  const rows = items.map((item) =>
-    columns.map((col) =>
-      formatCell(isRecord(item) ? item[col] : undefined, format[col], hints?.enumColorMap?.[col]),
-    ),
-  )
+  // table() uses visibleWidth() (ANSI-aware) for column widths, so wrapping
+  // cells with dim() is safe — escape codes are stripped before measuring.
+  const rows = items.map((item) => {
+    const deleted = isRecord(item) && item.deleted_at != null
+    const cells = columns.map((col, ci) => {
+      const raw = formatCell(
+        isRecord(item) ? item[col] : undefined,
+        format[col],
+        hints?.enumColorMap?.[col],
+      )
+      return ci === 0 && deleted ? `✕ ${raw}` : raw
+    })
+    return deleted ? cells.map((cell) => dim(cell)) : cells
+  })
   process.stdout.write(table(headers, rows))
 }
 

@@ -13189,6 +13189,9 @@
         ],
         "x-cli": {
           "command": "event ls",
+          "booleanFlags": [
+            "include_deleted"
+          ],
           "aliases": {
             "query": "q"
           },
@@ -13309,11 +13312,9 @@
           },
           {
             "schema": {
-              "type": "string",
-              "description": "When `true`, include soft-deleted events. Default `false`."
+              "type": "string"
             },
             "required": false,
-            "description": "When `true`, include soft-deleted events. Default `false`.",
             "name": "include_deleted",
             "in": "query"
           },
@@ -15361,8 +15362,23 @@
           "Events"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "event restore",
+          "positional": [
+            "id"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "status": "status-badge",
+              "start": "relative-time",
+              "end": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "summary": "Restore a soft-deleted event",
         "parameters": [
@@ -15398,6 +15414,11 @@
             "lang": "shell",
             "label": "curl",
             "source": "curl -X POST https://api.wspc.ai/calendar/events/evt_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc event restore evt_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           }
         ],
         "requestBody": {
@@ -19643,17 +19664,18 @@
           },
           {
             "schema": {
-              "type": "string",
-              "description": "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`."
+              "type": "string"
             },
             "required": false,
-            "description": "When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.",
             "name": "include_deleted",
             "in": "query"
           }
         ],
         "x-cli": {
           "command": "alias ls",
+          "booleanFlags": [
+            "include_deleted"
+          ],
           "display": {
             "shape": "list",
             "columns": [
@@ -22371,17 +22393,18 @@
           },
           {
             "schema": {
-              "type": "string",
-              "description": "When `true`, also return soft-deleted emails. Defaults to `false`."
+              "type": "string"
             },
             "required": false,
-            "description": "When `true`, also return soft-deleted emails. Defaults to `false`.",
             "name": "include_deleted",
             "in": "query"
           }
         ],
         "x-cli": {
           "command": "email ls",
+          "booleanFlags": [
+            "include_deleted"
+          ],
           "display": {
             "shape": "list",
             "columns": [
@@ -23279,14 +23302,30 @@
           }
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "alias restore",
+          "positional": [
+            "email"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "created_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "x-codeSamples": [
           {
             "lang": "shell",
             "label": "curl",
             "source": "curl -X POST https://api.wspc.ai/email/aliases/alice-shop%40wspc.app/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc alias restore alice-shop@example.com"
           }
         ],
         "parameters": [
@@ -23464,14 +23503,31 @@
           }
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "email restore",
+          "positional": [
+            "id"
+          ],
+          "options": {
+            "id": {
+              "array": true,
+              "mapsTo": "ids"
+            }
+          },
+          "display": {
+            "shape": "object",
+            "format": {}
+          }
         },
         "x-codeSamples": [
           {
             "lang": "shell",
             "label": "curl",
             "source": "curl -X POST https://api.wspc.ai/email/messages/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"ids\":[\"eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\"]}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc email restore eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           }
         ],
         "requestBody": {
@@ -28557,6 +28613,9 @@
         ],
         "x-cli": {
           "command": "todo ls",
+          "booleanFlags": [
+            "include_deleted"
+          ],
           "aliases": {
             "project": "p",
             "status": "s"
@@ -28648,17 +28707,7 @@
           },
           {
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ]
+              "type": "string"
             },
             "required": false,
             "name": "include_deleted",
@@ -35823,8 +35872,29 @@
           "Todos"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "todo restore",
+          "positional": [
+            "id"
+          ],
+          "examples": [
+            "wspc todo restore tod_xxx",
+            "wspc todo restore tod_xxx --cascade"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "project_id": "id-short",
+              "parent_id": "id-short",
+              "type_id": "id-short",
+              "status": "status-badge",
+              "due_at": "relative-time",
+              "created_at": "relative-time",
+              "updated_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
         },
         "summary": "Restore a soft-deleted todo",
         "description": "### 🎯 Overview & Purpose\nReverse a previous soft-delete. The todo (and optionally its descendants) is recovered back to the active list.\n\n### 🔍 When to Use\n* Use this to recover a task deleted by mistake, or pull a task out of the trash to continue active work.\n\n### 💡 Key Features & Constraints\n* **Orphan Warning**: If the restored todo's parent is still in the trash, the call succeeds but returns `parent_in_trash_warning: true`, signaling that the restored todo is currently orphaned from a visible ancestor.\n* **Cascading Restore (`cascade`)**: If `cascade: true` is provided, all descendants still in the trash are also restored. Otherwise, descendants are left in the trash, and their count is reported back in `descendants_in_trash_count`.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` is supplied and mismatches the database.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo `id` does not exist or has already been permanently purged.",
@@ -35858,6 +35928,11 @@
             "lang": "shell",
             "label": "curl",
             "source": "curl -X POST https://api.wspc.ai/todo/items/tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc todo restore tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           }
         ],
         "requestBody": {

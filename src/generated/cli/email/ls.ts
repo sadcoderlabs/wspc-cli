@@ -11,7 +11,7 @@ export const emailListCommand = new Command("ls")
   .option("--unread-only <value>", "When `true`, only return emails with `is_read=false`.")
   .option("--since <value>", "Unix epoch milliseconds — only return emails with `received_at >= since`. Useful for incremental sync.")
   .option("--cursor <value>", "Opaque pagination cursor returned in `next_cursor` of a previous response.")
-  .option("--include-deleted <value>", "When `true`, also return soft-deleted emails. Defaults to `false`.")
+  .option("--include-deleted", "include_deleted")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await emailList({

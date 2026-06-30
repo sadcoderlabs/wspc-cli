@@ -34,6 +34,7 @@ export interface XCli {
   body?: XCliBody
   exitOnField?: XCliExitOnField
   fixedQuery?: Record<string, string>
+  booleanFlags?: string[]
 }
 
 export interface BodyField {
@@ -41,6 +42,7 @@ export interface BodyField {
   type: "string" | "number" | "boolean" | "array" | "object"
   required: boolean
   description?: string
+  boolFlag?: boolean
 }
 
 export interface EmitInput {
@@ -178,6 +180,11 @@ export function emitCommand(input: EmitInput): string | null {
   })
 
   function emitFieldOption(f: BodyField): string {
+    if (f.boolFlag) {
+      const { longFlag, short } = resolveAlias(f.name)
+      const flagSpec = short ? `-${short}, --${longFlag}` : `--${longFlag}`
+      return `.option("${flagSpec}", ${JSON.stringify(f.description ?? f.name)})`
+    }
     const optKey = fieldToOptionKey[f.name]
     if (optKey !== undefined) {
       // Field is owned by an x-cli option; emit under that option key (and its array shape).

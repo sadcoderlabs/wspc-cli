@@ -21,6 +21,7 @@ import { eventDeleteCommand } from "./event/rm.js"
 import { eventGetCommand } from "./event/show.js"
 import { eventUpdateCommand } from "./event/set.js"
 import { eventIcsDownloadCommand } from "./event/ics.js"
+import { eventRestoreCommand } from "./event/restore.js"
 import { driveLibraryCreateCommand } from "./drive/library/add.js"
 import { driveLibraryListCommand } from "./drive/library/ls.js"
 import { driveFileDeleteCommand } from "./drive/file/rm.js"
@@ -40,6 +41,8 @@ import { emailGetCommand } from "./email/show.js"
 import { emailListCommand } from "./email/ls.js"
 import { emailMarkReadCommand } from "./email/read.js"
 import { emailMarkUnreadCommand } from "./email/unread.js"
+import { emailAliasRestoreCommand } from "./alias/restore.js"
+import { emailRestoreCommand } from "./email/restore.js"
 import { emailDomainVerifyCommand } from "./domain/verify.js"
 import { pushConfigDeleteCommand } from "./push/config/rm.js"
 import { pushConfigSetCommand } from "./push/config/set.js"
@@ -62,6 +65,7 @@ import { recurrenceRuleGetCommand } from "./todo/rule/show.js"
 import { todoDeleteCommand } from "./todo/rm.js"
 import { todoGetCommand } from "./todo/show.js"
 import { todoUpdateCommand } from "./todo/update.js"
+import { todoRestoreCommand } from "./todo/restore.js"
 
 export function registerGeneratedCommands(root: Command): void {
   const root_invite = root.command("invite").description("invite commands")
@@ -91,6 +95,7 @@ export function registerGeneratedCommands(root: Command): void {
   root_event.addCommand(eventGetCommand)
   root_event.addCommand(eventUpdateCommand)
   root_event.addCommand(eventIcsDownloadCommand)
+  root_event.addCommand(eventRestoreCommand)
   const root_drive = root.command("drive").description("drive commands")
   const root_drive_library = root_drive.command("library").description("library commands")
   root_drive_library.addCommand(driveLibraryCreateCommand)
@@ -106,6 +111,7 @@ export function registerGeneratedCommands(root: Command): void {
   root_alias.addCommand(emailAliasCreateCommand)
   root_alias.addCommand(emailAliasListCommand)
   root_alias.addCommand(emailAliasDeleteCommand)
+  root_alias.addCommand(emailAliasRestoreCommand)
   const root_domain = root.command("domain").description("domain commands")
   root_domain.addCommand(emailDomainCreateCommand)
   root_domain.addCommand(emailDomainListCommand)
@@ -118,6 +124,7 @@ export function registerGeneratedCommands(root: Command): void {
   root_email.addCommand(emailListCommand)
   root_email.addCommand(emailMarkReadCommand)
   root_email.addCommand(emailMarkUnreadCommand)
+  root_email.addCommand(emailRestoreCommand)
   const root_push = root.command("push").description("push commands")
   const root_push_config = root_push.command("config").description("config commands")
   root_push_config.addCommand(pushConfigDeleteCommand)
@@ -146,4 +153,5 @@ export function registerGeneratedCommands(root: Command): void {
   root_todo.addCommand(todoDeleteCommand)
   root_todo.addCommand(todoGetCommand)
   root_todo.addCommand(todoUpdateCommand)
+  root_todo.addCommand(todoRestoreCommand)
 }
