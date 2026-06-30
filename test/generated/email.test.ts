@@ -48,10 +48,10 @@ describe("wspc email (generated)", () => {
     expect(q.since).toBe("1748400000000")
   })
 
-  it("ls passes --include-deleted as query.include_deleted", async () => {
-    await emailListCommand.parseAsync(["node", "ls", "--include-deleted", "true"])
+  it("ls passes bare --include-deleted as query.include_deleted", async () => {
+    await emailListCommand.parseAsync(["node", "ls", "--include-deleted"])
     const q = calls.list.mock.calls[0]?.[0]?.query
-    expect(q.include_deleted).toBe("true")
+    expect(q.include_deleted).toBe(true)
   })
 
   it("show takes id as positional → path.id", async () => {
