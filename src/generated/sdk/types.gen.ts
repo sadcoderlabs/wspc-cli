@@ -3973,9 +3973,6 @@ export type EventListData = {
          * Maximum number of events to return. Clamped to `[1, 200]`. Default is server-defined.
          */
         limit?: string;
-        /**
-         * When `true`, include soft-deleted events. Default `false`.
-         */
         include_deleted?: string;
         /**
          * When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win.
@@ -5482,9 +5479,6 @@ export type EmailAliasListData = {
     };
     path?: never;
     query?: {
-        /**
-         * When `true`, include soft-deleted aliases (with `deleted_at` set) alongside active ones. Defaults to `false`.
-         */
         include_deleted?: string;
     };
     url: '/email/aliases';
@@ -6316,9 +6310,6 @@ export type EmailListData = {
          * Opaque pagination cursor returned in `next_cursor` of a previous response.
          */
         cursor?: string;
-        /**
-         * When `true`, also return soft-deleted emails. Defaults to `false`.
-         */
         include_deleted?: string;
     };
     url: '/email/messages';
@@ -7739,7 +7730,7 @@ export type TodoListData = {
         user_id?: string;
         parent_id?: string;
         status?: string | Array<string>;
-        include_deleted?: string | Array<string>;
+        include_deleted?: string;
         include_templates?: string | Array<string>;
         due_after?: string;
         due_before?: string;
