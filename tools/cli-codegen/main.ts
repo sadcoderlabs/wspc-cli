@@ -13,7 +13,6 @@ interface SchemaLike {
   required?: string[]
   $ref?: string
   oneOf?: SchemaLike[]
-  "x-cli-bool"?: boolean
 }
 
 interface ParameterLike {
@@ -24,7 +23,7 @@ interface ParameterLike {
   schema?: SchemaLike
 }
 
-interface OperationLike {
+export interface OperationLike {
   operationId?: string
   summary?: string
   tags?: string[]
@@ -119,7 +118,8 @@ function extractPathParams(op: OperationLike): string[] {
     .map((p) => p.name)
 }
 
-function extractQueryFields(op: OperationLike): BodyField[] {
+export function extractQueryFields(op: OperationLike): BodyField[] {
+  const boolFlagNames = new Set<string>(op["x-cli"]?.booleanFlags ?? [])
   return (op.parameters ?? [])
     .filter((p) => p.in === "query")
     .map((p) => ({
@@ -127,7 +127,7 @@ function extractQueryFields(op: OperationLike): BodyField[] {
       type: (p.schema?.type as BodyField["type"]) ?? "string",
       required: p.required ?? false,
       description: p.description ?? p.schema?.description,
-      boolFlag: p.schema?.["x-cli-bool"] === true,
+      boolFlag: boolFlagNames.has(p.name),
     }))
 }
 

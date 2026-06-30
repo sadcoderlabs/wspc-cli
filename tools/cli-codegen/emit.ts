@@ -34,6 +34,7 @@ export interface XCli {
   body?: XCliBody
   exitOnField?: XCliExitOnField
   fixedQuery?: Record<string, string>
+  booleanFlags?: string[]
 }
 
 export interface BodyField {
