@@ -10,6 +10,7 @@ export const driveManifestGetCommand = new Command("get")
   .option("--limit <value>", "limit")
   .option("--cursor <value>", "cursor")
   .option("--include-deleted <value>", "include_deleted")
+  .option("--path-prefix <value>", "path_prefix")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await driveManifestGet({
@@ -21,6 +22,7 @@ export const driveManifestGetCommand = new Command("get")
         limit: opts.limit,
         cursor: opts.cursor,
         include_deleted: opts.includeDeleted,
+        path_prefix: opts.pathPrefix,
       },
     })
     if (result.error || !result.response?.ok) {

@@ -28,7 +28,10 @@ import { driveFileDeleteCommand } from "./drive/file/rm.js"
 import { driveLibraryDeleteCommand } from "./drive/library/rm.js"
 import { driveLibraryGetCommand } from "./drive/library/show.js"
 import { driveLibraryUpdateCommand } from "./drive/library/update.js"
+import { driveFileHistoryCommand } from "./drive/file/history.js"
 import { driveManifestGetCommand } from "./drive/manifest/get.js"
+import { driveFileRestoreCommand } from "./drive/file/restore.js"
+import { driveSearchCommand } from "./drive/search.js"
 import { emailAliasCreateCommand } from "./alias/add.js"
 import { emailAliasListCommand } from "./alias/ls.js"
 import { emailDomainCreateCommand } from "./domain/add.js"
@@ -105,8 +108,11 @@ export function registerGeneratedCommands(root: Command): void {
   root_drive_library.addCommand(driveLibraryUpdateCommand)
   const root_drive_file = root_drive.command("file").description("file commands")
   root_drive_file.addCommand(driveFileDeleteCommand)
+  root_drive_file.addCommand(driveFileHistoryCommand)
+  root_drive_file.addCommand(driveFileRestoreCommand)
   const root_drive_manifest = root_drive.command("manifest").description("manifest commands")
   root_drive_manifest.addCommand(driveManifestGetCommand)
+  root_drive.addCommand(driveSearchCommand)
   const root_alias = root.command("alias").description("alias commands")
   root_alias.addCommand(emailAliasCreateCommand)
   root_alias.addCommand(emailAliasListCommand)
