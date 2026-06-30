@@ -339,8 +339,8 @@ describe("emitCommand: exitOnField", () => {
   })
 })
 
-describe("emitCommand: x-cli-bool bare boolean flag", () => {
-  it("emits a bare boolean flag for x-cli-bool query fields", () => {
+describe("emitCommand: x-cli.booleanFlags bare boolean flag", () => {
+  it("emits a bare boolean flag for boolFlag-marked query fields", () => {
     const code = emitCommand({
       operationId: "todo_list",
       method: "get",
