@@ -13,6 +13,7 @@ interface SchemaLike {
   required?: string[]
   $ref?: string
   oneOf?: SchemaLike[]
+  "x-cli-bool"?: boolean
 }
 
 interface ParameterLike {
@@ -126,6 +127,7 @@ function extractQueryFields(op: OperationLike): BodyField[] {
       type: (p.schema?.type as BodyField["type"]) ?? "string",
       required: p.required ?? false,
       description: p.description ?? p.schema?.description,
+      boolFlag: p.schema?.["x-cli-bool"] === true,
     }))
 }
 

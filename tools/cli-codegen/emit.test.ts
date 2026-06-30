@@ -339,3 +339,22 @@ describe("emitCommand: exitOnField", () => {
   })
 })
 
+describe("emitCommand: x-cli-bool bare boolean flag", () => {
+  it("emits a bare boolean flag for x-cli-bool query fields", () => {
+    const code = emitCommand({
+      operationId: "todo_list",
+      method: "get",
+      path: "/todo",
+      xCli: { command: "todo ls" },
+      bodyFields: [],
+      queryFields: [
+        { name: "include_deleted", type: "string", required: false, description: "incl deleted", boolFlag: true },
+      ],
+      pathParams: [],
+    } as any)
+    expect(code).not.toBeNull()
+    expect(code).toContain('.option("--include-deleted", "incl deleted")')
+    expect(code).not.toContain("--include-deleted <value>")
+  })
+})
+
