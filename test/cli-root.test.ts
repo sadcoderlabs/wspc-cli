@@ -24,5 +24,6 @@ describe("CLI root", () => {
     expect(res.stdout).toContain("logout")
     expect(res.stdout).toContain("whoami")
     expect(res.stdout).toContain("config")
+    expect(res.stdout).toContain("tour")
   })
 })

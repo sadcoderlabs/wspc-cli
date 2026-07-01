@@ -8,6 +8,7 @@ import { logoutCommand } from "./handwritten/commands/logout.js"
 import { whoamiCommand } from "./handwritten/commands/whoami.js"
 import { configCommand } from "./handwritten/commands/config.js"
 import { accountCommand } from "./handwritten/commands/account.js"
+import { tourCommand } from "./handwritten/commands/tour.js"
 import { todoDoneCommand } from "./handwritten/commands/todo-done.js"
 import { sendCommand } from "./handwritten/commands/email/send.js"
 import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
@@ -69,6 +70,7 @@ function buildProgram(): Command {
   program.addCommand(whoamiCommand)
   program.addCommand(configCommand)
   program.addCommand(accountCommand)
+  program.addCommand(tourCommand)
 
   registerGeneratedCommands(program)
 
