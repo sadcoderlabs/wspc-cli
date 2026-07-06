@@ -149,16 +149,17 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     realtimeSource = options.once ? undefined : options.realtimeSource
     if (!options.once && realtimeSource === undefined) {
       state = await ensureDriveRealtimeState(root)
-      const { baseUrl, headers } = await loadRealtimeAuthHeaders({
-        verifyPath: `/drive/libraries/${encodeURIComponent(state.library_id)}`,
-      })
+      const verifyPath = `/drive/libraries/${encodeURIComponent(state.library_id)}`
+      const { baseUrl } = await loadRealtimeAuthHeaders({ verifyPath })
       const realtime = state.realtime
       if (realtime === undefined) {
         throw new Error("drive realtime state is required")
       }
       realtimeSource = createDriveRealtimeSource({
         baseUrl,
-        headers,
+        // Tokens expire while watching; resolve fresh headers on every
+        // (re)connect so an idle drop cannot loop on a stale snapshot.
+        headers: async () => (await loadRealtimeAuthHeaders({ verifyPath })).headers,
         libraryId: state.library_id,
         realtime,
         writeRealtimeState: (next) => writeDriveRealtimeState(root, next),

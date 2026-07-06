@@ -27,7 +27,7 @@ export function createDriveRealtimeSource(args: {
   realtime: DriveRealtimeState
   writeRealtimeState: (next: DriveRealtimeState) => Promise<void>
   connect?: DriveRealtimeConnector
-  headers?: HeadersInit
+  headers?: HeadersInit | (() => Promise<HeadersInit>)
   clock?: DriveClock
   setTimeout?: typeof setTimeout
   clearTimeout?: typeof clearTimeout
@@ -68,6 +68,21 @@ export function createDriveRealtimeSource(args: {
     if (stopped || authFailed) return
     clearReconnectTimer()
     const id = ++connectionId
+    const headers = args.headers
+    if (typeof headers !== "function") {
+      openSocket(id, headers)
+      return
+    }
+    // Header providers re-resolve auth per attempt: a token snapshot taken at
+    // watch start goes stale, and an expired-token handshake rejection is
+    // indistinguishable from a network error, so reconnects would loop forever.
+    void headers()
+      .then((resolved) => openSocket(id, resolved))
+      .catch((error) => closeConnection(id, error))
+  }
+
+  function openSocket(id: number, headers: HeadersInit | undefined): void {
+    if (id !== connectionId || stopped || authFailed) return
     const url = buildDriveRealtimeUrl(args.baseUrl, args.libraryId, currentRealtime)
     activeSocket = connect(url, {
       open() {
@@ -83,7 +98,7 @@ export function createDriveRealtimeSource(args: {
       close(error) {
         closeConnection(id, error ?? "close")
       },
-    }, args.headers === undefined ? undefined : { headers: args.headers })
+    }, headers === undefined ? undefined : { headers })
   }
 
   function closeConnection(id: number, error: unknown): void {
@@ -294,6 +309,9 @@ function isInvalidCursorReason(reason: string): boolean {
 }
 
 function isRealtimeAuthError(error: unknown): boolean {
+  if (typeof error === "object" && error !== null && (error as { code?: unknown }).code === "WSPC_AUTH_EXPIRED") {
+    return true
+  }
   return /\b(401|403|auth|authorization|unauthorized|forbidden)\b/i.test(String(error))
 }
 
