@@ -60,7 +60,7 @@ function sourceArgs(overrides: Partial<{
   writeRealtimeState: (next: DriveRealtimeState) => Promise<void>
   connect: DriveRealtimeConnector
   clock: DriveClock
-  headers: HeadersInit
+  headers: HeadersInit | (() => Promise<HeadersInit>)
 }> = {}) {
   return {
     baseUrl: "https://api.wspc.ai",
@@ -471,5 +471,66 @@ describe("drive realtime helpers", () => {
 
     expect(events).toEqual([{ reconnect: 1000, error: "network error" }])
     expect(connect.connections).toHaveLength(2)
+  })
+
+  it("resolves headers from a provider on every connection attempt", async () => {
+    const connect = fakeConnector()
+    let token = 0
+    const headers = vi.fn(async () => ({ authorization: `Bearer token-${++token}` }))
+    const source = createDriveRealtimeSource(sourceArgs({ connect, headers }))
+
+    await source.start(realtimeHandlers())
+    await flushPromises()
+
+    expect(connect.connections[0]?.init?.headers).toEqual({ authorization: "Bearer token-1" })
+    expect(connect.connections[0]?.url.toString()).not.toContain("token-1")
+
+    connect.connections[0]?.handlers.close(new Error("network close"))
+    await vi.advanceTimersByTimeAsync(1000)
+    await flushPromises()
+
+    expect(connect.connections).toHaveLength(2)
+    expect(connect.connections[1]?.init?.headers).toEqual({ authorization: "Bearer token-2" })
+  })
+
+  it("stops reconnecting when the headers provider fails auth", async () => {
+    const connect = fakeConnector()
+    const events: unknown[] = []
+    const headers = vi.fn(async () => {
+      throw Object.assign(new Error("wspc credentials expired; re-authenticate via `wspc login`"), {
+        code: "WSPC_AUTH_EXPIRED",
+      })
+    })
+    const source = createDriveRealtimeSource(sourceArgs({ connect, headers }))
+
+    await source.start(realtimeHandlers(events))
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(events).toEqual([{ authFailed: "auth failed" }])
+    expect(connect.connections).toHaveLength(0)
+  })
+
+  it("retries with backoff when the headers provider hits a network error", async () => {
+    const connect = fakeConnector()
+    const events: unknown[] = []
+    let calls = 0
+    const headers = vi.fn(async () => {
+      calls += 1
+      if (calls === 1) throw new TypeError("fetch failed")
+      return { authorization: "Bearer token-2" }
+    })
+    const source = createDriveRealtimeSource(sourceArgs({ connect, headers }))
+
+    await source.start(realtimeHandlers(events))
+    await flushPromises()
+
+    expect(events).toContainEqual({ reconnect: 1000, error: "network error" })
+    expect(connect.connections).toHaveLength(0)
+
+    await vi.advanceTimersByTimeAsync(1000)
+    await flushPromises()
+
+    expect(connect.connections).toHaveLength(1)
+    expect(connect.connections[0]?.init?.headers).toEqual({ authorization: "Bearer token-2" })
   })
 })
