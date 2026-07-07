@@ -106,6 +106,68 @@ describe("createAuthInterceptor", () => {
     })
   })
 
+  it("proactively refreshes an already-expired token instead of eating a 401", async () => {
+    const fetchMock = vi
+      .fn()
+      // Proactive refresh fires first, before the API request.
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ access_token: "wat_new", refresh_token: "wrt_new", expires_in: 900 }),
+          { status: 200 },
+        ),
+      )
+      // Then the actual API request succeeds with the fresh token.
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+
+    const onTokenRefresh = vi.fn()
+    const interceptor = createAuthInterceptor({
+      accessToken: "wat_old",
+      refreshToken: "wrt_old",
+      baseUrl: "https://api.wspc.ai",
+      clientId: "oac_wspc_cli",
+      expiresAt: 1_000, // already in the past relative to `now`
+      now: () => 100_000,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      onTokenRefresh,
+    })
+
+    const finalRes = await interceptor.execute(new Request("https://api.wspc.ai/todo/items"))
+    expect(finalRes.ok).toBe(true)
+
+    // Exactly two calls — refresh then the request — with no wasted 401 round-trip.
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0]![0]).toBe("https://api.wspc.ai/auth/oauth/token")
+    const apiReq = fetchMock.mock.calls[1]![0] as Request
+    expect(apiReq.headers.get("authorization")).toBe("Bearer wat_new")
+    expect(onTokenRefresh).toHaveBeenCalledWith({
+      accessToken: "wat_new",
+      refreshToken: "wrt_new",
+      expiresAt: expect.any(Number),
+    })
+  })
+
+  it("does not refresh when the stored token is still valid", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    const onTokenRefresh = vi.fn()
+    const interceptor = createAuthInterceptor({
+      accessToken: "wat_ok",
+      refreshToken: "wrt",
+      baseUrl: "https://api.wspc.ai",
+      clientId: "oac_wspc_cli",
+      expiresAt: 1_000_000, // comfortably in the future
+      now: () => 100_000,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      onTokenRefresh,
+    })
+
+    const res = await interceptor.execute(new Request("https://api.wspc.ai/todo/items"))
+    expect(res.ok).toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(onTokenRefresh).not.toHaveBeenCalled()
+  })
+
   it("throws WspcAuthExpiredError when refresh also returns 401", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(null, { status: 401 }))
