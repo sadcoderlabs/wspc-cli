@@ -41,6 +41,7 @@ function buildInterceptor(
   return createAuthInterceptor({
     accessToken: creds.access_token!,
     refreshToken: creds.refresh_token!,
+    expiresAt: creds.access_token_expires_at,
     baseUrl: apiBase,
     clientId,
     fetchImpl,
