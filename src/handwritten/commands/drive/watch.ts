@@ -6,7 +6,7 @@ import { loadRealtimeAuthHeaders } from "../../auth/load-sdk-client.js"
 import { render, shouldOutputJson } from "../../output/render.js"
 import { createDriveRealtimeSource } from "./realtime.js"
 import { DRIVE_DIR, ensureDriveRealtimeState, readDriveState, writeDriveRealtimeState } from "./state.js"
-import { runDriveSyncOnce, type DriveSyncSummary } from "./sync.js"
+import { runDriveSyncOnce, type DriveSyncProgress, type DriveSyncSummary } from "./sync.js"
 
 export interface DriveWatchSource {
   onChange(handler: (path: string) => void): void
@@ -34,7 +34,7 @@ export interface DriveWatchOptions {
   source?: DriveWatchSource
   realtimeSource?: DriveRealtimeSource
   readState?: typeof readDriveState
-  runSync?: (root: string) => Promise<DriveSyncSummary>
+  runSync?: (root: string, onProgress?: DriveSyncProgress) => Promise<DriveSyncSummary>
   once?: boolean
   debounceMs?: number
   remoteDebounceMs?: number
@@ -42,7 +42,9 @@ export interface DriveWatchOptions {
 }
 
 export async function runDriveWatch(root: string, options: DriveWatchOptions = {}): Promise<void> {
-  const runSync = options.runSync ?? runDriveSyncOnce
+  const runSync =
+    options.runSync ??
+    ((syncRoot: string, onProgress?: DriveSyncProgress) => runDriveSyncOnce(syncRoot, undefined, undefined, onProgress))
   const debounceMs = options.debounceMs ?? 500
   const remoteDebounceMs = options.remoteDebounceMs ?? 2000
   // Watch is a long-lived event stream: json mode must emit NDJSON (one event
@@ -83,7 +85,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           // A large first upload can run for minutes; without this the app
           // shows a stale badge and users assume sync never started.
           emit({ kind: "drive_sync_start" })
-          const summary = await runSync(root)
+          const summary = await runSync(root, (processed, total) => {
+            emit({ kind: "drive_sync_progress", processed, total })
+          })
           emit({ kind: "drive_sync_once", ...summary })
           backoffMs = 1000
         } catch (error) {
