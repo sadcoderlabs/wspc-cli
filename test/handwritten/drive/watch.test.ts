@@ -91,6 +91,34 @@ describe("drive watch", () => {
     vi.useRealTimers()
   })
 
+  it("emits single-line NDJSON events in json output mode", async () => {
+    const source = fakeSource()
+    const runSync = vi.fn(async () =>
+      syncSummary({} as never) as ReturnType<typeof syncSummary> & { paths: unknown[] },
+    )
+    const writes: string[] = []
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(((chunk: unknown) => {
+      writes.push(String(chunk))
+      return true
+    }) as never)
+    vi.stubEnv("WSPC_OUTPUT", "json")
+
+    try {
+      await runDriveWatch("/tmp/root", { source, runSync, readState, once: true })
+    } finally {
+      writeSpy.mockRestore()
+      vi.unstubAllEnvs()
+    }
+
+    expect(writes.length).toBeGreaterThan(0)
+    for (const chunk of writes) {
+      expect(chunk.endsWith("\n")).toBe(true)
+      const line = chunk.slice(0, -1)
+      expect(line).not.toContain("\n")
+      expect(() => JSON.parse(line)).not.toThrow()
+    }
+  })
+
   it("runs one sync on startup", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()

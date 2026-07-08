@@ -3,7 +3,7 @@ import chokidar from "chokidar"
 import { watch as fsWatch } from "node:fs"
 import { relative, resolve } from "node:path"
 import { loadRealtimeAuthHeaders } from "../../auth/load-sdk-client.js"
-import { render } from "../../output/render.js"
+import { render, shouldOutputJson } from "../../output/render.js"
 import { createDriveRealtimeSource } from "./realtime.js"
 import { DRIVE_DIR, ensureDriveRealtimeState, readDriveState, writeDriveRealtimeState } from "./state.js"
 import { runDriveSyncOnce, type DriveSyncSummary } from "./sync.js"
@@ -45,7 +45,18 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
   const runSync = options.runSync ?? runDriveSyncOnce
   const debounceMs = options.debounceMs ?? 500
   const remoteDebounceMs = options.remoteDebounceMs ?? 2000
-  const emit = options.onEvent ?? ((event) => render({ kind: "drive_watch", display: { shape: "object" } }, event))
+  // Watch is a long-lived event stream: json mode must emit NDJSON (one event
+  // per line) so consumers can parse line-by-line instead of reassembling
+  // pretty-printed multi-line JSON, which breaks past any buffer limit.
+  const emit =
+    options.onEvent ??
+    ((event: unknown) => {
+      if (shouldOutputJson()) {
+        process.stdout.write(`${JSON.stringify(event)}\n`)
+        return
+      }
+      render({ kind: "drive_watch", display: { shape: "object" } }, event)
+    })
   let debounceTimer: NodeJS.Timeout | undefined
   let debounceDeadlineMs: number | undefined
   let retryTimer: NodeJS.Timeout | undefined

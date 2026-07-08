@@ -104,7 +104,7 @@ function drillDataPath(data: unknown, dataPath: string | undefined): unknown {
   return value === undefined ? data : value
 }
 
-function shouldOutputJson(): boolean {
+export function shouldOutputJson(): boolean {
   // Explicit overrides win over TTY detection so users can force either
   // mode in CI logs, screenshots, captured output, or AI-driven tooling.
   if (process.env.WSPC_OUTPUT === "json") return true
