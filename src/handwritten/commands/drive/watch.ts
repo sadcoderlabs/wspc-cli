@@ -1,5 +1,6 @@
 import { Command } from "commander"
 import chokidar from "chokidar"
+import { watch as fsWatch } from "node:fs"
 import { relative, resolve } from "node:path"
 import { loadRealtimeAuthHeaders } from "../../auth/load-sdk-client.js"
 import { render } from "../../output/render.js"
@@ -165,7 +166,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
         writeRealtimeState: (next) => writeDriveRealtimeState(root, next),
       })
     }
-    source = options.source ?? createChokidarSource(root)
+    source = options.source ?? createDefaultWatchSource(root)
     source.onChange((path) => {
       if (isDriveInternalPath(root, path)) return
       scheduleSync(debounceMs)
@@ -220,6 +221,34 @@ export function driveWatchCommand(options: DriveWatchOptions = {}): Command {
     .action(async (path: string) => {
       await runDriveWatch(resolve(path), options)
     })
+}
+
+export function createDefaultWatchSource(root: string): DriveWatchSource {
+  // Windows refuses to rename a directory while any handle is open beneath
+  // it, and chokidar keeps one fs.watch handle per subdirectory, so every
+  // folder rename in the synced tree failed with EPERM (e.g. from Obsidian).
+  // A single recursive root watch only pins the root itself.
+  return process.platform === "win32" ? createNativeRecursiveSource(root) : createChokidarSource(root)
+}
+
+function createNativeRecursiveSource(root: string): DriveWatchSource {
+  const handlers: Array<(path: string) => void> = []
+  const watcher = fsWatch(root, { recursive: true }, (_event, filename) => {
+    if (filename === null) return
+    const path = resolve(root, filename.toString())
+    for (const handler of handlers) handler(path)
+  })
+  // A watcher error must not crash the whole watch loop; realtime events
+  // still trigger syncs even if local watching degrades.
+  watcher.on("error", () => {})
+  return {
+    onChange(handler) {
+      handlers.push(handler)
+    },
+    async close() {
+      watcher.close()
+    },
+  }
 }
 
 function createChokidarSource(root: string): DriveWatchSource {

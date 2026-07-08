@@ -619,3 +619,49 @@ describe("drive watch", () => {
     expect(realtimeSource.close).toHaveBeenCalledTimes(1)
   })
 })
+
+describe("createDefaultWatchSource", () => {
+  it("does not block renaming a watched subdirectory", async () => {
+    const { mkdir, mkdtemp, rename, rm, writeFile } = await import("node:fs/promises")
+    const { tmpdir } = await import("node:os")
+    const { join } = await import("node:path")
+    const { createDefaultWatchSource } = await import("../../../src/handwritten/commands/drive/watch.js")
+
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-watch-"))
+    const inner = join(root, "sub", "inner")
+    await mkdir(inner, { recursive: true })
+    await writeFile(join(inner, "a.txt"), "a")
+
+    const source = createDefaultWatchSource(root)
+    try {
+      let sawInnerEvent!: () => void
+      const innerEventSeen = new Promise<void>((resolve) => {
+        sawInnerEvent = resolve
+      })
+      source.onChange((path) => {
+        if (path.includes("probe")) sawInnerEvent()
+      })
+
+      // Keep writing probes until one is observed: proves the watcher covers
+      // the deepest directory before we attempt the rename.
+      let probeCount = 0
+      let pendingProbe: Promise<void> = Promise.resolve()
+      const probeTimer = setInterval(() => {
+        pendingProbe = writeFile(join(inner, `probe-${probeCount++}.txt`), "p").catch(() => {})
+      }, 100)
+      try {
+        await innerEventSeen
+      } finally {
+        clearInterval(probeTimer)
+      }
+      // The last probe write must release its handle before the rename, or
+      // the open file itself blocks the rename on Windows.
+      await pendingProbe
+
+      await expect(rename(join(root, "sub"), join(root, "sub-renamed"))).resolves.toBeUndefined()
+    } finally {
+      await source.close()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 15_000)
+})
