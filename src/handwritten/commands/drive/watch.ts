@@ -69,6 +69,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       do {
         rerunRequested = false
         try {
+          // A large first upload can run for minutes; without this the app
+          // shows a stale badge and users assume sync never started.
+          emit({ kind: "drive_sync_start" })
           const summary = await runSync(root)
           emit({ kind: "drive_sync_once", ...summary })
           backoffMs = 1000

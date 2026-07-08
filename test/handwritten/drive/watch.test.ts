@@ -102,6 +102,18 @@ describe("drive watch", () => {
     expect(runSync).toHaveBeenCalledWith("/tmp/root")
   })
 
+  it("emits drive_sync_start before each sync round", async () => {
+    const source = fakeSource()
+    const events: Array<{ kind?: string }> = []
+    const runSync = vi.fn(async () => syncSummary())
+
+    await runDriveWatch("/tmp/root", { source, runSync, readState, onEvent: (event) => events.push(event as { kind?: string }), once: true })
+
+    const kinds = events.map((event) => event.kind)
+    expect(kinds.indexOf("drive_sync_start")).toBeGreaterThanOrEqual(0)
+    expect(kinds.indexOf("drive_sync_start")).toBeLessThan(kinds.indexOf("drive_sync_once"))
+  })
+
   it("does not start watching when state validation fails", async () => {
     const source: DriveWatchSource = {
       onChange: vi.fn(),

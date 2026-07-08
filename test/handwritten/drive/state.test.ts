@@ -75,6 +75,38 @@ describe("drive state", () => {
     expect(ran).toBe(true)
   })
 
+  it("writes the owning pid into the lock file", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-pid-"))
+    await initDriveState(root, "lib_a")
+    const lockFile = join(root, ".wspc-drive", "sync.lock")
+
+    await withDriveLock(root, async () => {
+      expect(await readFile(lockFile, "utf8")).toBe(String(process.pid))
+    })
+  })
+
+  it("recovers a fresh lock whose owning process is dead", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-deadpid-"))
+    await initDriveState(root, "lib_a")
+    const lockFile = join(root, ".wspc-drive", "sync.lock")
+    await writeFile(lockFile, String(findDeadPid()))
+    let ran = false
+
+    await withDriveLock(root, async () => {
+      ran = true
+    })
+
+    expect(ran).toBe(true)
+  })
+
+  it("rejects a fresh lock whose owning process is alive", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-livepid-"))
+    await initDriveState(root, "lib_a")
+    await writeFile(join(root, ".wspc-drive", "sync.lock"), String(process.pid))
+
+    await expect(withDriveLock(root, async () => undefined)).rejects.toThrow(/sync lock already exists/)
+  })
+
   it("rejects unsupported schema", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-"))
     const badState = { schema_version: 2, library_id: "lib_a", entries: {}, conflicts: {} }
@@ -384,3 +416,14 @@ describe("drive state", () => {
     expect(read.updated_at).toBe("2026-06-21T10:10:00.123Z")
   })
 })
+
+function findDeadPid(): number {
+  for (let pid = 99991; pid > 1000; pid -= 7) {
+    try {
+      process.kill(pid, 0)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ESRCH") return pid
+    }
+  }
+  throw new Error("no dead pid found")
+}

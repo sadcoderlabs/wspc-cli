@@ -140,17 +140,18 @@ export async function writeDriveRealtimeState(root: string, realtime: DriveRealt
 export async function withDriveLock<T>(root: string, fn: () => Promise<T>): Promise<T> {
   await mkdir(join(root, DRIVE_DIR), { recursive: true })
   const lockFile = join(root, DRIVE_DIR, "sync.lock")
-  const fh = await open(lockFile, "wx").catch(async (error) => {
+  const acquire = async () => {
+    const handle = await open(lockFile, "wx")
+    await handle.writeFile(String(process.pid))
+    return handle
+  }
+  const fh = await acquire().catch(async (error) => {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
-    const lockStat = await stat(lockFile).catch((statError) => {
-      if ((statError as NodeJS.ErrnoException).code === "ENOENT") return undefined
-      throw statError
-    })
-    if (lockStat && Date.now() - lockStat.mtimeMs <= STALE_LOCK_MS) {
+    if (!(await isLockAbandoned(lockFile))) {
       throw new Error("sync lock already exists")
     }
     await rm(lockFile, { force: true })
-    return open(lockFile, "wx").catch((retryError) => {
+    return acquire().catch((retryError) => {
       if ((retryError as NodeJS.ErrnoException).code === "EEXIST") {
         throw new Error("sync lock already exists")
       }
@@ -162,6 +163,35 @@ export async function withDriveLock<T>(root: string, fn: () => Promise<T>): Prom
   } finally {
     await fh.close().catch(() => {})
     await rm(lockFile, { force: true }).catch(() => {})
+  }
+}
+
+// A lock is abandoned when its owner process is gone (a force-killed watch on
+// Windows never runs the finally cleanup), or, for locks without a readable
+// pid, when its mtime is older than STALE_LOCK_MS.
+async function isLockAbandoned(lockFile: string): Promise<boolean> {
+  const pid = await readLockPid(lockFile)
+  if (pid !== undefined && !isProcessAlive(pid)) return true
+  const lockStat = await stat(lockFile).catch((statError) => {
+    if ((statError as NodeJS.ErrnoException).code === "ENOENT") return undefined
+    throw statError
+  })
+  return lockStat === undefined || Date.now() - lockStat.mtimeMs > STALE_LOCK_MS
+}
+
+async function readLockPid(lockFile: string): Promise<number | undefined> {
+  const text = await readFile(lockFile, "utf8").catch(() => undefined)
+  if (text === undefined || !/^\d+$/.test(text.trim())) return undefined
+  return Number(text.trim())
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    // EPERM means the process exists but is not ours; only ESRCH proves death.
+    return (error as NodeJS.ErrnoException).code !== "ESRCH"
   }
 }
 
