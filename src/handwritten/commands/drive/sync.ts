@@ -75,7 +75,21 @@ function emptySummary(): DriveSyncSummary {
   }
 }
 
-export async function runDriveSyncOnce(root: string, api?: DriveSyncApi, clock: DriveClock = systemDriveClock): Promise<DriveSyncSummary> {
+export type DriveSyncProgress = (processed: number, total: number) => void
+
+// Progress counts actionable paths only (transfers and conflict handling);
+// counting unchanged/state-only paths would make incremental syncs jump to
+// ~100% instantly and stall there.
+function isActionableAction(action: DriveAction): boolean {
+  return action.type !== "unchanged" && action.type !== "state_only" && action.type !== "remove_state"
+}
+
+export async function runDriveSyncOnce(
+  root: string,
+  api?: DriveSyncApi,
+  clock: DriveClock = systemDriveClock,
+  onProgress?: DriveSyncProgress,
+): Promise<DriveSyncSummary> {
   return withDriveLock(root, async () => {
     let state = await readDriveState(root)
     const syncApi = api ?? (await createDriveApi())
@@ -93,11 +107,23 @@ export async function runDriveSyncOnce(root: string, api?: DriveSyncApi, clock: 
       .filter((path) => !blockedPaths.has(path))
       .sort((left, right) => left.localeCompare(right))
 
+    // decideDriveAction is pure and reads only this path's slices of the
+    // initial state, so this pre-pass total matches the loop's actions.
+    const total = paths.filter((path) =>
+      isActionableAction(decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])),
+    ).length
+    let processed = 0
+    onProgress?.(processed, total)
+
     for (const path of paths) {
       const remote = remoteFiles[path]
       const action = decideDriveAction(state.entries[path], localFiles[path], remote)
       const result = await processPath({ root, state, api: syncApi, path, action, remote, local: localFiles[path], summary, clock })
       state = result.state
+      if (isActionableAction(action)) {
+        processed += 1
+        onProgress?.(processed, total)
+      }
       if (result.stop) break
     }
 

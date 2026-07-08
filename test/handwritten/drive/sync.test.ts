@@ -201,6 +201,32 @@ describe("drive sync once", () => {
     })
   })
 
+  it("reports progress over actionable paths only, excluding unchanged", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-progress-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["same.txt"] = stateEntry("same.txt", "same", 2)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "same.txt"), "same")
+    await writeFile(join(root, "new.txt"), "hello")
+    const remote = entry("remote.txt", "remote", 3)
+    const api = mkApi([{ entries: [entry("same.txt", "same", 2), remote] }])
+    api.downloads.set("remote.txt", "remote")
+    const progress: Array<[number, number]> = []
+
+    const result = await runDriveSyncOnce(root, api, undefined, (processed, total) => {
+      progress.push([processed, total])
+    })
+
+    expect(result.uploaded).toBe(1)
+    expect(result.downloaded).toBe(1)
+    expect(result.unchanged).toBe(1)
+    expect(progress).toEqual([
+      [0, 2],
+      [1, 2],
+      [2, 2],
+    ])
+  })
+
   it("includes merged count and conflict copy metadata in sync summaries", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-summary-shape-"))
     await initDriveState(root, "lib_1")

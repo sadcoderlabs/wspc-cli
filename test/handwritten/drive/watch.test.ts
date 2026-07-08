@@ -127,7 +127,33 @@ describe("drive watch", () => {
     await runDriveWatch("/tmp/root", { source, runSync, readState, onEvent, once: true })
 
     expect(runSync).toHaveBeenCalledTimes(1)
-    expect(runSync).toHaveBeenCalledWith("/tmp/root")
+    expect(runSync).toHaveBeenCalledWith("/tmp/root", expect.any(Function))
+  })
+
+  it("emits drive_sync_progress events from the sync progress callback", async () => {
+    const source = fakeSource()
+    const events: Array<{ kind?: string; processed?: number; total?: number }> = []
+    const runSync = vi.fn(async (_root: string, onProgress?: (processed: number, total: number) => void) => {
+      onProgress?.(0, 2)
+      onProgress?.(1, 2)
+      onProgress?.(2, 2)
+      return syncSummary()
+    })
+
+    await runDriveWatch("/tmp/root", {
+      source,
+      runSync,
+      readState,
+      onEvent: (event) => events.push(event as { kind?: string; processed?: number; total?: number }),
+      once: true,
+    })
+
+    const progressEvents = events.filter((event) => event.kind === "drive_sync_progress")
+    expect(progressEvents).toEqual([
+      { kind: "drive_sync_progress", processed: 0, total: 2 },
+      { kind: "drive_sync_progress", processed: 1, total: 2 },
+      { kind: "drive_sync_progress", processed: 2, total: 2 },
+    ])
   })
 
   it("emits drive_sync_start before each sync round", async () => {
