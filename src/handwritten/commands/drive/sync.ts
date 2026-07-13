@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { basename, dirname, join, posix as pathPosix, resolve } from "node:path"
 import { createHash, randomUUID } from "node:crypto"
 import { createDriveApi } from "./api.js"
+import { noopDriveDebugLogger, type DriveDebugLogger } from "./debug-log.js"
 import { driveConflictTimestamp, driveIsoTimestamp, systemDriveClock, type DriveClock } from "./clock.js"
 import { decideDriveAction, type DriveAction } from "./decision.js"
 import { normalizeRemoteManifest } from "./manifest.js"
@@ -89,18 +90,23 @@ export async function runDriveSyncOnce(
   api?: DriveSyncApi,
   clock: DriveClock = systemDriveClock,
   onProgress?: DriveSyncProgress,
+  debug: DriveDebugLogger = noopDriveDebugLogger,
 ): Promise<DriveSyncSummary> {
   return withDriveLock(root, async () => {
     let state = await readDriveState(root)
     const syncApi = api ?? (await createDriveApi())
     const summary = emptySummary()
     const blockedPaths = new Set<string>()
+    const scanStartedMs = Date.now()
     const localFiles = await scanDriveFiles(root, {
       onPathError: async (path, error) => {
         await recordPathError(summary, blockedPaths, path, error)
       },
     })
+    const scanMs = Date.now() - scanStartedMs
+    const manifestStartedMs = Date.now()
     const remoteFiles = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths)
+    const manifestMs = Date.now() - manifestStartedMs
     const paths = Array.from(
       new Set([...Object.keys(localFiles), ...Object.keys(remoteFiles), ...Object.keys(state.entries)]),
     )
@@ -115,11 +121,27 @@ export async function runDriveSyncOnce(
     let processed = 0
     onProgress?.(processed, total)
 
+    const processStartedMs = Date.now()
     for (const path of paths) {
       const remote = remoteFiles[path]
-      const action = decideDriveAction(state.entries[path], localFiles[path], remote)
-      const result = await processPath({ root, state, api: syncApi, path, action, remote, local: localFiles[path], summary, clock })
+      const local = localFiles[path]
+      const action = decideDriveAction(state.entries[path], local, remote)
+      if (isActionableAction(action)) {
+        debug.log("decision", decisionFields(path, action, state.entries[path], local, remote))
+      }
+      const previousConflict = state.conflicts[path]
+      const result = await processPath({ root, state, api: syncApi, path, action, remote, local, summary, clock })
       state = result.state
+      const recordedConflict = state.conflicts[path]
+      if (recordedConflict !== undefined && recordedConflict !== previousConflict) {
+        debug.log("conflict", {
+          path,
+          reason: recordedConflict.reason,
+          ...(recordedConflict.type === undefined ? {} : { type: recordedConflict.type }),
+          ...(recordedConflict.strategy === undefined ? {} : { strategy: recordedConflict.strategy }),
+          ...(recordedConflict.conflict_paths === undefined ? {} : { conflict_paths: recordedConflict.conflict_paths }),
+        })
+      }
       if (isActionableAction(action)) {
         processed += 1
         onProgress?.(processed, total)
@@ -128,8 +150,30 @@ export async function runDriveSyncOnce(
     }
 
     recordUnresolvedConflicts(summary, state)
+    debug.log("sync_phases", { scan_ms: scanMs, manifest_ms: manifestMs, process_ms: Date.now() - processStartedMs })
     return summary
   })
+}
+
+function decisionFields(
+  path: string,
+  action: DriveAction,
+  entry: DriveStateEntry | undefined,
+  local: { sha256: string; size_bytes: number } | undefined,
+  remote: RemoteEntry | undefined,
+): Record<string, unknown> {
+  return {
+    path,
+    action: action.type,
+    ...("reason" in action && action.reason !== undefined ? { reason: action.reason } : {}),
+    ...(entry === undefined
+      ? {}
+      : { base_version_id: entry.current_version_id, base_entry_version: entry.entry_version, base_sha256: entry.content_sha256 }),
+    ...(local === undefined ? {} : { local_sha256: local.sha256, local_size_bytes: local.size_bytes }),
+    ...(remote === undefined
+      ? {}
+      : { remote_version_id: remote.current_version_id, remote_entry_version: remote.entry_version, remote_sha256: remote.content_sha256 }),
+  }
 }
 
 export function driveSyncCommand(api?: DriveSyncApi): Command {

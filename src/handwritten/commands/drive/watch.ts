@@ -4,6 +4,7 @@ import { watch as fsWatch } from "node:fs"
 import { relative, resolve } from "node:path"
 import { loadRealtimeAuthHeaders } from "../../auth/load-sdk-client.js"
 import { render, shouldOutputJson } from "../../output/render.js"
+import { createDriveDebugLogger, noopDriveDebugLogger, type DriveDebugLogger } from "./debug-log.js"
 import { createDriveRealtimeSource } from "./realtime.js"
 import { DRIVE_DIR, ensureDriveRealtimeState, readDriveState, writeDriveRealtimeState } from "./state.js"
 import { runDriveSyncOnce, type DriveSyncProgress, type DriveSyncSummary } from "./sync.js"
@@ -39,12 +40,15 @@ export interface DriveWatchOptions {
   debounceMs?: number
   remoteDebounceMs?: number
   onEvent?: (event: unknown) => void
+  debug?: boolean
+  debugLogger?: DriveDebugLogger
 }
 
 export async function runDriveWatch(root: string, options: DriveWatchOptions = {}): Promise<void> {
+  const dbg = options.debugLogger ?? (options.debug ? createDriveDebugLogger(root) : noopDriveDebugLogger)
   const runSync =
     options.runSync ??
-    ((syncRoot: string, onProgress?: DriveSyncProgress) => runDriveSyncOnce(syncRoot, undefined, undefined, onProgress))
+    ((syncRoot: string, onProgress?: DriveSyncProgress) => runDriveSyncOnce(syncRoot, undefined, undefined, onProgress, dbg))
   const debounceMs = options.debounceMs ?? 500
   const remoteDebounceMs = options.remoteDebounceMs ?? 2000
   // Watch is a long-lived event stream: json mode must emit NDJSON (one event
@@ -59,6 +63,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       }
       render({ kind: "drive_watch", display: { shape: "object" } }, event)
     })
+  let nextTrigger = "initial"
   let debounceTimer: NodeJS.Timeout | undefined
   let debounceDeadlineMs: number | undefined
   let retryTimer: NodeJS.Timeout | undefined
@@ -85,14 +90,28 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           // A large first upload can run for minutes; without this the app
           // shows a stale badge and users assume sync never started.
           emit({ kind: "drive_sync_start" })
+          dbg.log("sync_start", { trigger: nextTrigger })
+          const startedAtMs = Date.now()
           const summary = await runSync(root, (processed, total) => {
             emit({ kind: "drive_sync_progress", processed, total })
           })
           emit({ kind: "drive_sync_once", ...summary })
+          dbg.log("sync_end", {
+            duration_ms: Date.now() - startedAtMs,
+            uploaded: summary.uploaded,
+            downloaded: summary.downloaded,
+            deleted: summary.deleted,
+            merged: summary.merged,
+            unchanged: summary.unchanged,
+            conflicts: summary.conflicts,
+            errors: summary.errors,
+          })
           backoffMs = 1000
         } catch (error) {
           if (isAuthError(error) || isFatalWatchError(error) || !isRetryableWatchError(error)) throw error
           emit({ kind: "drive_watch_retry", delay_ms: backoffMs, error: errorMessage(error) })
+          dbg.log("retry", { delay_ms: backoffMs, error: errorMessage(error) })
+          nextTrigger = "retry"
           if (stopped) return
           await waitForManagedTimer(backoffMs)
           if (stopped) return
@@ -112,7 +131,8 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     debounceDeadlineMs = undefined
   }
 
-  function scheduleSync(delayMs: number): void {
+  function scheduleSync(delayMs: number, trigger: string): void {
+    nextTrigger = trigger
     if (running) {
       rerunRequested = true
       return
@@ -187,7 +207,8 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     source = options.source ?? createDefaultWatchSource(root)
     source.onChange((path) => {
       if (isDriveInternalPath(root, path)) return
-      scheduleSync(debounceMs)
+      dbg.log("fs_event", { path: relative(root, path) })
+      scheduleSync(debounceMs, "local")
     })
 
     emit({ kind: "drive_watch_started", root, library_id: state.library_id })
@@ -198,11 +219,12 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
         },
         onEvent(event) {
           emit(realtimeEvent(event))
+          dbg.log("realtime_event", { ...event })
           if (event.immediate) {
-            scheduleSync(0)
+            scheduleSync(0, "remote")
             return
           }
-          scheduleSync(event.debounce_ms ?? remoteDebounceMs)
+          scheduleSync(event.debounce_ms ?? remoteDebounceMs, "remote")
         },
         onReconnect(delayMs, error) {
           emit({ kind: "drive_realtime_reconnecting", delay_ms: delayMs, error })
@@ -236,8 +258,10 @@ export function driveWatchCommand(options: DriveWatchOptions = {}): Command {
   return new Command("watch")
     .description("Watch a bound Drive folder and sync local changes")
     .argument("[path]", "local folder path", ".")
-    .action(async (path: string) => {
-      await runDriveWatch(resolve(path), options)
+    .option("--debug", "append debug NDJSON events to <folder>/.wspc-drive/debug.log")
+    .action(async (path: string, flags: { debug?: boolean }) => {
+      const debug = options.debug ?? (flags.debug === true || process.env.WSPC_DRIVE_DEBUG === "1")
+      await runDriveWatch(resolve(path), { ...options, debug })
     })
 }
 

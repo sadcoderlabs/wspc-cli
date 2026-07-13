@@ -29,6 +29,10 @@ async function expectJsonResult<T>(result: JsonResult<T>): Promise<T> {
   return result.data
 }
 
+// Lets the server attribute drive file operations to the sync loop instead
+// of generic API traffic (drive_file_operation actor: "sync" vs "api").
+const SYNC_CLIENT_HEADERS = { "x-wspc-client": "drive-sync" } as const
+
 function driveContentUrl(baseUrl: string, id: string): URL {
   const baseWithTrailingSlash = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`
   return new URL(`drive/libraries/${encodeURIComponent(id)}/files/content`, baseWithTrailingSlash)
@@ -58,6 +62,7 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       const result = await driveFileDelete({
         client: rawClient,
         path: { id },
+        headers: SYNC_CLIENT_HEADERS,
         body: {
           path,
           expected_entry_version: expectedEntryVersion,
@@ -83,6 +88,7 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
         headers: {
           "content-type": "application/octet-stream",
           "x-drive-content-sha256": sha256,
+          ...SYNC_CLIENT_HEADERS,
         },
         body,
       })
