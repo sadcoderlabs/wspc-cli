@@ -36,8 +36,15 @@ import type { DriveManifestResponse, MoveDriveFileResponse, UploadDriveFileRespo
 type RemoteEntry = DriveManifestResponse["entries"][number]
 type ProcessPathResult = { state: DriveState; stop: boolean }
 
+// The manifest endpoint gained delta fields (latest_cursor / resync_required)
+// that the generated SDK type does not model yet.
+export type DriveManifestResult = DriveManifestResponse & {
+  latest_cursor?: string
+  resync_required?: boolean
+}
+
 export interface DriveSyncApi {
-  getManifest(id: string, cursor?: string): Promise<DriveManifestResponse>
+  getManifest(id: string, cursor?: string, sinceCursor?: string): Promise<DriveManifestResult>
   uploadFile(
     id: string,
     path: string,
@@ -132,7 +139,12 @@ export async function runDriveSyncOnce(
     }
     const scanMs = Date.now() - scanStartedMs
     const manifestStartedMs = Date.now()
-    const remoteFiles = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths, debug)
+    const manifest = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths, debug)
+    const remoteFiles = manifest.remoteFiles
+    if (manifest.manifestCursor !== undefined && manifest.manifestCursor !== state.manifest_cursor) {
+      state = { ...state, manifest_cursor: manifest.manifestCursor }
+      await writeDriveState(root, state, clock)
+    }
     const manifestMs = Date.now() - manifestStartedMs
     const paths = Array.from(
       new Set([...Object.keys(localFiles), ...Object.keys(remoteFiles), ...Object.keys(state.entries)]),
@@ -244,12 +256,36 @@ async function fetchRemoteManifest(
   summary: DriveSyncSummary,
   blockedPaths: Set<string>,
   debug: DriveDebugLogger,
-): Promise<Record<string, RemoteEntry>> {
+): Promise<{ remoteFiles: Record<string, RemoteEntry>; manifestCursor: string | undefined }> {
+  if (state.manifest_cursor !== undefined) {
+    const delta = await api.getManifest(state.library_id, undefined, state.manifest_cursor)
+    if (delta.resync_required !== true) {
+      const remoteFiles = remoteViewFromState(state)
+      const changed = delta.entries.filter((entry) => entry.deleted_at === undefined)
+      const normalized = normalizeRemoteManifest(root, changed)
+      for (const pathError of normalized.pathErrors) {
+        await recordPathError(summary, blockedPaths, pathError.path, pathError.error, {
+          appendPathResult: pathError.appendPathResult,
+          debug,
+          op: "manifest",
+        })
+      }
+      for (const entry of delta.entries) {
+        if (entry.deleted_at !== undefined) delete remoteFiles[entry.path]
+      }
+      Object.assign(remoteFiles, normalized.remoteFiles)
+      return { remoteFiles, manifestCursor: delta.latest_cursor ?? state.manifest_cursor }
+    }
+    // resync_required: cursor pruned or invalid, fall back to a full fetch.
+  }
+
   const entries: RemoteEntry[] = []
   let cursor: string | undefined
+  let latestCursor: string | undefined
   do {
     const page = await api.getManifest(state.library_id, cursor)
     entries.push(...page.entries)
+    if (page.latest_cursor !== undefined) latestCursor = page.latest_cursor
     cursor = page.next_cursor ?? undefined
   } while (cursor !== undefined)
 
@@ -261,7 +297,26 @@ async function fetchRemoteManifest(
       op: "manifest",
     })
   }
-  return normalized.remoteFiles
+  return { remoteFiles: normalized.remoteFiles, manifestCursor: latestCursor }
+}
+
+// Reconstructs the last-known remote view from base state so a manifest delta
+// only has to carry what changed since the stored cursor.
+function remoteViewFromState(state: DriveState): Record<string, RemoteEntry> {
+  const remoteFiles: Record<string, RemoteEntry> = {}
+  for (const [path, entry] of Object.entries(state.entries)) {
+    remoteFiles[path] = {
+      id: entry.entry_id,
+      path,
+      kind: "file",
+      entry_version: entry.entry_version,
+      size_bytes: entry.size_bytes,
+      updated_at: entry.last_synced_at,
+      ...(entry.current_version_id === undefined ? {} : { current_version_id: entry.current_version_id }),
+      ...(entry.content_sha256 === undefined ? {} : { content_sha256: entry.content_sha256 }),
+    }
+  }
+  return remoteFiles
 }
 
 async function processPath(args: {

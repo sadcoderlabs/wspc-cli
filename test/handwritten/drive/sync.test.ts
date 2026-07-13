@@ -114,23 +114,35 @@ type ManifestEntry = {
 
 type TestDriveSyncApi = DriveSyncApi & {
   manifests: string[]
+  deltas: string[]
   uploads: Array<{ id: string; path: string; sha256: string; expectedEntryVersion?: number }>
   deletes: Array<{ id: string; path: string; expectedEntryVersion: number }>
   downloads: Map<string, string>
 }
 
-function mkApi(manifestPages: Array<{ entries: ManifestEntry[]; next_cursor?: string | null }>): TestDriveSyncApi {
+function mkApi(
+  manifestPages: Array<{
+    entries: ManifestEntry[]
+    next_cursor?: string | null
+    latest_cursor?: string
+    resync_required?: boolean
+  }>,
+): TestDriveSyncApi {
   const downloads = new Map<string, string>()
   const api: TestDriveSyncApi = {
     manifests: [],
+    deltas: [],
     uploads: [],
     deletes: [],
     downloads,
-    async getManifest(_id, cursor) {
-      api.manifests.push(cursor ?? "")
+    async getManifest(_id, cursor, sinceCursor) {
+      if (sinceCursor !== undefined) api.deltas.push(sinceCursor)
+      else api.manifests.push(cursor ?? "")
       const page = manifestPages.shift()
       if (!page) throw new Error("unexpected manifest page")
       return {
+        ...(page.latest_cursor === undefined ? {} : { latest_cursor: page.latest_cursor }),
+        ...(page.resync_required === undefined ? {} : { resync_required: page.resync_required }),
         library: {
           id: "lib_1",
           org_id: "org_1",
@@ -1299,6 +1311,77 @@ describe("drive sync once", () => {
     await runDriveSyncOnce(root, api)
     const second = await readDriveState(root)
     expect(second.scan_cache?.["notes.txt"]?.sha256).toBe(sha256("hello"))
+  })
+
+  it("fetches a manifest delta when a manifest cursor is stored", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delta-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["a.txt"] = stateEntry("a.txt", "aaa", 1)
+    state.manifest_cursor = "000000000000000005"
+    await writeDriveState(root, state)
+    await writeFile(join(root, "a.txt"), "aaa")
+    const api = mkApi([
+      { entries: [entry("b.txt", "bbb", 1)], latest_cursor: "000000000000000007" },
+    ])
+    api.downloads.set("b.txt", "bbb")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(api.deltas).toEqual(["000000000000000005"])
+    expect(api.manifests).toEqual([])
+    // a.txt is not in the delta but must survive via the synthesized view.
+    expect(await readFile(join(root, "a.txt"), "utf8")).toBe("aaa")
+    expect(result.downloaded).toBe(1)
+    expect(await readFile(join(root, "b.txt"), "utf8")).toBe("bbb")
+    expect((await readDriveState(root)).manifest_cursor).toBe("000000000000000007")
+  })
+
+  it("falls back to a full manifest when the delta cursor expired", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delta-resync-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["a.txt"] = stateEntry("a.txt", "aaa", 1)
+    state.manifest_cursor = "000000000000000001"
+    await writeDriveState(root, state)
+    await writeFile(join(root, "a.txt"), "aaa")
+    const api = mkApi([
+      { entries: [], resync_required: true, latest_cursor: "000000000000000009" },
+      { entries: [entry("a.txt", "aaa", 1)], latest_cursor: "000000000000000009" },
+    ])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(api.deltas).toEqual(["000000000000000001"])
+    expect(api.manifests).toEqual([""])
+    expect(result.errors).toBe(0)
+    expect((await readDriveState(root)).manifest_cursor).toBe("000000000000000009")
+  })
+
+  it("applies deleted entries from a manifest delta", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-delta-delete-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["a.txt"] = stateEntry("a.txt", "aaa", 1)
+    state.manifest_cursor = "000000000000000005"
+    await writeDriveState(root, state)
+    await writeFile(join(root, "a.txt"), "aaa")
+    const deleted = { ...entry("a.txt", "aaa", 2), deleted_at: "2026-07-13T00:00:00.000Z" }
+    const api = mkApi([{ entries: [deleted], latest_cursor: "000000000000000008" }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.deleted).toBe(1)
+    const { localFileExists } = await import("../../../src/handwritten/commands/drive/local-mutations.js")
+    expect(await localFileExists(join(root, "a.txt"))).toBe(false)
+  })
+
+  it("stores the manifest cursor from a full fetch", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-cursor-store-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "n.txt"), "n")
+    const api = mkApi([{ entries: [], latest_cursor: "000000000000000003" }])
+
+    await runDriveSyncOnce(root, api)
+
+    expect((await readDriveState(root)).manifest_cursor).toBe("000000000000000003")
   })
 
   it("rescans only dirty paths when a dirty set is provided", async () => {

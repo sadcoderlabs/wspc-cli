@@ -52,6 +52,8 @@ export interface DriveState {
   conflicts: Record<string, DriveConflict>
   realtime?: DriveRealtimeState
   scan_cache?: Record<string, DriveScanCacheEntry>
+  // Latest manifest cursor seen; enables since_cursor delta fetches.
+  manifest_cursor?: string
 }
 
 export function statePath(root: string): string {
@@ -277,7 +279,8 @@ function isValidDriveState(value: unknown): value is DriveState {
     !isRecord(value.entries) ||
     !isRecord(value.conflicts) ||
     (value.realtime !== undefined && !isDriveRealtimeState(value.realtime)) ||
-    (value.scan_cache !== undefined && !isRecord(value.scan_cache))
+    (value.scan_cache !== undefined && !isRecord(value.scan_cache)) ||
+    (value.manifest_cursor !== undefined && typeof value.manifest_cursor !== "string")
   ) {
     return false
   }
