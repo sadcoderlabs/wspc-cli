@@ -1214,6 +1214,27 @@ describe("drive sync once", () => {
     expect(after.entries["b.txt"]).toBeUndefined()
   })
 
+  it("persists the scan hash cache in state.json across syncs", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-scan-cache-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "notes.txt"), "hello")
+    const api = mkApi([{ entries: [] }, { entries: [entry("notes.txt", "hello", 1)] }])
+
+    await runDriveSyncOnce(root, api)
+
+    const state = await readDriveState(root)
+    expect(state.scan_cache?.["notes.txt"]).toMatchObject({
+      sha256: sha256("hello"),
+      size_bytes: 5,
+      mtime_ms: expect.any(Number),
+    })
+
+    // Second sync with unchanged file keeps the cache entry.
+    await runDriveSyncOnce(root, api)
+    const second = await readDriveState(root)
+    expect(second.scan_cache?.["notes.txt"]?.sha256).toBe(sha256("hello"))
+  })
+
   it("logs a debug error event for every recorded path error", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-error-event-"))
     await initDriveState(root, "lib_1")

@@ -142,6 +142,37 @@ describe("drive scanner", () => {
       { path: "A.txt", message: expect.stringContaining("LOCAL_PATH_CASE_CONFLICT") },
     ])
   })
+  it("reuses the cached hash when mtime and size are unchanged", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-scan-cache-"))
+    await writeFile(join(root, "notes.txt"), "hello")
+    const { lstat } = await import("node:fs/promises")
+    const stats = await lstat(join(root, "notes.txt"))
+
+    const files = await scanDriveFiles(root, {
+      cache: {
+        "notes.txt": { mtime_ms: stats.mtimeMs, size_bytes: stats.size, sha256: "cached-sha" },
+      },
+    })
+
+    expect(files["notes.txt"]).toEqual({ sha256: "cached-sha", size_bytes: stats.size })
+  })
+
+  it("rehashes when mtime or size differ from the cache and reports fresh cache entries", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-scan-cache-miss-"))
+    await writeFile(join(root, "notes.txt"), "hello")
+    const updates: Array<{ path: string; sha256: string }> = []
+
+    const files = await scanDriveFiles(root, {
+      cache: {
+        "notes.txt": { mtime_ms: 1, size_bytes: 5, sha256: "stale-sha" },
+      },
+      onCacheUpdate: (path, entry) => updates.push({ path, sha256: entry.sha256 }),
+    })
+
+    expect(files["notes.txt"]).toEqual({ sha256: sha256("hello"), size_bytes: 5 })
+    expect(updates).toEqual([{ path: "notes.txt", sha256: sha256("hello") }])
+  })
+
   it("reports and skips a file that disappears between readdir and lstat", async () => {
     const errors: Array<{ path: string; code?: string }> = []
     const mockedScanDriveFiles = await importScannerWithMockFiles(

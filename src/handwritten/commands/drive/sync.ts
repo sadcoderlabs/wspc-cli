@@ -26,6 +26,7 @@ import {
   writeDriveState,
   withDriveLock,
   type DriveConflict,
+  type DriveScanCacheEntry,
   type DriveState,
   type DriveStateEntry,
 } from "./state.js"
@@ -98,11 +99,20 @@ export async function runDriveSyncOnce(
     const summary = emptySummary()
     const blockedPaths = new Set<string>()
     const scanStartedMs = Date.now()
+    const nextScanCache: Record<string, DriveScanCacheEntry> = {}
     const localFiles = await scanDriveFiles(root, {
+      cache: state.scan_cache,
+      onCacheUpdate: (path, entry) => {
+        nextScanCache[path] = entry
+      },
       onPathError: async (path, error) => {
         await recordPathError(summary, blockedPaths, path, error, { debug, op: "scan" })
       },
     })
+    if (JSON.stringify(state.scan_cache ?? {}) !== JSON.stringify(nextScanCache)) {
+      state = { ...state, scan_cache: nextScanCache }
+      await writeDriveState(root, state, clock)
+    }
     const scanMs = Date.now() - scanStartedMs
     const manifestStartedMs = Date.now()
     const remoteFiles = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths, debug)

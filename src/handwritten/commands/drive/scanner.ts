@@ -11,8 +11,17 @@ export interface DriveFileEntry {
   sha256: string
 }
 
+export interface ScanCacheEntry {
+  mtime_ms: number
+  size_bytes: number
+  sha256: string
+}
+
 export interface ScanDriveFilesOptions {
   onPathError?: (path: string, error: unknown) => void | Promise<void>
+  // Hash cache: entries whose mtime+size match are not re-read.
+  cache?: Record<string, ScanCacheEntry>
+  onCacheUpdate?: (path: string, entry: ScanCacheEntry) => void
 }
 
 export async function scanDriveFiles(root: string, options: ScanDriveFilesOptions = {}): Promise<Record<string, DriveFileEntry>> {
@@ -68,10 +77,18 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
           continue
         }
 
+        const cached = options.cache?.[nextDrivePath]
+        if (cached !== undefined && cached.mtime_ms === stats.mtimeMs && cached.size_bytes === stats.size) {
+          options.onCacheUpdate?.(nextDrivePath, cached)
+          candidates.push({ path: nextDrivePath, entry: { sha256: cached.sha256, size_bytes: cached.size_bytes } })
+          continue
+        }
+
         const digest = await hashDriveFile(nextPath)
         if (!digest) {
           continue
         }
+        options.onCacheUpdate?.(nextDrivePath, { mtime_ms: stats.mtimeMs, size_bytes: digest.sizeBytes, sha256: digest.sha256 })
         candidates.push({ path: nextDrivePath, entry: { sha256: digest.sha256, size_bytes: digest.sizeBytes } })
       } catch (error) {
         // Files can vanish or lock mid-scan (rename transitions, editors
