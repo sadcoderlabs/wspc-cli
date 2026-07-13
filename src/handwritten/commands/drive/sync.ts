@@ -36,15 +36,8 @@ import type { DriveManifestResponse, MoveDriveFileResponse, UploadDriveFileRespo
 type RemoteEntry = DriveManifestResponse["entries"][number]
 type ProcessPathResult = { state: DriveState; stop: boolean }
 
-// The manifest endpoint gained delta fields (latest_cursor / resync_required)
-// that the generated SDK type does not model yet.
-export type DriveManifestResult = DriveManifestResponse & {
-  latest_cursor?: string
-  resync_required?: boolean
-}
-
 export interface DriveSyncApi {
-  getManifest(id: string, cursor?: string, sinceCursor?: string): Promise<DriveManifestResult>
+  getManifest(id: string, cursor?: string, sinceCursor?: string): Promise<DriveManifestResponse>
   uploadFile(
     id: string,
     path: string,
