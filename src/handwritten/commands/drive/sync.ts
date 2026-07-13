@@ -31,7 +31,7 @@ import {
   type DriveStateEntry,
 } from "./state.js"
 import { render } from "../../output/render.js"
-import type { DriveManifestResponse, UploadDriveFileResponse } from "../../../generated/sdk/index.js"
+import type { DriveManifestResponse, MoveDriveFileResponse, UploadDriveFileResponse } from "../../../generated/sdk/index.js"
 
 type RemoteEntry = DriveManifestResponse["entries"][number]
 type ProcessPathResult = { state: DriveState; stop: boolean }
@@ -47,9 +47,15 @@ export interface DriveSyncApi {
   ): Promise<UploadDriveFileResponse>
   downloadFile(id: string, path: string, versionId?: string): Promise<Response>
   deleteFile(id: string, path: string, expectedEntryVersion: number): Promise<unknown>
+  moveFile?(
+    id: string,
+    fromPath: string,
+    toPath: string,
+    expectedEntryVersion?: number,
+  ): Promise<MoveDriveFileResponse>
 }
 
-export type DriveSyncPathAction = DriveAction["type"] | "error" | "merged"
+export type DriveSyncPathAction = DriveAction["type"] | "error" | "merged" | "move"
 
 export interface DriveSyncSummary {
   uploaded: number
@@ -123,16 +129,34 @@ export async function runDriveSyncOnce(
       .filter((path) => !blockedPaths.has(path))
       .sort((left, right) => left.localeCompare(right))
 
+    const movedPaths = await applyRenamesAsMoves({
+      root,
+      state,
+      api: syncApi,
+      paths,
+      localFiles,
+      remoteFiles,
+      summary,
+      clock,
+      debug,
+      onStateChange: (nextState) => {
+        state = nextState
+      },
+    })
+
     // decideDriveAction is pure and reads only this path's slices of the
     // initial state, so this pre-pass total matches the loop's actions.
-    const total = paths.filter((path) =>
-      isActionableAction(decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])),
+    const total = paths.filter(
+      (path) =>
+        !movedPaths.has(path) &&
+        isActionableAction(decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])),
     ).length
     let processed = 0
     onProgress?.(processed, total)
 
     const processStartedMs = Date.now()
     for (const path of paths) {
+      if (movedPaths.has(path)) continue
       const remote = remoteFiles[path]
       const local = localFiles[path]
       const action = decideDriveAction(state.entries[path], local, remote)
@@ -480,6 +504,71 @@ async function tryResolveConflict(args: {
 async function downloadBytes(api: DriveSyncApi, libraryId: string, path: string, versionId: string): Promise<Uint8Array> {
   const response = await api.downloadFile(libraryId, path, versionId)
   return new Uint8Array(await response.arrayBuffer())
+}
+
+// Detects local renames (a delete_remote and an upload_create with the same
+// content hash) and applies them via the server move API, preserving version
+// history and skipping a full re-upload. Only unambiguous 1:1 hash pairs are
+// moved; anything else falls back to normal upload + delete processing.
+async function applyRenamesAsMoves(args: {
+  root: string
+  state: DriveState
+  api: DriveSyncApi
+  paths: string[]
+  localFiles: Record<string, { sha256: string; size_bytes: number }>
+  remoteFiles: Record<string, RemoteEntry>
+  summary: DriveSyncSummary
+  clock: DriveClock
+  debug: DriveDebugLogger
+  onStateChange: (state: DriveState) => void
+}): Promise<Set<string>> {
+  const { root, api, paths, localFiles, remoteFiles, summary, clock, debug, onStateChange } = args
+  const movedPaths = new Set<string>()
+  if (api.moveFile === undefined) return movedPaths
+
+  let state = args.state
+  const deletesBySha = new Map<string, string[]>()
+  const createsBySha = new Map<string, string[]>()
+  for (const path of paths) {
+    const action = decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])
+    if (action.type === "delete_remote") {
+      const sha = state.entries[path]?.last_local_sha256 ?? state.entries[path]?.content_sha256
+      if (sha !== undefined) deletesBySha.set(sha, [...(deletesBySha.get(sha) ?? []), path])
+    }
+    if (action.type === "upload_create") {
+      const sha = localFiles[path]?.sha256
+      if (sha !== undefined) createsBySha.set(sha, [...(createsBySha.get(sha) ?? []), path])
+    }
+  }
+
+  for (const [sha, fromPaths] of deletesBySha) {
+    const toPaths = createsBySha.get(sha)
+    if (fromPaths.length !== 1 || toPaths === undefined || toPaths.length !== 1) continue
+    const fromPath = fromPaths[0]!
+    const toPath = toPaths[0]!
+    const entry = state.entries[fromPath]
+    const local = localFiles[toPath]
+    if (entry === undefined || local === undefined) continue
+    try {
+      const moved = await api.moveFile(state.library_id, fromPath, toPath, entry.entry_version)
+      const nextState = cloneDriveState(state)
+      delete nextState.entries[fromPath]
+      delete nextState.conflicts[fromPath]
+      nextState.entries[toPath] = stateEntryFromRemote(moved.entry, local.sha256, clock)
+      delete nextState.conflicts[toPath]
+      await writeDriveState(root, nextState, clock)
+      state = nextState
+      onStateChange(nextState)
+      movedPaths.add(fromPath)
+      movedPaths.add(toPath)
+      summary.paths.push({ path: toPath, action: "move" })
+      debug.log("decision", { path: toPath, action: "move", from_path: fromPath })
+    } catch (error) {
+      // Move is an optimization: on any failure fall back to upload + delete.
+      debug.log("error", { path: toPath, op: "move", message: errorMessage(error) })
+    }
+  }
+  return movedPaths
 }
 
 function recordResolvedConflict(

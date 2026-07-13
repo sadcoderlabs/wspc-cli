@@ -1214,6 +1214,72 @@ describe("drive sync once", () => {
     expect(after.entries["b.txt"]).toBeUndefined()
   })
 
+  it("uses the move API for a same-hash delete + create pair instead of reupload", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "new-name.md"), "same content\n")
+    const api = mkApi([{ entries: [entry("old-name.md", "same content\n", 1)] }])
+    const moves: Array<{ from: string; to: string; expected?: number }> = []
+    api.moveFile = async (_id, fromPath, toPath, expectedEntryVersion) => {
+      moves.push({ from: fromPath, to: toPath, expected: expectedEntryVersion })
+      return { entry: entry(toPath, "same content\n", 2), result: "moved" as const }
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(moves).toEqual([{ from: "old-name.md", to: "new-name.md", expected: 1 }])
+    expect(api.uploads).toEqual([])
+    expect(api.deletes).toEqual([])
+    expect(result.errors).toBe(0)
+    const after = await readDriveState(root)
+    expect(after.entries["old-name.md"]).toBeUndefined()
+    expect(after.entries["new-name.md"]).toMatchObject({ entry_version: 2 })
+  })
+
+  it("falls back to upload + delete when the move API fails", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-fallback-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "new-name.md"), "same content\n")
+    const api = mkApi([{ entries: [entry("old-name.md", "same content\n", 1)] }])
+    api.moveFile = async () => {
+      throw new Error("HTTP 500: move failed")
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(0)
+    expect(api.uploads.map((upload) => upload.path)).toEqual(["new-name.md"])
+    expect(api.deletes.map((del) => del.path)).toEqual(["old-name.md"])
+  })
+
+  it("does not pair ambiguous same-hash renames", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-ambiguous-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["a.md"] = stateEntry("a.md", "dup\n", 1)
+    state.entries["b.md"] = stateEntry("b.md", "dup\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "c.md"), "dup\n")
+    await writeFile(join(root, "d.md"), "dup\n")
+    const api = mkApi([
+      { entries: [entry("a.md", "dup\n", 1), entry("b.md", "dup\n", 1)] },
+    ])
+    const moves: unknown[] = []
+    api.moveFile = async (_id, fromPath, toPath) => {
+      moves.push([fromPath, toPath])
+      return { entry: entry(toPath, "dup\n", 2), result: "moved" as const }
+    }
+
+    await runDriveSyncOnce(root, api)
+
+    expect(moves).toEqual([])
+    expect(api.uploads.map((upload) => upload.path).sort()).toEqual(["c.md", "d.md"])
+    expect(api.deletes.map((del) => del.path).sort()).toEqual(["a.md", "b.md"])
+  })
+
   it("persists the scan hash cache in state.json across syncs", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-scan-cache-"))
     await initDriveState(root, "lib_1")

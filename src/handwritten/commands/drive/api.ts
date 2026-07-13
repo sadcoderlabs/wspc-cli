@@ -1,10 +1,17 @@
 import { loadSdkClientWithAuthedFetch } from "../../auth/load-sdk-client.js"
 import {
   driveFileDelete,
+  driveFileMove,
   driveLibraryGet,
   driveManifestGet,
 } from "../../../generated/sdk/index.js"
-import type { DeleteDriveFileResponse, DriveLibrary, DriveManifestResponse, UploadDriveFileResponse } from "../../../generated/sdk/index.js"
+import type {
+  DeleteDriveFileResponse,
+  DriveLibrary,
+  DriveManifestResponse,
+  MoveDriveFileResponse,
+  UploadDriveFileResponse,
+} from "../../../generated/sdk/index.js"
 import type { ConfigStore } from "../../config/index.js"
 
 export interface DriveApiOptions {
@@ -74,6 +81,24 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
         },
       })
       return expectJsonResult<DeleteDriveFileResponse>(result)
+    },
+    async moveFile(
+      id: string,
+      fromPath: string,
+      toPath: string,
+      expectedEntryVersion?: number,
+    ): Promise<MoveDriveFileResponse> {
+      const result = await driveFileMove({
+        client: rawClient,
+        path: { id },
+        headers: clientHeaders,
+        body: {
+          from_path: fromPath,
+          to_path: toPath,
+          ...(expectedEntryVersion === undefined ? {} : { expected_entry_version: expectedEntryVersion }),
+        },
+      })
+      return expectJsonResult<MoveDriveFileResponse>(result)
     },
     async uploadFile(
       id: string,
