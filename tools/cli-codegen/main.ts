@@ -26,6 +26,7 @@ interface ParameterLike {
 export interface OperationLike {
   operationId?: string
   summary?: string
+  description?: string
   tags?: string[]
   parameters?: ParameterLike[]
   requestBody?: {
