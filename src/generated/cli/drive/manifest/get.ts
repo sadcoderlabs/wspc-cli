@@ -11,6 +11,7 @@ export const driveManifestGetCommand = new Command("get")
   .option("--cursor <value>", "cursor")
   .option("--include-deleted <value>", "include_deleted")
   .option("--path-prefix <value>", "path_prefix")
+  .option("--since-cursor <value>", "since_cursor")
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await driveManifestGet({
@@ -23,6 +24,7 @@ export const driveManifestGetCommand = new Command("get")
         cursor: opts.cursor,
         include_deleted: opts.includeDeleted,
         path_prefix: opts.pathPrefix,
+        since_cursor: opts.sinceCursor,
       },
     })
     if (result.error || !result.response?.ok) {

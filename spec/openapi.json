@@ -1531,6 +1531,12 @@
               "string",
               "null"
             ]
+          },
+          "latest_cursor": {
+            "type": "string"
+          },
+          "resync_required": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -19969,6 +19975,14 @@
             },
             "required": false,
             "name": "path_prefix",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "since_cursor",
             "in": "query"
           }
         ],

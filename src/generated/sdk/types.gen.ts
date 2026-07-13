@@ -843,6 +843,8 @@ export type DriveManifestResponse = {
         deleted_at?: string;
     }>;
     next_cursor: string | null;
+    latest_cursor?: string;
+    resync_required?: boolean;
 };
 
 export type ListDriveLibrariesResponse = {
@@ -5628,6 +5630,7 @@ export type DriveManifestGetData = {
         cursor?: string;
         include_deleted?: string;
         path_prefix?: string;
+        since_cursor?: string;
     };
     url: '/drive/libraries/{id}/manifest';
 };
