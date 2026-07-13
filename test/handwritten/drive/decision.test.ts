@@ -154,4 +154,20 @@ describe("drive decision", () => {
       reason: "local_and_remote_changed",
     })
   })
+
+  it("treats identical local and remote content as converged instead of conflicting", () => {
+    const entry: DecisionEntry = { entry_version: 1, content_sha256: "old", last_local_sha256: "old" }
+
+    expect(decideDriveAction(entry, { sha256: "same" }, { content_sha256: "same", entry_version: 2 })).toEqual({
+      type: "state_only",
+    })
+  })
+
+  it("treats identical content as converged even when the local base is unknown", () => {
+    const entry: DecisionEntry = { entry_version: 1 }
+
+    expect(decideDriveAction(entry, { sha256: "same" }, { content_sha256: "same", entry_version: 2 })).toEqual({
+      type: "state_only",
+    })
+  })
 })

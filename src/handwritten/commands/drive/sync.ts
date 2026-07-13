@@ -339,35 +339,17 @@ async function processPath(args: {
           summary.conflicts += 1
           return { state: nextState, stop: false }
         }
-        const conflictCopyState = await recordRemoteConflictCopy({
-          root,
-          state,
-          api,
-          path,
-          reason: action.reason,
-          type: "edit_edit",
-          remote,
-          clock,
-        })
-        if (conflictCopyState) {
-          summary.conflicts += 1
-          return { state: conflictCopyState, stop: false }
+        const resolved = await resolveConflictWithLocalAsMain({ root, state, api, path, remote, local, clock })
+        if (resolved) {
+          recordResolvedConflict(summary, debug, path, resolved.copyPath, action.reason, "edit_edit")
+          return { state: resolved.state, stop: false }
         }
       }
       if (action.reason === "local_and_remote_without_base") {
-        const conflictCopyState = await recordRemoteConflictCopy({
-          root,
-          state,
-          api,
-          path,
-          reason: action.reason,
-          type: "create_create",
-          remote,
-          clock,
-        })
-        if (conflictCopyState) {
-          summary.conflicts += 1
-          return { state: conflictCopyState, stop: false }
+        const resolved = await resolveConflictWithLocalAsMain({ root, state, api, path, remote, local, clock })
+        if (resolved) {
+          recordResolvedConflict(summary, debug, path, resolved.copyPath, action.reason, "create_create")
+          return { state: resolved.state, stop: false }
         }
       }
       if (action.reason === "local_changed_remote_deleted") {
@@ -488,6 +470,62 @@ async function tryResolveConflict(args: {
 async function downloadBytes(api: DriveSyncApi, libraryId: string, path: string, versionId: string): Promise<Uint8Array> {
   const response = await api.downloadFile(libraryId, path, versionId)
   return new Uint8Array(await response.arrayBuffer())
+}
+
+function recordResolvedConflict(
+  summary: DriveSyncSummary,
+  debug: DriveDebugLogger,
+  path: string,
+  copyPath: string,
+  reason: string,
+  type: NonNullable<DriveConflict["type"]>,
+): void {
+  summary.conflicts += 1
+  summary.conflict_paths.push(copyPath)
+  const lastPath = summary.paths.at(-1)
+  if (lastPath?.path === path) {
+    lastPath.conflict_paths = [copyPath]
+  }
+  debug.log("conflict", { path, reason, type, strategy: "conflict_copy", conflict_paths: [copyPath] })
+}
+
+// Resolves an edit/edit or create/create conflict in one pass: the remote
+// version is preserved as a conflict copy, the local content is uploaded as
+// the new main version, and the base state advances so the next sync does not
+// re-detect the same conflict.
+async function resolveConflictWithLocalAsMain(args: {
+  root: string
+  state: DriveState
+  api: DriveSyncApi
+  path: string
+  remote: RemoteEntry | undefined
+  local: { sha256: string; size_bytes: number } | undefined
+  clock: DriveClock
+}): Promise<{ state: DriveState; copyPath: string } | undefined> {
+  const { root, state, api, path, remote, local, clock } = args
+  const remoteVersionId = remote?.current_version_id
+  if (!remote || remoteVersionId === undefined || !local) {
+    return undefined
+  }
+
+  const previous = state.conflicts[path]
+  let copyPath: string
+  if (previous !== undefined && (await canReuseConflictCopy(root, previous, remoteVersionId))) {
+    copyPath = previous.conflict_paths![0]!
+  } else {
+    const remoteBytes = await downloadBytes(api, state.library_id, path, remoteVersionId)
+    copyPath = await writeConflictCopy(root, path, "remote", remoteVersionId, remoteBytes, clock)
+  }
+
+  const localPath = resolveInsideRoot(root, path)
+  const { body, digest } = await readStableUploadBody(localPath, local)
+  const uploaded = await api.uploadFile(state.library_id, path, body, digest, remote.entry_version)
+
+  const nextState = cloneDriveState(state)
+  nextState.entries[path] = stateEntryFromRemote(uploaded.entry, digest, clock)
+  delete nextState.conflicts[path]
+  await writeDriveState(root, nextState, clock)
+  return { state: nextState, copyPath }
 }
 
 async function recordRemoteConflictCopy(args: {
