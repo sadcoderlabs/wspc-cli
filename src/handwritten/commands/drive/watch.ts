@@ -36,7 +36,7 @@ export interface DriveWatchOptions {
   source?: DriveWatchSource
   realtimeSource?: DriveRealtimeSource
   readState?: typeof readDriveState
-  runSync?: (root: string, onProgress?: DriveSyncProgress) => Promise<DriveSyncSummary>
+  runSync?: (root: string, onProgress?: DriveSyncProgress, dirtyPaths?: string[]) => Promise<DriveSyncSummary>
   once?: boolean
   debounceMs?: number
   remoteDebounceMs?: number
@@ -49,7 +49,8 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
   const dbg = options.debugLogger ?? (options.debug ? createDriveDebugLogger(root) : noopDriveDebugLogger)
   const runSync =
     options.runSync ??
-    ((syncRoot: string, onProgress?: DriveSyncProgress) => runDriveSyncOnce(syncRoot, undefined, undefined, onProgress, dbg))
+    ((syncRoot: string, onProgress?: DriveSyncProgress, dirtyPaths?: string[]) =>
+      runDriveSyncOnce(syncRoot, undefined, undefined, onProgress, dbg, dirtyPaths === undefined ? {} : { dirtyPaths }))
   const debounceMs = options.debounceMs ?? 500
   const remoteDebounceMs = options.remoteDebounceMs ?? 2000
   // Watch is a long-lived event stream: json mode must emit NDJSON (one event
@@ -65,6 +66,10 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       render({ kind: "drive_watch", display: { shape: "object" } }, event)
     })
   let nextTrigger = "initial"
+  // Paths touched by fs events since the last successful sync. Local-trigger
+  // syncs re-stat only these; other triggers (initial/retry/remote) do a full
+  // reconciliation walk that also self-heals any missed events.
+  const dirtyPaths = new Set<string>()
   let debounceTimer: NodeJS.Timeout | undefined
   let debounceDeadlineMs: number | undefined
   let retryTimer: NodeJS.Timeout | undefined
@@ -93,9 +98,15 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           emit({ kind: "drive_sync_start" })
           dbg.log("sync_start", { trigger: nextTrigger })
           const startedAtMs = Date.now()
-          const summary = await runSync(root, (processed, total) => {
-            emit({ kind: "drive_sync_progress", processed, total })
-          })
+          const dirtySnapshot = nextTrigger === "local" ? [...dirtyPaths] : undefined
+          dirtyPaths.clear()
+          const summary = await runSync(
+            root,
+            (processed, total) => {
+              emit({ kind: "drive_sync_progress", processed, total })
+            },
+            dirtySnapshot,
+          )
           emit({ kind: "drive_sync_once", ...summary })
           dbg.log("sync_end", {
             duration_ms: Date.now() - startedAtMs,
@@ -211,7 +222,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       // Download/backup/merge temp files are our own writes; reacting to them
       // would chain an extra sync after every applied remote change.
       if (isInternalSyncArtifactName(basename(path))) return
-      dbg.log("fs_event", { path: relative(root, path) })
+      const drivePath = relative(root, path).replace(/\\/g, "/")
+      dirtyPaths.add(drivePath)
+      dbg.log("fs_event", { path: drivePath })
       scheduleSync(debounceMs, "local")
     })
 

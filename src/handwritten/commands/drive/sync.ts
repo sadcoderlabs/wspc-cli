@@ -9,7 +9,7 @@ import { decideDriveAction, type DriveAction } from "./decision.js"
 import { normalizeRemoteManifest } from "./manifest.js"
 import { classifyMergeText, conflictCopyPath, mergeText3 } from "./merge.js"
 import { resolveInsideRoot, validateDrivePath } from "./path-policy.js"
-import { scanDriveFiles } from "./scanner.js"
+import { rescanDriveFiles, scanDriveFiles } from "./scanner.js"
 import {
   assertLocalAbsentBeforeRemoteDelete,
   assertLocalSafeForDownload,
@@ -92,12 +92,19 @@ function isActionableAction(action: DriveAction): boolean {
   return action.type !== "unchanged" && action.type !== "state_only" && action.type !== "remove_state"
 }
 
+export interface DriveSyncOnceOptions {
+  // Incremental scan: only these paths are re-stat/hashed; the rest of the
+  // local view comes from state.scan_cache. Requires a warm cache.
+  dirtyPaths?: string[]
+}
+
 export async function runDriveSyncOnce(
   root: string,
   api?: DriveSyncApi,
   clock: DriveClock = systemDriveClock,
   onProgress?: DriveSyncProgress,
   debug: DriveDebugLogger = noopDriveDebugLogger,
+  options: DriveSyncOnceOptions = {},
 ): Promise<DriveSyncSummary> {
   return withDriveLock(root, async () => {
     let state = await readDriveState(root)
@@ -106,15 +113,19 @@ export async function runDriveSyncOnce(
     const blockedPaths = new Set<string>()
     const scanStartedMs = Date.now()
     const nextScanCache: Record<string, DriveScanCacheEntry> = {}
-    const localFiles = await scanDriveFiles(root, {
+    const scanOptions = {
       cache: state.scan_cache,
-      onCacheUpdate: (path, entry) => {
+      onCacheUpdate: (path: string, entry: DriveScanCacheEntry) => {
         nextScanCache[path] = entry
       },
-      onPathError: async (path, error) => {
+      onPathError: async (path: string, error: unknown) => {
         await recordPathError(summary, blockedPaths, path, error, { debug, op: "scan" })
       },
-    })
+    }
+    const useIncrementalScan = options.dirtyPaths !== undefined && state.scan_cache !== undefined
+    const localFiles = useIncrementalScan
+      ? await rescanDriveFiles(root, options.dirtyPaths!, scanOptions)
+      : await scanDriveFiles(root, scanOptions)
     if (JSON.stringify(state.scan_cache ?? {}) !== JSON.stringify(nextScanCache)) {
       state = { ...state, scan_cache: nextScanCache }
       await writeDriveState(root, state, clock)

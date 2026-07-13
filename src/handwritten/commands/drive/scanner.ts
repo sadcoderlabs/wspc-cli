@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { constants as fsConstants } from "node:fs"
 import { type Dirent } from "node:fs"
 import { open, readdir, lstat } from "node:fs/promises"
-import { join } from "node:path"
+import { join, posix as pathPosix } from "node:path"
 import { DRIVE_DIR } from "./state.js"
 import { validateDrivePath } from "./path-policy.js"
 
@@ -22,13 +22,15 @@ export interface ScanDriveFilesOptions {
   // Hash cache: entries whose mtime+size match are not re-read.
   cache?: Record<string, ScanCacheEntry>
   onCacheUpdate?: (path: string, entry: ScanCacheEntry) => void
+  // Scan only this subtree instead of the whole root (drive path, "" = root).
+  startDrivePath?: string
 }
 
 export async function scanDriveFiles(root: string, options: ScanDriveFilesOptions = {}): Promise<Record<string, DriveFileEntry>> {
   const candidates: Array<{ path: string; entry: DriveFileEntry }> = []
   const files: Record<string, DriveFileEntry> = {}
-  const absRoot = root
-  await walk(absRoot, "")
+  const startDrivePath = options.startDrivePath ?? ""
+  await walk(startDrivePath === "" ? root : join(root, ...startDrivePath.split("/")), startDrivePath)
   await addNonCollidingFiles(candidates)
   return files
 
@@ -39,6 +41,8 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
     } catch (error) {
       // The root itself failing to read must abort: an empty scan would look
       // like "everything was deleted locally" and propagate remote deletes.
+      // A vanished subtree start is fine: it just scans as empty.
+      if (currentDrivePath === startDrivePath && startDrivePath !== "" && isNotFoundError(error)) return
       if (currentDrivePath === "" || !isTransientScanError(error) || !options.onPathError) throw error
       await options.onPathError(currentDrivePath, error)
       return
@@ -126,6 +130,88 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
   function isExcludedRootEntry(currentDrivePath: string, entry: Dirent): boolean {
     return currentDrivePath === "" && entry.name === DRIVE_DIR
   }
+}
+
+// Incremental rescan for watch mode: start from the cached full view and
+// re-stat only the dirty paths (plus their subtrees for directories). Missed
+// fs events self-heal on the next full scan (initial / retry triggers).
+export async function rescanDriveFiles(
+  root: string,
+  dirtyPaths: string[],
+  options: ScanDriveFilesOptions = {},
+): Promise<Record<string, DriveFileEntry>> {
+  const kept: Record<string, ScanCacheEntry> = { ...(options.cache ?? {}) }
+
+  for (const dirtyPath of new Set(dirtyPaths)) {
+    if (dirtyPath === "" || isInternalSyncArtifactName(pathPosix.basename(dirtyPath))) continue
+    try {
+      validateDrivePath(dirtyPath)
+    } catch (error) {
+      if (!options.onPathError) throw error
+      await options.onPathError(dirtyPath, error)
+      continue
+    }
+
+    removePathAndChildren(kept, dirtyPath)
+    const absPath = join(root, ...dirtyPath.split("/"))
+    let stats
+    try {
+      stats = await lstat(absPath)
+    } catch (error) {
+      if (isNotFoundError(error)) continue
+      if (!isTransientScanError(error) || !options.onPathError) throw error
+      await options.onPathError(dirtyPath, error)
+      continue
+    }
+
+    if (stats.isSymbolicLink()) continue
+
+    if (stats.isDirectory()) {
+      await scanDriveFiles(root, {
+        ...options,
+        startDrivePath: dirtyPath,
+        onCacheUpdate: (path, entry) => {
+          kept[path] = entry
+        },
+      })
+      continue
+    }
+
+    if (!stats.isFile()) continue
+
+    try {
+      const cached = options.cache?.[dirtyPath]
+      if (cached !== undefined && cached.mtime_ms === stats.mtimeMs && cached.size_bytes === stats.size) {
+        kept[dirtyPath] = cached
+        continue
+      }
+      const digest = await hashDriveFile(absPath)
+      if (!digest) continue
+      kept[dirtyPath] = { mtime_ms: stats.mtimeMs, size_bytes: digest.sizeBytes, sha256: digest.sha256 }
+    } catch (error) {
+      if (!isTransientScanError(error) || !options.onPathError) throw error
+      await options.onPathError(dirtyPath, error)
+    }
+  }
+
+  const files: Record<string, DriveFileEntry> = {}
+  for (const [path, entry] of Object.entries(kept)) {
+    options.onCacheUpdate?.(path, entry)
+    files[path] = { sha256: entry.sha256, size_bytes: entry.size_bytes }
+  }
+  return files
+}
+
+function removePathAndChildren(view: Record<string, ScanCacheEntry>, path: string): void {
+  delete view[path]
+  const prefix = `${path}/`
+  for (const key of Object.keys(view)) {
+    if (key.startsWith(prefix)) delete view[key]
+  }
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT"
 }
 
 const TRANSIENT_SCAN_ERROR_CODES = new Set(["ENOENT", "EPERM", "EBUSY"])

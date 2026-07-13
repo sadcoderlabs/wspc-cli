@@ -1301,6 +1301,66 @@ describe("drive sync once", () => {
     expect(second.scan_cache?.["notes.txt"]?.sha256).toBe(sha256("hello"))
   })
 
+  it("rescans only dirty paths when a dirty set is provided", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-dirty-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "a.txt"), "aaa")
+    await writeFile(join(root, "b.txt"), "bbb")
+    const seedApi = mkApi([{ entries: [] }])
+    await runDriveSyncOnce(root, seedApi)
+
+    // Tamper a.txt behind the watcher's back; only b.txt is reported dirty.
+    await writeFile(join(root, "a.txt"), "tampered-aaa")
+    await writeFile(join(root, "b.txt"), "bbb-changed")
+    const api = mkApi([
+      { entries: [entry("a.txt", "aaa", 1), entry("b.txt", "bbb", 1)] },
+    ])
+
+    const result = await runDriveSyncOnce(root, api, undefined, undefined, undefined, {
+      dirtyPaths: ["b.txt"],
+    })
+
+    expect(api.uploads.map((upload) => upload.path)).toEqual(["b.txt"])
+    expect(result.errors).toBe(0)
+  })
+
+  it("treats a dirty path that vanished from disk as locally deleted", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-dirty-delete-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["gone.txt"] = stateEntry("gone.txt", "gone", 1)
+    state.scan_cache = {
+      "gone.txt": { mtime_ms: 1, size_bytes: 4, sha256: sha256("gone") },
+    }
+    await writeDriveState(root, state)
+    const api = mkApi([{ entries: [entry("gone.txt", "gone", 1)] }])
+
+    const result = await runDriveSyncOnce(root, api, undefined, undefined, undefined, {
+      dirtyPaths: ["gone.txt"],
+    })
+
+    expect(api.deletes.map((del) => del.path)).toEqual(["gone.txt"])
+    expect(result.errors).toBe(0)
+  })
+
+  it("rescans a dirty directory subtree", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-dirty-dir-"))
+    await initDriveState(root, "lib_1")
+    await mkdir(join(root, "docs"), { recursive: true })
+    await writeFile(join(root, "docs", "x.md"), "x")
+    const seedApi = mkApi([{ entries: [] }])
+    await runDriveSyncOnce(root, seedApi)
+
+    await writeFile(join(root, "docs", "y.md"), "y")
+    const api = mkApi([{ entries: [entry("docs/x.md", "x", 1)] }])
+
+    const result = await runDriveSyncOnce(root, api, undefined, undefined, undefined, {
+      dirtyPaths: ["docs"],
+    })
+
+    expect(api.uploads.map((upload) => upload.path)).toEqual(["docs/y.md"])
+    expect(result.errors).toBe(0)
+  })
+
   it("logs a debug error event for every recorded path error", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-error-event-"))
     await initDriveState(root, "lib_1")
