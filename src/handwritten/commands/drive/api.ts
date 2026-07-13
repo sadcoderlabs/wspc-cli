@@ -62,20 +62,14 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       })
       return expectJsonResult(result)
     },
-    async getManifest(
-      id: string,
-      cursor?: string,
-      sinceCursor?: string,
-    ): Promise<DriveManifestResponse & { latest_cursor?: string; resync_required?: boolean }> {
-      const query: Record<string, string> = {}
+    async getManifest(id: string, cursor?: string, sinceCursor?: string): Promise<DriveManifestResponse> {
+      const query: { cursor?: string; since_cursor?: string } = {}
       if (cursor !== undefined) query.cursor = cursor
-      // since_cursor / latest_cursor / resync_required exist server-side but are
-      // not in the generated SDK types yet; widen until the spec is regenerated.
       if (sinceCursor !== undefined) query.since_cursor = sinceCursor
       const result = await driveManifestGet({
         client: rawClient,
         path: { id },
-        ...(Object.keys(query).length > 0 ? { query: query as never } : {}),
+        ...(Object.keys(query).length > 0 ? { query } : {}),
       })
       return expectJsonResult(result)
     },
