@@ -142,21 +142,124 @@ describe("drive scanner", () => {
       { path: "A.txt", message: expect.stringContaining("LOCAL_PATH_CASE_CONFLICT") },
     ])
   })
+  it("reports and skips a file that disappears between readdir and lstat", async () => {
+    const errors: Array<{ path: string; code?: string }> = []
+    const mockedScanDriveFiles = await importScannerWithMockFiles(
+      { "gone.txt": "gone", "ok.txt": "ok" },
+      {
+        lstatError: (path) => (path.endsWith("gone.txt") ? errnoError("ENOENT") : undefined),
+      },
+    )
+
+    const files = await mockedScanDriveFiles("/mock", {
+      onPathError: (path, error) => {
+        errors.push({ path, code: (error as NodeJS.ErrnoException).code })
+      },
+    })
+
+    expect(files).toEqual({ "ok.txt": { sha256: sha256("ok"), size_bytes: 2 } })
+    expect(errors).toEqual([{ path: "gone.txt", code: "ENOENT" }])
+  })
+
+  it("reports and skips a locked file during hashing", async () => {
+    const errors: Array<{ path: string; code?: string }> = []
+    const mockedScanDriveFiles = await importScannerWithMockFiles(
+      { "locked.txt": "locked", "ok.txt": "ok" },
+      {
+        openError: (path) => (path.endsWith("locked.txt") ? errnoError("EBUSY") : undefined),
+      },
+    )
+
+    const files = await mockedScanDriveFiles("/mock", {
+      onPathError: (path, error) => {
+        errors.push({ path, code: (error as NodeJS.ErrnoException).code })
+      },
+    })
+
+    expect(files).toEqual({ "ok.txt": { sha256: sha256("ok"), size_bytes: 2 } })
+    expect(errors).toEqual([{ path: "locked.txt", code: "EBUSY" }])
+  })
+
+  it("reports and skips a directory that disappears mid-walk", async () => {
+    const errors: Array<{ path: string; code?: string }> = []
+    const mockedScanDriveFiles = await importScannerWithMockFiles(
+      { "ok.txt": "ok" },
+      {
+        extraDirs: ["renamed-away"],
+        readdirError: (path) => (path.endsWith("renamed-away") ? errnoError("ENOENT") : undefined),
+      },
+    )
+
+    const files = await mockedScanDriveFiles("/mock", {
+      onPathError: (path, error) => {
+        errors.push({ path, code: (error as NodeJS.ErrnoException).code })
+      },
+    })
+
+    expect(files).toEqual({ "ok.txt": { sha256: sha256("ok"), size_bytes: 2 } })
+    expect(errors).toEqual([{ path: "renamed-away", code: "ENOENT" }])
+  })
+
+  it("still fails the scan when the root itself cannot be read", async () => {
+    const mockedScanDriveFiles = await importScannerWithMockFiles(
+      {},
+      {
+        readdirError: () => errnoError("ENOENT"),
+      },
+    )
+
+    await expect(mockedScanDriveFiles("/mock", { onPathError: () => undefined })).rejects.toMatchObject({ code: "ENOENT" })
+  })
+
+  it("rethrows unexpected fs error codes even with a handler", async () => {
+    const mockedScanDriveFiles = await importScannerWithMockFiles(
+      { "weird.txt": "weird" },
+      {
+        lstatError: (path) => (path.endsWith("weird.txt") ? errnoError("EIO") : undefined),
+      },
+    )
+
+    await expect(mockedScanDriveFiles("/mock", { onPathError: () => undefined })).rejects.toMatchObject({ code: "EIO" })
+  })
 })
 
-async function importScannerWithMockFiles(files: Record<string, string>): Promise<typeof scanDriveFiles> {
+function errnoError(code: string): NodeJS.ErrnoException {
+  const error = new Error(`${code}: mock fs error`) as NodeJS.ErrnoException
+  error.code = code
+  return error
+}
+
+interface MockFsFailures {
+  lstatError?: (path: string) => Error | undefined
+  openError?: (path: string) => Error | undefined
+  readdirError?: (path: string) => Error | undefined
+  extraDirs?: string[]
+}
+
+async function importScannerWithMockFiles(files: Record<string, string>, failures: MockFsFailures = {}): Promise<typeof scanDriveFiles> {
   vi.resetModules()
   vi.doMock("node:fs/promises", async (importOriginal) => {
     const actual = await importOriginal<typeof import("node:fs/promises")>()
     return {
       ...actual,
-      readdir: vi.fn(async () =>
-        Object.keys(files).map((name) => ({
-          name,
-        })),
-      ),
-      lstat: vi.fn(async () => fakeStats()),
+      readdir: vi.fn(async (path: string) => {
+        const failure = failures.readdirError?.(String(path))
+        if (failure) throw failure
+        if (basename(String(path)) !== "mock") return []
+        return [
+          ...Object.keys(files).map((name) => ({ name })),
+          ...(failures.extraDirs ?? []).map((name) => ({ name, isDir: true })),
+        ]
+      }),
+      lstat: vi.fn(async (path: string) => {
+        const failure = failures.lstatError?.(String(path))
+        if (failure) throw failure
+        const isDir = (failures.extraDirs ?? []).includes(basename(String(path)))
+        return fakeStats(isDir)
+      }),
       open: vi.fn(async (path: string) => {
+        const failure = failures.openError?.(String(path))
+        if (failure) throw failure
         const name = basename(path)
         const content = files[name]
         if (content === undefined) throw new Error(`unexpected mock file: ${path}`)
@@ -172,11 +275,11 @@ async function importScannerWithMockFiles(files: Record<string, string>): Promis
   return imported.scanDriveFiles
 }
 
-function fakeStats() {
+function fakeStats(isDirectory = false) {
   return {
     isSymbolicLink: () => false,
-    isDirectory: () => false,
-    isFile: () => true,
+    isDirectory: () => isDirectory,
+    isFile: () => !isDirectory,
     ino: 1,
     dev: 1,
   }

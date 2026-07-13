@@ -1224,6 +1224,41 @@ describe("drive sync once", () => {
     expect(after.entries["b.txt"]).toBeUndefined()
   })
 
+  it("logs a debug error event for every recorded path error", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-error-event-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "notes.txt"), "hello")
+    const api = mkApi([{ entries: [] }])
+    api.uploadFile = async () => {
+      throw new Error("upload exploded")
+    }
+    const events: Array<{ event: string; fields?: Record<string, unknown> }> = []
+    const debug = { log: (event: string, fields?: Record<string, unknown>) => events.push({ event, fields }) }
+
+    const summary = await runDriveSyncOnce(root, api, undefined, undefined, debug)
+
+    expect(summary.errors).toBe(1)
+    const errorEvents = events.filter((candidate) => candidate.event === "error")
+    expect(errorEvents).toHaveLength(1)
+    expect(errorEvents[0]?.fields).toMatchObject({ path: "notes.txt", message: expect.stringContaining("upload exploded") })
+  })
+
+  it("logs a debug error event with the fs code for scan path errors", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-scan-error-event-"))
+    await initDriveState(root, "lib_1")
+    scannerControl.injectLocalPathError = "gone.txt"
+    const api = mkApi([{ entries: [] }])
+    const events: Array<{ event: string; fields?: Record<string, unknown> }> = []
+    const debug = { log: (event: string, fields?: Record<string, unknown>) => events.push({ event, fields }) }
+
+    const summary = await runDriveSyncOnce(root, api, undefined, undefined, debug)
+
+    expect(summary.errors).toBe(1)
+    const errorEvents = events.filter((candidate) => candidate.event === "error")
+    expect(errorEvents).toHaveLength(1)
+    expect(errorEvents[0]?.fields).toMatchObject({ path: "gone.txt", message: expect.any(String) })
+  })
+
   it("renders command summary and sets exit code for conflicts", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-command-"))
     const state = await initDriveState(root, "lib_1")

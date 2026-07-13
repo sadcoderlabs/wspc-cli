@@ -24,7 +24,16 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
   return files
 
   async function walk(currentPath: string, currentDrivePath: string): Promise<void> {
-    const entries = await readdir(currentPath, { withFileTypes: true })
+    let entries
+    try {
+      entries = await readdir(currentPath, { withFileTypes: true })
+    } catch (error) {
+      // The root itself failing to read must abort: an empty scan would look
+      // like "everything was deleted locally" and propagate remote deletes.
+      if (currentDrivePath === "" || !isTransientScanError(error) || !options.onPathError) throw error
+      await options.onPathError(currentDrivePath, error)
+      return
+    }
     entries.sort((left, right) => left.name.localeCompare(right.name))
     for (const entry of entries) {
       if (isExcludedRootEntry(currentDrivePath, entry)) {
@@ -43,26 +52,33 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
         continue
       }
       const nextPath = join(currentPath, entry.name)
-      const stats = await lstat(nextPath)
+      try {
+        const stats = await lstat(nextPath)
 
-      if (stats.isSymbolicLink()) {
-        continue
-      }
+        if (stats.isSymbolicLink()) {
+          continue
+        }
 
-      if (stats.isDirectory()) {
-        await walk(nextPath, nextDrivePath)
-        continue
-      }
+        if (stats.isDirectory()) {
+          await walk(nextPath, nextDrivePath)
+          continue
+        }
 
-      if (!stats.isFile()) {
-        continue
-      }
+        if (!stats.isFile()) {
+          continue
+        }
 
-      const digest = await hashDriveFile(nextPath)
-      if (!digest) {
-        continue
+        const digest = await hashDriveFile(nextPath)
+        if (!digest) {
+          continue
+        }
+        candidates.push({ path: nextDrivePath, entry: { sha256: digest.sha256, size_bytes: digest.sizeBytes } })
+      } catch (error) {
+        // Files can vanish or lock mid-scan (rename transitions, editors
+        // holding locks); skip and let the next sync pass reconcile them.
+        if (!isTransientScanError(error) || !options.onPathError) throw error
+        await options.onPathError(nextDrivePath, error)
       }
-      candidates.push({ path: nextDrivePath, entry: { sha256: digest.sha256, size_bytes: digest.sizeBytes } })
     }
   }
 
@@ -93,6 +109,17 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
   function isExcludedRootEntry(currentDrivePath: string, entry: Dirent): boolean {
     return currentDrivePath === "" && entry.name === DRIVE_DIR
   }
+}
+
+const TRANSIENT_SCAN_ERROR_CODES = new Set(["ENOENT", "EPERM", "EBUSY"])
+
+function isTransientScanError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    typeof (error as NodeJS.ErrnoException).code === "string" &&
+    TRANSIENT_SCAN_ERROR_CODES.has((error as NodeJS.ErrnoException).code as string)
+  )
 }
 
 function isInternalSyncArtifactName(name: string): boolean {

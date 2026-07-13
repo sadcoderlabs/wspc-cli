@@ -100,12 +100,12 @@ export async function runDriveSyncOnce(
     const scanStartedMs = Date.now()
     const localFiles = await scanDriveFiles(root, {
       onPathError: async (path, error) => {
-        await recordPathError(summary, blockedPaths, path, error)
+        await recordPathError(summary, blockedPaths, path, error, { debug, op: "scan" })
       },
     })
     const scanMs = Date.now() - scanStartedMs
     const manifestStartedMs = Date.now()
-    const remoteFiles = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths)
+    const remoteFiles = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths, debug)
     const manifestMs = Date.now() - manifestStartedMs
     const paths = Array.from(
       new Set([...Object.keys(localFiles), ...Object.keys(remoteFiles), ...Object.keys(state.entries)]),
@@ -130,7 +130,7 @@ export async function runDriveSyncOnce(
         debug.log("decision", decisionFields(path, action, state.entries[path], local, remote))
       }
       const previousConflict = state.conflicts[path]
-      const result = await processPath({ root, state, api: syncApi, path, action, remote, local, summary, clock })
+      const result = await processPath({ root, state, api: syncApi, path, action, remote, local, summary, clock, debug })
       state = result.state
       const recordedConflict = state.conflicts[path]
       if (recordedConflict !== undefined && recordedConflict !== previousConflict) {
@@ -198,6 +198,7 @@ async function fetchRemoteManifest(
   api: DriveSyncApi,
   summary: DriveSyncSummary,
   blockedPaths: Set<string>,
+  debug: DriveDebugLogger,
 ): Promise<Record<string, RemoteEntry>> {
   const entries: RemoteEntry[] = []
   let cursor: string | undefined
@@ -211,6 +212,8 @@ async function fetchRemoteManifest(
   for (const pathError of normalized.pathErrors) {
     await recordPathError(summary, blockedPaths, pathError.path, pathError.error, {
       appendPathResult: pathError.appendPathResult,
+      debug,
+      op: "manifest",
     })
   }
   return normalized.remoteFiles
@@ -226,8 +229,9 @@ async function processPath(args: {
   local: { sha256: string; size_bytes: number } | undefined
   summary: DriveSyncSummary
   clock: DriveClock
+  debug: DriveDebugLogger
 }): Promise<ProcessPathResult> {
-  const { root, state, api, path, action, remote, local, summary, clock } = args
+  const { root, state, api, path, action, remote, local, summary, clock, debug } = args
   summary.paths.push({ path, action: action.type })
   let durableStateRequired = false
 
@@ -404,11 +408,11 @@ async function processPath(args: {
         summary.paths[summary.paths.length - 1] = { path, action: "conflict" }
         return { state: nextState, stop: false }
       } catch (writeError) {
-        await recordPathError(summary, undefined, path, writeError)
+        await recordPathError(summary, undefined, path, writeError, { debug, op: "process" })
         return { state, stop: durableStateRequired }
       }
     }
-    await recordPathError(summary, undefined, path, error)
+    await recordPathError(summary, undefined, path, error, { debug, op: "process" })
     return { state, stop: durableStateRequired }
   }
   return { state, stop: false }
@@ -694,7 +698,7 @@ async function recordPathError(
   blockedPaths: Set<string> | undefined,
   path: string,
   error: unknown,
-  options: { appendPathResult?: boolean } = {},
+  options: { appendPathResult?: boolean; debug?: DriveDebugLogger; op?: string } = {},
 ): Promise<void> {
   blockedPaths?.add(path)
   const lastPath = summary.paths.at(-1)
@@ -703,7 +707,13 @@ async function recordPathError(
   } else {
     summary.paths.push({ path, action: "error" })
   }
-  void errorMessage(error)
+  const code = error instanceof Error && "code" in error ? (error as NodeJS.ErrnoException).code : undefined
+  options.debug?.log("error", {
+    path,
+    ...(options.op === undefined ? {} : { op: options.op }),
+    ...(code === undefined ? {} : { code }),
+    message: errorMessage(error),
+  })
   summary.errors += 1
 }
 
