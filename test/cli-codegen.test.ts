@@ -275,4 +275,22 @@ describe("emitCommand", () => {
     expect(allMatches.length).toBe(1)
     expect(code).not.toContain('.option("--all-day", "all_day")')
   })
+
+  it("emits addHelpText when description or examples are provided", () => {
+    const code = emitCommand({
+      operationId: "todo_create",
+      method: "post",
+      path: "/todo/items",
+      summary: "Create a todo",
+      description: "Guidelines: Make sure to split tasks.",
+      xCli: {
+        command: "todo add",
+        examples: ['wspc todo add "My Task"'],
+      },
+      bodyFields: [],
+    })
+    expect(code).toContain('.addHelpText("after"')
+    expect(code).toContain("Guidelines: Make sure to split tasks.")
+    expect(code).toContain('wspc todo add \\"My Task\\"')
+  })
 })

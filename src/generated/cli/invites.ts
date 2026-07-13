@@ -6,6 +6,7 @@ import { render } from "../../handwritten/output/render.js"
 
 export const invitesListCommand = new Command("invites")
   .description("List invites addressed to the authenticated user's email")
+  .addHelpText("after", "\nRetrieves all pending or expired organization invites addressed to the caller's verified email address.\n")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await invitesList({

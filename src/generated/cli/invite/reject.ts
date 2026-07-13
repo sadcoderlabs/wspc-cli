@@ -6,6 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const inviteRejectCommand = new Command("reject")
   .description("Reject an invite")
+  .addHelpText("after", "\nRejects an organization invite addressed to the caller. The invite will be marked as rejected.\n\nExamples:\n  $ wspc invite reject inv_...\n")
   .argument("<id>", "id")
   .action(async (id, opts) => {
     const client = await loadSdkClient()

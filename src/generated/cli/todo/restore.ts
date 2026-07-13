@@ -6,6 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const todoRestoreCommand = new Command("restore")
   .description("Restore a soft-deleted todo")
+  .addHelpText("after", "\n### 🎯 Overview & Purpose\nReverse a previous soft-delete. The todo (and optionally its descendants) is recovered back to the active list.\n\n### 🔍 When to Use\n* Use this to recover a task deleted by mistake, or pull a task out of the trash to continue active work.\n\n### 💡 Key Features & Constraints\n* **Orphan Warning**: If the restored todo's parent is still in the trash, the call succeeds but returns `parent_in_trash_warning: true`, signaling that the restored todo is currently orphaned from a visible ancestor.\n* **Cascading Restore (`cascade`)**: If `cascade: true` is provided, all descendants still in the trash are also restored. Otherwise, descendants are left in the trash, and their count is reported back in `descendants_in_trash_count`.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` is supplied and mismatches the database.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo `id` does not exist or has already been permanently purged.\n\nExamples:\n  $ wspc todo restore tod_xxx\n  $ wspc todo restore tod_xxx --cascade\n")
   .argument("<id>", "id")
   .option("--expected-version <value>", "expected_version")
   .option("--cascade <value>", "cascade")

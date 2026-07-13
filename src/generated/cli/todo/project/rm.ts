@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const projectDeleteCommand = new Command("rm")
   .description("Soft-delete a project")
+  .addHelpText("after", "\n### 🎯 Overview & Purpose\nSoft-delete/archive a project workspace.\n\n### 🔍 When to Use\n* Use this to archive a completed project and hide it from default listings without losing historical metrics.\n\n### 💡 Key Features & Constraints\n* **Cascading Effects**: Deleting a project automatically soft-deletes the project record and cascades to soft-delete all todos created under it.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the project ID does not exist or has already been archived.\n\nExamples:\n  $ wspc todo project rm prj_01HW3K\n")
   .argument("<id>", "id")
   .action(async (id, opts) => {
     const client = await loadSdkClient()

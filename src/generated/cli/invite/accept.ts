@@ -6,6 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const inviteAcceptCommand = new Command("accept")
   .description("Accept an invite and switch into the inviting organization")
+  .addHelpText("after", "\nSwitches the caller's org to the invite's org and records the previous org. The caller loses access to data scoped to their previous org.\n\nExamples:\n  $ wspc invite accept inv_...\n")
   .argument("<id>", "id")
   .action(async (id, opts) => {
     const client = await loadSdkClient()

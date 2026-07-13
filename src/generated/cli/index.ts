@@ -59,6 +59,7 @@ import { recurrenceRuleCreateCommand } from "./todo/rule/add.js"
 import { recurrenceRuleListCommand } from "./todo/rule/ls.js"
 import { todoCreateCommand } from "./todo/add.js"
 import { todoListCommand } from "./todo/ls.js"
+import { todoTypeCreateCommand } from "./todo/type/add.js"
 import { todoTypeListCommand } from "./todo/type/ls.js"
 import { todoCommentDeleteCommand } from "./todo/comment/rm.js"
 import { todoCommentUpdateCommand } from "./todo/comment/edit.js"
@@ -68,7 +69,10 @@ import { recurrenceRuleGetCommand } from "./todo/rule/show.js"
 import { todoDeleteCommand } from "./todo/rm.js"
 import { todoGetCommand } from "./todo/show.js"
 import { todoUpdateCommand } from "./todo/update.js"
+import { todoTypeDeleteCommand } from "./todo/type/rm.js"
+import { todoTypeUpdateCommand } from "./todo/type/set.js"
 import { todoRestoreCommand } from "./todo/restore.js"
+import { todoTypeRestoreCommand } from "./todo/type/restore.js"
 
 export function registerGeneratedCommands(root: Command): void {
   const root_invite = root.command("invite").description("invite commands")
@@ -155,7 +159,11 @@ export function registerGeneratedCommands(root: Command): void {
   root_todo.addCommand(todoCreateCommand)
   root_todo.addCommand(todoListCommand)
   const root_todo_type = root_todo.command("type").description("type commands")
+  root_todo_type.addCommand(todoTypeCreateCommand)
   root_todo_type.addCommand(todoTypeListCommand)
+  root_todo_type.addCommand(todoTypeDeleteCommand)
+  root_todo_type.addCommand(todoTypeUpdateCommand)
+  root_todo_type.addCommand(todoTypeRestoreCommand)
   root_todo.addCommand(todoDeleteCommand)
   root_todo.addCommand(todoGetCommand)
   root_todo.addCommand(todoUpdateCommand)

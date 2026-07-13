@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const driveManifestGetCommand = new Command("get")
   .description("Get a drive library manifest")
+  .addHelpText("after", "\nList file entries for sync using path/id cursor pagination.\n")
   .argument("<id>", "id")
   .option("--limit <value>", "limit")
   .option("--cursor <value>", "cursor")

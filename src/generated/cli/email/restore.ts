@@ -6,6 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const emailRestoreCommand = new Command("restore")
   .description("Restore soft-deleted inbound emails")
+  .addHelpText("after", "\n### Overview\nRestores a batch of soft-deleted inbound emails from the trash, making them reappear in standard inbox lists.\n\n### When to Use\n- Use this endpoint to recover email messages that were trashed by mistake.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- Accepts 1 to 100 email IDs. Already-active IDs are silently ignored.\n\n### Troubleshooting\n- **401 Unauthorized**: Invalid token.\n- **400 Bad Request**: Malformed request or batch limit exceeded.\n")
   .argument("<id...>", "id")
   .action(async (id, opts) => {
     const idRaw = id as string[]

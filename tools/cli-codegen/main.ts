@@ -26,6 +26,7 @@ interface ParameterLike {
 export interface OperationLike {
   operationId?: string
   summary?: string
+  description?: string
   tags?: string[]
   parameters?: ParameterLike[]
   requestBody?: {
@@ -218,6 +219,7 @@ async function main(): Promise<void> {
         method,
         path: routePath,
         summary: op.summary,
+        description: op.description,
         xCli: op["x-cli"],
         bodyFields,
         pathParams,

@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const driveLibraryGetCommand = new Command("show")
   .description("Get a drive library")
+  .addHelpText("after", "\nFetch one active library by id. Cross-org and soft-deleted rows are hidden.\n")
   .argument("<id>", "id")
   .action(async (id, opts) => {
     const client = await loadSdkClient()

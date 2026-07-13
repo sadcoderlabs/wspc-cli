@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const driveLibraryDeleteCommand = new Command("rm")
   .description("Delete a drive library")
+  .addHelpText("after", "\nSoft-delete an empty library using optimistic version locking.\n")
   .argument("<id>", "id")
   .option("--expected-version <value>", "expected_version")
   .action(async (id, opts) => {

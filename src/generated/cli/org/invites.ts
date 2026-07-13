@@ -6,6 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const orgInvitesListCommand = new Command("invites")
   .description("List invites issued by the caller's organization")
+  .addHelpText("after", "\nRetrieves a list of all active pending or expired organization invites issued by the caller's organization.\n")
   .action(async (opts) => {
     const client = await loadSdkClient()
     const result = await orgInvitesList({

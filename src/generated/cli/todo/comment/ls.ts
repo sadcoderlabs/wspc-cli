@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const todoCommentListCommand = new Command("ls")
   .description("List comments on a todo")
+  .addHelpText("after", "\n### 🎯 Overview & Purpose\nList the comments attached to a todo, oldest-first by default.\n\n### 💡 Key Features & Constraints\n* **Ordering**: Defaults to chronological (`asc`). Pass `order=desc` for newest-first.\n* **Soft-deleted**: Hidden by default; pass `include_deleted=true` to include them.\n* **Pagination**: Use `limit` (max 200, default 50) and `cursor` (the `next_cursor` from a previous response) to page through results. When `next_cursor` is absent in the response, you are on the last page. Returns `{ comments, next_cursor? }`. Changing `order` invalidates a cursor.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo does not exist or is soft-deleted.\n* **`VALIDATION_ERROR`**: Thrown if a cursor was produced with a different `order` than the current request.\n\nExamples:\n  $ wspc todo comment ls tod_01HW3K\n")
   .argument("<id>", "id")
   .option("--order <value>", "order")
   .option("--include-deleted <value>", "include_deleted")

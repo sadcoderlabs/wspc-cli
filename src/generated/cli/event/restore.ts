@@ -6,6 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const eventRestoreCommand = new Command("restore")
   .description("Restore a soft-deleted event")
+  .addHelpText("after", "\n### Overview\nRestore a previously soft-deleted calendar event, making it active and visible in default list queries.\n\n### When to Use\nRecover an event that was accidentally soft-deleted.\n\n### Constraints\n- **Optimistic Locking**: Supports optional optimistic locking via `expected_version` in the request body.\n- **Side Effects**: When restoring an event with attendees, all participants will asynchronously receive a new invitation email containing an `.ics` REQUEST attachment via Cloudflare `waitUntil`.\n- **State Integrity**: You cannot restore a live (non-deleted) event. Restoring a live event is treated as an error.\n\n### Troubleshooting\n- Returns 404 `NOT_FOUND` if the event does not exist, or is NOT currently soft-deleted.\n- Returns 409 `VERSION_CONFLICT` if `expected_version` does not match the database value.\n")
   .argument("<id>", "id")
   .option("--expected-version <value>", "Optional optimistic lock. Omit to let the server use the current version; pass only to fail with 409 `VERSION_CONFLICT` if someone else has mutated the event since you last read.")
   .action(async (id, opts) => {
