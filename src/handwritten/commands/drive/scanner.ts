@@ -139,7 +139,7 @@ function isTransientScanError(error: unknown): boolean {
   )
 }
 
-function isInternalSyncArtifactName(name: string): boolean {
+export function isInternalSyncArtifactName(name: string): boolean {
   if (!name.startsWith(".") || !name.endsWith(".tmp")) return false
   return (
     name.includes(".wspc-download-") ||

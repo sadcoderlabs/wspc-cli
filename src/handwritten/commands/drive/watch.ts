@@ -1,11 +1,12 @@
 import { Command } from "commander"
 import chokidar from "chokidar"
 import { watch as fsWatch } from "node:fs"
-import { relative, resolve } from "node:path"
+import { basename, relative, resolve } from "node:path"
 import { loadRealtimeAuthHeaders } from "../../auth/load-sdk-client.js"
 import { render, shouldOutputJson } from "../../output/render.js"
 import { createDriveDebugLogger, noopDriveDebugLogger, type DriveDebugLogger } from "./debug-log.js"
 import { createDriveRealtimeSource } from "./realtime.js"
+import { isInternalSyncArtifactName } from "./scanner.js"
 import { DRIVE_DIR, ensureDriveRealtimeState, readDriveState, writeDriveRealtimeState } from "./state.js"
 import { runDriveSyncOnce, type DriveSyncProgress, type DriveSyncSummary } from "./sync.js"
 
@@ -207,6 +208,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     source = options.source ?? createDefaultWatchSource(root)
     source.onChange((path) => {
       if (isDriveInternalPath(root, path)) return
+      // Download/backup/merge temp files are our own writes; reacting to them
+      // would chain an extra sync after every applied remote change.
+      if (isInternalSyncArtifactName(basename(path))) return
       dbg.log("fs_event", { path: relative(root, path) })
       scheduleSync(debounceMs, "local")
     })

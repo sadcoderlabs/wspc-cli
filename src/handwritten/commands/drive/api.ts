@@ -10,6 +10,8 @@ import type { ConfigStore } from "../../config/index.js"
 export interface DriveApiOptions {
   store?: ConfigStore
   fetchImpl?: typeof fetch
+  // Watch session client id; lets the server tag events for echo suppression.
+  clientId?: string
 }
 
 type JsonResult<T> = {
@@ -31,7 +33,9 @@ async function expectJsonResult<T>(result: JsonResult<T>): Promise<T> {
 
 // Lets the server attribute drive file operations to the sync loop instead
 // of generic API traffic (drive_file_operation actor: "sync" vs "api").
-const SYNC_CLIENT_HEADERS = { "x-wspc-client": "drive-sync" } as const
+function syncClientHeaders(clientId?: string): { "x-wspc-client": string } {
+  return { "x-wspc-client": clientId === undefined ? "drive-sync" : `drive-sync/${clientId}` }
+}
 
 function driveContentUrl(baseUrl: string, id: string): URL {
   const baseWithTrailingSlash = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`
@@ -41,6 +45,7 @@ function driveContentUrl(baseUrl: string, id: string): URL {
 export async function createDriveApi(opts: DriveApiOptions = {}) {
   const client = await loadSdkClientWithAuthedFetch(opts)
   const rawClient = client._rawClient as never
+  const clientHeaders = syncClientHeaders(opts.clientId)
 
   return {
     async getLibrary(id: string): Promise<DriveLibrary> {
@@ -62,7 +67,7 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       const result = await driveFileDelete({
         client: rawClient,
         path: { id },
-        headers: SYNC_CLIENT_HEADERS,
+        headers: clientHeaders,
         body: {
           path,
           expected_entry_version: expectedEntryVersion,
@@ -88,7 +93,7 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
         headers: {
           "content-type": "application/octet-stream",
           "x-drive-content-sha256": sha256,
-          ...SYNC_CLIENT_HEADERS,
+          ...clientHeaders,
         },
         body,
       })

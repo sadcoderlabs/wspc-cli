@@ -266,6 +266,32 @@ describe("drive watch", () => {
     await watching
   })
 
+  it("ignores fs events for internal sync temp artifacts", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    source.emit(".notes.md.wspc-download-abc.tmp")
+    source.emit("sub/.readme.md.wspc-backup-def.tmp")
+    source.emit(".readme.md.wspc-merge-xyz.tmp")
+    await vi.advanceTimersByTimeAsync(600)
+
+    // Only the initial sync ran; temp artifacts never schedule another.
+    expect(runSync).toHaveBeenCalledTimes(1)
+    process.emit("SIGINT")
+    await watching
+  })
+
   it("removes the counterpart signal listener on shutdown", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()

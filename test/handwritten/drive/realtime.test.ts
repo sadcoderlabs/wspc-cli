@@ -248,6 +248,51 @@ describe("drive realtime helpers", () => {
     expect(events).toContainEqual({ debounce_ms: 2000, cursor: "c2", path: "notes.md", reason: "library_changed" })
   })
 
+  it("suppresses own-echo library_changed events but still advances the cursor", async () => {
+    const connect = fakeConnector()
+    const updates: DriveRealtimeState[] = []
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({
+      connect,
+      clock: { now: () => DateTime.fromISO("2026-06-21T10:05:00.000Z", { setZone: true }) },
+      writeRealtimeState: async (next) => {
+        updates.push(next)
+      },
+    }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({
+      type: "library_changed",
+      cursor: "c9",
+      path: "notes.md",
+      origin_client_id: "drvcli_abc",
+    }))
+    await flushPromises()
+
+    expect(events).toEqual([])
+    expect(updates).toEqual([{
+      client_id: "drvcli_abc",
+      last_cursor: "c9",
+      last_event_at: "2026-06-21T10:05:00.000Z",
+    }])
+  })
+
+  it("still emits library_changed from other clients", async () => {
+    const connect = fakeConnector()
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({ connect }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({
+      type: "library_changed",
+      cursor: "c10",
+      origin_client_id: "drvcli_other",
+    }))
+    await flushPromises()
+
+    expect(events).toContainEqual({ debounce_ms: 2000, cursor: "c10", reason: "library_changed" })
+  })
+
   it("emits library_changed events even when cursor persistence is locked", async () => {
     const connect = fakeConnector()
     const events: unknown[] = []

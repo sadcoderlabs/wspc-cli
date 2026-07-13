@@ -95,7 +95,7 @@ export async function runDriveSyncOnce(
 ): Promise<DriveSyncSummary> {
   return withDriveLock(root, async () => {
     let state = await readDriveState(root)
-    const syncApi = api ?? (await createDriveApi())
+    const syncApi = api ?? (await createDriveApi({ clientId: state.realtime?.client_id }))
     const summary = emptySummary()
     const blockedPaths = new Set<string>()
     const scanStartedMs = Date.now()
