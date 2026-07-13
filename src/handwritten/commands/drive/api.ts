@@ -1,15 +1,24 @@
 import { loadSdkClientWithAuthedFetch } from "../../auth/load-sdk-client.js"
 import {
   driveFileDelete,
+  driveFileMove,
   driveLibraryGet,
   driveManifestGet,
 } from "../../../generated/sdk/index.js"
-import type { DeleteDriveFileResponse, DriveLibrary, DriveManifestResponse, UploadDriveFileResponse } from "../../../generated/sdk/index.js"
+import type {
+  DeleteDriveFileResponse,
+  DriveLibrary,
+  DriveManifestResponse,
+  MoveDriveFileResponse,
+  UploadDriveFileResponse,
+} from "../../../generated/sdk/index.js"
 import type { ConfigStore } from "../../config/index.js"
 
 export interface DriveApiOptions {
   store?: ConfigStore
   fetchImpl?: typeof fetch
+  // Watch session client id; lets the server tag events for echo suppression.
+  clientId?: string
 }
 
 type JsonResult<T> = {
@@ -31,7 +40,9 @@ async function expectJsonResult<T>(result: JsonResult<T>): Promise<T> {
 
 // Lets the server attribute drive file operations to the sync loop instead
 // of generic API traffic (drive_file_operation actor: "sync" vs "api").
-const SYNC_CLIENT_HEADERS = { "x-wspc-client": "drive-sync" } as const
+function syncClientHeaders(clientId?: string): { "x-wspc-client": string } {
+  return { "x-wspc-client": clientId === undefined ? "drive-sync" : `drive-sync/${clientId}` }
+}
 
 function driveContentUrl(baseUrl: string, id: string): URL {
   const baseWithTrailingSlash = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`
@@ -41,6 +52,7 @@ function driveContentUrl(baseUrl: string, id: string): URL {
 export async function createDriveApi(opts: DriveApiOptions = {}) {
   const client = await loadSdkClientWithAuthedFetch(opts)
   const rawClient = client._rawClient as never
+  const clientHeaders = syncClientHeaders(opts.clientId)
 
   return {
     async getLibrary(id: string): Promise<DriveLibrary> {
@@ -50,11 +62,20 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       })
       return expectJsonResult(result)
     },
-    async getManifest(id: string, cursor?: string): Promise<DriveManifestResponse> {
+    async getManifest(
+      id: string,
+      cursor?: string,
+      sinceCursor?: string,
+    ): Promise<DriveManifestResponse & { latest_cursor?: string; resync_required?: boolean }> {
+      const query: Record<string, string> = {}
+      if (cursor !== undefined) query.cursor = cursor
+      // since_cursor / latest_cursor / resync_required exist server-side but are
+      // not in the generated SDK types yet; widen until the spec is regenerated.
+      if (sinceCursor !== undefined) query.since_cursor = sinceCursor
       const result = await driveManifestGet({
         client: rawClient,
         path: { id },
-        ...(cursor ? { query: { cursor } } : {}),
+        ...(Object.keys(query).length > 0 ? { query: query as never } : {}),
       })
       return expectJsonResult(result)
     },
@@ -62,13 +83,31 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       const result = await driveFileDelete({
         client: rawClient,
         path: { id },
-        headers: SYNC_CLIENT_HEADERS,
+        headers: clientHeaders,
         body: {
           path,
           expected_entry_version: expectedEntryVersion,
         },
       })
       return expectJsonResult<DeleteDriveFileResponse>(result)
+    },
+    async moveFile(
+      id: string,
+      fromPath: string,
+      toPath: string,
+      expectedEntryVersion?: number,
+    ): Promise<MoveDriveFileResponse> {
+      const result = await driveFileMove({
+        client: rawClient,
+        path: { id },
+        headers: clientHeaders,
+        body: {
+          from_path: fromPath,
+          to_path: toPath,
+          ...(expectedEntryVersion === undefined ? {} : { expected_entry_version: expectedEntryVersion }),
+        },
+      })
+      return expectJsonResult<MoveDriveFileResponse>(result)
     },
     async uploadFile(
       id: string,
@@ -88,7 +127,7 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
         headers: {
           "content-type": "application/octet-stream",
           "x-drive-content-sha256": sha256,
-          ...SYNC_CLIENT_HEADERS,
+          ...clientHeaders,
         },
         body,
       })

@@ -72,8 +72,8 @@ export function mergeText3(base: string, local: string, remote: string): MergeTe
 
 export function conflictCopyPath(path: string, side: ConflictSide, timestamp: string, versionId: string): string {
   const parsed = pathPosix.parse(path)
-  const shortVersionId = safeShortVersionId(versionId)
-  const fileName = `${parsed.name}.${side}-conflict-${timestamp}-${shortVersionId}${parsed.ext}`
+  // Full version id: truncated ids collide across conflicts on the same file.
+  const fileName = `${parsed.name}.${side}-conflict-${timestamp}-${safeVersionId(versionId)}${parsed.ext}`
 
   if (parsed.dir === "") {
     return fileName
@@ -107,7 +107,7 @@ function normalizeLines(text: string): string[] {
   return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n")
 }
 
-function safeShortVersionId(versionId: string): string {
+function safeVersionId(versionId: string): string {
   const safeVersionId = versionId.replace(/[^A-Za-z0-9_-]/g, "_")
-  return (safeVersionId.length > 0 ? safeVersionId : "unknown").slice(0, 8)
+  return safeVersionId.length > 0 ? safeVersionId : "unknown"
 }

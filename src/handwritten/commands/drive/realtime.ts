@@ -4,7 +4,7 @@ import type { DriveRealtimeSource } from "./watch.js"
 
 export type DriveRealtimeMessage =
   | { type: "ready"; cursor?: string; replayed: number }
-  | { type: "library_changed"; cursor?: string; path?: string }
+  | { type: "library_changed"; cursor?: string; path?: string; origin_client_id?: string }
   | { type: "resync_required"; cursor?: string; reason?: string }
   | { type: "error"; code?: string; message?: string }
   | { type: "unknown"; message_type?: string }
@@ -138,12 +138,17 @@ export function createDriveRealtimeSource(args: {
       return
     }
     if (message.type === "library_changed") {
-      handlers?.onEvent({
-        debounce_ms: 2000,
-        reason: "library_changed",
-        ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
-        ...(message.path === undefined ? {} : { path: message.path }),
-      })
+      // Own echo: this client caused the change, so a sync would be a no-op;
+      // only the cursor needs to advance.
+      const ownEcho = message.origin_client_id !== undefined && message.origin_client_id === currentRealtime.client_id
+      if (!ownEcho) {
+        handlers?.onEvent({
+          debounce_ms: 2000,
+          reason: "library_changed",
+          ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
+          ...(message.path === undefined ? {} : { path: message.path }),
+        })
+      }
       if (message.cursor !== undefined) {
         await persistBestEffort({ ...currentRealtime, last_cursor: message.cursor, last_event_at: driveIsoTimestamp(clock) })
       }
@@ -235,6 +240,7 @@ export function parseDriveRealtimeMessage(raw: string): DriveRealtimeMessage {
       type: "library_changed",
       ...(cursor === undefined ? {} : { cursor }),
       ...(typeof value.path === "string" ? { path: value.path } : {}),
+      ...(typeof value.origin_client_id === "string" ? { origin_client_id: value.origin_client_id } : {}),
     }
   }
   if (messageType === "resync_required") {

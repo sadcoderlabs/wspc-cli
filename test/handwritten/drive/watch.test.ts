@@ -127,7 +127,7 @@ describe("drive watch", () => {
     await runDriveWatch("/tmp/root", { source, runSync, readState, onEvent, once: true })
 
     expect(runSync).toHaveBeenCalledTimes(1)
-    expect(runSync).toHaveBeenCalledWith("/tmp/root", expect.any(Function))
+    expect(runSync).toHaveBeenCalledWith("/tmp/root", expect.any(Function), undefined)
   })
 
   it("emits drive_sync_progress events from the sync progress callback", async () => {
@@ -262,6 +262,61 @@ describe("drive watch", () => {
     await vi.advanceTimersByTimeAsync(1)
 
     expect(runSync).toHaveBeenCalledTimes(2)
+    process.emit("SIGINT")
+    await watching
+  })
+
+  it("passes accumulated dirty paths to local-triggered syncs only", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    const dirtyByCall: Array<string[] | undefined> = []
+    const runSync = vi.fn(async (_root: string, _onProgress?: unknown, dirtyPaths?: string[]) => {
+      dirtyByCall.push(dirtyPaths)
+      return syncSummary()
+    })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    source.emit("/tmp/root/notes/a.txt")
+    source.emit("/tmp/root/b.txt")
+    await vi.advanceTimersByTimeAsync(600)
+
+    expect(dirtyByCall[0]).toBeUndefined()
+    expect(dirtyByCall[1]?.sort()).toEqual(["b.txt", "notes/a.txt"])
+    process.emit("SIGINT")
+    await watching
+  })
+
+  it("ignores fs events for internal sync temp artifacts", async () => {
+    const source = fakeSource()
+    const onEvent = vi.fn()
+    const runSync = vi.fn(async () => syncSummary())
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent,
+    })
+    await source.waitForSubscription()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    source.emit(".notes.md.wspc-download-abc.tmp")
+    source.emit("sub/.readme.md.wspc-backup-def.tmp")
+    source.emit(".readme.md.wspc-merge-xyz.tmp")
+    await vi.advanceTimersByTimeAsync(600)
+
+    // Only the initial sync ran; temp artifacts never schedule another.
+    expect(runSync).toHaveBeenCalledTimes(1)
     process.emit("SIGINT")
     await watching
   })

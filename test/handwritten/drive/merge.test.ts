@@ -36,9 +36,12 @@ describe("drive merge helpers", () => {
     expect("text" in result).toBe(false)
   })
 
-  it("builds conflict copy paths next to the original path", () => {
+  it("builds conflict copy paths next to the original path with the full version id", () => {
     expect(conflictCopyPath("notes/today.md", "remote", "20260621T101000Z", "ver_remote")).toBe(
-      "notes/today.remote-conflict-20260621T101000Z-ver_remo.md",
+      "notes/today.remote-conflict-20260621T101000Z-ver_remote.md",
     )
+    expect(
+      conflictCopyPath("large-doc-1.md", "remote", "20260713T044616Z", "fvr_01KXCWQTX8K7NMK8VW3EKR2166"),
+    ).toBe("large-doc-1.remote-conflict-20260713T044616Z-fvr_01KXCWQTX8K7NMK8VW3EKR2166.md")
   })
 })

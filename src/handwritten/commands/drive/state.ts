@@ -37,6 +37,12 @@ export interface DriveRealtimeState {
   last_event_at?: string
 }
 
+export interface DriveScanCacheEntry {
+  mtime_ms: number
+  size_bytes: number
+  sha256: string
+}
+
 export interface DriveState {
   schema_version: 1
   library_id: string
@@ -45,6 +51,9 @@ export interface DriveState {
   entries: Record<string, DriveStateEntry>
   conflicts: Record<string, DriveConflict>
   realtime?: DriveRealtimeState
+  scan_cache?: Record<string, DriveScanCacheEntry>
+  // Latest manifest cursor seen; enables since_cursor delta fetches.
+  manifest_cursor?: string
 }
 
 export function statePath(root: string): string {
@@ -269,7 +278,9 @@ function isValidDriveState(value: unknown): value is DriveState {
     typeof value.updated_at !== "string" ||
     !isRecord(value.entries) ||
     !isRecord(value.conflicts) ||
-    (value.realtime !== undefined && !isDriveRealtimeState(value.realtime))
+    (value.realtime !== undefined && !isDriveRealtimeState(value.realtime)) ||
+    (value.scan_cache !== undefined && !isRecord(value.scan_cache)) ||
+    (value.manifest_cursor !== undefined && typeof value.manifest_cursor !== "string")
   ) {
     return false
   }
@@ -279,5 +290,19 @@ function isValidDriveState(value: unknown): value is DriveState {
   for (const conflict of Object.values(value.conflicts)) {
     if (!isDriveConflict(conflict)) return false
   }
+  if (value.scan_cache !== undefined) {
+    for (const entry of Object.values(value.scan_cache)) {
+      if (!isDriveScanCacheEntry(entry)) return false
+    }
+  }
   return true
+}
+
+function isDriveScanCacheEntry(value: unknown): value is DriveScanCacheEntry {
+  return (
+    isRecord(value) &&
+    typeof value.mtime_ms === "number" &&
+    typeof value.size_bytes === "number" &&
+    typeof value.sha256 === "string"
+  )
 }

@@ -9,7 +9,7 @@ import { decideDriveAction, type DriveAction } from "./decision.js"
 import { normalizeRemoteManifest } from "./manifest.js"
 import { classifyMergeText, conflictCopyPath, mergeText3 } from "./merge.js"
 import { resolveInsideRoot, validateDrivePath } from "./path-policy.js"
-import { scanDriveFiles } from "./scanner.js"
+import { rescanDriveFiles, scanDriveFiles } from "./scanner.js"
 import {
   assertLocalAbsentBeforeRemoteDelete,
   assertLocalSafeForDownload,
@@ -26,17 +26,25 @@ import {
   writeDriveState,
   withDriveLock,
   type DriveConflict,
+  type DriveScanCacheEntry,
   type DriveState,
   type DriveStateEntry,
 } from "./state.js"
 import { render } from "../../output/render.js"
-import type { DriveManifestResponse, UploadDriveFileResponse } from "../../../generated/sdk/index.js"
+import type { DriveManifestResponse, MoveDriveFileResponse, UploadDriveFileResponse } from "../../../generated/sdk/index.js"
 
 type RemoteEntry = DriveManifestResponse["entries"][number]
 type ProcessPathResult = { state: DriveState; stop: boolean }
 
+// The manifest endpoint gained delta fields (latest_cursor / resync_required)
+// that the generated SDK type does not model yet.
+export type DriveManifestResult = DriveManifestResponse & {
+  latest_cursor?: string
+  resync_required?: boolean
+}
+
 export interface DriveSyncApi {
-  getManifest(id: string, cursor?: string): Promise<DriveManifestResponse>
+  getManifest(id: string, cursor?: string, sinceCursor?: string): Promise<DriveManifestResult>
   uploadFile(
     id: string,
     path: string,
@@ -46,9 +54,15 @@ export interface DriveSyncApi {
   ): Promise<UploadDriveFileResponse>
   downloadFile(id: string, path: string, versionId?: string): Promise<Response>
   deleteFile(id: string, path: string, expectedEntryVersion: number): Promise<unknown>
+  moveFile?(
+    id: string,
+    fromPath: string,
+    toPath: string,
+    expectedEntryVersion?: number,
+  ): Promise<MoveDriveFileResponse>
 }
 
-export type DriveSyncPathAction = DriveAction["type"] | "error" | "merged"
+export type DriveSyncPathAction = DriveAction["type"] | "error" | "merged" | "move"
 
 export interface DriveSyncSummary {
   uploaded: number
@@ -85,27 +99,52 @@ function isActionableAction(action: DriveAction): boolean {
   return action.type !== "unchanged" && action.type !== "state_only" && action.type !== "remove_state"
 }
 
+export interface DriveSyncOnceOptions {
+  // Incremental scan: only these paths are re-stat/hashed; the rest of the
+  // local view comes from state.scan_cache. Requires a warm cache.
+  dirtyPaths?: string[]
+}
+
 export async function runDriveSyncOnce(
   root: string,
   api?: DriveSyncApi,
   clock: DriveClock = systemDriveClock,
   onProgress?: DriveSyncProgress,
   debug: DriveDebugLogger = noopDriveDebugLogger,
+  options: DriveSyncOnceOptions = {},
 ): Promise<DriveSyncSummary> {
   return withDriveLock(root, async () => {
     let state = await readDriveState(root)
-    const syncApi = api ?? (await createDriveApi())
+    const syncApi = api ?? (await createDriveApi({ clientId: state.realtime?.client_id }))
     const summary = emptySummary()
     const blockedPaths = new Set<string>()
     const scanStartedMs = Date.now()
-    const localFiles = await scanDriveFiles(root, {
-      onPathError: async (path, error) => {
-        await recordPathError(summary, blockedPaths, path, error)
+    const nextScanCache: Record<string, DriveScanCacheEntry> = {}
+    const scanOptions = {
+      cache: state.scan_cache,
+      onCacheUpdate: (path: string, entry: DriveScanCacheEntry) => {
+        nextScanCache[path] = entry
       },
-    })
+      onPathError: async (path: string, error: unknown) => {
+        await recordPathError(summary, blockedPaths, path, error, { debug, op: "scan" })
+      },
+    }
+    const useIncrementalScan = options.dirtyPaths !== undefined && state.scan_cache !== undefined
+    const localFiles = useIncrementalScan
+      ? await rescanDriveFiles(root, options.dirtyPaths!, scanOptions)
+      : await scanDriveFiles(root, scanOptions)
+    if (JSON.stringify(state.scan_cache ?? {}) !== JSON.stringify(nextScanCache)) {
+      state = { ...state, scan_cache: nextScanCache }
+      await writeDriveState(root, state, clock)
+    }
     const scanMs = Date.now() - scanStartedMs
     const manifestStartedMs = Date.now()
-    const remoteFiles = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths)
+    const manifest = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths, debug)
+    const remoteFiles = manifest.remoteFiles
+    if (manifest.manifestCursor !== undefined && manifest.manifestCursor !== state.manifest_cursor) {
+      state = { ...state, manifest_cursor: manifest.manifestCursor }
+      await writeDriveState(root, state, clock)
+    }
     const manifestMs = Date.now() - manifestStartedMs
     const paths = Array.from(
       new Set([...Object.keys(localFiles), ...Object.keys(remoteFiles), ...Object.keys(state.entries)]),
@@ -113,16 +152,34 @@ export async function runDriveSyncOnce(
       .filter((path) => !blockedPaths.has(path))
       .sort((left, right) => left.localeCompare(right))
 
+    const movedPaths = await applyRenamesAsMoves({
+      root,
+      state,
+      api: syncApi,
+      paths,
+      localFiles,
+      remoteFiles,
+      summary,
+      clock,
+      debug,
+      onStateChange: (nextState) => {
+        state = nextState
+      },
+    })
+
     // decideDriveAction is pure and reads only this path's slices of the
     // initial state, so this pre-pass total matches the loop's actions.
-    const total = paths.filter((path) =>
-      isActionableAction(decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])),
+    const total = paths.filter(
+      (path) =>
+        !movedPaths.has(path) &&
+        isActionableAction(decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])),
     ).length
     let processed = 0
     onProgress?.(processed, total)
 
     const processStartedMs = Date.now()
     for (const path of paths) {
+      if (movedPaths.has(path)) continue
       const remote = remoteFiles[path]
       const local = localFiles[path]
       const action = decideDriveAction(state.entries[path], local, remote)
@@ -130,7 +187,7 @@ export async function runDriveSyncOnce(
         debug.log("decision", decisionFields(path, action, state.entries[path], local, remote))
       }
       const previousConflict = state.conflicts[path]
-      const result = await processPath({ root, state, api: syncApi, path, action, remote, local, summary, clock })
+      const result = await processPath({ root, state, api: syncApi, path, action, remote, local, summary, clock, debug })
       state = result.state
       const recordedConflict = state.conflicts[path]
       if (recordedConflict !== undefined && recordedConflict !== previousConflict) {
@@ -198,12 +255,37 @@ async function fetchRemoteManifest(
   api: DriveSyncApi,
   summary: DriveSyncSummary,
   blockedPaths: Set<string>,
-): Promise<Record<string, RemoteEntry>> {
+  debug: DriveDebugLogger,
+): Promise<{ remoteFiles: Record<string, RemoteEntry>; manifestCursor: string | undefined }> {
+  if (state.manifest_cursor !== undefined) {
+    const delta = await api.getManifest(state.library_id, undefined, state.manifest_cursor)
+    if (delta.resync_required !== true) {
+      const remoteFiles = remoteViewFromState(state)
+      const changed = delta.entries.filter((entry) => entry.deleted_at === undefined)
+      const normalized = normalizeRemoteManifest(root, changed)
+      for (const pathError of normalized.pathErrors) {
+        await recordPathError(summary, blockedPaths, pathError.path, pathError.error, {
+          appendPathResult: pathError.appendPathResult,
+          debug,
+          op: "manifest",
+        })
+      }
+      for (const entry of delta.entries) {
+        if (entry.deleted_at !== undefined) delete remoteFiles[entry.path]
+      }
+      Object.assign(remoteFiles, normalized.remoteFiles)
+      return { remoteFiles, manifestCursor: delta.latest_cursor ?? state.manifest_cursor }
+    }
+    // resync_required: cursor pruned or invalid, fall back to a full fetch.
+  }
+
   const entries: RemoteEntry[] = []
   let cursor: string | undefined
+  let latestCursor: string | undefined
   do {
     const page = await api.getManifest(state.library_id, cursor)
     entries.push(...page.entries)
+    if (page.latest_cursor !== undefined) latestCursor = page.latest_cursor
     cursor = page.next_cursor ?? undefined
   } while (cursor !== undefined)
 
@@ -211,9 +293,30 @@ async function fetchRemoteManifest(
   for (const pathError of normalized.pathErrors) {
     await recordPathError(summary, blockedPaths, pathError.path, pathError.error, {
       appendPathResult: pathError.appendPathResult,
+      debug,
+      op: "manifest",
     })
   }
-  return normalized.remoteFiles
+  return { remoteFiles: normalized.remoteFiles, manifestCursor: latestCursor }
+}
+
+// Reconstructs the last-known remote view from base state so a manifest delta
+// only has to carry what changed since the stored cursor.
+function remoteViewFromState(state: DriveState): Record<string, RemoteEntry> {
+  const remoteFiles: Record<string, RemoteEntry> = {}
+  for (const [path, entry] of Object.entries(state.entries)) {
+    remoteFiles[path] = {
+      id: entry.entry_id,
+      path,
+      kind: "file",
+      entry_version: entry.entry_version,
+      size_bytes: entry.size_bytes,
+      updated_at: entry.last_synced_at,
+      ...(entry.current_version_id === undefined ? {} : { current_version_id: entry.current_version_id }),
+      ...(entry.content_sha256 === undefined ? {} : { content_sha256: entry.content_sha256 }),
+    }
+  }
+  return remoteFiles
 }
 
 async function processPath(args: {
@@ -226,8 +329,9 @@ async function processPath(args: {
   local: { sha256: string; size_bytes: number } | undefined
   summary: DriveSyncSummary
   clock: DriveClock
+  debug: DriveDebugLogger
 }): Promise<ProcessPathResult> {
-  const { root, state, api, path, action, remote, local, summary, clock } = args
+  const { root, state, api, path, action, remote, local, summary, clock, debug } = args
   summary.paths.push({ path, action: action.type })
   let durableStateRequired = false
 
@@ -335,35 +439,17 @@ async function processPath(args: {
           summary.conflicts += 1
           return { state: nextState, stop: false }
         }
-        const conflictCopyState = await recordRemoteConflictCopy({
-          root,
-          state,
-          api,
-          path,
-          reason: action.reason,
-          type: "edit_edit",
-          remote,
-          clock,
-        })
-        if (conflictCopyState) {
-          summary.conflicts += 1
-          return { state: conflictCopyState, stop: false }
+        const resolved = await resolveConflictWithLocalAsMain({ root, state, api, path, remote, local, clock })
+        if (resolved) {
+          recordResolvedConflict(summary, debug, path, resolved.copyPath, action.reason, "edit_edit")
+          return { state: resolved.state, stop: false }
         }
       }
       if (action.reason === "local_and_remote_without_base") {
-        const conflictCopyState = await recordRemoteConflictCopy({
-          root,
-          state,
-          api,
-          path,
-          reason: action.reason,
-          type: "create_create",
-          remote,
-          clock,
-        })
-        if (conflictCopyState) {
-          summary.conflicts += 1
-          return { state: conflictCopyState, stop: false }
+        const resolved = await resolveConflictWithLocalAsMain({ root, state, api, path, remote, local, clock })
+        if (resolved) {
+          recordResolvedConflict(summary, debug, path, resolved.copyPath, action.reason, "create_create")
+          return { state: resolved.state, stop: false }
         }
       }
       if (action.reason === "local_changed_remote_deleted") {
@@ -404,11 +490,11 @@ async function processPath(args: {
         summary.paths[summary.paths.length - 1] = { path, action: "conflict" }
         return { state: nextState, stop: false }
       } catch (writeError) {
-        await recordPathError(summary, undefined, path, writeError)
+        await recordPathError(summary, undefined, path, writeError, { debug, op: "process" })
         return { state, stop: durableStateRequired }
       }
     }
-    await recordPathError(summary, undefined, path, error)
+    await recordPathError(summary, undefined, path, error, { debug, op: "process" })
     return { state, stop: durableStateRequired }
   }
   return { state, stop: false }
@@ -484,6 +570,127 @@ async function tryResolveConflict(args: {
 async function downloadBytes(api: DriveSyncApi, libraryId: string, path: string, versionId: string): Promise<Uint8Array> {
   const response = await api.downloadFile(libraryId, path, versionId)
   return new Uint8Array(await response.arrayBuffer())
+}
+
+// Detects local renames (a delete_remote and an upload_create with the same
+// content hash) and applies them via the server move API, preserving version
+// history and skipping a full re-upload. Only unambiguous 1:1 hash pairs are
+// moved; anything else falls back to normal upload + delete processing.
+async function applyRenamesAsMoves(args: {
+  root: string
+  state: DriveState
+  api: DriveSyncApi
+  paths: string[]
+  localFiles: Record<string, { sha256: string; size_bytes: number }>
+  remoteFiles: Record<string, RemoteEntry>
+  summary: DriveSyncSummary
+  clock: DriveClock
+  debug: DriveDebugLogger
+  onStateChange: (state: DriveState) => void
+}): Promise<Set<string>> {
+  const { root, api, paths, localFiles, remoteFiles, summary, clock, debug, onStateChange } = args
+  const movedPaths = new Set<string>()
+  if (api.moveFile === undefined) return movedPaths
+
+  let state = args.state
+  const deletesBySha = new Map<string, string[]>()
+  const createsBySha = new Map<string, string[]>()
+  for (const path of paths) {
+    const action = decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])
+    if (action.type === "delete_remote") {
+      const sha = state.entries[path]?.last_local_sha256 ?? state.entries[path]?.content_sha256
+      if (sha !== undefined) deletesBySha.set(sha, [...(deletesBySha.get(sha) ?? []), path])
+    }
+    if (action.type === "upload_create") {
+      const sha = localFiles[path]?.sha256
+      if (sha !== undefined) createsBySha.set(sha, [...(createsBySha.get(sha) ?? []), path])
+    }
+  }
+
+  for (const [sha, fromPaths] of deletesBySha) {
+    const toPaths = createsBySha.get(sha)
+    if (fromPaths.length !== 1 || toPaths === undefined || toPaths.length !== 1) continue
+    const fromPath = fromPaths[0]!
+    const toPath = toPaths[0]!
+    const entry = state.entries[fromPath]
+    const local = localFiles[toPath]
+    if (entry === undefined || local === undefined) continue
+    try {
+      const moved = await api.moveFile(state.library_id, fromPath, toPath, entry.entry_version)
+      const nextState = cloneDriveState(state)
+      delete nextState.entries[fromPath]
+      delete nextState.conflicts[fromPath]
+      nextState.entries[toPath] = stateEntryFromRemote(moved.entry, local.sha256, clock)
+      delete nextState.conflicts[toPath]
+      await writeDriveState(root, nextState, clock)
+      state = nextState
+      onStateChange(nextState)
+      movedPaths.add(fromPath)
+      movedPaths.add(toPath)
+      summary.paths.push({ path: toPath, action: "move" })
+      debug.log("decision", { path: toPath, action: "move", from_path: fromPath })
+    } catch (error) {
+      // Move is an optimization: on any failure fall back to upload + delete.
+      debug.log("error", { path: toPath, op: "move", message: errorMessage(error) })
+    }
+  }
+  return movedPaths
+}
+
+function recordResolvedConflict(
+  summary: DriveSyncSummary,
+  debug: DriveDebugLogger,
+  path: string,
+  copyPath: string,
+  reason: string,
+  type: NonNullable<DriveConflict["type"]>,
+): void {
+  summary.conflicts += 1
+  summary.conflict_paths.push(copyPath)
+  const lastPath = summary.paths.at(-1)
+  if (lastPath?.path === path) {
+    lastPath.conflict_paths = [copyPath]
+  }
+  debug.log("conflict", { path, reason, type, strategy: "conflict_copy", conflict_paths: [copyPath] })
+}
+
+// Resolves an edit/edit or create/create conflict in one pass: the remote
+// version is preserved as a conflict copy, the local content is uploaded as
+// the new main version, and the base state advances so the next sync does not
+// re-detect the same conflict.
+async function resolveConflictWithLocalAsMain(args: {
+  root: string
+  state: DriveState
+  api: DriveSyncApi
+  path: string
+  remote: RemoteEntry | undefined
+  local: { sha256: string; size_bytes: number } | undefined
+  clock: DriveClock
+}): Promise<{ state: DriveState; copyPath: string } | undefined> {
+  const { root, state, api, path, remote, local, clock } = args
+  const remoteVersionId = remote?.current_version_id
+  if (!remote || remoteVersionId === undefined || !local) {
+    return undefined
+  }
+
+  const previous = state.conflicts[path]
+  let copyPath: string
+  if (previous !== undefined && (await canReuseConflictCopy(root, previous, remoteVersionId))) {
+    copyPath = previous.conflict_paths![0]!
+  } else {
+    const remoteBytes = await downloadBytes(api, state.library_id, path, remoteVersionId)
+    copyPath = await writeConflictCopy(root, path, "remote", remoteVersionId, remoteBytes, clock)
+  }
+
+  const localPath = resolveInsideRoot(root, path)
+  const { body, digest } = await readStableUploadBody(localPath, local)
+  const uploaded = await api.uploadFile(state.library_id, path, body, digest, remote.entry_version)
+
+  const nextState = cloneDriveState(state)
+  nextState.entries[path] = stateEntryFromRemote(uploaded.entry, digest, clock)
+  delete nextState.conflicts[path]
+  await writeDriveState(root, nextState, clock)
+  return { state: nextState, copyPath }
 }
 
 async function recordRemoteConflictCopy(args: {
@@ -694,7 +901,7 @@ async function recordPathError(
   blockedPaths: Set<string> | undefined,
   path: string,
   error: unknown,
-  options: { appendPathResult?: boolean } = {},
+  options: { appendPathResult?: boolean; debug?: DriveDebugLogger; op?: string } = {},
 ): Promise<void> {
   blockedPaths?.add(path)
   const lastPath = summary.paths.at(-1)
@@ -703,7 +910,13 @@ async function recordPathError(
   } else {
     summary.paths.push({ path, action: "error" })
   }
-  void errorMessage(error)
+  const code = error instanceof Error && "code" in error ? (error as NodeJS.ErrnoException).code : undefined
+  options.debug?.log("error", {
+    path,
+    ...(options.op === undefined ? {} : { op: options.op }),
+    ...(code === undefined ? {} : { code }),
+    message: errorMessage(error),
+  })
   summary.errors += 1
 }
 

@@ -41,7 +41,7 @@ export function decideDriveAction(
 
   if (!remote) return decideRemoteMissing(localStatus)
   if (!local) return decideLocalMissing(entry, remoteStatus)
-  return decideBothPresent(entry, localStatus, remoteStatus)
+  return decideBothPresent(entry, localStatus, remoteStatus, local, remote)
 }
 
 function decideWithoutBase(local: DecisionLocal | undefined, remote: DecisionRemote | undefined): DriveAction {
@@ -75,7 +75,13 @@ function decideBothPresent(
   entry: DecisionEntry,
   localStatus: LocalStatus,
   remoteStatus: RemoteStatus,
+  local: DecisionLocal,
+  remote: DecisionRemote,
 ): DriveAction {
+  // Identical bytes on both sides means the conflict is already converged,
+  // whatever the base says; only the state entry needs to catch up.
+  const converged = remote.content_sha256 !== undefined && local.sha256 === remote.content_sha256
+
   if (localStatus === "unchanged" && remoteStatus === "content_same_new_version") {
     return { type: "state_only" }
   }
@@ -83,7 +89,7 @@ function decideBothPresent(
     return { type: "conflict", reason: "remote_missing_entry_version" }
   }
   if (localStatus === "unknown" && remoteStatus !== "unchanged") {
-    return { type: "conflict", reason: "unknown_local_base_remote_changed" }
+    return converged ? { type: "state_only" } : { type: "conflict", reason: "unknown_local_base_remote_changed" }
   }
   if (localStatus === "unknown") return { type: "conflict", reason: "unknown_local_base" }
   if (localStatus === "unchanged" && remoteStatus === "changed") return { type: "download" }
@@ -91,7 +97,7 @@ function decideBothPresent(
     return { type: "upload_update", expectedEntryVersion: entry.entry_version }
   }
   if (localStatus !== "unchanged" && remoteStatus !== "unchanged") {
-    return { type: "conflict", reason: "local_and_remote_changed" }
+    return converged ? { type: "state_only" } : { type: "conflict", reason: "local_and_remote_changed" }
   }
 
   return { type: "unchanged" }

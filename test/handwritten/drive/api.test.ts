@@ -57,7 +57,7 @@ function mkReq(input: RequestInfo | URL, init?: RequestInit): Request {
   return new Request(input, init)
 }
 
-async function mkDriveApi(fetchImpl: typeof fetch, apiBase = "https://api.wspc.ai") {
+async function mkDriveApi(fetchImpl: typeof fetch, apiBase = "https://api.wspc.ai", clientId?: string) {
   const dir = await mkdtemp(join(tmpdir(), "wspc-drive-api-"))
   const store = new ConfigStore({ configDir: dir })
   await store.write({
@@ -73,7 +73,7 @@ async function mkDriveApi(fetchImpl: typeof fetch, apiBase = "https://api.wspc.a
       },
     },
   })
-  return createDriveApi({ store, fetchImpl })
+  return createDriveApi({ store, fetchImpl, ...(clientId === undefined ? {} : { clientId }) })
 }
 
 describe("createDriveApi", () => {
@@ -163,6 +163,25 @@ describe("createDriveApi", () => {
     await api.deleteFile("lib_1", "notes/hello.txt", 2)
 
     expect(seenHeaders).toEqual(["drive-sync", "drive-sync"])
+  })
+
+  it("appends the session client id to x-wspc-client when provided", async () => {
+    const seenHeaders: Array<string | null> = []
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = mkReq(input, init)
+      seenHeaders.push(req.headers.get("x-wspc-client"))
+      const payload = req.method === "PUT" ? DRIVE_UPLOAD : DRIVE_DELETE
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    }) as typeof fetch
+
+    const api = await mkDriveApi(fetchImpl, "https://api.wspc.ai", "drvcli_abc123")
+    await api.uploadFile("lib_1", "notes/hello.txt", new TextEncoder().encode("hello"), "3a6eb7", 2)
+    await api.deleteFile("lib_1", "notes/hello.txt", 2)
+
+    expect(seenHeaders).toEqual(["drive-sync/drvcli_abc123", "drive-sync/drvcli_abc123"])
   })
 
   it("throws useful errors for failed JSON SDK calls", async () => {
