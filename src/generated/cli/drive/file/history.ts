@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const driveFileHistoryCommand = new Command("history")
   .description("Get drive file version history")
+  .addHelpText("after", "\nList stored versions of a file, newest first.\n")
   .argument("<id>", "id")
   .option("--path <value>", "path")
   .action(async (id, opts) => {

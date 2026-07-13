@@ -218,6 +218,7 @@ async function main(): Promise<void> {
         method,
         path: routePath,
         summary: op.summary,
+        description: op.description,
         xCli: op["x-cli"],
         bodyFields,
         pathParams,

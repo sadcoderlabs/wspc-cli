@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const orgInviteRevokeCommand = new Command("revoke")
   .description("Revoke a pending invite")
+  .addHelpText("after", "\nPermanently revokes a pending organization invite. The invitee will no longer be able to accept it.\n\nExamples:\n  $ wspc org invite revoke inv_...\n")
   .argument("<id>", "id")
   .action(async (id, opts) => {
     const client = await loadSdkClient()

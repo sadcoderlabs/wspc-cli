@@ -50,6 +50,7 @@ export interface EmitInput {
   method: string
   path: string
   summary?: string
+  description?: string
   xCli: XCli
   bodyFields: BodyField[]
   pathParams?: string[]
@@ -495,12 +496,24 @@ export function emitCommand(input: EmitInput): string | null {
     )
   }
 
+  let helpTextCall = ""
+  const helpParts: string[] = []
+  if (input.description) {
+    helpParts.push(input.description)
+  }
+  if (input.xCli.examples && input.xCli.examples.length > 0) {
+    helpParts.push("Examples:\n" + input.xCli.examples.map((ex) => `  $ ${ex}`).join("\n"))
+  }
+  if (helpParts.length > 0) {
+    helpTextCall = `\n  .addHelpText("after", ${JSON.stringify("\n" + helpParts.join("\n\n") + "\n")})`
+  }
+
   return [
     `// AUTO-GENERATED — DO NOT EDIT (source: ${input.operationId})`,
     ...imports,
     ``,
     `export const ${fnName}Command = new Command(${JSON.stringify(cmdLeaf)})`,
-    `  .description(${JSON.stringify(input.summary ?? input.xCli.command)})`,
+    `  .description(${JSON.stringify(input.summary ?? input.xCli.command)})${helpTextCall}`,
     ...args.map((a) => `  ${a}`),
     ...options.map((o) => `  ${o}`),
     `  .action(async (${[...argNames, "opts"].join(", ")}) => {`,

@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const driveLibraryCreateCommand = new Command("add")
   .description("Create a drive library")
+  .addHelpText("after", "\nCreate an organization-scoped Drive / Library container.\n")
   .argument("<name>", "name")
   .action(async (name, opts) => {
     const client = await loadSdkClient()

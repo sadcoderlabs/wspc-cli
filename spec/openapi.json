@@ -30376,7 +30376,8 @@
           },
           "examples": [
             "wspc todo add \"Buy milk\"",
-            "wspc todo add \"Buy milk\" --project prj_xxx"
+            "wspc todo add \"Buy milk\" --project prj_xxx",
+            "wspc todo add \"Fix styling issue\" --type-id typ_xxx --custom-fields '{\"severity\":\"high\",\"tags\":[\"ui\"]}'"
           ],
           "display": {
             "shape": "object",
@@ -30395,7 +30396,7 @@
           }
         },
         "summary": "Create a todo",
-        "description": "### 🎯 Overview & Purpose\nCreate a new todo item under a specified project. This can either be a standalone root-level todo or a nested subtask attached to an existing root todo.\n\n### 🔍 When to Use\n* Use this to capture a fresh work item, document an ongoing task, or break a larger root todo into subtasks by creating child todos under it.\n\n### 💡 Key Features & Constraints\n* **One-Level Nesting Limit**: WSPC supports a maximum of one level of task nesting (Root ➔ Child). A root-level todo can have children, but a child todo cannot have further subtasks. Setting a child todo as a parent will fail and trigger a `PARENT_IS_CHILD` error.\n* **Description Handling**: Passing a non-empty string stores the description; passing `\"\"` explicitly stores an empty string. Passing `null` is strictly rejected.\n* **Due Date Format**: Accepts an ISO-8601 date-only format (`YYYY-MM-DD`). Pass `\"\"` or omit the field to skip setting a due date.\n* **Project Binding**: Every todo must belong to a valid active project (`project_id`).\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VALIDATION_ERROR` (HTTP 400)**: Thrown if required fields are missing, if `due_at` violates the `YYYY-MM-DD` format, or if `title` exceeds 500 characters.\n* **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the target `parent_id` refers to a todo that is itself already a child todo.\n* **`WOULD_CREATE_CYCLE` (HTTP 400)**: Thrown if `parent_id` points to the todo's own ID.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the specified `project_id` or `parent_id` does not exist or has been soft-deleted.",
+        "description": "### 🎯 Overview & Purpose\nCreate a new todo item under a specified project. This can either be a standalone root-level todo or a nested subtask attached to an existing root todo.\n\n### 🔍 When to Use\n* Use this to capture a fresh work item, document an ongoing task, or break a larger root todo into subtasks by creating child todos under it.\n\n### 💡 Key Features & Constraints\n* **One-Level Nesting Limit**: WSPC supports a maximum of one level of task nesting (Root ➔ Child). A root-level todo can have children, but a child todo cannot have further subtasks. Setting a child todo as a parent will fail and trigger a `PARENT_IS_CHILD` error.\n* **Description Handling**: Passing a non-empty string stores the description; passing `\"\"` explicitly stores an empty string. Passing `null` is strictly rejected.\n* **Due Date Format**: Accepts an ISO-8601 date-only format (`YYYY-MM-DD`). Pass `\"\"` or omit the field to skip setting a due date.\n* **Project Binding**: Every todo must belong to a valid active project (`project_id`).\n\n### 💡 Best Practices & Guidelines\n* **Descriptive Descriptions**: Always provide a detailed description explaining the task's context, goal, or definition of done. Avoid leaving it empty.\n* **Task Breakdown**: For complex items, split the task into 2-3 logical subtasks (by passing a parent todo ID in `parent_id`). Remember WSPC supports only one level of nesting (Root -> Child).\n* **Integration with Drive**: If a task requires storing large text blocks, research logs, checklists, or files, do not overload the description. Use the Drive feature to store a markdown file (e.g., `research/notes.md`) and place a clean reference link in the description, such as `[Notes](drive://<library>/<path>)`.\n* **Structured Properties (Custom Fields)**: Avoid putting structured meta-attributes (like priority, severity, story points, tags) directly in the description. Instead, use custom todo types (`todo_type`). Create a custom type schema first, then assign it with `type_id` and pass values via `custom_fields`.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VALIDATION_ERROR` (HTTP 400)**: Thrown if required fields are missing, if `due_at` violates the `YYYY-MM-DD` format, or if `title` exceeds 500 characters.\n* **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the target `parent_id` refers to a todo that is itself already a child todo.\n* **`WOULD_CREATE_CYCLE` (HTTP 400)**: Thrown if `parent_id` points to the todo's own ID.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the specified `project_id` or `parent_id` does not exist or has been soft-deleted.",
         "security": [
           {
             "bearerAuth": []
@@ -31358,8 +31359,18 @@
           "TodoTypes"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "todo type add",
+          "positional": [
+            "label"
+          ],
+          "aliases": {
+            "project": "p"
+          },
+          "examples": [
+            "wspc todo type add \"Bug Report\"",
+            "wspc todo type add \"Bug Report\" --project prj_xxx",
+            "wspc todo type add \"Sprint Task\" --custom-fields '[{\"key\":\"story_points\",\"label\":\"Story Points\",\"type\":\"string\"}]'"
+          ]
         },
         "summary": "Create a todo type",
         "description": "### 🎯 Overview & Purpose\nCreate a new custom todo type. This allows you to define specialized category schemas (e.g. \"Bug Report\") and configure custom field constraints.\n\n### 🔍 When to Use\n* Use this to set up customized task behaviors (e.g. tracking choices, additional metadata, or enforcing hidden fields) tailored to a project.\n\n### 💡 Key Features & Constraints\n* **Automatic Seeding**: The first project initialization will lazily seed a `Default Project` and a `Default` todo type if they do not already exist.\n* **Metadata Schema**: Custom field keys mapped here are evaluated during task creation/update.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VALIDATION_ERROR` (HTTP 400)**: Thrown if required fields are missing or schema constraints are violated.",
@@ -36169,7 +36180,8 @@
           ],
           "examples": [
             "wspc todo update tod_xxx --status done",
-            "wspc todo update tod_xxx --title \"New title\""
+            "wspc todo update tod_xxx --title \"New title\"",
+            "wspc todo update tod_xxx --custom-fields '{\"severity\":\"critical\"}'"
           ],
           "display": {
             "shape": "object",
@@ -36188,7 +36200,7 @@
           }
         },
         "summary": "Update a todo",
-        "description": "### 🎯 Overview & Purpose\nUpdate one or more fields of an existing todo item, such as its title, status, parent todo, due date, or description.\n\n### 🔍 When to Use\n* Use this to log progress by changing the status (e.g., to `in_progress` or `done`), reschedule due dates, edit title/description, or reassign/move a task by changing its `parent_id`.\n\n### 💡 Key Features & Constraints\n* **Optimistic Locking (`expected_version`)**: An optional integer representing the version you expect to update. If provided, the server matches it with the current database version. If they match, the update succeeds and increments the version; if they mismatch, a `VERSION_CONFLICT` error is thrown. Omit this field to skip version checking (Last-Write-Wins behavior).\n* **Parent Re-assignment**: Set `parent_id: null` to move a child todo back to the root level.\n* **Status Transitions**: Transitioning the `status` to `done` automatically emits a `captureTodoCompleted` analytics event.\n* **Clearing Fields**: To clear an existing description or due date, explicitly pass `\"\"`. Passing `null` is rejected.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` does not match the current database row version.\n* **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the new `parent_id` refers to a todo that is itself already a child todo.\n* **`WOULD_CREATE_CYCLE` (HTTP 400)**: Thrown if the update attempts to make a parent todo a child of its own descendant.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the todo `id` or the new `parent_id` does not exist or has been soft-deleted.",
+        "description": "### 🎯 Overview & Purpose\nUpdate one or more fields of an existing todo item, such as its title, status, parent todo, due date, or description.\n\n### 🔍 When to Use\n* Use this to log progress by changing the status (e.g., to `in_progress` or `done`), reschedule due dates, edit title/description, or reassign/move a task by changing its `parent_id`.\n\n### 💡 Key Features & Constraints\n* **Optimistic Locking (`expected_version`)**: An optional integer representing the version you expect to update. If provided, the server matches it with the current database version. If they match, the update succeeds and increments the version; if they mismatch, a `VERSION_CONFLICT` error is thrown. Omit this field to skip version checking (Last-Write-Wins behavior).\n* **Parent Re-assignment**: Set `parent_id: null` to move a child todo back to the root level.\n* **Status Transitions**: Transitioning the `status` to `done` automatically emits a `captureTodoCompleted` analytics event.\n* **Clearing Fields**: To clear an existing description or due date, explicitly pass `\"\"`. Passing `null` is rejected.\n\n### 💡 Best Practices & Guidelines\n* **Enriched Context**: Keep the description updated with definition of done, relevant progress notes, or resolution summaries.\n* **Keep Descriptions Clean**: Delegate heavy logs/documents to a Markdown file on Drive, and put a markdown link inside the description.\n* **Structured Properties**: Use custom fields (`custom_fields`) matching the todo's type to record properties like tags, priority, or severity.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` does not match the current database row version.\n* **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the new `parent_id` refers to a todo that is itself already a child todo.\n* **`WOULD_CREATE_CYCLE` (HTTP 400)**: Thrown if the update attempts to make a parent todo a child of its own descendant.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the todo `id` or the new `parent_id` does not exist or has been soft-deleted.",
         "security": [
           {
             "bearerAuth": []
@@ -36595,8 +36607,13 @@
           "TodoTypes"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "todo type rm",
+          "positional": [
+            "id"
+          ],
+          "examples": [
+            "wspc todo type rm typ_xxx"
+          ]
         },
         "summary": "Soft-delete a todo type",
         "description": "### 🎯 Overview & Purpose\nSoft-delete/archive a custom todo type.\n\n### 🔍 When to Use\n* Use this to retire a custom task category workspace that is no longer needed.\n\n### 💡 Key Features & Constraints\n* **Default Type Protection**: The current active default type of a project cannot be deleted. You must assign another type as default first; otherwise the call fails with `CANNOT_DELETE_DEFAULT_TYPE`.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`CANNOT_DELETE_DEFAULT_TYPE` (HTTP 409)**: Thrown if the target todo type is currently the project's default type.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target ID does not exist.",
@@ -37307,8 +37324,14 @@
           "TodoTypes"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "todo type set",
+          "positional": [
+            "id"
+          ],
+          "examples": [
+            "wspc todo type set typ_xxx --label \"Feature Request\"",
+            "wspc todo type set typ_xxx --custom-fields '[{\"key\":\"severity\",\"label\":\"Severity\",\"type\":\"string\"}]'"
+          ]
         },
         "summary": "Update a todo type",
         "description": "### 🎯 Overview & Purpose\nUpdate a custom todo type's label, core field overrides, or custom field schema definitions.\n\n### 🔍 When to Use\n* Use this to rename a task category category, hide native todo attributes, or adjust custom data schemas.\n\n### 💡 Key Features & Constraints\n* **Type Modification Constraints**: Changing the data `type` of an existing custom field key (e.g. converting a string field to a boolean field) is strictly rejected with `CANNOT_CHANGE_FIELD_TYPE`. To migrate, remove the key and re-add it under a brand new name.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`CANNOT_CHANGE_FIELD_TYPE` (HTTP 422)**: Thrown if you attempt to modify the declared data type of an existing custom field key.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target ID does not exist.",
@@ -38464,8 +38487,13 @@
           "TodoTypes"
         ],
         "x-cli": {
-          "command": "_internal",
-          "hidden": true
+          "command": "todo type restore",
+          "positional": [
+            "id"
+          ],
+          "examples": [
+            "wspc todo type restore typ_xxx"
+          ]
         },
         "summary": "Restore a soft-deleted todo type",
         "description": "### 🎯 Overview & Purpose\nRestore a previously archived/soft-deleted custom todo type.\n\n### 🔍 When to Use\n* Use this to bring a retired task category back into active status.\n\n### 💡 Key Features & Constraints\n* **Task Re-Attachment**: Restoring a type clears its `deleted_at` timestamp. Todo items previously assigned to this type immediately become active and validated under this recovered category schema.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target ID does not exist.",

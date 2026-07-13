@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const driveLibraryUpdateCommand = new Command("update")
   .description("Update a drive library")
+  .addHelpText("after", "\nRename a library using optimistic version locking.\n")
   .argument("<id>", "id")
   .option("--name <value>", "name")
   .option("--expected-version <value>", "expected_version")

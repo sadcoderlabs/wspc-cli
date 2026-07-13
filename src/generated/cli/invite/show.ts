@@ -6,6 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const inviteGetCommand = new Command("show")
   .description("Get a single invite addressed to the caller")
+  .addHelpText("after", "\nRetrieves the metadata of a specific organization invite addressed to the caller by its ID.\n\nExamples:\n  $ wspc invite show inv_...\n")
   .argument("<id>", "id")
   .action(async (id, opts) => {
     const client = await loadSdkClient()

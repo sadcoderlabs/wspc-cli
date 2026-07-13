@@ -6,6 +6,7 @@ import { render } from "../../../handwritten/output/render.js"
 
 export const driveSearchCommand = new Command("search")
   .description("Search drive library text")
+  .addHelpText("after", "\nFull-text search over indexed text files in a library (FTS5).\n")
   .argument("<id>", "id")
   .option("--query <value>", "query")
   .option("--limit <value>", "limit")

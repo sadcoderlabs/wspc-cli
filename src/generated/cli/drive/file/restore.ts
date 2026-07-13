@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const driveFileRestoreCommand = new Command("restore")
   .description("Restore a drive file version")
+  .addHelpText("after", "\nPromote a previous file version to be the current content.\n")
   .argument("<id>", "id")
   .option("--path <value>", "path")
   .option("--version-id <value>", "version_id")

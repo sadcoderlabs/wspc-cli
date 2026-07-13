@@ -1670,6 +1670,12 @@ export const todoList = <ThrowOnError extends boolean = false>(options: Options<
  * * **Due Date Format**: Accepts an ISO-8601 date-only format (`YYYY-MM-DD`). Pass `""` or omit the field to skip setting a due date.
  * * **Project Binding**: Every todo must belong to a valid active project (`project_id`).
  *
+ * ### 💡 Best Practices & Guidelines
+ * * **Descriptive Descriptions**: Always provide a detailed description explaining the task's context, goal, or definition of done. Avoid leaving it empty.
+ * * **Task Breakdown**: For complex items, split the task into 2-3 logical subtasks (by passing a parent todo ID in `parent_id`). Remember WSPC supports only one level of nesting (Root -> Child).
+ * * **Integration with Drive**: If a task requires storing large text blocks, research logs, checklists, or files, do not overload the description. Use the Drive feature to store a markdown file (e.g., `research/notes.md`) and place a clean reference link in the description, such as `[Notes](drive://<library>/<path>)`.
+ * * **Structured Properties (Custom Fields)**: Avoid putting structured meta-attributes (like priority, severity, story points, tags) directly in the description. Instead, use custom todo types (`todo_type`). Create a custom type schema first, then assign it with `type_id` and pass values via `custom_fields`.
+ *
  * ### ⚠️ Common Errors & Troubleshooting
  * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if required fields are missing, if `due_at` violates the `YYYY-MM-DD` format, or if `title` exceeds 500 characters.
  * * **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the target `parent_id` refers to a todo that is itself already a child todo.
@@ -1985,6 +1991,11 @@ export const todoGet = <ThrowOnError extends boolean = false>(options: Options<T
  * * **Parent Re-assignment**: Set `parent_id: null` to move a child todo back to the root level.
  * * **Status Transitions**: Transitioning the `status` to `done` automatically emits a `captureTodoCompleted` analytics event.
  * * **Clearing Fields**: To clear an existing description or due date, explicitly pass `""`. Passing `null` is rejected.
+ *
+ * ### 💡 Best Practices & Guidelines
+ * * **Enriched Context**: Keep the description updated with definition of done, relevant progress notes, or resolution summaries.
+ * * **Keep Descriptions Clean**: Delegate heavy logs/documents to a Markdown file on Drive, and put a markdown link inside the description.
+ * * **Structured Properties**: Use custom fields (`custom_fields`) matching the todo's type to record properties like tags, priority, or severity.
  *
  * ### ⚠️ Common Errors & Troubleshooting
  * * **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` does not match the current database row version.

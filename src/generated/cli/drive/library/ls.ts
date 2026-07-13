@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const driveLibraryListCommand = new Command("ls")
   .description("List drive libraries")
+  .addHelpText("after", "\nList libraries in the caller organization with cursor pagination.\n")
   .option("--limit <value>", "limit")
   .option("--cursor <value>", "cursor")
   .option("--include-deleted <value>", "include_deleted")

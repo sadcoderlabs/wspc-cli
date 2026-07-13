@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const projectListCommand = new Command("ls")
   .description("List projects")
+  .addHelpText("after", "\n### 🎯 Overview & Purpose\nList all project workspaces available to the authenticated organization or user.\n\n### 🔍 When to Use\n* Use this to populate project switcher dropdown menus, load side navigation views, or find valid project IDs before listing other scoped resources.\n\n### 💡 Key Features & Constraints\n* **Archived Visibility**: Soft-deleted projects are omitted from default listings. Pass `include_deleted=true` to include them for auditing or recovery dashboards.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`AUTH_REQUIRED` (HTTP 401)**: Thrown if the caller is not authenticated.\n\nExamples:\n  $ wspc todo project ls\n")
   .option("--include-deleted <value>", "Set to `true` to include soft-deleted projects in the response.")
   .action(async (opts) => {
     const client = await loadSdkClient()

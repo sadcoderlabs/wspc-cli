@@ -6,6 +6,7 @@ import { render } from "../../../../handwritten/output/render.js"
 
 export const driveFileDeleteCommand = new Command("rm")
   .description("Delete a drive file")
+  .addHelpText("after", "\nTombstone an active file using optimistic entry version locking.\n")
   .argument("<id>", "id")
   .argument("<path>", "path")
   .option("--expected-entry-version <value>", "expected_entry_version")
