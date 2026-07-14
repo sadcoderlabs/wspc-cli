@@ -233,6 +233,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       ?.start({
         onConnected() {
           emit({ kind: "drive_realtime_connected", library_id: state.library_id })
+          dbg.log("realtime_connected", {})
         },
         onEvent(event) {
           emit(realtimeEvent(event))
@@ -245,12 +246,15 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
         },
         onReconnect(delayMs, error) {
           emit({ kind: "drive_realtime_reconnecting", delay_ms: delayMs, error })
+          dbg.log("realtime_reconnecting", { delay_ms: delayMs, error })
         },
         onAuthFailed(error) {
           emit({ kind: "drive_realtime_auth_failed", error: error ?? "auth failed" })
+          dbg.log("realtime_auth_failed", { error: error ?? "auth failed" })
         },
         onWarning(warning) {
           emit({ kind: "drive_realtime_warning", warning })
+          dbg.log("realtime_warning", { warning })
         },
       })
       .catch(stopWithError)

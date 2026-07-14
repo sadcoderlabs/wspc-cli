@@ -5,6 +5,8 @@ import {
   createDriveRealtimeSource,
   parseDriveRealtimeMessage,
   redactedRealtimeError,
+  REALTIME_PING_INTERVAL_MS,
+  REALTIME_PONG_TIMEOUT_MS,
   type DriveRealtimeConnector,
 } from "../../../src/handwritten/commands/drive/realtime.js"
 import type { DriveRealtimeState } from "../../../src/handwritten/commands/drive/state.js"
@@ -19,6 +21,7 @@ function fakeConnector(): DriveRealtimeConnector & {
     handlers: ConnectorHandlers
     init: ConnectorInit
     close: ReturnType<typeof vi.fn>
+    send: ReturnType<typeof vi.fn>
   }>
 } {
   const connections: Array<{
@@ -26,6 +29,7 @@ function fakeConnector(): DriveRealtimeConnector & {
     handlers: ConnectorHandlers
     init: ConnectorInit
     close: ReturnType<typeof vi.fn>
+    send: ReturnType<typeof vi.fn>
   }> = []
   const connect: DriveRealtimeConnector = (url, handlers, init) => {
     const connection = {
@@ -33,9 +37,10 @@ function fakeConnector(): DriveRealtimeConnector & {
       handlers,
       init,
       close: vi.fn(),
+      send: vi.fn(),
     }
     connections.push(connection)
-    return { close: connection.close }
+    return { close: connection.close, send: connection.send }
   }
   return Object.assign(connect, { connections })
 }
@@ -516,6 +521,66 @@ describe("drive realtime helpers", () => {
 
     expect(events).toEqual([{ reconnect: 1000, error: "network error" }])
     expect(connect.connections).toHaveLength(2)
+  })
+
+  it("parses pong messages and handles them silently", async () => {
+    expect(parseDriveRealtimeMessage(JSON.stringify({ type: "pong" }))).toEqual({ type: "pong" })
+
+    const connect = fakeConnector()
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({ connect }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({ type: "pong" }))
+    await flushPromises()
+
+    expect(events).toEqual([])
+  })
+
+  it("sends keepalive pings and reconnects when the server stops responding", async () => {
+    const connect = fakeConnector()
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({ connect }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.open()
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(REALTIME_PING_INTERVAL_MS)
+    expect(connect.connections[0]?.send).toHaveBeenCalledWith(JSON.stringify({ type: "ping" }))
+
+    // No pong (or any traffic) within the timeout: the half-open socket must
+    // be torn down and reconnected instead of waiting forever.
+    await vi.advanceTimersByTimeAsync(REALTIME_PONG_TIMEOUT_MS)
+    expect(connect.connections[0]?.close).toHaveBeenCalled()
+    expect(events).toContainEqual({ reconnect: 1000, error: "realtime error (PING_TIMEOUT)" })
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(connect.connections).toHaveLength(2)
+  })
+
+  it("treats any incoming message as keepalive liveness", async () => {
+    const connect = fakeConnector()
+    const events: unknown[] = []
+    const source = createDriveRealtimeSource(sourceArgs({ connect }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.open()
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(REALTIME_PING_INTERVAL_MS)
+    expect(connect.connections[0]?.send).toHaveBeenCalledTimes(1)
+
+    connect.connections[0]?.handlers.message(JSON.stringify({ type: "pong" }))
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(REALTIME_PONG_TIMEOUT_MS)
+    expect(connect.connections[0]?.close).not.toHaveBeenCalled()
+    expect(events).not.toContainEqual({ reconnect: 1000, error: "realtime error (PING_TIMEOUT)" })
+
+    // The ping loop keeps going after each round of liveness.
+    await vi.advanceTimersByTimeAsync(REALTIME_PING_INTERVAL_MS)
+    expect(connect.connections[0]?.send).toHaveBeenCalledTimes(2)
   })
 
   it("resolves headers from a provider on every connection attempt", async () => {
