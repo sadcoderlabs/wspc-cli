@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { mkdir, mkdtemp, readFile, utimes, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { DateTime } from "luxon"
@@ -105,6 +105,51 @@ describe("drive state", () => {
     await writeFile(join(root, ".wspc-drive", "sync.lock"), String(process.pid))
 
     await expect(withDriveLock(root, async () => undefined)).rejects.toThrow(/sync lock already exists/)
+  })
+
+  it("tags lock contention with a diagnostic code", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-code-"))
+    await initDriveState(root, "lib_a")
+    await writeFile(join(root, ".wspc-drive", "sync.lock"), String(process.pid))
+
+    await expect(withDriveLock(root, async () => undefined)).rejects.toMatchObject({
+      code: "WSPC_DRIVE_LOCK_HELD",
+    })
+  })
+
+  it("retries a held lock and acquires it once released", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-retry-"))
+    await initDriveState(root, "lib_a")
+    const lockFile = join(root, ".wspc-drive", "sync.lock")
+    await writeFile(lockFile, String(process.pid))
+    let sleeps = 0
+    const sleep = async () => {
+      sleeps += 1
+      if (sleeps === 2) await rm(lockFile, { force: true })
+    }
+    let ran = false
+
+    await withDriveLock(root, async () => {
+      ran = true
+    }, { retries: 5, sleep })
+
+    expect(ran).toBe(true)
+    expect(sleeps).toBe(2)
+  })
+
+  it("gives up retrying and reports contention when the lock never releases", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-lock-retry-giveup-"))
+    await initDriveState(root, "lib_a")
+    await writeFile(join(root, ".wspc-drive", "sync.lock"), String(process.pid))
+    let sleeps = 0
+    const sleep = async () => {
+      sleeps += 1
+    }
+
+    await expect(
+      withDriveLock(root, async () => undefined, { retries: 3, sleep }),
+    ).rejects.toThrow(/sync lock already exists/)
+    expect(sleeps).toBe(3)
   })
 
   it("rejects unsupported schema", async () => {
@@ -359,10 +404,27 @@ describe("drive state", () => {
     await initDriveState(root, "lib_a")
 
     await withDriveLock(root, async () => {
-      await expect(writeDriveRealtimeState(root, { client_id: "drvcli_abc", last_cursor: "c1" })).rejects.toThrow(
-        /sync lock already exists/,
-      )
+      await expect(
+        writeDriveRealtimeState(root, { client_id: "drvcli_abc", last_cursor: "c1" }, { retries: 2, sleep: async () => {} }),
+      ).rejects.toThrow(/sync lock already exists/)
     })
+  })
+
+  it("persists realtime cursor by waiting out a concurrently held lock", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-realtime-wait-"))
+    await initDriveState(root, "lib_a")
+    const lockFile = join(root, ".wspc-drive", "sync.lock")
+    await writeFile(lockFile, String(process.pid))
+    let sleeps = 0
+    const sleep = async () => {
+      sleeps += 1
+      if (sleeps === 2) await rm(lockFile, { force: true })
+    }
+
+    await writeDriveRealtimeState(root, { client_id: "drvcli_abc", last_cursor: "c9" }, { retries: 10, sleep })
+
+    expect((await readDriveState(root)).realtime).toMatchObject({ last_cursor: "c9" })
+    expect(sleeps).toBe(2)
   })
 
   it("creates realtime client ids under the drive lock", async () => {
