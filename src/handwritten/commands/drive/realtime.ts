@@ -7,6 +7,7 @@ export type DriveRealtimeMessage =
   | { type: "library_changed"; cursor?: string; path?: string; origin_client_id?: string }
   | { type: "resync_required"; cursor?: string; reason?: string }
   | { type: "error"; code?: string; message?: string }
+  | { type: "pong" }
   | { type: "unknown"; message_type?: string }
 
 export interface DriveRealtimeConnectorInit {
@@ -17,7 +18,14 @@ export type DriveRealtimeConnector = (url: URL, handlers: {
   open: () => void
   message: (data: string) => void
   close: (error?: unknown) => void
-}, init?: DriveRealtimeConnectorInit) => { close: () => void }
+}, init?: DriveRealtimeConnectorInit) => { close: () => void; send?: (data: string) => void }
+
+// A half-open socket (NAT/edge dropped the connection without a FIN) looks
+// exactly like a quiet library: without keepalive the client waits forever and
+// misses every remote change. Ping the server and tear the socket down when
+// nothing comes back, so the normal reconnect path takes over.
+export const REALTIME_PING_INTERVAL_MS = 30_000
+export const REALTIME_PONG_TIMEOUT_MS = 10_000
 
 type DriveRealtimeHandlers = Parameters<DriveRealtimeSource["start"]>[0]
 
@@ -38,17 +46,63 @@ export function createDriveRealtimeSource(args: {
   const cancelTimeout = args.clearTimeout ?? clearTimeout
   let currentRealtime = { ...args.realtime }
   let handlers: DriveRealtimeHandlers | undefined
-  let activeSocket: { close: () => void } | undefined
+  let activeSocket: { close: () => void; send?: (data: string) => void } | undefined
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined
   let reconnectDelayMs = 1000
   let stopped = false
   let authFailed = false
   let connectionId = 0
+  let pingTimer: ReturnType<typeof setTimeout> | undefined
+  let pongTimer: ReturnType<typeof setTimeout> | undefined
 
   function clearReconnectTimer(): void {
     if (reconnectTimer === undefined) return
     cancelTimeout(reconnectTimer)
     reconnectTimer = undefined
+  }
+
+  function clearKeepaliveTimers(): void {
+    if (pingTimer !== undefined) {
+      cancelTimeout(pingTimer)
+      pingTimer = undefined
+    }
+    if (pongTimer !== undefined) {
+      cancelTimeout(pongTimer)
+      pongTimer = undefined
+    }
+  }
+
+  function schedulePing(id: number): void {
+    const send = activeSocket?.send
+    if (send === undefined) return
+    pingTimer = scheduleTimeout(() => {
+      pingTimer = undefined
+      if (id !== connectionId || stopped || authFailed) return
+      try {
+        send(JSON.stringify({ type: "ping" }))
+      } catch (error) {
+        closeConnection(id, error)
+        return
+      }
+      pongTimer = scheduleTimeout(() => {
+        pongTimer = undefined
+        closeConnection(
+          id,
+          Object.assign(new Error("no traffic within realtime keepalive timeout"), {
+            code: "PING_TIMEOUT",
+          }),
+        )
+      }, REALTIME_PONG_TIMEOUT_MS)
+    }, REALTIME_PING_INTERVAL_MS)
+  }
+
+  function markAlive(id: number): void {
+    if (id !== connectionId) return
+    if (pongTimer !== undefined) {
+      cancelTimeout(pongTimer)
+      pongTimer = undefined
+    }
+    if (pingTimer === undefined) schedulePing(id)
   }
 
   async function persist(next: DriveRealtimeState): Promise<void> {
@@ -88,11 +142,13 @@ export function createDriveRealtimeSource(args: {
       open() {
         if (id !== connectionId || stopped || authFailed) return
         reconnectDelayMs = 1000
+        schedulePing(id)
         void persistBestEffort({ ...currentRealtime, last_connected_at: driveIsoTimestamp(clock) })
           .then(() => handlers?.onConnected())
       },
       message(data) {
         if (id !== connectionId || stopped || authFailed) return
+        markAlive(id)
         void handleMessage(data).catch((error) => handlers?.onWarning?.(redactedRealtimeError(error)))
       },
       close(error) {
@@ -107,6 +163,7 @@ export function createDriveRealtimeSource(args: {
     const socket = activeSocket
     activeSocket = undefined
     clearReconnectTimer()
+    clearKeepaliveTimers()
     socket?.close()
     if (isRealtimeAuthError(error)) {
       authFailed = true
@@ -166,12 +223,16 @@ export function createDriveRealtimeSource(args: {
       }
       return
     }
+    if (message.type === "pong") {
+      return
+    }
     if (message.type === "error") {
       const error = message.message ?? message.code ?? "realtime error"
       if (isRealtimeAuthError(error) || isRealtimeAuthError(message.code)) {
         authFailed = true
         connectionId += 1
         clearReconnectTimer()
+        clearKeepaliveTimers()
         handlers?.onAuthFailed(redactedRealtimeError(error))
         activeSocket?.close()
         activeSocket = undefined
@@ -193,6 +254,7 @@ export function createDriveRealtimeSource(args: {
     async close() {
       stopped = true
       clearReconnectTimer()
+      clearKeepaliveTimers()
       activeSocket?.close()
       activeSocket = undefined
     },
@@ -256,6 +318,9 @@ export function parseDriveRealtimeMessage(raw: string): DriveRealtimeMessage {
       ...(typeof value.code === "string" ? { code: value.code } : {}),
       ...(typeof value.message === "string" ? { message: redactedRealtimeError(value.message) } : {}),
     }
+  }
+  if (messageType === "pong") {
+    return { type: "pong" }
   }
   return {
     type: "unknown",
@@ -321,7 +386,7 @@ function isRealtimeAuthError(error: unknown): boolean {
   return /\b(401|403|auth|authorization|unauthorized|forbidden)\b/i.test(String(error))
 }
 
-function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeConnector>[1], init?: DriveRealtimeConnectorInit): { close: () => void } {
+function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeConnector>[1], init?: DriveRealtimeConnectorInit): { close: () => void; send: (data: string) => void } {
   const WebSocketWithInit = WebSocket as unknown as {
     new (url: string | URL, init?: DriveRealtimeConnectorInit): WebSocket
   }
@@ -342,7 +407,7 @@ function nativeWebSocketConnector(url: URL, handlers: Parameters<DriveRealtimeCo
       closeOnce(pendingError)
     }
   })
-  return { close: () => ws.close() }
+  return { close: () => ws.close(), send: (data: string) => ws.send(data) }
 }
 
 function webSocketCloseError(event: CloseEvent): Error | undefined {
