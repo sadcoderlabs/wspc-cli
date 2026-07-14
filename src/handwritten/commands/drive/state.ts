@@ -139,38 +139,63 @@ export async function ensureDriveRealtimeState(root: string): Promise<DriveState
   })
 }
 
-export async function writeDriveRealtimeState(root: string, realtime: DriveRealtimeState): Promise<void> {
+export interface DriveLockOptions {
+  // A sync holds the lock for the whole upload cycle. Realtime cursor
+  // persistence is a tiny best-effort write that should wait it out rather than
+  // surface a spurious warning, so it opts into a bounded retry.
+  retries?: number
+  retryDelayMs?: number
+  sleep?: (ms: number) => Promise<void>
+}
+
+// Enough attempts to outlast a normal sync cycle (~2s) before giving up.
+const REALTIME_LOCK_RETRIES = 20
+const REALTIME_LOCK_RETRY_DELAY_MS = 100
+
+export async function writeDriveRealtimeState(
+  root: string,
+  realtime: DriveRealtimeState,
+  lockOptions: DriveLockOptions = { retries: REALTIME_LOCK_RETRIES, retryDelayMs: REALTIME_LOCK_RETRY_DELAY_MS },
+): Promise<void> {
   await withDriveLock(root, async () => {
     const current = await readDriveState(root)
     await writeDriveState(root, { ...current, realtime })
-  })
+  }, lockOptions)
 }
 
-export async function withDriveLock<T>(root: string, fn: () => Promise<T>): Promise<T> {
+export async function withDriveLock<T>(root: string, fn: () => Promise<T>, options: DriveLockOptions = {}): Promise<T> {
   await mkdir(join(root, DRIVE_DIR), { recursive: true })
   const lockFile = join(root, DRIVE_DIR, "sync.lock")
+  const retries = options.retries ?? 0
+  const retryDelayMs = options.retryDelayMs ?? 100
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   const acquire = async () => {
     const handle = await open(lockFile, "wx")
     await handle.writeFile(String(process.pid))
     return handle
   }
-  const fh = await acquire().catch(async (error) => {
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
-    if (!(await isLockAbandoned(lockFile))) {
-      throw new Error("sync lock already exists")
-    }
-    await rm(lockFile, { force: true })
-    return acquire().catch((retryError) => {
-      if ((retryError as NodeJS.ErrnoException).code === "EEXIST") {
-        throw new Error("sync lock already exists")
+  let fh: Awaited<ReturnType<typeof acquire>> | undefined
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      fh = await acquire()
+      break
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
+      if (await isLockAbandoned(lockFile)) {
+        await rm(lockFile, { force: true })
+        continue
       }
-      throw retryError
-    })
-  })
+      if (attempt < retries) {
+        await sleep(retryDelayMs)
+        continue
+      }
+      throw Object.assign(new Error("sync lock already exists"), { code: "WSPC_DRIVE_LOCK_HELD" })
+    }
+  }
   try {
     return await fn()
   } finally {
-    await fh.close().catch(() => {})
+    await fh?.close().catch(() => {})
     await rm(lockFile, { force: true }).catch(() => {})
   }
 }

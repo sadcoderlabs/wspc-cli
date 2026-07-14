@@ -163,6 +163,11 @@ describe("drive realtime helpers", () => {
     const closed = Object.assign(new Error("unexpected failure"), { code: 1006 })
     expect(redactedRealtimeError(closed)).toBe("realtime error (1006)")
 
+    // A sync-held lock collides with cursor persistence; its code must survive
+    // redaction so the warning is diagnosable instead of a bare "realtime error".
+    const lockHeld = Object.assign(new Error("sync lock already exists"), { code: "WSPC_DRIVE_LOCK_HELD" })
+    expect(redactedRealtimeError(lockHeld)).toBe("realtime error (WSPC_DRIVE_LOCK_HELD)")
+
     // Unsafe-looking codes (payload-shaped) are dropped, not surfaced.
     const leaky = Object.assign(new Error("boom"), { code: "Bearer secret-token" })
     expect(redactedRealtimeError(leaky)).toBe("realtime error")
