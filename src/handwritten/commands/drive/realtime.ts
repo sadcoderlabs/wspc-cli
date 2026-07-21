@@ -54,6 +54,8 @@ export function createDriveRealtimeSource(args: {
   let connectionId = 0
   let pingTimer: ReturnType<typeof setTimeout> | undefined
   let pongTimer: ReturnType<typeof setTimeout> | undefined
+  let pendingRealtime: DriveRealtimeState | undefined
+  let persistTask: Promise<void> | undefined
 
   function clearReconnectTimer(): void {
     if (reconnectTimer === undefined) return
@@ -105,17 +107,30 @@ export function createDriveRealtimeSource(args: {
     if (pingTimer === undefined) schedulePing(id)
   }
 
-  async function persist(next: DriveRealtimeState): Promise<void> {
-    currentRealtime = next
-    await args.writeRealtimeState(next)
+  async function flushRealtimeState(): Promise<void> {
+    while (pendingRealtime !== undefined && !stopped) {
+      const next = pendingRealtime
+      pendingRealtime = undefined
+      try {
+        await args.writeRealtimeState(next)
+      } catch (error) {
+        const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined
+        if (code === "WSPC_DRIVE_LOCK_HELD") {
+          pendingRealtime = currentRealtime
+        } else {
+          handlers?.onWarning?.(redactedRealtimeError(error))
+        }
+      }
+    }
   }
 
-  async function persistBestEffort(next: DriveRealtimeState): Promise<void> {
-    try {
-      await persist(next)
-    } catch (error) {
-      handlers?.onWarning?.(redactedRealtimeError(error))
-    }
+  function persistBestEffort(next: DriveRealtimeState): void {
+    currentRealtime = next
+    pendingRealtime = next
+    if (persistTask !== undefined) return
+    persistTask = flushRealtimeState().finally(() => {
+      persistTask = undefined
+    })
   }
 
   function connectNow(): void {
@@ -143,8 +158,8 @@ export function createDriveRealtimeSource(args: {
         if (id !== connectionId || stopped || authFailed) return
         reconnectDelayMs = 1000
         schedulePing(id)
-        void persistBestEffort({ ...currentRealtime, last_connected_at: driveIsoTimestamp(clock) })
-          .then(() => handlers?.onConnected())
+        persistBestEffort({ ...currentRealtime, last_connected_at: driveIsoTimestamp(clock) })
+        handlers?.onConnected()
       },
       message(data) {
         if (id !== connectionId || stopped || authFailed) return
@@ -190,7 +205,7 @@ export function createDriveRealtimeSource(args: {
         })
       }
       if (message.cursor !== undefined) {
-        await persistBestEffort({ ...currentRealtime, last_cursor: message.cursor })
+        persistBestEffort({ ...currentRealtime, last_cursor: message.cursor })
       }
       return
     }
@@ -207,7 +222,7 @@ export function createDriveRealtimeSource(args: {
         })
       }
       if (message.cursor !== undefined) {
-        await persistBestEffort({ ...currentRealtime, last_cursor: message.cursor, last_event_at: driveIsoTimestamp(clock) })
+        persistBestEffort({ ...currentRealtime, last_cursor: message.cursor, last_event_at: driveIsoTimestamp(clock) })
       }
       return
     }
@@ -219,7 +234,7 @@ export function createDriveRealtimeSource(args: {
         ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
       })
       if (message.cursor !== undefined || isInvalidCursorReason(reason)) {
-        await persistBestEffort(resyncRealtimeState(currentRealtime, message.cursor, reason, driveIsoTimestamp(clock)))
+        persistBestEffort(resyncRealtimeState(currentRealtime, message.cursor, reason, driveIsoTimestamp(clock)))
       }
       return
     }
@@ -253,6 +268,7 @@ export function createDriveRealtimeSource(args: {
     },
     async close() {
       stopped = true
+      pendingRealtime = undefined
       clearReconnectTimer()
       clearKeepaliveTimers()
       activeSocket?.close()

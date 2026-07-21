@@ -287,6 +287,44 @@ describe("drive realtime helpers", () => {
     }])
   })
 
+  it("retries the latest own-echo cursor without warning when sync holds the state lock", async () => {
+    const connect = fakeConnector()
+    const updates: DriveRealtimeState[] = []
+    const events: unknown[] = []
+    const lockHeld = Object.assign(new Error("sync lock already exists"), { code: "WSPC_DRIVE_LOCK_HELD" })
+    let rejectFirstWrite!: (reason?: unknown) => void
+    const firstWrite = new Promise<void>((_resolve, reject) => {
+      rejectFirstWrite = reject
+    })
+    const source = createDriveRealtimeSource(sourceArgs({
+      connect,
+      writeRealtimeState: async (next) => {
+        updates.push(next)
+        if (updates.length === 1) await firstWrite
+      },
+    }))
+
+    await source.start(realtimeHandlers(events))
+    connect.connections[0]?.handlers.message(JSON.stringify({
+      type: "library_changed",
+      cursor: "c8",
+      origin_client_id: "drvcli_abc",
+    }))
+    connect.connections[0]?.handlers.message(JSON.stringify({
+      type: "library_changed",
+      cursor: "c9",
+      origin_client_id: "drvcli_abc",
+    }))
+    await flushPromises()
+
+    expect(updates).toHaveLength(1)
+    rejectFirstWrite(lockHeld)
+    await flushPromises()
+
+    expect(events).toEqual([])
+    expect(updates.at(-1)).toMatchObject({ last_cursor: "c9" })
+  })
+
   it("still emits library_changed from other clients", async () => {
     const connect = fakeConnector()
     const events: unknown[] = []

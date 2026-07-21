@@ -65,6 +65,8 @@ wspc drive watch [path]
 
 `last_cursor` 只在 event 已被接受並排程 sync，或 ready replay 已完成處理後更新。若 process 在收到 event 與 sync 完成之間 crash，下一次 reconnect replay 可能重複收到 event；這可接受，因為 handler 只觸發 idempotent full sync。
 
+Realtime metadata 寫入與 sync 共用 folder lock。若寫入遇到正在進行的 sync 而回傳 `WSPC_DRIVE_LOCK_HELD`，client 應合併為最新 realtime state 並繼續重試；這是預期的內部 contention，不輸出 realtime warning。其他持久化錯誤仍輸出低敏 warning。
+
 `state.ts` 的 schema guard 要接受 optional `realtime`，並拒絕 malformed realtime fields。這是 trust boundary，不能因為只是 metadata 就放寬成任意 object。
 
 ## Realtime 連線
