@@ -26416,7 +26416,8 @@
                                     "reason": {
                                       "type": "string",
                                       "enum": [
-                                        "domain_incident_threshold"
+                                        "domain_incident_threshold",
+                                        "alias_incident_threshold"
                                       ]
                                     },
                                     "review_email": {

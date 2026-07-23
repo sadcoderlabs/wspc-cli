@@ -7280,7 +7280,7 @@ export type EmailSendErrors = {
             } | {
                 scope: 'organization';
                 incident_id: string;
-                reason: 'domain_incident_threshold';
+                reason: 'domain_incident_threshold' | 'alias_incident_threshold';
                 review_email: 'reputation@wspc.ai';
             } | {
                 scope: 'provider';
