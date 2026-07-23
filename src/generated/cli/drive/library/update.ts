@@ -3,13 +3,14 @@ import { Command } from "commander"
 import { driveLibraryUpdate } from "../../../sdk/index.js"
 import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
 import { render } from "../../../../handwritten/output/render.js"
+import { parseIntegerField } from "../../../../handwritten/utils/parse-scalar-field.js"
 
 export const driveLibraryUpdateCommand = new Command("update")
   .description("Update a drive library")
   .addHelpText("after", "\nRename a library using optimistic version locking.\n")
   .argument("<id>", "id")
   .option("--name <value>", "name")
-  .option("--expected-version <value>", "expected_version")
+  .option("--expected-version <value>", "expected_version", (value: string) => parseIntegerField(value, "expected-version"))
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await driveLibraryUpdate({
