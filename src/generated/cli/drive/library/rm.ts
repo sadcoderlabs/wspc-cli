@@ -3,12 +3,13 @@ import { Command } from "commander"
 import { driveLibraryDelete } from "../../../sdk/index.js"
 import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
 import { render } from "../../../../handwritten/output/render.js"
+import { parseIntegerField } from "../../../../handwritten/utils/parse-scalar-field.js"
 
 export const driveLibraryDeleteCommand = new Command("rm")
   .description("Delete a drive library")
   .addHelpText("after", "\nSoft-delete an empty library using optimistic version locking.\n")
   .argument("<id>", "id")
-  .option("--expected-version <value>", "expected_version")
+  .option("--expected-version <value>", "expected_version", (value: string) => parseIntegerField(value, "expected-version"))
   .action(async (id, opts) => {
     const client = await loadSdkClient()
     const result = await driveLibraryDelete({

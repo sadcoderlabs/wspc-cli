@@ -39,7 +39,7 @@ export interface XCli {
 
 export interface BodyField {
   name: string
-  type: "string" | "number" | "boolean" | "array" | "object"
+  type: "string" | "integer" | "number" | "boolean" | "array" | "object"
   required: boolean
   description?: string
   boolFlag?: boolean
@@ -166,6 +166,25 @@ export function emitCommand(input: EmitInput): string | null {
     positional.filter((p) => xCliOptions[p]?.array === true),
   )
 
+  function scalarParserName(
+    field: BodyField,
+  ): "parseIntegerField" | "parseNumberField" | "parseBooleanField" | undefined {
+    if (field.boolFlag) return undefined
+    const optKey = fieldToOptionKey[field.name]
+    const optDef = optKey === undefined ? undefined : xCliOptions[optKey]
+    if (optDef?.array || optDef?.parser) return undefined
+    if (field.type === "integer") return "parseIntegerField"
+    if (field.type === "number") return "parseNumberField"
+    if (field.type === "boolean") return "parseBooleanField"
+    return undefined
+  }
+
+  function scalarParserArgument(field: BodyField, longFlag: string): string {
+    const parserName = scalarParserName(field)
+    if (parserName === undefined) return ""
+    return `, (value: string) => ${parserName}(value, ${JSON.stringify(longFlag)})`
+  }
+
   const args: string[] = positional.map((name) => {
     if (isIcsDownload && name === "id") {
       return `.argument("<id>", "id")`
@@ -196,13 +215,13 @@ export function emitCommand(input: EmitInput): string | null {
       if (optDef.array) {
         return `.option("${flagSpec}", ${optLabel}, (val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[])`
       }
-      return `.option("${flagSpec}", ${optLabel})`
+      return `.option("${flagSpec}", ${optLabel}${scalarParserArgument(f, longFlag)})`
     }
     const { longFlag, short } = resolveAlias(f.name)
     const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
     // Prefer the field's OpenAPI description so `--help` carries real guidance;
     // fall back to the field name. JSON.stringify keeps quotes/newlines safe.
-    return `.option("${flagSpec}", ${JSON.stringify(f.description ?? f.name)})`
+    return `.option("${flagSpec}", ${JSON.stringify(f.description ?? f.name)}${scalarParserArgument(f, longFlag)})`
   }
 
   // Skip body fields whose x-cli option key has been promoted to a variadic
@@ -213,26 +232,26 @@ export function emitCommand(input: EmitInput): string | null {
   }
 
   // Options from body fields (skip positional and path params)
-  const bodyOptions = input.bodyFields
-    .filter(
-      (f) =>
-        !positionalSet.has(f.name) &&
-        !pathParamSet.has(f.name) &&
-        !bodyFieldOwnedByVariadicPositional(f),
-    )
-    .map(emitFieldOption)
+  const bodyOptionFields = input.bodyFields.filter(
+    (f) =>
+      !positionalSet.has(f.name) &&
+      !pathParamSet.has(f.name) &&
+      !bodyFieldOwnedByVariadicPositional(f),
+  )
+  const bodyOptions = bodyOptionFields.map(emitFieldOption)
 
   // fixedQuery keys win over same-named query fields — suppress the dynamic field
   // from both the options list and the query block to avoid duplicate object keys.
   const fixedQueryKeys = new Set(Object.keys(input.xCli.fixedQuery ?? {}))
 
   // Options from query fields (skip positional, path params, and fixedQuery-shadowed fields)
-  const queryOptions = queryFields
-    .filter(
-      (f) =>
-        !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name),
-    )
-    .map(emitFieldOption)
+  const queryOptionFields = queryFields.filter(
+    (f) =>
+      !positionalSet.has(f.name) &&
+      !pathParamSet.has(f.name) &&
+      !fixedQueryKeys.has(f.name),
+  )
+  const queryOptions = queryOptionFields.map(emitFieldOption)
 
   // Virtual x-cli options: option keys that map to no existing body/query field
   // (e.g. `attendee` mapping to `attendees` is NOT virtual; `all_day` mapping
@@ -328,7 +347,13 @@ export function emitCommand(input: EmitInput): string | null {
         // options for us). Cast to satisfy the SDK type — runtime validation
         // server-side surfaces the missing-field error.
         const optDef = xCliOptions[optKey]!
-        const castType = optDef.array ? "string[]" : "string"
+        const castType = optDef.array
+          ? "string[]"
+          : f.type === "integer" || f.type === "number"
+            ? "number"
+            : f.type === "boolean"
+              ? "boolean"
+              : "string"
         const suffix = f.required ? ` as ${castType}` : ""
         return `        ${f.name}: ${expr}${suffix},`
       }
@@ -493,6 +518,20 @@ export function emitCommand(input: EmitInput): string | null {
   if (usesJsonField) {
     imports.push(
       `import { parseJsonField } from "${handwrittenRelPrefix}handwritten/utils/parse-json-field.js"`,
+    )
+  }
+  const scalarParserImports = [
+    "parseIntegerField",
+    "parseNumberField",
+    "parseBooleanField",
+  ].filter((parserName) =>
+    [...bodyOptionFields, ...queryOptionFields].some(
+      (field) => scalarParserName(field) === parserName,
+    ),
+  )
+  if (scalarParserImports.length > 0) {
+    imports.push(
+      `import { ${scalarParserImports.join(", ")} } from "${handwrittenRelPrefix}handwritten/utils/parse-scalar-field.js"`,
     )
   }
 

@@ -234,6 +234,87 @@ describe("emitCommand: JSON body fields", () => {
   })
 })
 
+describe("emitCommand: scalar body fields", () => {
+  it("parses integer options before passing them to the SDK", () => {
+    const out = emitCommand({
+      operationId: "drive_library_delete",
+      method: "delete",
+      path: "/drive/libraries/{id}",
+      xCli: {
+        command: "drive library rm",
+        positional: ["id"],
+        display: { shape: "object" },
+      },
+      bodyFields: [{ name: "expected_version", type: "integer", required: true }],
+      pathParams: ["id"],
+    })
+
+    const code = out!
+    expect(code).toContain(
+      '.option("--expected-version <value>", "expected_version", (value: string) => parseIntegerField(value, "expected-version"))',
+    )
+    expect(code).toContain(
+      'import { parseIntegerField } from "../../../../handwritten/utils/parse-scalar-field.js"',
+    )
+    expect(code).toContain("expected_version: opts.expectedVersion,")
+  })
+
+  it("parses number options before passing them to the SDK", () => {
+    const out = emitCommand({
+      operationId: "sample_update",
+      method: "patch",
+      path: "/samples/{id}",
+      xCli: {
+        command: "sample update",
+        positional: ["id"],
+        display: { shape: "object" },
+      },
+      bodyFields: [{ name: "ratio", type: "number", required: false }],
+      pathParams: ["id"],
+    })
+
+    const code = out!
+    expect(code).toContain(
+      '.option("--ratio <value>", "ratio", (value: string) => parseNumberField(value, "ratio"))',
+    )
+    expect(code).toContain(
+      'import { parseNumberField } from "../../../handwritten/utils/parse-scalar-field.js"',
+    )
+  })
+
+  it("parses valued boolean options while leaving bare boolean flags unchanged", () => {
+    const out = emitCommand({
+      operationId: "todo_delete",
+      method: "delete",
+      path: "/todo/{id}",
+      xCli: {
+        command: "todo rm",
+        positional: ["id"],
+        display: { shape: "object" },
+      },
+      bodyFields: [
+        { name: "cascade", type: "boolean", required: false },
+        {
+          name: "force",
+          type: "boolean",
+          required: false,
+          boolFlag: true,
+        },
+      ],
+      pathParams: ["id"],
+    })
+
+    const code = out!
+    expect(code).toContain(
+      '.option("--cascade <value>", "cascade", (value: string) => parseBooleanField(value, "cascade"))',
+    )
+    expect(code).toContain('.option("--force", "force")')
+    expect(code).toContain(
+      'import { parseBooleanField } from "../../../handwritten/utils/parse-scalar-field.js"',
+    )
+  })
+})
+
 describe("emitCommand: exitOnField", () => {
   it("emits process.exitCode check on specified response field", () => {
     const out = emitCommand({
@@ -357,4 +438,3 @@ describe("emitCommand: x-cli.booleanFlags bare boolean flag", () => {
     expect(code).not.toContain("--include-deleted <value>")
   })
 })
-
