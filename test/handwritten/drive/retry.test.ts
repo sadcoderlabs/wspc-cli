@@ -24,31 +24,27 @@ describe("Drive retry policy", () => {
   })
 
   it("honors an explicit rate-limit delay without applying the fallback cap", () => {
-    const now = DateTime.fromISO("2026-07-23T00:00:00Z", { setZone: true })
     const error = new DriveHttpError(429, { code: "RATE_LIMITED", retryAfterMs: 120_000 })
 
-    expect(classifyDriveRetry(error, 60_000, now)).toEqual({ reason: "rate_limited", delayMs: 120_000 })
+    expect(classifyDriveRetry(error, 60_000)).toEqual({ reason: "rate_limited", delayMs: 120_000 })
     expect(error.message).toBe("HTTP 429")
   })
 
   it("caps fallback delays for transient failures and rejects permanent HTTP failures", () => {
-    const now = DateTime.fromISO("2026-07-23T00:00:00Z", { setZone: true })
-
-    expect(classifyDriveRetry(new DriveHttpError(503), 120_000, now)).toEqual({
+    expect(classifyDriveRetry(new DriveHttpError(503), 120_000)).toEqual({
       reason: "transient",
       delayMs: 60_000,
     })
-    expect(classifyDriveRetry(new TypeError("fetch failed"), 2_000, now)).toEqual({
+    expect(classifyDriveRetry(new TypeError("fetch failed"), 2_000)).toEqual({
       reason: "transient",
       delayMs: 2_000,
     })
-    expect(classifyDriveRetry(new DriveHttpError(401), 1_000, now)).toBeUndefined()
+    expect(classifyDriveRetry(new DriveHttpError(401), 1_000)).toBeUndefined()
   })
 
   it("classifies standard Node network error codes as transient", () => {
-    const now = DateTime.fromISO("2026-07-23T00:00:00Z", { setZone: true })
     const reset = Object.assign(new Error("socket closed"), { code: "ECONNRESET" })
 
-    expect(classifyDriveRetry(reset, 1_000, now)).toEqual({ reason: "transient", delayMs: 1_000 })
+    expect(classifyDriveRetry(reset, 1_000)).toEqual({ reason: "transient", delayMs: 1_000 })
   })
 })

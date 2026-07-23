@@ -1,6 +1,5 @@
 import { Command } from "commander"
 import chokidar from "chokidar"
-import { DateTime } from "luxon"
 import { watch as fsWatch } from "node:fs"
 import { basename, relative, resolve } from "node:path"
 import { loadRealtimeAuthHeaders } from "../../auth/load-sdk-client.js"
@@ -134,7 +133,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           backoffMs = 1000
         } catch (error) {
           if (isAuthError(error) || isFatalWatchError(error)) throw error
-          const retry = classifyDriveRetry(error, backoffMs, DateTime.fromJSDate(timer.now()))
+          const retry = classifyDriveRetry(error, backoffMs)
           if (retry === undefined) throw error
           const context = error instanceof DriveRetryableSyncError ? error : undefined
           const retryEvent = {
