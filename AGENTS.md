@@ -32,3 +32,17 @@
 - 不要 amend 已經 push 出去的 commit
 - 不要為了避開驗證去用 `--no-verify` / `--no-gpg-sign`，先解決根本問題
 - 不要把 `docs/superpowers/` 的散文寫成英文（程式碼區塊例外）
+
+## Agent skills
+
+### Issue tracker
+
+Issues 與 PRDs 使用 WSPC todos 管理。詳見 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+使用五個標準 triage roles：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。詳見 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+採 single-context layout：root `CONTEXT.md` 與 `docs/adr/`。詳見 `docs/agents/domain.md`。
