@@ -1323,7 +1323,7 @@ export const emailRestore = <ThrowOnError extends boolean = false>(options: Opti
  * Send an outbound email
  *
  * ### Overview
- * Submits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified before sending. Platform-domain aliases use Cloudflare Email Service; verified custom-domain aliases use pete-mail.
+ * Submits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified before sending. Platform-domain aliases use Cloudflare Email Service; verified custom-domain aliases use their active provider.
  *
  * ### When to Use
  * - Use this endpoint to send new standalone emails or to reply to threaded inbound messages.
@@ -1334,7 +1334,8 @@ export const emailRestore = <ThrowOnError extends boolean = false>(options: Opti
  * - **Size Limits**: Individual attachments must not exceed 5 MiB, and the total size of all attachments per send must be 25 MiB or less.
  * - **Security**: Up to 10 attachments are allowed. Outbound files with dangerous executable extensions (such as `.exe`, `.bat`, `.com`, `.scr`, `.cmd`, `.jar`, `.js`) are strictly blocked.
  * - **Daily Quotas**: Sending is protected by per-user (100 sends/day) and per-alias (50 sends/day) daily quotas. Exceeding them triggers `RATE_LIMITED` or `QUOTA_EXCEEDED` errors.
- * - **Custom Domains**: Platform-domain aliases use Cloudflare Email Service. Verified custom-domain aliases are routed through pete-mail. Custom domains must have `status = verified` and `sending_status = verified` or the send returns `CUSTOM_DOMAIN_NOT_READY`.
+ * - **Custom Domains**: Platform-domain aliases use Cloudflare Email Service. Custom-domain aliases use the domain's active provider when `sending_status = verified`; otherwise the send returns `CUSTOM_DOMAIN_NOT_READY`.
+ * - **Recipient safety**: Custom-domain sends are rejected before provider delivery when any current-request recipient has an active organization-scoped suppression.
  * - **Idempotency**: A stable `idempotency_key` (1-200 characters) must be supplied. Retrying a send with identical content and the same key returns `idempotent_replay: true` without sending duplicates. Reusing the key with changed content returns 409 `IDEMPOTENCY_KEY_REUSED`.
  *
  * ### Troubleshooting
@@ -1370,7 +1371,7 @@ export const emailSend = <ThrowOnError extends boolean = false>(options: Options
  * - Requires a valid Bearer token in the `Authorization` header.
  * - This route requires custom domain provider credentials in production because it performs live provider calls.
  * - Verification is asynchronous provider work; a successful response may still report `status: pending`.
- * - `status: verified` plus `sending_status: verified` enables custom-domain outbound send for active aliases; `receiving_status: verified` is also required before new custom-domain aliases can be created.
+ * - `sending_status: verified` enables custom-domain outbound send for active aliases; aggregate `status: verified` and `receiving_status: verified` are also required before new custom-domain aliases can be created.
  *
  * ### Troubleshooting
  * - **400 Bad Request / DOMAIN_INVALID / DOMAIN_RESERVED**: The path hostname is malformed or reserved.
