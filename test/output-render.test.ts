@@ -66,6 +66,25 @@ describe("render", () => {
     expect(out).toContain("Submit expenses")
   })
 
+  it("marks soft-deleted list rows without marking active rows", () => {
+    render(
+      { kind: "todo.list", display: { shape: "list", columns: ["id", "title"] } },
+      {
+        items: [
+          { id: "a", title: "active" },
+          { id: "b", title: "gone", deleted_at: 1748822400000 },
+        ],
+      },
+    )
+    const lines = stripAnsi(cap.output()).split("\n")
+    const activeLine = lines.find((line) => line.includes("active"))
+    const deletedLine = lines.find((line) => line.includes("gone"))
+
+    expect(activeLine).toBeDefined()
+    expect(activeLine).not.toContain("✕")
+    expect(deletedLine).toContain("✕")
+  })
+
   it("prints emptyMessage for empty lists", () => {
     render(
       { kind: "todo.list", display: { shape: "list", emptyMessage: "no todos" } },
