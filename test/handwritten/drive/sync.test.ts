@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
-import { mkdir, mkdtemp, readFile, readdir, unlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { DateTime } from "luxon"
@@ -10,6 +10,7 @@ import { driveSyncCommand, runDriveSyncOnce, type DriveSyncApi } from "../../../
 import { render } from "../../../src/handwritten/output/render.js"
 import type { UploadDriveFileResponse } from "../../../src/generated/sdk/index.js"
 import type { DriveClock } from "../../../src/handwritten/commands/drive/clock.js"
+import { DriveHttpError } from "../../../src/handwritten/commands/drive/retry.js"
 
 const stateWriteControl = vi.hoisted(() => ({
   failNext: undefined as undefined | ((state: unknown) => Error | undefined),
@@ -721,7 +722,7 @@ describe("drive sync once", () => {
     expect((await readdir(root)).filter((name) => name.includes(".notes.md.wspc-merge-restore-"))).toEqual([])
   })
 
-  it("keeps transient versioned download failures as path errors", async () => {
+  it("interrupts the round for transient versioned download failures", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-merge-download-network-"))
     const state = await initDriveState(root, "lib_1")
     state.entries["notes.md"] = stateEntry("notes.md", "a\nb\nc\n", 1)
@@ -730,13 +731,13 @@ describe("drive sync once", () => {
     const remote = entry("notes.md", "a\nb\nremote\nc\n", 2)
     const api = mkApi([{ entries: [remote] }])
     api.downloadFile = vi.fn(async () => {
-      throw new Error("ECONNRESET")
+      throw Object.assign(new Error("socket closed"), { code: "ECONNRESET" })
     })
 
-    const result = await runDriveSyncOnce(root, api)
-
-    expect(result.errors).toBe(1)
-    expect(result.conflicts).toBe(0)
+    await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({
+      name: "DriveRetryableSyncError",
+      cause: { code: "ECONNRESET" },
+    })
     expect((await readDriveState(root)).conflicts["notes.md"]).toBeUndefined()
   })
 
@@ -765,7 +766,7 @@ describe("drive sync once", () => {
     await writeFile(join(root, "b.txt"), "boom")
     const api = mkApi([{ entries: [] }])
     api.uploadFile = vi.fn(async (_id, path, body, digest, expectedEntryVersion) => {
-      if (path === "b.txt") throw new Error("network broke")
+      if (path === "b.txt") throw new Error("upload rejected")
       const content = Buffer.from(await new Response(body).arrayBuffer()).toString("utf8")
       return { entry: entry(path, content, expectedEntryVersion === 0 ? 1 : 2), result: "created" as const }
     })
@@ -778,6 +779,55 @@ describe("drive sync once", () => {
     expect(state.entries["a.txt"]).toMatchObject({ content_sha256: digestOf("ok"), status: "synced" })
     expect(state.entries["b.txt"]).toBeUndefined()
     expect(state.conflicts["b.txt"]).toBeUndefined()
+  })
+
+  it("stops at the first rate limit and resumes from durable progress on the next full sync", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-rate-limit-"))
+    await initDriveState(root, "lib_1")
+    for (const path of ["a.txt", "b.txt", "c.txt", "d.txt"]) {
+      await writeFile(join(root, path), path.slice(0, 1))
+    }
+    const firstApi = mkApi([{ entries: [] }])
+    const upload = firstApi.uploadFile.bind(firstApi)
+    const attempts: string[] = []
+    firstApi.uploadFile = async (...args) => {
+      const path = args[1]
+      attempts.push(path)
+      if (path === "b.txt") throw new DriveHttpError(429, { retryAfterMs: 60_000 })
+      return upload(...args)
+    }
+
+    await expect(runDriveSyncOnce(root, firstApi)).rejects.toMatchObject({
+      name: "DriveRetryableSyncError",
+      remaining: 3,
+    })
+    expect(attempts).toEqual(["a.txt", "b.txt"])
+    expect(await readDriveState(root)).toMatchObject({
+      entries: {
+        "a.txt": { status: "synced" },
+      },
+    })
+
+    const secondApi = mkApi([{ entries: [entry("a.txt", "a", 1)] }])
+    const result = await runDriveSyncOnce(root, secondApi)
+
+    expect(result).toMatchObject({ uploaded: 3, errors: 0 })
+    expect(secondApi.uploads.map((candidate) => candidate.path)).toEqual(["b.txt", "c.txt", "d.txt"])
+  })
+
+  it("surfaces an upload authorization failure instead of recording a path error", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-auth-failure-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "notes.txt"), "hello")
+    const api = mkApi([{ entries: [] }])
+    api.uploadFile = async () => {
+      throw new DriveHttpError(401, { code: "UNAUTHORIZED" })
+    }
+
+    await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({
+      status: 401,
+      code: "UNAUTHORIZED",
+    })
   })
 
   it("follows manifest pagination until next cursor is empty", async () => {
@@ -808,6 +858,102 @@ describe("drive sync once", () => {
     expect(result.paths).toEqual([{ path: "bad\\name.txt", action: "error" }])
     expect(api.uploads).toEqual([])
     expect((await readDriveState(root)).conflicts["bad\\name.txt"]).toBeUndefined()
+  })
+
+  it("persists invalid scanner paths and reports their structured details", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-invalid-ledger-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "bad\nname.md"), "blocked")
+    const api = mkApi([{ entries: [] }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.path_errors).toEqual([
+      {
+        path: "bad\nname.md",
+        code: "INVALID_DRIVE_PATH",
+        message: "invalid drive path: control character",
+        retryable: false,
+      },
+    ])
+    expect((await readDriveState(root)).scan_errors).toEqual({
+      "bad\nname.md": {
+        code: "INVALID_DRIVE_PATH",
+        message: "invalid drive path: control character",
+        retryable: false,
+      },
+    })
+  })
+
+  it("retains invalid path errors across unrelated incremental scans and clears them after rename", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-invalid-incremental-"))
+    const invalidPath = "bad\nname.md"
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, invalidPath), "blocked")
+    await writeFile(join(root, "good.txt"), "good")
+    await runDriveSyncOnce(root, mkApi([{ entries: [] }]))
+
+    await writeFile(join(root, "good.txt"), "changed")
+    const unrelatedResult = await runDriveSyncOnce(
+      root,
+      mkApi([{ entries: [entry("good.txt", "good", 1)] }]),
+      undefined,
+      undefined,
+      undefined,
+      { dirtyPaths: ["good.txt"] },
+    )
+
+    expect(unrelatedResult.path_errors?.map((error) => error.path)).toEqual([invalidPath])
+    expect((await readDriveState(root)).scan_errors).toHaveProperty(invalidPath)
+
+    await rename(join(root, invalidPath), join(root, "fixed.md"))
+    const renamedResult = await runDriveSyncOnce(
+      root,
+      mkApi([{ entries: [entry("good.txt", "changed", 2)] }]),
+      undefined,
+      undefined,
+      undefined,
+      { dirtyPaths: [invalidPath, "fixed.md"] },
+    )
+
+    expect(renamedResult.path_errors).toEqual([])
+    expect((await readDriveState(root)).scan_errors).toBeUndefined()
+  })
+
+  it("carries scanner path errors when a manifest rate limit interrupts the round", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-invalid-rate-limit-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "bad\nname.md"), "blocked")
+    const api = mkApi([])
+    api.getManifest = async () => {
+      throw new DriveHttpError(429, { retryAfterMs: 60_000 })
+    }
+
+    await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({
+      name: "DriveRetryableSyncError",
+      pathErrors: [
+        {
+          path: "bad\nname.md",
+          code: "INVALID_DRIVE_PATH",
+          message: "invalid drive path: control character",
+          retryable: false,
+        },
+      ],
+    })
+  })
+
+  it("counts the same invalid local and remote path only once", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-invalid-dedupe-"))
+    const invalidPath = "bad\nname.md"
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, invalidPath), "local")
+    const api = mkApi([{ entries: [entry(invalidPath, "remote", 1)] }])
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect(result.path_errors).toHaveLength(1)
+    expect(result.paths).toEqual([{ path: invalidPath, action: "error" }])
   })
 
   it("records invalid remote paths as path errors without writing outside root", async () => {
@@ -844,7 +990,7 @@ describe("drive sync once", () => {
     expect((await readDriveState(root)).conflicts).toEqual({})
   })
 
-  it("records exact duplicate remote paths as path errors and skips the duplicate path", async () => {
+  it("records exact duplicate remote paths once and skips the duplicate path", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-remote-duplicate-"))
     await initDriveState(root, "lib_1")
     const api = mkApi([{ entries: [entry("dup.txt", "first", 1), entry("dup.txt", "second", 2)] }])
@@ -852,12 +998,9 @@ describe("drive sync once", () => {
 
     const result = await runDriveSyncOnce(root, api)
 
-    expect(result.errors).toBe(2)
+    expect(result.errors).toBe(1)
     expect(result.downloaded).toBe(0)
-    expect(result.paths).toEqual([
-      { path: "dup.txt", action: "error" },
-      { path: "dup.txt", action: "error" },
-    ])
+    expect(result.paths).toEqual([{ path: "dup.txt", action: "error" }])
     await expect(readFile(join(root, "dup.txt"), "utf8")).rejects.toThrow()
     expect((await readDriveState(root)).conflicts).toEqual({})
   })
@@ -870,7 +1013,7 @@ describe("drive sync once", () => {
     await writeFile(join(root, "notes.txt"), "local")
     const api = mkApi([{ entries: [entry("notes.txt", "base", 7)] }])
     api.uploadFile = vi.fn(async () => {
-      throw new Error("network 500")
+      throw new Error("upload exploded")
     })
 
     const result = await runDriveSyncOnce(root, api)
@@ -1250,7 +1393,7 @@ describe("drive sync once", () => {
     expect(after.entries["new-name.md"]).toMatchObject({ entry_version: 2 })
   })
 
-  it("falls back to upload + delete when the move API fails", async () => {
+  it("falls back to upload + delete when the move optimization has a permanent failure", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-fallback-"))
     const state = await initDriveState(root, "lib_1")
     state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
@@ -1258,7 +1401,7 @@ describe("drive sync once", () => {
     await writeFile(join(root, "new-name.md"), "same content\n")
     const api = mkApi([{ entries: [entry("old-name.md", "same content\n", 1)] }])
     api.moveFile = async () => {
-      throw new Error("HTTP 500: move failed")
+      throw new Error("move unsupported")
     }
 
     const result = await runDriveSyncOnce(root, api)
@@ -1266,6 +1409,41 @@ describe("drive sync once", () => {
     expect(result.errors).toBe(0)
     expect(api.uploads.map((upload) => upload.path)).toEqual(["new-name.md"])
     expect(api.deletes.map((del) => del.path)).toEqual(["old-name.md"])
+  })
+
+  it("does not degrade a rate-limited move into upload and delete", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-rate-limit-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "new-name.md"), "same content\n")
+    const api = mkApi([{ entries: [entry("old-name.md", "same content\n", 1)] }])
+    api.moveFile = async () => {
+      throw new DriveHttpError(429, { retryAfterMs: 60_000 })
+    }
+
+    await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({
+      name: "DriveRetryableSyncError",
+      cause: { status: 429 },
+    })
+    expect(api.uploads).toEqual([])
+    expect(api.deletes).toEqual([])
+  })
+
+  it("does not degrade a forbidden move into upload and delete", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-forbidden-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "new-name.md"), "same content\n")
+    const api = mkApi([{ entries: [entry("old-name.md", "same content\n", 1)] }])
+    api.moveFile = async () => {
+      throw new DriveHttpError(403, { code: "FORBIDDEN" })
+    }
+
+    await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({ status: 403 })
+    expect(api.uploads).toEqual([])
+    expect(api.deletes).toEqual([])
   })
 
   it("does not pair ambiguous same-hash renames", async () => {
@@ -1516,6 +1694,28 @@ describe("drive sync once", () => {
     expect(render).toHaveBeenCalledWith(
       { kind: "drive_sync_once", display: { shape: "object" } },
       expect.objectContaining({ conflicts: 1, errors: 0 }),
+    )
+  })
+
+  it("sets a nonzero exit code for a retryable sync-once interruption without retrying", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-command-rate-limit-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "notes.txt"), "hello")
+    const api = mkApi([{ entries: [] }])
+    api.uploadFile = async () => {
+      throw new DriveHttpError(429, { retryAfterMs: 60_000 })
+    }
+    const command = driveSyncCommand(api)
+
+    await expect(command.parseAsync(["node", "sync", "once", root])).rejects.toMatchObject({
+      name: "DriveRetryableSyncError",
+    })
+
+    expect(process.exitCode).toBe(1)
+    expect(api.uploads).toEqual([])
+    expect(render).not.toHaveBeenCalledWith(
+      { kind: "drive_sync_once", display: { shape: "object" } },
+      expect.anything(),
     )
   })
 

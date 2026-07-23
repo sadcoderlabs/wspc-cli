@@ -13,6 +13,7 @@ import type {
   UploadDriveFileResponse,
 } from "../../../generated/sdk/index.js"
 import type { ConfigStore } from "../../config/index.js"
+import { driveHttpError } from "./retry.js"
 
 export interface DriveApiOptions {
   store?: ConfigStore
@@ -28,8 +29,9 @@ type JsonResult<T> = {
 }
 
 function asError(result: JsonResult<unknown>): Error {
-  const message = JSON.stringify(result.error ?? "request failed")
-  return new Error(`HTTP ${result.response?.status ?? "?"}: ${message}`)
+  if (result.response !== undefined) return driveHttpError(result.response, result.error)
+  if (result.error instanceof Error) return result.error
+  return new Error("request failed")
 }
 
 async function expectJsonResult<T>(result: JsonResult<T>): Promise<T> {
@@ -127,7 +129,7 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       })
       if (!res.ok) {
         const text = await res.text()
-        throw new Error(`HTTP ${res.status}: ${text}`)
+        throw driveHttpError(res, parseErrorPayload(text))
       }
       const payload = await res.json()
       if (payload === undefined || payload === null) {
@@ -144,9 +146,17 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       const res = await client.fetch(url, { method: "GET" })
       if (!res.ok) {
         const text = await res.text()
-        throw new Error(`HTTP ${res.status}: ${text}`)
+        throw driveHttpError(res, parseErrorPayload(text))
       }
       return res
     },
+  }
+}
+
+function parseErrorPayload(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
   }
 }

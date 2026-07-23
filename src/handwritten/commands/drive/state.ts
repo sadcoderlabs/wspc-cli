@@ -43,6 +43,12 @@ export interface DriveScanCacheEntry {
   sha256: string
 }
 
+export interface DriveScanError {
+  code: string
+  message: string
+  retryable: boolean
+}
+
 export interface DriveState {
   schema_version: 1
   library_id: string
@@ -52,6 +58,7 @@ export interface DriveState {
   conflicts: Record<string, DriveConflict>
   realtime?: DriveRealtimeState
   scan_cache?: Record<string, DriveScanCacheEntry>
+  scan_errors?: Record<string, DriveScanError>
   // Latest manifest cursor seen; enables since_cursor delta fetches.
   manifest_cursor?: string
 }
@@ -305,6 +312,7 @@ function isValidDriveState(value: unknown): value is DriveState {
     !isRecord(value.conflicts) ||
     (value.realtime !== undefined && !isDriveRealtimeState(value.realtime)) ||
     (value.scan_cache !== undefined && !isRecord(value.scan_cache)) ||
+    (value.scan_errors !== undefined && !isRecord(value.scan_errors)) ||
     (value.manifest_cursor !== undefined && typeof value.manifest_cursor !== "string")
   ) {
     return false
@@ -320,6 +328,11 @@ function isValidDriveState(value: unknown): value is DriveState {
       if (!isDriveScanCacheEntry(entry)) return false
     }
   }
+  if (value.scan_errors !== undefined) {
+    for (const error of Object.values(value.scan_errors)) {
+      if (!isDriveScanError(error)) return false
+    }
+  }
   return true
 }
 
@@ -329,5 +342,16 @@ function isDriveScanCacheEntry(value: unknown): value is DriveScanCacheEntry {
     typeof value.mtime_ms === "number" &&
     typeof value.size_bytes === "number" &&
     typeof value.sha256 === "string"
+  )
+}
+
+function isDriveScanError(value: unknown): value is DriveScanError {
+  const allowedKeys = new Set(["code", "message", "retryable"])
+  return (
+    isRecord(value) &&
+    Object.keys(value).every((key) => allowedKeys.has(key)) &&
+    typeof value.code === "string" &&
+    typeof value.message === "string" &&
+    typeof value.retryable === "boolean"
   )
 }

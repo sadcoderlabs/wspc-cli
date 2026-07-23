@@ -1,5 +1,6 @@
 import { Command } from "commander"
 import chokidar from "chokidar"
+import { DateTime } from "luxon"
 import { watch as fsWatch } from "node:fs"
 import { basename, relative, resolve } from "node:path"
 import { loadRealtimeAuthHeaders } from "../../auth/load-sdk-client.js"
@@ -9,6 +10,7 @@ import { createDriveRealtimeSource } from "./realtime.js"
 import { isInternalSyncArtifactName } from "./scanner.js"
 import { DRIVE_DIR, ensureDriveRealtimeState, readDriveState, writeDriveRealtimeState } from "./state.js"
 import { runDriveSyncOnce, type DriveSyncProgress, type DriveSyncSummary } from "./sync.js"
+import { DriveRetryableSyncError, classifyDriveRetry, isDriveAuthFailure } from "./retry.js"
 
 export interface DriveWatchSource {
   onChange(handler: (path: string) => void): void
@@ -32,6 +34,15 @@ export interface DriveRealtimeSource {
   close(): Promise<void>
 }
 
+export interface DriveWatchTimerHandle {
+  cancel(): void
+}
+
+export interface DriveWatchTimer {
+  now(): Date
+  schedule(delayMs: number, callback: () => void): DriveWatchTimerHandle
+}
+
 export interface DriveWatchOptions {
   source?: DriveWatchSource
   realtimeSource?: DriveRealtimeSource
@@ -43,6 +54,7 @@ export interface DriveWatchOptions {
   onEvent?: (event: unknown) => void
   debug?: boolean
   debugLogger?: DriveDebugLogger
+  timer?: DriveWatchTimer
 }
 
 export async function runDriveWatch(root: string, options: DriveWatchOptions = {}): Promise<void> {
@@ -53,6 +65,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       runDriveSyncOnce(syncRoot, undefined, undefined, onProgress, dbg, dirtyPaths === undefined ? {} : { dirtyPaths }))
   const debounceMs = options.debounceMs ?? 500
   const remoteDebounceMs = options.remoteDebounceMs ?? 2000
+  const timer = options.timer ?? systemDriveWatchTimer
   // Watch is a long-lived event stream: json mode must emit NDJSON (one event
   // per line) so consumers can parse line-by-line instead of reassembling
   // pretty-printed multi-line JSON, which breaks past any buffer limit.
@@ -70,9 +83,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
   // syncs re-stat only these; other triggers (initial/retry/remote) do a full
   // reconciliation walk that also self-heals any missed events.
   const dirtyPaths = new Set<string>()
-  let debounceTimer: NodeJS.Timeout | undefined
+  let debounceTimer: DriveWatchTimerHandle | undefined
   let debounceDeadlineMs: number | undefined
-  let retryTimer: NodeJS.Timeout | undefined
+  let retryTimer: DriveWatchTimerHandle | undefined
   let resolveRetryTimer: (() => void) | undefined
   let running = false
   let rerunRequested = false
@@ -120,14 +133,32 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           })
           backoffMs = 1000
         } catch (error) {
-          if (isAuthError(error) || isFatalWatchError(error) || !isRetryableWatchError(error)) throw error
-          emit({ kind: "drive_watch_retry", delay_ms: backoffMs, error: errorMessage(error) })
-          dbg.log("retry", { delay_ms: backoffMs, error: errorMessage(error) })
+          if (isAuthError(error) || isFatalWatchError(error)) throw error
+          const retry = classifyDriveRetry(error, backoffMs, DateTime.fromJSDate(timer.now()))
+          if (retry === undefined) throw error
+          const context = error instanceof DriveRetryableSyncError ? error : undefined
+          const retryEvent = {
+            kind: "drive_watch_retry",
+            reason: retry.reason,
+            delay_ms: retry.delayMs,
+            ...(context?.remaining === undefined ? {} : { remaining: context.remaining }),
+            error: errorMessage(error),
+            ...(context === undefined || context.pathErrors.length === 0 ? {} : { path_errors: context.pathErrors }),
+          }
+          emit(retryEvent)
+          dbg.log("retry", {
+            reason: retry.reason,
+            delay_ms: retry.delayMs,
+            error: errorMessage(error),
+            ...(context?.remaining === undefined ? {} : { remaining: context.remaining }),
+            ...(context === undefined ? {} : { path_error_count: context.pathErrors.length }),
+          })
           nextTrigger = "retry"
           if (stopped) return
-          await waitForManagedTimer(backoffMs)
+          await waitForManagedTimer(retry.delayMs)
           if (stopped) return
           backoffMs = Math.min(backoffMs * 2, 60_000)
+          nextTrigger = "retry"
           rerunRequested = true
         }
       } while (rerunRequested && !stopped)
@@ -138,7 +169,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
 
   function clearDebounceTimer(): void {
     if (debounceTimer === undefined) return
-    clearTimeout(debounceTimer)
+    debounceTimer.cancel()
     debounceTimer = undefined
     debounceDeadlineMs = undefined
   }
@@ -154,20 +185,20 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       requestSync().catch(stopWithError)
       return
     }
-    const deadlineMs = Date.now() + delayMs
+    const deadlineMs = timer.now().getTime() + delayMs
     if (debounceTimer !== undefined && debounceDeadlineMs !== undefined && debounceDeadlineMs <= deadlineMs) return
     clearDebounceTimer()
     debounceDeadlineMs = deadlineMs
-    debounceTimer = setTimeout(() => {
+    debounceTimer = timer.schedule(delayMs, () => {
       debounceTimer = undefined
       debounceDeadlineMs = undefined
       requestSync().catch(stopWithError)
-    }, delayMs)
+    })
   }
 
   function clearRetryTimer(): void {
     if (retryTimer === undefined) return
-    clearTimeout(retryTimer)
+    retryTimer.cancel()
     retryTimer = undefined
     resolveRetryTimer?.()
     resolveRetryTimer = undefined
@@ -177,11 +208,11 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     clearRetryTimer()
     return new Promise<void>((resolve) => {
       resolveRetryTimer = resolve
-      retryTimer = setTimeout(() => {
+      retryTimer = timer.schedule(ms, () => {
         retryTimer = undefined
         resolveRetryTimer = undefined
         resolve()
-      }, ms)
+      })
     })
   }
 
@@ -335,6 +366,7 @@ function isDriveInternalPath(root: string, path: string): boolean {
 }
 
 function isAuthError(error: unknown): boolean {
+  if (isDriveAuthFailure(error)) return true
   const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined
   const message = errorMessage(error)
   return code === "WSPC_AUTH_EXPIRED" || /\b(401|403|auth|authorization)\b/i.test(message)
@@ -344,14 +376,16 @@ function isFatalWatchError(error: unknown): boolean {
   return /unsupported .*state\.json schema|sync lock already exists/i.test(errorMessage(error))
 }
 
-function isRetryableWatchError(error: unknown): boolean {
-  const status = typeof error === "object" && error !== null ? (error as { status?: unknown }).status : undefined
-  const message = errorMessage(error)
-  return status === 429 || (typeof status === "number" && status >= 500) || /\b(429|5\d\d|network|temporary|fetch)\b/i.test(message)
-}
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+const systemDriveWatchTimer: DriveWatchTimer = {
+  now: () => new Date(),
+  schedule(delayMs, callback) {
+    const handle = setTimeout(callback, delayMs)
+    return { cancel: () => clearTimeout(handle) }
+  },
 }
 
 function realtimeEvent(event: { cursor?: string; path?: string; reason?: string }): unknown {

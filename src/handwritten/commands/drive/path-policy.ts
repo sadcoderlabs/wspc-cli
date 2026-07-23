@@ -7,42 +7,52 @@ const WINDOWS_DRIVE_PREFIX = /^[a-zA-Z]:/
 const UNC_PREFIX = /^\\\\/
 const ABSOLUTE_POSIX_DOUBLE_SLASH = /^\/\//
 
+export class DrivePathError extends Error {
+  readonly code = "INVALID_DRIVE_PATH"
+  readonly retryable = false
+
+  constructor(message: string) {
+    super(message)
+    this.name = "DrivePathError"
+  }
+}
+
 export function validateDrivePath(drivePath: string): string {
   if (drivePath.length === 0) {
-    throw new Error("invalid drive path: empty")
+    throw new DrivePathError("invalid drive path: empty")
   }
 
   if (isAbsolute(drivePath) || ABSOLUTE_POSIX_DOUBLE_SLASH.test(drivePath)) {
-    throw new Error(`invalid drive path: ${drivePath}`)
+    throw new DrivePathError(`invalid drive path: ${drivePath}`)
   }
 
   if (drivePath.includes("\\")) {
-    throw new Error("invalid drive path: backslash")
+    throw new DrivePathError("invalid drive path: backslash")
   }
 
   if (WINDOWS_DRIVE_PREFIX.test(drivePath) || UNC_PREFIX.test(drivePath)) {
-    throw new Error(`invalid drive path: ${drivePath}`)
+    throw new DrivePathError(`invalid drive path: ${drivePath}`)
   }
 
   if (CONTROL_CHARS.test(drivePath)) {
-    throw new Error(`invalid drive path: control character`)
+    throw new DrivePathError("invalid drive path: control character")
   }
 
   if (Buffer.byteLength(drivePath, "utf8") > UTF8_PATH_LIMIT) {
-    throw new Error(`invalid drive path: exceeds ${UTF8_PATH_LIMIT} bytes`)
+    throw new DrivePathError(`invalid drive path: exceeds ${UTF8_PATH_LIMIT} bytes`)
   }
 
   const segments = drivePath.split("/")
   if (segments.some((segment) => segment.length === 0)) {
-    throw new Error("invalid drive path: empty segment")
+    throw new DrivePathError("invalid drive path: empty segment")
   }
 
   if (segments.some((segment) => segment === "." || segment === "..")) {
-    throw new Error("invalid drive path: relative segment")
+    throw new DrivePathError("invalid drive path: relative segment")
   }
 
   if (segments.some((segment) => Buffer.byteLength(segment, "utf8") > UTF8_SEGMENT_LIMIT)) {
-    throw new Error(`invalid drive path: segment exceeds ${UTF8_SEGMENT_LIMIT} bytes`)
+    throw new DrivePathError(`invalid drive path: segment exceeds ${UTF8_SEGMENT_LIMIT} bytes`)
   }
 
   return drivePath
@@ -58,7 +68,7 @@ export function resolveInsideRoot(root: string, drivePath: string): string {
     relativePath === ".." ||
     relativePath.startsWith(`..${sep}`)
   ) {
-    throw new Error(`drive path escapes root: ${drivePath}`)
+    throw new DrivePathError(`drive path escapes root: ${drivePath}`)
   }
   return absolutePath
 }

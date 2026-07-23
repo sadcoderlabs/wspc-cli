@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { ConfigStore } from "../../../src/handwritten/config/index.js"
 import { createDriveApi } from "../../../src/handwritten/commands/drive/api.js"
+import { DriveHttpError } from "../../../src/handwritten/commands/drive/retry.js"
 
 const DRIVE_LIBRARY = {
   id: "lib_1",
@@ -197,6 +198,62 @@ describe("createDriveApi", () => {
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
+  it("returns typed failures for manifest, delete, and move SDK calls", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ error: { code: "TEMPORARY_UNAVAILABLE", message: "try later" } }), {
+        status: 503,
+        headers: { "content-type": "application/json", "retry-after": "2" },
+      }),
+    ) as typeof fetch
+    const api = await mkDriveApi(fetchImpl)
+
+    for (const request of [
+      () => api.getManifest("lib_1"),
+      () => api.deleteFile("lib_1", "notes/hello.txt", 2),
+      () => api.moveFile("lib_1", "notes/hello.txt", "notes/moved.txt", 2),
+    ]) {
+      await expect(request()).rejects.toMatchObject({
+        name: "DriveHttpError",
+        status: 503,
+        code: "TEMPORARY_UNAVAILABLE",
+        retryAfterMs: 2_000,
+        message: "HTTP 503",
+      })
+    }
+  })
+
+  it("preserves SDK network failures for retry classification", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("fetch failed")
+    }) as typeof fetch
+    const api = await mkDriveApi(fetchImpl)
+
+    await expect(api.getManifest("lib_1")).rejects.toMatchObject({
+      name: "TypeError",
+      message: "fetch failed",
+    })
+  })
+
+  it("preserves rate-limit metadata without exposing the raw upload response body", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ error: { code: "RATE_LIMITED", message: "token=secret" } }), {
+        status: 429,
+        headers: { "content-type": "application/json", "retry-after": "60" },
+      }),
+    ) as typeof fetch
+    const api = await mkDriveApi(fetchImpl)
+
+    const upload = api.uploadFile("lib_1", "notes/hello.txt", new TextEncoder().encode("hello"), "3a6eb7")
+
+    await expect(upload).rejects.toBeInstanceOf(DriveHttpError)
+    await expect(upload).rejects.toMatchObject({
+      status: 429,
+      code: "RATE_LIMITED",
+      retryAfterMs: 60_000,
+      message: "HTTP 429",
+    })
+  })
+
   it("uploadFile sends authed raw PUT with query + headers and parses JSON", async () => {
     const sha256 = "3a6eb7"
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -293,13 +350,13 @@ describe("createDriveApi", () => {
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
-  it("uploadFile throws status and response body for failed raw uploads", async () => {
+  it("uploadFile throws a structured error without exposing a failed raw response body", async () => {
     const fetchImpl = vi.fn(async () => new Response("version mismatch", { status: 409 })) as typeof fetch
     const api = await mkDriveApi(fetchImpl)
 
     await expect(
       api.uploadFile("lib_1", "notes/hello.txt", new TextEncoder().encode("hello"), "3a6eb7"),
-    ).rejects.toThrow("HTTP 409: version mismatch")
+    ).rejects.toMatchObject({ status: 409, message: "HTTP 409" })
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
@@ -387,11 +444,11 @@ describe("createDriveApi", () => {
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 
-  it("downloadFile throws status and response body for failed raw downloads", async () => {
+  it("downloadFile throws a structured error without exposing a failed raw response body", async () => {
     const fetchImpl = vi.fn(async () => new Response("missing file", { status: 404 })) as typeof fetch
     const api = await mkDriveApi(fetchImpl)
 
-    await expect(api.downloadFile("lib_1", "notes/missing.txt")).rejects.toThrow("HTTP 404: missing file")
+    await expect(api.downloadFile("lib_1", "notes/missing.txt")).rejects.toMatchObject({ status: 404, message: "HTTP 404" })
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 })
