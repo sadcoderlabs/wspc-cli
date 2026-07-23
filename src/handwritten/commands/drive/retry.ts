@@ -61,7 +61,7 @@ export function parseRetryAfter(value: string | undefined, now: DateTime): numbe
   return Math.max(0, retryAt.toMillis() - now.toMillis())
 }
 
-export function classifyDriveRetry(error: unknown, fallbackMs: number, _now: DateTime): DriveRetryDecision | undefined {
+export function classifyDriveRetry(error: unknown, fallbackMs: number): DriveRetryDecision | undefined {
   const failure = error instanceof DriveRetryableSyncError ? error.cause : error
   const fallbackDelayMs = Math.min(Math.max(0, fallbackMs), 60_000)
   if (failure instanceof DriveHttpError && failure.status === 429) {
@@ -95,7 +95,7 @@ export function classifyDriveRetry(error: unknown, fallbackMs: number, _now: Dat
 }
 
 export function isRetryableDriveFailure(error: unknown): boolean {
-  return classifyDriveRetry(error, 0, DateTime.utc()) !== undefined
+  return classifyDriveRetry(error, 0) !== undefined
 }
 
 export function isDriveAuthFailure(error: unknown): boolean {
