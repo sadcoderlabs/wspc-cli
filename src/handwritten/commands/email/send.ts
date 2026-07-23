@@ -17,26 +17,39 @@ type Attachment =
   | { from_inbound_email_id: string; idx: number }
 
 async function resolveAttachment(input: string): Promise<{ att: Attachment; size: number }> {
-  // Try as file first; fall back to ref regex.
+  let fileSize: number | undefined
   try {
     const s = await stat(input)
     if (s.isFile()) {
-      if (s.size > MAX_PER_ATTACHMENT) {
-        throw new Error(`Attachment ${input} (${s.size} bytes) exceeds 5 MiB limit.`)
-      }
-      const buf = await readFile(input)
-      return {
-        att: {
-          filename: basename(input),
-          content_type: mimeFromExt(input),
-          content_base64: buf.toString("base64"),
-        },
-        size: s.size,
-      }
+      fileSize = s.size
     }
-  } catch {
-    // not a readable file — try ref
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== "ENOENT" && code !== "ENOTDIR") {
+      throw attachmentFileError(input, "inspect", error)
+    }
   }
+
+  if (fileSize !== undefined) {
+    if (fileSize > MAX_PER_ATTACHMENT) {
+      throw new Error(`Attachment ${input} (${fileSize} bytes) exceeds 5 MiB limit.`)
+    }
+    let buf: Buffer
+    try {
+      buf = await readFile(input)
+    } catch (error) {
+      throw attachmentFileError(input, "read", error)
+    }
+    return {
+      att: {
+        filename: basename(input),
+        content_type: mimeFromExt(input),
+        content_base64: buf.toString("base64"),
+      },
+      size: fileSize,
+    }
+  }
+
   if (INBOUND_REF_RE.test(input)) {
     const [emlId, idxStr] = input.split(":")
     return { att: { from_inbound_email_id: emlId!, idx: Number(idxStr) }, size: 0 }
@@ -44,6 +57,15 @@ async function resolveAttachment(input: string): Promise<{ att: Attachment; size
   throw new Error(
     `--attach ${input}: neither a readable file nor a valid <prefix>_<ulid>:<idx> reference.`,
   )
+}
+
+function attachmentFileError(
+  input: string,
+  operation: "inspect" | "read",
+  error: unknown,
+): Error {
+  const detail = error instanceof Error ? error.message : String(error)
+  return new Error(`--attach ${input}: unable to ${operation} local file: ${detail}`)
 }
 
 export const sendCommand = new Command("send")
