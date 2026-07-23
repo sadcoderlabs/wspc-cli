@@ -2,12 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   runDriveWatch,
   type DriveRealtimeSource,
+  type DriveWatchTimer,
   type DriveWatchSource,
 } from "../../../src/handwritten/commands/drive/watch.js"
+import { DriveHttpError, DriveRetryableSyncError } from "../../../src/handwritten/commands/drive/retry.js"
+import type { DriveSyncSummary } from "../../../src/handwritten/commands/drive/sync.js"
 
 const readState = async () => ({ library_id: "lib_1" }) as any
 
-function syncSummary(overrides: Partial<{ conflicts: number; errors: number }> = {}) {
+function syncSummary(overrides: Partial<DriveSyncSummary> = {}): DriveSyncSummary {
   return {
     uploaded: 0,
     downloaded: 0,
@@ -80,6 +83,29 @@ function fakeRealtimeSource(): DriveRealtimeSource & {
       handlers?.onWarning?.(warning)
     },
   }
+}
+
+function manualTimer(): DriveWatchTimer & { pending: Array<{ delayMs: number; fire(): void; cancelled: boolean }> } {
+  const pending: Array<{ delayMs: number; fire(): void; cancelled: boolean }> = []
+  return {
+    pending,
+    now: () => new Date("2026-07-23T00:00:00.000Z"),
+    schedule(delayMs, callback) {
+      const scheduled = {
+        delayMs,
+        cancelled: false,
+        fire() {
+          if (!scheduled.cancelled) callback()
+        },
+      }
+      pending.push(scheduled)
+      return { cancel: () => { scheduled.cancelled = true } }
+    },
+  }
+}
+
+async function flushMicrotasks(): Promise<void> {
+  for (let index = 0; index < 5; index += 1) await Promise.resolve()
 }
 
 describe("drive watch", () => {
@@ -230,7 +256,7 @@ describe("drive watch", () => {
     const watching = runDriveWatch("/tmp/root", { source, realtimeSource, runSync, readState, onEvent })
     await source.waitForSubscription()
     const rejected = expect(watching).rejects.toThrow("realtime startup failed")
-    await Promise.resolve()
+    await flushMicrotasks()
 
     await rejected
     await vi.advanceTimersByTimeAsync(60_000)
@@ -434,12 +460,12 @@ describe("drive watch", () => {
   it("does not let file events skip transient retry backoff", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()
-    const runSync = vi
-      .fn()
-      .mockResolvedValueOnce(syncSummary())
-      .mockRejectedValueOnce(new Error("HTTP 500: temporary failure"))
-      .mockResolvedValueOnce(syncSummary())
-      .mockResolvedValueOnce(syncSummary())
+    const dirtyByCall: Array<string[] | undefined> = []
+    const runSync = vi.fn(async (_root: string, _onProgress?: unknown, dirtyPaths?: string[]) => {
+      dirtyByCall.push(dirtyPaths)
+      if (dirtyByCall.length === 2) throw new Error("HTTP 500: temporary failure")
+      return syncSummary()
+    })
     const watching = runDriveWatch("/tmp/root", {
       source,
       realtimeSource: fakeRealtimeSource(),
@@ -461,6 +487,7 @@ describe("drive watch", () => {
 
     await vi.advanceTimersByTimeAsync(1)
     expect(runSync).toHaveBeenCalledTimes(3)
+    expect(dirtyByCall[2]).toBeUndefined()
 
     process.emit("SIGINT")
     await watching
@@ -549,7 +576,119 @@ describe("drive watch", () => {
     await watching
 
     expect(runSync).toHaveBeenCalledTimes(2)
-    expect(onEvent).toHaveBeenCalledWith({ kind: "drive_watch_retry", delay_ms: 1000, error: "HTTP 500: boom" })
+    expect(onEvent).toHaveBeenCalledWith({
+      kind: "drive_watch_retry",
+      reason: "transient",
+      delay_ms: 1000,
+      error: "HTTP 500: boom",
+    })
+  })
+
+  it("honors Retry-After, emits structured recovery context, and retries with a full scan", async () => {
+    const source = fakeSource()
+    const timer = manualTimer()
+    const onEvent = vi.fn()
+    const pathErrors = [
+      {
+        path: "bad\nname.md",
+        code: "INVALID_DRIVE_PATH",
+        message: "invalid drive path: control character",
+        retryable: false,
+      },
+    ]
+    const runSync = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new DriveRetryableSyncError(new DriveHttpError(429, { retryAfterMs: 120_000 }), {
+          remaining: 481,
+          pathErrors,
+        }),
+      )
+      .mockResolvedValueOnce(syncSummary({ errors: 1, path_errors: pathErrors }))
+
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent, once: true, timer })
+    await source.waitForSubscription()
+    await flushMicrotasks()
+
+    expect(timer.pending[0]?.delayMs).toBe(120_000)
+    expect(onEvent).toHaveBeenCalledWith({
+      kind: "drive_watch_retry",
+      reason: "rate_limited",
+      delay_ms: 120_000,
+      remaining: 481,
+      error: "HTTP 429",
+      path_errors: pathErrors,
+    })
+    timer.pending[0]?.fire()
+    await watching
+
+    expect(runSync).toHaveBeenNthCalledWith(2, "/tmp/root", expect.any(Function), undefined)
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "drive_sync_once",
+      errors: 1,
+      path_errors: pathErrors,
+    }))
+  })
+
+  it("retries without an attempt cap and applies exponential fallback delays", async () => {
+    const source = fakeSource()
+    const timer = manualTimer()
+    const onEvent = vi.fn()
+    const runSync = vi
+      .fn()
+      .mockRejectedValueOnce(new DriveHttpError(503))
+      .mockRejectedValueOnce(new DriveHttpError(503))
+      .mockRejectedValueOnce(new DriveHttpError(503))
+      .mockRejectedValueOnce(new DriveHttpError(503))
+      .mockResolvedValueOnce(syncSummary())
+
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent, once: true, timer })
+    await source.waitForSubscription()
+    for (const expectedDelay of [1_000, 2_000, 4_000, 8_000]) {
+      await flushMicrotasks()
+      const scheduled = timer.pending.at(-1)
+      expect(scheduled?.delayMs).toBe(expectedDelay)
+      scheduled?.fire()
+    }
+    await watching
+
+    expect(runSync).toHaveBeenCalledTimes(5)
+    expect(onEvent.mock.calls
+      .map(([event]) => event as { kind?: string; delay_ms?: number })
+      .filter((event) => event.kind === "drive_watch_retry")
+      .map((event) => event.delay_ms)).toEqual([1_000, 2_000, 4_000, 8_000])
+  })
+
+  it("resets the fallback delay after a successful sync round", async () => {
+    const source = fakeSource()
+    const timer = manualTimer()
+    const runSync = vi
+      .fn()
+      .mockRejectedValueOnce(new DriveHttpError(503))
+      .mockResolvedValueOnce(syncSummary())
+      .mockRejectedValueOnce(new DriveHttpError(503))
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent: vi.fn(),
+      timer,
+    })
+    await source.waitForSubscription()
+    await flushMicrotasks()
+    expect(timer.pending.at(-1)?.delayMs).toBe(1_000)
+
+    timer.pending.at(-1)?.fire()
+    await flushMicrotasks()
+    source.emit("/tmp/root/again.txt")
+    expect(timer.pending.at(-1)?.delayMs).toBe(500)
+    timer.pending.at(-1)?.fire()
+    await flushMicrotasks()
+
+    expect(timer.pending.at(-1)?.delayMs).toBe(1_000)
+    process.emit("SIGINT")
+    await watching
   })
 
   it("keeps watching after conflict summaries", async () => {

@@ -216,6 +216,49 @@ describe("drive state", () => {
     })
   })
 
+  it("round-trips scanner errors with invalid path characters in schema version 1", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-scan-errors-"))
+    const state = await initDriveState(root, "lib_1")
+    state.scan_errors = {
+      "bad\nname.md": {
+        code: "INVALID_DRIVE_PATH",
+        message: "invalid drive path: control character",
+        retryable: false,
+      },
+    }
+
+    await writeDriveState(root, state)
+
+    expect(await readDriveState(root)).toMatchObject({
+      schema_version: 1,
+      scan_errors: state.scan_errors,
+    })
+  })
+
+  it("rejects malformed scanner error ledger items", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-scan-errors-"))
+    const path = join(root, ".wspc-drive", "state.json")
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    const baseState = {
+      schema_version: 1,
+      library_id: "lib_1",
+      created_at: "2026-06-21T00:00:00.000Z",
+      updated_at: "2026-06-21T00:00:00.000Z",
+      entries: {},
+      conflicts: {},
+    }
+    const malformed = [
+      { code: "INVALID_DRIVE_PATH", message: "bad", retryable: "false" },
+      { code: "INVALID_DRIVE_PATH", message: "bad", retryable: false, response_body: "secret" },
+      ["INVALID_DRIVE_PATH"],
+    ]
+
+    for (const item of malformed) {
+      await writeFile(path, JSON.stringify({ ...baseState, scan_errors: { "bad\nname.md": item } }), { mode: 0o600 })
+      await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
+    }
+  })
+
   it("rejects malformed extended conflict metadata", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-conflict-meta-"))
     await mkdir(join(root, ".wspc-drive"), { recursive: true })

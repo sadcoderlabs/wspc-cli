@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { constants as fsConstants } from "node:fs"
 import { type Dirent } from "node:fs"
 import { open, readdir, lstat } from "node:fs/promises"
-import { join, posix as pathPosix } from "node:path"
+import { isAbsolute, join, posix as pathPosix, relative, resolve, sep } from "node:path"
 import { DRIVE_DIR } from "./state.js"
 import { validateDrivePath } from "./path-policy.js"
 
@@ -144,15 +144,29 @@ export async function rescanDriveFiles(
 
   for (const dirtyPath of new Set(dirtyPaths)) {
     if (dirtyPath === "" || isInternalSyncArtifactName(pathPosix.basename(dirtyPath))) continue
+    removePathAndChildren(kept, dirtyPath)
+
+    let validationError: unknown
     try {
       validateDrivePath(dirtyPath)
     } catch (error) {
-      if (!options.onPathError) throw error
-      await options.onPathError(dirtyPath, error)
+      validationError = error
+    }
+    if (validationError !== undefined) {
+      const invalidAbsPath = resolveDirtyPathInsideRoot(root, dirtyPath)
+      if (invalidAbsPath !== undefined) {
+        try {
+          await lstat(invalidAbsPath)
+        } catch (error) {
+          if (isNotFoundError(error)) continue
+          if (!isTransientScanError(error)) throw error
+        }
+      }
+      if (!options.onPathError) throw validationError
+      await options.onPathError(dirtyPath, validationError)
       continue
     }
 
-    removePathAndChildren(kept, dirtyPath)
     const absPath = join(root, ...dirtyPath.split("/"))
     let stats
     try {
@@ -200,6 +214,16 @@ export async function rescanDriveFiles(
     files[path] = { sha256: entry.sha256, size_bytes: entry.size_bytes }
   }
   return files
+}
+
+function resolveDirtyPathInsideRoot(root: string, dirtyPath: string): string | undefined {
+  const absoluteRoot = resolve(root)
+  const candidate = resolve(absoluteRoot, dirtyPath)
+  const relativePath = relative(absoluteRoot, candidate)
+  if (relativePath === "" || relativePath === ".." || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
+    return undefined
+  }
+  return candidate
 }
 
 function removePathAndChildren(view: Record<string, ScanCacheEntry>, path: string): void {

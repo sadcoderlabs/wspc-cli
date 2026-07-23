@@ -23,6 +23,12 @@ describe("drive path policy", () => {
     expect(() => validateDrivePath("a\u0000b")).toThrow()
   })
 
+  it("reports a stable diagnostic code for invalid drive paths", () => {
+    expect(() => validateDrivePath("bad\nname.md")).toThrowError(
+      expect.objectContaining({ code: "INVALID_DRIVE_PATH", retryable: false }),
+    )
+  })
+
   it("rejects empty and dot path segments", () => {
     expect(() => validateDrivePath("")).toThrow()
     expect(() => validateDrivePath(".")).toThrow()

@@ -27,11 +27,18 @@ import {
   withDriveLock,
   type DriveConflict,
   type DriveScanCacheEntry,
+  type DriveScanError,
   type DriveState,
   type DriveStateEntry,
 } from "./state.js"
 import { render } from "../../output/render.js"
 import type { DriveManifestResponse, MoveDriveFileResponse, UploadDriveFileResponse } from "../../../generated/sdk/index.js"
+import {
+  DriveRetryableSyncError,
+  isDriveAuthFailure,
+  isRetryableDriveFailure,
+  type DrivePathErrorSummary,
+} from "./retry.js"
 
 type RemoteEntry = DriveManifestResponse["entries"][number]
 type ProcessPathResult = { state: DriveState; stop: boolean }
@@ -66,6 +73,7 @@ export interface DriveSyncSummary {
   conflicts: number
   errors: number
   conflict_paths: string[]
+  path_errors?: DrivePathErrorSummary[]
   paths: Array<{ path: string; action: DriveSyncPathAction; conflict_paths?: string[] }>
 }
 
@@ -79,6 +87,7 @@ function emptySummary(): DriveSyncSummary {
     conflicts: 0,
     errors: 0,
     conflict_paths: [],
+    path_errors: [],
     paths: [],
   }
 }
@@ -112,27 +121,52 @@ export async function runDriveSyncOnce(
     const summary = emptySummary()
     const blockedPaths = new Set<string>()
     const scanStartedMs = Date.now()
+    const useIncrementalScan = options.dirtyPaths !== undefined && state.scan_cache !== undefined
     const nextScanCache: Record<string, DriveScanCacheEntry> = {}
+    const nextScanErrors: Record<string, DriveScanError> = useIncrementalScan
+      ? retainUnrelatedScanErrors(state.scan_errors, options.dirtyPaths!)
+      : {}
     const scanOptions = {
       cache: state.scan_cache,
       onCacheUpdate: (path: string, entry: DriveScanCacheEntry) => {
         nextScanCache[path] = entry
       },
-      onPathError: async (path: string, error: unknown) => {
-        await recordPathError(summary, blockedPaths, path, error, { debug, op: "scan" })
+      onPathError: (path: string, error: unknown) => {
+        const pathError = drivePathErrorSummary(path, error)
+        nextScanErrors[path] = {
+          code: pathError.code,
+          message: pathError.message,
+          retryable: pathError.retryable,
+        }
       },
     }
-    const useIncrementalScan = options.dirtyPaths !== undefined && state.scan_cache !== undefined
     const localFiles = useIncrementalScan
       ? await rescanDriveFiles(root, options.dirtyPaths!, scanOptions)
       : await scanDriveFiles(root, scanOptions)
-    if (JSON.stringify(state.scan_cache ?? {}) !== JSON.stringify(nextScanCache)) {
-      state = { ...state, scan_cache: nextScanCache }
+    for (const path of Object.keys(nextScanErrors).sort((left, right) => left.localeCompare(right))) {
+      const pathError = { path, ...nextScanErrors[path]! }
+      await recordPathError(summary, blockedPaths, path, pathError, { debug, op: "scan", pathError })
+    }
+    if (
+      JSON.stringify(state.scan_cache ?? {}) !== JSON.stringify(nextScanCache) ||
+      JSON.stringify(state.scan_errors ?? {}) !== JSON.stringify(nextScanErrors)
+    ) {
+      const nextState: DriveState = { ...state, scan_cache: nextScanCache, scan_errors: nextScanErrors }
+      if (Object.keys(nextScanErrors).length === 0) delete nextState.scan_errors
+      state = nextState
       await writeDriveState(root, state, clock)
     }
     const scanMs = Date.now() - scanStartedMs
     const manifestStartedMs = Date.now()
-    const manifest = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths, debug)
+    let manifest: Awaited<ReturnType<typeof fetchRemoteManifest>>
+    try {
+      manifest = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths, debug)
+    } catch (error) {
+      if (isRetryableDriveFailure(error)) {
+        throw new DriveRetryableSyncError(error, { pathErrors: summary.path_errors ?? [] })
+      }
+      throw error
+    }
     const remoteFiles = manifest.remoteFiles
     if (manifest.manifestCursor !== undefined && manifest.manifestCursor !== state.manifest_cursor) {
       state = { ...state, manifest_cursor: manifest.manifestCursor }
@@ -145,20 +179,28 @@ export async function runDriveSyncOnce(
       .filter((path) => !blockedPaths.has(path))
       .sort((left, right) => left.localeCompare(right))
 
-    const movedPaths = await applyRenamesAsMoves({
-      root,
-      state,
-      api: syncApi,
-      paths,
-      localFiles,
-      remoteFiles,
-      summary,
-      clock,
-      debug,
-      onStateChange: (nextState) => {
-        state = nextState
-      },
-    })
+    let movedPaths: Set<string>
+    try {
+      movedPaths = await applyRenamesAsMoves({
+        root,
+        state,
+        api: syncApi,
+        paths,
+        localFiles,
+        remoteFiles,
+        summary,
+        clock,
+        debug,
+        onStateChange: (nextState) => {
+          state = nextState
+        },
+      })
+    } catch (error) {
+      if (isRetryableDriveFailure(error)) {
+        throw new DriveRetryableSyncError(error, { pathErrors: summary.path_errors ?? [] })
+      }
+      throw error
+    }
 
     // decideDriveAction is pure and reads only this path's slices of the
     // initial state, so this pre-pass total matches the loop's actions.
@@ -180,7 +222,18 @@ export async function runDriveSyncOnce(
         debug.log("decision", decisionFields(path, action, state.entries[path], local, remote))
       }
       const previousConflict = state.conflicts[path]
-      const result = await processPath({ root, state, api: syncApi, path, action, remote, local, summary, clock, debug })
+      let result: ProcessPathResult
+      try {
+        result = await processPath({ root, state, api: syncApi, path, action, remote, local, summary, clock, debug })
+      } catch (error) {
+        if (isRetryableDriveFailure(error)) {
+          throw new DriveRetryableSyncError(error, {
+            remaining: total - processed,
+            pathErrors: summary.path_errors ?? [],
+          })
+        }
+        throw error
+      }
       state = result.state
       const recordedConflict = state.conflicts[path]
       if (recordedConflict !== undefined && recordedConflict !== previousConflict) {
@@ -233,7 +286,13 @@ export function driveSyncCommand(api?: DriveSyncApi): Command {
     .description("Run one Drive sync pass")
     .argument("[path]", "local folder path", ".")
     .action(async (path: string) => {
-      const summary = await runDriveSyncOnce(resolve(path), api)
+      let summary: DriveSyncSummary
+      try {
+        summary = await runDriveSyncOnce(resolve(path), api)
+      } catch (error) {
+        process.exitCode = 1
+        throw error
+      }
       render({ kind: "drive_sync_once", display: { shape: "object" } }, summary)
       if (summary.conflicts > 0 || summary.errors > 0) {
         process.exitCode = 1
@@ -476,6 +535,7 @@ async function processPath(args: {
 
     summary.unchanged += 1
   } catch (error) {
+    if (isRetryableDriveFailure(error) || isDriveAuthFailure(error)) throw error
     if (isVersionConflict(error)) {
       try {
         const nextState = await recordConflict(root, state, path, "VERSION_CONFLICT", remote, clock)
@@ -623,6 +683,7 @@ async function applyRenamesAsMoves(args: {
       summary.paths.push({ path: toPath, action: "move" })
       debug.log("decision", { path: toPath, action: "move", from_path: fromPath })
     } catch (error) {
+      if (isRetryableDriveFailure(error) || isDriveAuthFailure(error)) throw error
       // Move is an optimization: on any failure fall back to upload + delete.
       debug.log("error", { path: toPath, op: "move", message: errorMessage(error) })
     }
@@ -852,6 +913,7 @@ function cloneDriveState(state: DriveState): DriveState {
     ...state,
     entries: { ...state.entries },
     conflicts: { ...state.conflicts },
+    ...(state.scan_errors === undefined ? {} : { scan_errors: { ...state.scan_errors } }),
   }
 }
 
@@ -894,23 +956,60 @@ async function recordPathError(
   blockedPaths: Set<string> | undefined,
   path: string,
   error: unknown,
-  options: { appendPathResult?: boolean; debug?: DriveDebugLogger; op?: string } = {},
+  options: { appendPathResult?: boolean; debug?: DriveDebugLogger; op?: string; pathError?: DrivePathErrorSummary } = {},
 ): Promise<void> {
   blockedPaths?.add(path)
+  const pathError = options.pathError ?? drivePathErrorSummary(path, error)
+  const pathErrors = summary.path_errors ?? (summary.path_errors = [])
+  if (pathErrors.some((candidate) => candidate.path === path)) return
+
   const lastPath = summary.paths.at(-1)
   if (!options.appendPathResult && lastPath?.path === path) {
     lastPath.action = "error"
   } else {
     summary.paths.push({ path, action: "error" })
   }
-  const code = error instanceof Error && "code" in error ? (error as NodeJS.ErrnoException).code : undefined
+  pathErrors.push(pathError)
+  pathErrors.sort((left, right) => left.path.localeCompare(right.path))
   options.debug?.log("error", {
     path,
     ...(options.op === undefined ? {} : { op: options.op }),
-    ...(code === undefined ? {} : { code }),
-    message: errorMessage(error),
+    code: pathError.code,
+    message: pathError.message,
   })
   summary.errors += 1
+}
+
+function drivePathErrorSummary(path: string, error: unknown): DrivePathErrorSummary {
+  const structured = typeof error === "object" && error !== null
+    ? error as { code?: unknown; message?: unknown; retryable?: unknown }
+    : undefined
+  const message = typeof structured?.message === "string" ? structured.message : errorMessage(error)
+  const code = typeof structured?.code === "string"
+    ? structured.code
+    : message.startsWith("invalid drive path:")
+      ? "INVALID_DRIVE_PATH"
+      : "DRIVE_PATH_ERROR"
+  const retryable = typeof structured?.retryable === "boolean"
+    ? structured.retryable
+    : code === "ENOENT" || code === "EPERM" || code === "EBUSY"
+  return { path, code, message, retryable }
+}
+
+function retainUnrelatedScanErrors(
+  current: Record<string, DriveScanError> | undefined,
+  dirtyPaths: string[],
+): Record<string, DriveScanError> {
+  const retained: Record<string, DriveScanError> = {}
+  for (const [path, error] of Object.entries(current ?? {})) {
+    if (dirtyPaths.some((dirtyPath) => pathsOverlap(path, dirtyPath))) continue
+    retained[path] = error
+  }
+  return retained
+}
+
+function pathsOverlap(left: string, right: string): boolean {
+  return left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`)
 }
 
 function conflict(reason: string, remote: RemoteEntry | undefined, clock: DriveClock): DriveConflict {

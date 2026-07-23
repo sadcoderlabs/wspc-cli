@@ -1,5 +1,9 @@
 # Drive 桌面 CLI 同步 v1 設計
 
+## 後續 canonical amendment
+
+首次大量同步的 retry 與 scanner error ledger 以 WSPC Drive 的 [current canonical spec](https://github.com/sadcoderlabs/wspc-drive/blob/main/docs/superpowers/specs/2026-07-23-drive-first-sync-recovery-design.md) 為準；本次實作固定驗收 [revision `591a2ac58d6ba51025e4bd42c0bbc0d6603d96f3`](https://github.com/sadcoderlabs/wspc-drive/blob/591a2ac58d6ba51025e4bd42c0bbc0d6603d96f3/docs/superpowers/specs/2026-07-23-drive-first-sync-recovery-design.md)。下列章節補充該 revision 對原 v1 contract 的 additive 變更。
+
 ## 目標
 
 在 `@wspc/cli` 加入第一版安全的桌面 Drive 同步切片。
@@ -78,9 +82,18 @@ Schema：
   "created_at": "2026-06-21T00:00:00.000Z",
   "updated_at": "2026-06-21T00:00:00.000Z",
   "entries": {},
-  "conflicts": {}
+  "conflicts": {},
+  "scan_errors": {
+    "bad\nname.md": {
+      "code": "INVALID_DRIVE_PATH",
+      "message": "invalid drive path: control character",
+      "retryable": false
+    }
+  }
 }
 ```
+
+`scan_errors` 是 `schema_version: 1` 的 optional ledger；absence 代表沒有 scanner error。Map key 是 scanner 看到的原始 library-relative path，可能包含 path policy 不接受的字元，因此 validator 只驗證 ledger 結構，不對 key 再執行 `validateDrivePath()`，也不得把 key 傳給 remote API。Full scan 從空 ledger 重建；incremental scan 沿用 unrelated errors，重驗 dirty path 與其 subtree，rename/remove 後自動清除。`scan_cache` 與 `scan_errors` 必須在同一個 state checkpoint 寫入。
 
 State 只保存 library binding 與 sync metadata。它絕不保存 access token、refresh token 或 API key。
 
@@ -178,7 +191,9 @@ Rename 會被視為 old-path delete 加 new-path create。
 
 已成功的 path changes 不 rollback。失敗 paths 保留先前 state，已完成 paths 保持 persisted。
 
-Human output 應是 compact summary：uploaded、downloaded、deleted、unchanged、conflicts、errors。JSON output 應包含同樣 summary 加上 per-path results。Logs 不得包含 file contents、tokens、auth headers 或完整 raw response bodies。
+429、5xx 與 network/fetch 暫時故障不再記成一般 path error並繼續轟炸後續檔案。第一筆 retryable failure 立即中斷該 sync round；先前成功 path 的 state checkpoint 保留，後續由 `watch` 做 full retry。`sync once` 自身不 sleep 或 retry，而是以非零結果結束。Invalid path、case conflict 等永久 path failure 則完成本輪，寫入 `scan_errors` 並持續出現在後續 summary，直到檔案改名或移除。
+
+Human output 應是 compact summary：uploaded、downloaded、deleted、unchanged、conflicts、errors。JSON output 應包含同樣 summary、歷史相容的 per-path results，以及 additive optional `path_errors`；每筆提供 stable `code`、message 與 retryable flag，依 path 排序且同一路徑只輸出一次。Logs 不得包含 file contents、tokens、auth headers 或完整 raw response bodies。
 
 ## 測試
 
