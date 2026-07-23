@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: recurrence_rule_list)
 import { Command } from "commander"
 import { recurrenceRuleList } from "../../../sdk/index.js"
-import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../../handwritten/commands/run-sdk-command.js"
 
 export const recurrenceRuleListCommand = new Command("ls")
   .description("List recurring todo rules")
@@ -10,20 +9,14 @@ export const recurrenceRuleListCommand = new Command("ls")
   .option("--project-id <value>", "Project id filter. Required. Unknown, cross-organization, or soft-deleted project ids return NOT_FOUND.")
   .option("--user-id <value>", "user_id")
   .action(async (opts) => {
-    const client = await loadSdkClient()
-    const result = await recurrenceRuleList({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      query: {
-        project_id: opts.projectId,
-        user_id: opts.userId,
+    await runSdkCommand({
+      operation: recurrenceRuleList,
+      input: {
+        query: {
+          project_id: opts.projectId,
+          user_id: opts.userId,
+        },
       },
+      context: { kind: "recurrence_rule_list", display: {"shape":"list","columns":["id","rrule","dtstart","type_id"],"format":{"id":"id-short","rrule":"truncate","type_id":"id-short"},"emptyMessage":"no recurrence rules"} },
     })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "recurrence_rule_list", display: {"shape":"list","columns":["id","rrule","dtstart","type_id"],"format":{"id":"id-short","rrule":"truncate","type_id":"id-short"},"emptyMessage":"no recurrence rules"} }, result.data)
   })

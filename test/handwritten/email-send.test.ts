@@ -4,19 +4,24 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 const sendMock = vi.fn()
+const renderMock = vi.fn()
 vi.mock("../../src/generated/sdk/index.js", () => ({
   emailSend: (...args: unknown[]) => sendMock(...args),
 }))
 vi.mock("../../src/handwritten/auth/load-sdk-client.js", () => ({
   loadSdkClient: async () => ({ _rawClient: {} }),
 }))
-vi.mock("../../src/handwritten/output/render.js", () => ({ render: vi.fn() }))
+vi.mock("../../src/handwritten/output/render.js", () => ({
+  render: (...args: unknown[]) => renderMock(...args),
+}))
 
 // Import AFTER vi.mock calls (vitest hoists mocks but explicit ordering is clearer)
 import { sendCommand } from "../../src/handwritten/commands/email/send.js"
 
 beforeEach(() => {
   sendMock.mockReset()
+  renderMock.mockReset()
+  process.exitCode = undefined
   sendMock.mockResolvedValue({
     data: { email: { id: "out_X" }, idempotent_replay: false },
     response: { ok: true, status: 200 },
@@ -42,6 +47,10 @@ describe("wspc email send", () => {
     })
     expect(body.in_reply_to_email_id).toBeUndefined()
     expect(body.attachments).toBeUndefined()
+    expect(renderMock).toHaveBeenCalledWith(
+      { kind: "object", display: { shape: "object", format: { id: "id-short" } } },
+      { id: "out_X" },
+    )
   })
 
   it("auto-generates idempotency_key when --idempotency-key omitted", async () => {
@@ -135,5 +144,27 @@ describe("wspc email send", () => {
     expect(process.exitCode).toBe(1)
     errSpy.mockRestore()
     process.exitCode = undefined
+  })
+
+  it("reports HTTP failures without rendering", async () => {
+    sendMock.mockResolvedValue({
+      error: { code: "SEND_FAILED" },
+      response: { ok: false, status: 502 },
+    })
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+
+    try {
+      await sendCommand.parseAsync([
+        "node", "send",
+        "--from", "a@d", "--to", "x@y", "--subject", "S", "--text", "T",
+        "--idempotency-key", "k7",
+      ])
+
+      expect(process.exitCode).toBe(1)
+      expect(renderMock).not.toHaveBeenCalled()
+      expect(stderr).toHaveBeenCalledWith('HTTP 502: {\n  "code": "SEND_FAILED"\n}\n')
+    } finally {
+      stderr.mockRestore()
+    }
   })
 })

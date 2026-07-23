@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: drive_search)
 import { Command } from "commander"
 import { driveSearch } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/run-sdk-command.js"
 
 export const driveSearchCommand = new Command("search")
   .description("Search drive library text")
@@ -11,23 +10,17 @@ export const driveSearchCommand = new Command("search")
   .option("--query <value>", "query")
   .option("--limit <value>", "limit")
   .action(async (id, opts) => {
-    const client = await loadSdkClient()
-    const result = await driveSearch({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      path: {
-        id,
+    await runSdkCommand({
+      operation: driveSearch,
+      input: {
+        path: {
+          id,
+        },
+        query: {
+          query: opts.query,
+          limit: opts.limit,
+        },
       },
-      query: {
-        query: opts.query,
-        limit: opts.limit,
-      },
+      context: { kind: "drive_search", display: {"shape":"list","dataPath":"results","columns":["path","snippet"],"emptyMessage":"no matches"} },
     })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "drive_search", display: {"shape":"list","dataPath":"results","columns":["path","snippet"],"emptyMessage":"no matches"} }, result.data)
   })

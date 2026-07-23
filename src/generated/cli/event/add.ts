@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: event_create)
 import { Command } from "commander"
 import { eventCreate } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/run-sdk-command.js"
 import { parseTimeInput, resolveTimezone } from "../../../handwritten/utils/parse-time.js"
 import { parseDateOnly, inclusiveEndToExclusive } from "../../../handwritten/utils/parse-date.js"
 import { parseAttendee } from "../../../handwritten/utils/parse-attendee.js"
@@ -41,27 +40,21 @@ export const eventCreateCommand = new Command("add")
     }
     const attendeeRaw = opts.attendee as string[]
     const attendees = attendeeRaw.length > 0 ? attendeeRaw.map(parseAttendee) : undefined
-    const client = await loadSdkClient()
-    const result = await eventCreate({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      body: {
-        title,
-        description: opts.description,
-        start: startValue as string,
-        end: endValue as string,
-        location: opts.location,
-        url: opts.url,
-        status: opts.status,
-        attendees: attendees,
-        idempotency_key: opts.idempotencyKey,
+    await runSdkCommand({
+      operation: eventCreate,
+      input: {
+        body: {
+          title,
+          description: opts.description,
+          start: startValue as string,
+          end: endValue as string,
+          location: opts.location,
+          url: opts.url,
+          status: opts.status,
+          attendees: attendees,
+          idempotency_key: opts.idempotencyKey,
+        },
       },
+      context: { kind: "event_create", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","status":"status-badge","start":"relative-time","end":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} },
     })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "event_create", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","status":"status-badge","start":"relative-time","end":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
   })

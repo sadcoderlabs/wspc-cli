@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: key_update)
 import { Command } from "commander"
 import { keyUpdate } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/run-sdk-command.js"
 
 export const keyUpdateCommand = new Command("edit")
   .description("Update an active API key's label")
@@ -10,22 +9,16 @@ export const keyUpdateCommand = new Command("edit")
   .argument("<id>", "id")
   .option("--label <value>", "Human-readable label for the key (1–60 chars after trimming).")
   .action(async (id, opts) => {
-    const client = await loadSdkClient()
-    const result = await keyUpdate({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      path: {
-        id,
+    await runSdkCommand({
+      operation: keyUpdate,
+      input: {
+        path: {
+          id,
+        },
+        body: {
+          label: opts.label,
+        },
       },
-      body: {
-        label: opts.label,
-      },
+      context: { kind: "key_update", display: undefined },
     })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "key_update", display: undefined }, result.data)
   })

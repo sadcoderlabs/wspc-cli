@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_type_create)
 import { Command } from "commander"
 import { todoTypeCreate } from "../../../sdk/index.js"
-import { loadSdkClient } from "../../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../../handwritten/commands/run-sdk-command.js"
 import { parseJsonField } from "../../../../handwritten/utils/parse-json-field.js"
 
 export const todoTypeCreateCommand = new Command("add")
@@ -13,22 +12,16 @@ export const todoTypeCreateCommand = new Command("add")
   .option("--hide-core-fields <value>", "hide_core_fields")
   .option("--custom-fields <value>", "custom_fields")
   .action(async (label, opts) => {
-    const client = await loadSdkClient()
-    const result = await todoTypeCreate({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      body: {
-        label,
-        project_id: opts.project,
-        hide_core_fields: parseJsonField(opts.hideCoreFields, "hide-core-fields"),
-        custom_fields: parseJsonField(opts.customFields, "custom-fields"),
+    await runSdkCommand({
+      operation: todoTypeCreate,
+      input: {
+        body: {
+          label,
+          project_id: opts.project,
+          hide_core_fields: parseJsonField(opts.hideCoreFields, "hide-core-fields"),
+          custom_fields: parseJsonField(opts.customFields, "custom-fields"),
+        },
       },
+      context: { kind: "todo_type_create", display: undefined },
     })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "todo_type_create", display: undefined }, result.data)
   })

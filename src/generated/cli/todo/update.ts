@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_update)
 import { Command } from "commander"
 import { todoUpdate } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/run-sdk-command.js"
 import { parseJsonField } from "../../../handwritten/utils/parse-json-field.js"
 import { parseIntegerField } from "../../../handwritten/utils/parse-scalar-field.js"
 
@@ -20,30 +19,24 @@ export const todoUpdateCommand = new Command("update")
   .option("--custom-fields <value>", "PATCH semantics: only the keys present in this map change. Pass `null` for a key (e.g. `custom_fields: { priority: null }`) to explicitly delete that custom field value. Array values are replaced wholesale with no element-level diff. Providing a key that is not declared on the effective todo type is rejected with `UNDECLARED_FIELD`.")
   .option("--user-id <value>", "Reassign the owner (assignee) user ID of this todo. Target user must belong to the same organization.")
   .action(async (id, opts) => {
-    const client = await loadSdkClient()
-    const result = await todoUpdate({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      path: {
-        id,
+    await runSdkCommand({
+      operation: todoUpdate,
+      input: {
+        path: {
+          id,
+        },
+        body: {
+          expected_version: opts.expectedVersion,
+          title: opts.title,
+          description: opts.description,
+          parent_id: opts.parentId,
+          status: opts.status,
+          due_at: opts.dueAt,
+          type_id: opts.typeId,
+          custom_fields: parseJsonField(opts.customFields, "custom-fields"),
+          user_id: opts.userId,
+        },
       },
-      body: {
-        expected_version: opts.expectedVersion,
-        title: opts.title,
-        description: opts.description,
-        parent_id: opts.parentId,
-        status: opts.status,
-        due_at: opts.dueAt,
-        type_id: opts.typeId,
-        custom_fields: parseJsonField(opts.customFields, "custom-fields"),
-        user_id: opts.userId,
-      },
+      context: { kind: "todo_update", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} },
     })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "todo_update", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
   })
