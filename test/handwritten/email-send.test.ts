@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
-import { writeFileSync, mkdtempSync } from "node:fs"
+import { writeFileSync, mkdtempSync, truncateSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -128,6 +128,30 @@ describe("wspc email send", () => {
     process.exitCode = undefined
   })
 
+  it("preserves the per-file size error for an oversized attachment", async () => {
+    process.exitCode = undefined
+    const errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+    const dir = mkdtempSync(join(tmpdir(), "wspc-test-"))
+    const file = join(dir, "oversized.bin")
+    writeFileSync(file, "")
+    truncateSync(file, 5 * 1024 * 1024 + 1)
+
+    await sendCommand.parseAsync([
+      "node", "send",
+      "--from", "a@d", "--to", "x@y", "--subject", "S", "--text", "T",
+      "--idempotency-key", "k6", "--attach", file,
+    ])
+
+    expect(sendMock).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
+    expect(errSpy).toHaveBeenCalledOnce()
+    expect(errSpy).toHaveBeenCalledWith(
+      `Attachment ${file} (5242881 bytes) exceeds 5 MiB limit.\n`,
+    )
+    errSpy.mockRestore()
+    process.exitCode = undefined
+  })
+
   it("rejects both --text and --text-file set", async () => {
     process.exitCode = undefined
     const errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
@@ -138,7 +162,7 @@ describe("wspc email send", () => {
       "node", "send",
       "--from", "a@d", "--to", "x@y", "--subject", "S",
       "--text", "T", "--text-file", file,
-      "--idempotency-key", "k6",
+      "--idempotency-key", "k7",
     ])
     expect(sendMock).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
