@@ -3,6 +3,7 @@ import { constants as fsConstants } from "node:fs"
 import { type Dirent } from "node:fs"
 import { open, readdir, lstat } from "node:fs/promises"
 import { isAbsolute, join, posix as pathPosix, relative, resolve, sep } from "node:path"
+import type { DriveExcludeRules } from "./exclude-rules.js"
 import { DRIVE_DIR } from "./state.js"
 import { validateDrivePath } from "./path-policy.js"
 
@@ -24,6 +25,7 @@ export interface ScanDriveFilesOptions {
   onCacheUpdate?: (path: string, entry: ScanCacheEntry) => void
   // Scan only this subtree instead of the whole root (drive path, "" = root).
   startDrivePath?: string
+  excludeRules?: DriveExcludeRules
 }
 
 export async function scanDriveFiles(root: string, options: ScanDriveFilesOptions = {}): Promise<Record<string, DriveFileEntry>> {
@@ -52,11 +54,14 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
       if (isExcludedRootEntry(currentDrivePath, entry)) {
         continue
       }
+      const nextDrivePath = currentDrivePath ? `${currentDrivePath}/${entry.name}` : entry.name
+      if (options.excludeRules?.matches(nextDrivePath)) {
+        continue
+      }
       if (isInternalSyncArtifactName(entry.name)) {
         continue
       }
 
-      const nextDrivePath = currentDrivePath ? `${currentDrivePath}/${entry.name}` : entry.name
       try {
         validateDrivePath(nextDrivePath)
       } catch (error) {
@@ -140,10 +145,14 @@ export async function rescanDriveFiles(
   dirtyPaths: string[],
   options: ScanDriveFilesOptions = {},
 ): Promise<Record<string, DriveFileEntry>> {
-  const kept: Record<string, ScanCacheEntry> = { ...(options.cache ?? {}) }
+  const kept: Record<string, ScanCacheEntry> = {}
+  for (const [path, entry] of Object.entries(options.cache ?? {})) {
+    if (!options.excludeRules?.matches(path)) kept[path] = entry
+  }
 
   for (const dirtyPath of new Set(dirtyPaths)) {
     if (dirtyPath === "" || isInternalSyncArtifactName(pathPosix.basename(dirtyPath))) continue
+    if (options.excludeRules?.matches(dirtyPath)) continue
     removePathAndChildren(kept, dirtyPath)
 
     let validationError: unknown

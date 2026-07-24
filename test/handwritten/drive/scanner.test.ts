@@ -4,7 +4,8 @@ import { basename, join } from "node:path"
 import { tmpdir } from "node:os"
 import { Readable } from "node:stream"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { scanDriveFiles } from "../../../src/handwritten/commands/drive/scanner.js"
+import { parseDriveExcludeRules } from "../../../src/handwritten/commands/drive/exclude-rules.js"
+import { rescanDriveFiles, scanDriveFiles } from "../../../src/handwritten/commands/drive/scanner.js"
 
 function sha256(content: string): string {
   return createHash("sha256").update(content).digest("hex")
@@ -80,6 +81,49 @@ describe("drive scanner", () => {
         size_bytes: 4,
       },
     })
+  })
+
+  it("excludes exact files and prunes excluded directory trees", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-scan-ignore-"))
+    await mkdir(join(root, "node_modules", "pkg"), { recursive: true })
+    await mkdir(join(root, "build"), { recursive: true })
+    await writeFile(join(root, "node_modules", "pkg", "index.js"), "dependency")
+    await writeFile(join(root, "build", "output.log"), "local")
+    await writeFile(join(root, "keep.txt"), "keep")
+
+    const files = await scanDriveFiles(root, {
+      excludeRules: parseDriveExcludeRules("node_modules/\nbuild/output.log\n"),
+    })
+
+    expect(files).toEqual({
+      "keep.txt": {
+        sha256: sha256("keep"),
+        size_bytes: 4,
+      },
+    })
+  })
+
+  it("does not retain excluded entries from the incremental scan cache", async () => {
+    const cacheEntry = { mtime_ms: 1, size_bytes: 4, sha256: "cached" }
+    const updates: string[] = []
+
+    const files = await rescanDriveFiles("/tmp/root", [], {
+      cache: {
+        "build/output.log": cacheEntry,
+        "node_modules/pkg/index.js": cacheEntry,
+        "keep.txt": cacheEntry,
+      },
+      excludeRules: parseDriveExcludeRules("build/output.log\nnode_modules/\n"),
+      onCacheUpdate: (path) => updates.push(path),
+    })
+
+    expect(files).toEqual({
+      "keep.txt": {
+        sha256: "cached",
+        size_bytes: 4,
+      },
+    })
+    expect(updates).toEqual(["keep.txt"])
   })
 
   it("skips symlink entries", async () => {
