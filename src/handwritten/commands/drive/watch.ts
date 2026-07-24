@@ -258,11 +258,17 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
         scheduleSync(debounceMs, "unknown")
         return
       }
+      const drivePath = relative(root, path).replace(/\\/g, "/")
+      if (drivePath === `${DRIVE_DIR}/ignore`) {
+        fullReconciliationRequired = true
+        dbg.log("fs_event", { path: drivePath, full_reconciliation: true })
+        scheduleSync(debounceMs, "ignore")
+        return
+      }
       if (isDriveInternalPath(root, path)) return
       // Download/backup/merge temp files are our own writes; reacting to them
       // would chain an extra sync after every applied remote change.
       if (isInternalSyncArtifactName(basename(path))) return
-      const drivePath = relative(root, path).replace(/\\/g, "/")
       dirtyPaths.add(drivePath)
       dbg.log("fs_event", { path: drivePath })
       scheduleSync(debounceMs, "local")
@@ -353,10 +359,10 @@ export function createNativeRecursiveSource(root: string, watch = fsWatch): Driv
   }
 }
 
-function createChokidarSource(root: string): DriveWatchSource {
-  const watcher = chokidar.watch(root, {
+export function createChokidarSource(root: string, watch = chokidar.watch): DriveWatchSource {
+  const watcher = watch(root, {
     ignoreInitial: true,
-    ignored: (path) => isDriveInternalPath(root, path),
+    ignored: (path) => shouldIgnoreDriveWatchPath(root, path),
   })
   return {
     onChange(handler) {
@@ -366,6 +372,12 @@ function createChokidarSource(root: string): DriveWatchSource {
       await watcher.close()
     },
   }
+}
+
+function shouldIgnoreDriveWatchPath(root: string, path: string): boolean {
+  if (!isDriveInternalPath(root, path)) return false
+  const drivePath = relative(root, path).replace(/\\/g, "/")
+  return drivePath !== DRIVE_DIR && drivePath !== `${DRIVE_DIR}/ignore`
 }
 
 function isDriveInternalPath(root: string, path: string): boolean {
