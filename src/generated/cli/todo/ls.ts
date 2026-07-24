@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_list)
 import { Command } from "commander"
 import { todoList } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/run-sdk-command.js"
 
 export const todoListCommand = new Command("ls")
   .description("List todos with filters")
@@ -22,32 +21,26 @@ export const todoListCommand = new Command("ls")
   .option("--limit <value>", "Max todos to return. Clamped to [1, 200]. Default 50 server-side.")
   .option("--cursor <value>", "Opaque pagination cursor returned in `next_cursor` of a previous response.")
   .action(async (opts) => {
-    const client = await loadSdkClient()
-    const result = await todoList({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      query: {
-        project_id: opts.project,
-        user_id: opts.userId,
-        parent_id: opts.parentId,
-        status: opts.status,
-        include_deleted: opts.includeDeleted,
-        include_templates: opts.includeTemplates,
-        due_after: opts.dueAfter,
-        due_before: opts.dueBefore,
-        type_id: opts.typeId,
-        sort_by: opts.sortBy,
-        order: opts.order,
-        include_orphan_fields: opts.includeOrphanFields,
-        limit: opts.limit,
-        cursor: opts.cursor,
+    await runSdkCommand({
+      operation: todoList,
+      input: {
+        query: {
+          project_id: opts.project,
+          user_id: opts.userId,
+          parent_id: opts.parentId,
+          status: opts.status,
+          include_deleted: opts.includeDeleted,
+          include_templates: opts.includeTemplates,
+          due_after: opts.dueAfter,
+          due_before: opts.dueBefore,
+          type_id: opts.typeId,
+          sort_by: opts.sortBy,
+          order: opts.order,
+          include_orphan_fields: opts.includeOrphanFields,
+          limit: opts.limit,
+          cursor: opts.cursor,
+        },
       },
+      context: { kind: "todo_list", display: {"shape":"list","columns":["id","status","title","due_at"],"format":{"id":"id-short","status":"status-badge","title":"truncate","due_at":"relative-time"},"emptyMessage":"no todos"} },
     })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "todo_list", display: {"shape":"list","columns":["id","status","title","due_at"],"format":{"id":"id-short","status":"status-badge","title":"truncate","due_at":"relative-time"},"emptyMessage":"no todos"} }, result.data)
   })

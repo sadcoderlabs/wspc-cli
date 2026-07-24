@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: email_mark_unread)
 import { Command } from "commander"
 import { emailMarkUnread } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/run-sdk-command.js"
 
 export const emailMarkUnreadCommand = new Command("unread")
   .description("Mark inbound emails as unread")
@@ -11,19 +10,13 @@ export const emailMarkUnreadCommand = new Command("unread")
   .action(async (id, opts) => {
     const idRaw = id as string[]
     const ids = idRaw.length > 0 ? idRaw : undefined
-    const client = await loadSdkClient()
-    const result = await emailMarkUnread({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      body: {
-        ids: ids as string[],
+    await runSdkCommand({
+      operation: emailMarkUnread,
+      input: {
+        body: {
+          ids: ids as string[],
+        },
       },
+      context: { kind: "email_mark_unread", display: {"shape":"object","format":{}} },
     })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "email_mark_unread", display: {"shape":"object","format":{}} }, result.data)
   })

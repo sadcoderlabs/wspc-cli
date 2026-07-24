@@ -3,9 +3,8 @@ import { randomUUID } from "node:crypto"
 import { readFile, stat } from "node:fs/promises"
 import { basename } from "node:path"
 import { emailSend } from "../../../generated/sdk/index.js"
-import { loadSdkClient } from "../../auth/load-sdk-client.js"
 import { mimeFromExt } from "../../utils/mime-from-ext.js"
-import { render } from "../../output/render.js"
+import { runSdkCommand } from "../run-sdk-command.js"
 
 const MAX_PER_ATTACHMENT = 5 * 1024 * 1024
 const MAX_TOTAL_ATTACHMENT = 25 * 1024 * 1024
@@ -131,21 +130,10 @@ export const sendCommand = new Command("send")
     }
     if (attachments.length > 0) body.attachments = attachments
 
-    const client = await loadSdkClient()
-    const result = await emailSend({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      body,
-    } as never)
-
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render(
-      { kind: "object", display: { shape: "object", format: { id: "id-short" } } },
-      result.data!.email,
-    )
+    await runSdkCommand({
+      operation: emailSend,
+      input: { body },
+      context: { kind: "object", display: { shape: "object", format: { id: "id-short" } } },
+      selectData: (data: { email: unknown }) => data.email,
+    })
   })

@@ -1,8 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT (source: todo_create)
 import { Command } from "commander"
 import { todoCreate } from "../../sdk/index.js"
-import { loadSdkClient } from "../../../handwritten/auth/load-sdk-client.js"
-import { render } from "../../../handwritten/output/render.js"
+import { runSdkCommand } from "../../../handwritten/commands/run-sdk-command.js"
 import { parseJsonField } from "../../../handwritten/utils/parse-json-field.js"
 
 export const todoCreateCommand = new Command("add")
@@ -18,27 +17,21 @@ export const todoCreateCommand = new Command("add")
   .option("--type-id <value>", "Type id this todo belongs to. Omit to use the project's default type. When project_id is also supplied, the type must belong to the same project. New server-generated type ids use typ_<ULID>; legacy ids remain accepted.")
   .option("--custom-fields <value>", "Custom field values keyed by the field's immutable `key` (not the human `label`). Each value must match the declared field type: string fields require string values, and string_array fields require string arrays. Providing a key that is not declared on the resolved todo type is strictly rejected with `UNDECLARED_FIELD`. Missing required fields that lack a default value are rejected with `FIELD_REQUIRED`. Defaults declared on the type are auto-applied at create time.")
   .action(async (title, opts) => {
-    const client = await loadSdkClient()
-    const result = await todoCreate({
-      client: (client as unknown as { _rawClient: unknown })._rawClient as never,
-      body: {
-        title,
-        project_id: opts.project,
-        description: opts.description,
-        parent_id: opts.parentId,
-        status: opts.status,
-        due_at: opts.dueAt,
-        idempotency_key: opts.idempotencyKey,
-        type_id: opts.typeId,
-        custom_fields: parseJsonField(opts.customFields, "custom-fields"),
+    await runSdkCommand({
+      operation: todoCreate,
+      input: {
+        body: {
+          title,
+          project_id: opts.project,
+          description: opts.description,
+          parent_id: opts.parentId,
+          status: opts.status,
+          due_at: opts.dueAt,
+          idempotency_key: opts.idempotencyKey,
+          type_id: opts.typeId,
+          custom_fields: parseJsonField(opts.customFields, "custom-fields"),
+        },
       },
+      context: { kind: "todo_create", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} },
     })
-    if (result.error || !result.response?.ok) {
-      process.stderr.write(
-        `HTTP ${result.response?.status ?? "?"}: ${JSON.stringify(result.error ?? "unknown error", null, 2)}\n`,
-      )
-      process.exitCode = 1
-      return
-    }
-    render({ kind: "todo_create", display: {"shape":"object","format":{"id":"id-short","user_id":"id-short","project_id":"id-short","parent_id":"id-short","type_id":"id-short","status":"status-badge","due_at":"relative-time","created_at":"relative-time","updated_at":"relative-time","deleted_at":"relative-time"}} }, result.data)
   })

@@ -482,7 +482,7 @@ export function emitCommand(input: EmitInput): string | null {
   const exitLines: string[] = []
   if (exitOnField) {
     const pathParts = (exitOnField.path || "").split(".").filter((p) => p.trim() !== "")
-    const accessExpr = pathParts.length > 0 ? `result.data?.${pathParts.join("?.")}` : `result.data`
+    const accessExpr = pathParts.length > 0 ? `data?.${pathParts.join("?.")}` : `data`
     exitLines.push(
       `    if (${accessExpr} === ${JSON.stringify(exitOnField.failOn)}) {`,
       `      process.exitCode = 1`,
@@ -494,8 +494,7 @@ export function emitCommand(input: EmitInput): string | null {
   const imports: string[] = [
     `import { Command } from "commander"`,
     `import { ${fnName} } from "${sdkRelPrefix}sdk/index.js"`,
-    `import { loadSdkClient } from "${handwrittenRelPrefix}handwritten/auth/load-sdk-client.js"`,
-    `import { render } from "${handwrittenRelPrefix}handwritten/output/render.js"`,
+    `import { runSdkCommand } from "${handwrittenRelPrefix}handwritten/commands/run-sdk-command.js"`,
   ]
   if (hasDatetimeParser) {
     imports.push(
@@ -557,21 +556,13 @@ export function emitCommand(input: EmitInput): string | null {
     ...options.map((o) => `  ${o}`),
     `  .action(async (${[...argNames, "opts"].join(", ")}) => {`,
     ...conversionLines,
-    `    const client = await loadSdkClient()`,
-    `    const result = await ${fnName}({`,
-    `      client: (client as unknown as { _rawClient: unknown })._rawClient as never,`,
-    ...pathBlock,
-    ...bodyBlock,
-    ...queryBlock,
+    `    ${exitOnField ? "const data = " : ""}await runSdkCommand({`,
+    `      operation: ${fnName},`,
+    `      input: {`,
+    ...[...pathBlock, ...bodyBlock, ...queryBlock].map((line) => `  ${line}`),
+    `      },`,
+    `      context: { kind: ${JSON.stringify(kind)}, display: ${displayLiteral} },`,
     `    })`,
-    `    if (result.error || !result.response?.ok) {`,
-    `      process.stderr.write(`,
-    `        \`HTTP \${result.response?.status ?? "?"}: \${JSON.stringify(result.error ?? "unknown error", null, 2)}\\n\`,`,
-    `      )`,
-    `      process.exitCode = 1`,
-    `      return`,
-    `    }`,
-    `    render({ kind: ${JSON.stringify(kind)}, display: ${displayLiteral} }, result.data)`,
     ...exitLines,
     `  })`,
     ``,

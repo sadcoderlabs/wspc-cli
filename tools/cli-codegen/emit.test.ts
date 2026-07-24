@@ -335,8 +335,8 @@ describe("emitCommand: exitOnField", () => {
     expect(out).not.toBeNull()
     const code = out!
 
-    expect(code).toContain("render({ kind: \"org_push_keys\", display: {\"shape\":\"object\"} }, result.data)")
-    expect(code).toContain("if (result.data?.ok === false) {")
+    expect(code).toContain("context: { kind: \"org_push_keys\", display: {\"shape\":\"object\"} }")
+    expect(code).toContain("if (data?.ok === false) {")
     expect(code).toContain("process.exitCode = 1")
   })
 
@@ -359,7 +359,7 @@ describe("emitCommand: exitOnField", () => {
     expect(out).not.toBeNull()
     const code = out!
 
-    expect(code).toContain("if (result.data?.status?.error === \"partial_failure\") {")
+    expect(code).toContain("if (data?.status?.error === \"partial_failure\") {")
     expect(code).toContain("process.exitCode = 1")
   })
 
@@ -380,7 +380,7 @@ describe("emitCommand: exitOnField", () => {
       bodyFields: [],
     })
     expect(outEmpty).not.toBeNull()
-    expect(outEmpty!).toContain("if (result.data === false) {")
+    expect(outEmpty!).toContain("if (data === false) {")
 
     // 2. Malformed path with empty segments
     const outMalformed = emitCommand({
@@ -398,7 +398,7 @@ describe("emitCommand: exitOnField", () => {
       bodyFields: [],
     })
     expect(outMalformed).not.toBeNull()
-    expect(outMalformed!).toContain("if (result.data?.status?.error === \"error\") {")
+    expect(outMalformed!).toContain("if (data?.status?.error === \"error\") {")
 
     // 3. Null path (cast to any for runtime test)
     const outNull = emitCommand({
@@ -416,7 +416,7 @@ describe("emitCommand: exitOnField", () => {
       bodyFields: [],
     })
     expect(outNull).not.toBeNull()
-    expect(outNull!).toContain("if (result.data === true) {")
+    expect(outNull!).toContain("if (data === true) {")
   })
 })
 
