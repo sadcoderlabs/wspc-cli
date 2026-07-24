@@ -12,7 +12,7 @@ import { runDriveSyncOnce, type DriveSyncProgress, type DriveSyncSummary } from 
 import { DriveRetryableSyncError, classifyDriveRetry, isDriveAuthFailure } from "./retry.js"
 
 export interface DriveWatchSource {
-  onChange(handler: (path: string) => void): void
+  onChange(handler: (path?: string) => void): void
   close(): Promise<void>
 }
 
@@ -78,6 +78,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       render({ kind: "drive_watch", display: { shape: "object" } }, event)
     })
   let nextTrigger = "initial"
+  let fullReconciliationRequired = true
   // Paths touched by fs events since the last successful sync. Local-trigger
   // syncs re-stat only these; other triggers (initial/retry/remote) do a full
   // reconciliation walk that also self-heals any missed events.
@@ -110,7 +111,8 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           emit({ kind: "drive_sync_start" })
           dbg.log("sync_start", { trigger: nextTrigger })
           const startedAtMs = Date.now()
-          const dirtySnapshot = nextTrigger === "local" ? [...dirtyPaths] : undefined
+          const dirtySnapshot = fullReconciliationRequired ? undefined : [...dirtyPaths]
+          fullReconciliationRequired = false
           dirtyPaths.clear()
           const summary = await runSync(
             root,
@@ -153,6 +155,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
             ...(context === undefined ? {} : { path_error_count: context.pathErrors.length }),
           })
           nextTrigger = "retry"
+          fullReconciliationRequired = true
           if (stopped) return
           await waitForManagedTimer(retry.delayMs)
           if (stopped) return
@@ -175,6 +178,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
 
   function scheduleSync(delayMs: number, trigger: string): void {
     nextTrigger = trigger
+    if (trigger !== "local") fullReconciliationRequired = true
     if (running) {
       rerunRequested = true
       return
@@ -248,6 +252,12 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     }
     source = options.source ?? createDefaultWatchSource(root)
     source.onChange((path) => {
+      if (path === undefined) {
+        fullReconciliationRequired = true
+        dbg.log("fs_event", { full_reconciliation: true })
+        scheduleSync(debounceMs, "unknown")
+        return
+      }
       if (isDriveInternalPath(root, path)) return
       // Download/backup/merge temp files are our own writes; reacting to them
       // would chain an extra sync after every applied remote change.
@@ -324,11 +334,10 @@ export function createDefaultWatchSource(root: string): DriveWatchSource {
   return process.platform === "win32" ? createNativeRecursiveSource(root) : createChokidarSource(root)
 }
 
-function createNativeRecursiveSource(root: string): DriveWatchSource {
-  const handlers: Array<(path: string) => void> = []
-  const watcher = fsWatch(root, { recursive: true }, (_event, filename) => {
-    if (filename === null) return
-    const path = resolve(root, filename.toString())
+export function createNativeRecursiveSource(root: string, watch = fsWatch): DriveWatchSource {
+  const handlers: Array<(path?: string) => void> = []
+  const watcher = watch(root, { recursive: true }, (_event, filename) => {
+    const path = filename === null ? undefined : resolve(root, filename.toString())
     for (const handler of handlers) handler(path)
   })
   // A watcher error must not crash the whole watch loop; realtime events
