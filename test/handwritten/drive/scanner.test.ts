@@ -103,6 +103,19 @@ describe("drive scanner", () => {
     })
   })
 
+  it("does not apply file rules to same-named directories or directory rules to same-named files", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-scan-ignore-kind-"))
+    await mkdir(join(root, "build"), { recursive: true })
+    await writeFile(join(root, "build", "output.log"), "keep directory")
+    await writeFile(join(root, "cache"), "keep file")
+
+    const files = await scanDriveFiles(root, {
+      excludeRules: parseDriveExcludeRules("build\ncache/\n"),
+    })
+
+    expect(Object.keys(files).sort()).toEqual(["build/output.log", "cache"])
+  })
+
   it("does not retain excluded entries from the incremental scan cache", async () => {
     const cacheEntry = { mtime_ms: 1, size_bytes: 4, sha256: "cached" }
     const updates: string[] = []
@@ -124,6 +137,26 @@ describe("drive scanner", () => {
       },
     })
     expect(updates).toEqual(["keep.txt"])
+  })
+
+  it("rescans a directory that has the same path as an exact file rule", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-rescan-ignore-kind-"))
+    await mkdir(join(root, "build"))
+    await writeFile(join(root, "build", "output.log"), "fresh")
+
+    const files = await rescanDriveFiles(root, ["build"], {
+      cache: {
+        "build/stale.log": { mtime_ms: 1, size_bytes: 5, sha256: "stale" },
+      },
+      excludeRules: parseDriveExcludeRules("build\n"),
+    })
+
+    expect(files).toEqual({
+      "build/output.log": {
+        sha256: sha256("fresh"),
+        size_bytes: 5,
+      },
+    })
   })
 
   it("skips symlink entries", async () => {

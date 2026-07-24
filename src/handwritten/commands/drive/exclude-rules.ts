@@ -17,7 +17,7 @@ export class DriveIgnoreError extends Error {
 
 export interface DriveExcludeRules {
   readonly size: number
-  matches(path: string): boolean
+  matches(path: string, kind?: "file" | "directory"): boolean
 }
 
 const emptyDriveExcludeRules: DriveExcludeRules = {
@@ -54,10 +54,10 @@ export function parseDriveExcludeRules(content: string, source = `${DRIVE_DIR}/$
   }
   return {
     size: exactPaths.size + directoryPaths.size,
-    matches(path) {
-      if (exactPaths.has(path)) return true
+    matches(path, kind = "file") {
+      if (kind === "file" && exactPaths.has(path)) return true
       for (const directory of directoryPaths) {
-        if (path === directory || path.startsWith(`${directory}/`)) return true
+        if ((kind === "directory" && path === directory) || path.startsWith(`${directory}/`)) return true
       }
       return false
     },

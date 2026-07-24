@@ -55,9 +55,6 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
         continue
       }
       const nextDrivePath = currentDrivePath ? `${currentDrivePath}/${entry.name}` : entry.name
-      if (options.excludeRules?.matches(nextDrivePath)) {
-        continue
-      }
       if (isInternalSyncArtifactName(entry.name)) {
         continue
       }
@@ -78,6 +75,7 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
         }
 
         if (stats.isDirectory()) {
+          if (options.excludeRules?.matches(nextDrivePath, "directory")) continue
           await walk(nextPath, nextDrivePath)
           continue
         }
@@ -85,6 +83,7 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
         if (!stats.isFile()) {
           continue
         }
+        if (options.excludeRules?.matches(nextDrivePath, "file")) continue
 
         const cached = options.cache?.[nextDrivePath]
         if (cached !== undefined && cached.mtime_ms === stats.mtimeMs && cached.size_bytes === stats.size) {
@@ -152,7 +151,6 @@ export async function rescanDriveFiles(
 
   for (const dirtyPath of new Set(dirtyPaths)) {
     if (dirtyPath === "" || isInternalSyncArtifactName(pathPosix.basename(dirtyPath))) continue
-    if (options.excludeRules?.matches(dirtyPath)) continue
     removePathAndChildren(kept, dirtyPath)
 
     let validationError: unknown
@@ -190,6 +188,7 @@ export async function rescanDriveFiles(
     if (stats.isSymbolicLink()) continue
 
     if (stats.isDirectory()) {
+      if (options.excludeRules?.matches(dirtyPath, "directory")) continue
       await scanDriveFiles(root, {
         ...options,
         startDrivePath: dirtyPath,
@@ -201,6 +200,7 @@ export async function rescanDriveFiles(
     }
 
     if (!stats.isFile()) continue
+    if (options.excludeRules?.matches(dirtyPath, "file")) continue
 
     try {
       const cached = options.cache?.[dirtyPath]
