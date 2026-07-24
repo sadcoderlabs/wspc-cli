@@ -8,30 +8,32 @@
 
 ## 解法
 
-每個 bound folder 可選擇建立 `.wspc-drive/ignore`。每一條有效規則指定一個 normalized、sync-root-relative Drive path：
+每個 bound folder 可選擇建立 `.wspc-drive/ignore`。每一條有效規則指定一個 normalized、sync-root-relative Drive glob pattern：
 
 ```text
 # Machine-local files
 .DS_Store
-node_modules/
-build/output.log
+**/*.log
+packages/*/dist/
 ```
 
 - 沒有 `ignore` file 等同沒有 exclude rules。
 - 空白行與第一個非空白字元為 `#` 的行是註解。
 - 每行前後 whitespace 會移除。
-- 不以 `/` 結尾的規則只比對該 exact file path。
-- 以 `/` 結尾的規則比對該 directory path 與所有 descendants。
+- Pattern 採 Node.js 24 `path.posix.matchesGlob()` 語法；`*` 不跨 `/`，`**` 可跨 path segment。
+- 不以 `/` 結尾的 pattern 只比對 files。
+- 以 `/` 結尾的 pattern 比對符合的 directory 與所有 descendants。
 - 比對區分大小寫。
+- Dotfile 只有在 pattern 明確使用 `.*` 或 `**/.*` 時才會比對。
 - 規則只影響當前 machine，不同步到 Drive library。
 
 符合規則的 path 是 excluded path，完全位於 sync scope 外。`sync once` 與 `watch` 不得 upload、download、delete 或回報其 conflict。加入 exclude 前已存在的 local 與 remote content 均保持不變。
 
 ## User Stories
 
-- 使用者可以排除一個 exact file，例如 `.DS_Store`。
-- 使用者可以排除一個 directory tree，例如 `node_modules/`。
-- 使用者可以對 nested path 建立規則，例如 `build/output.log`。
+- 使用者可以用 `**/*.log` 排除任何深度的 log file。
+- 使用者可以用 `packages/*/dist/` 排除各 package 的 dist directory tree。
+- 使用者可以明確用 `.*` 或 `**/.*` 排除 dotfiles。
 - 使用者執行 `sync once` 或長時間執行 `watch` 時會得到相同 exclude 行為。
 - 使用者修改 `ignore` file 後，正在執行的 `watch` 不需重啟即可套用新規則。
 - 使用者寫入無效規則時，sync 會在任何 content mutation 前停止並指出行號。
@@ -40,9 +42,11 @@ build/output.log
 
 ### 規則載入與驗證
 
-新增一個 handwritten Drive helper，負責讀取、解析、驗證與比對 `.wspc-drive/ignore`。不要新增 dependency；exact path 與 directory prefix 可由現有 Node.js string operations 完成。
+Handwritten Drive helper 負責讀取、解析、驗證與比對 `.wspc-drive/ignore`。不要新增 dependency 或自訂 glob parser；比對使用 Node.js 24 原生 `path.posix.matchesGlob()`。
 
-讀取規則後，先移除空白與註解，再以現有 `validateDrivePath()` 驗證 normalized path。Directory rule 應先移除最後的 `/` 再驗證，但 matcher 必須保留其 directory semantics。Duplicate rules 可 deduplicate。
+讀取規則後，先移除空白與註解，再以現有 `validateDrivePath()` 驗證 normalized pattern。Directory pattern 應先移除最後的 `/` 再驗證，但 matcher 必須保留其 directory semantics，並以 ancestor matching 讓符合 pattern 的 directory 與所有 descendants 都 excluded。Duplicate patterns 可 deduplicate。
+
+Glob metacharacters 依 Node 原生 semantics 解讀，不保留 legacy literal mode；需要 literal metacharacter 時使用 character class 表示。所有規則都是 additive exclude，不支援 `.gitignore` rule ordering 或 `!` re-include。Node extglob 依原生 semantics 運作，不另外驗證 glob grammar。
 
 下列規則無效：
 
@@ -88,9 +92,9 @@ Remote realtime event 繼續觸發 full reconciliation，但 excluded remote pat
 
 實作採 TDD，先加入會失敗的最小測試，再修改 production code。
 
-- Rule helper：涵蓋 missing file、blank/comment、exact file、directory descendants、case-sensitive comparison、deduplicate 與 invalid rule line number。
-- Scanner：證明 excluded directory 會 prune traversal，incremental cache 不保留 excluded entries。
-- Sync：同一測試同時放入 local、remote 與 state-only excluded paths，證明沒有 upload、download、delete 或 conflict，且四類 state metadata 都被清除。
+- Rule helper：涵蓋 missing file、blank/comment、`*`、`**`、dotfile、case-sensitive comparison、directory descendants、literal metacharacter、deduplicate 與 invalid rule line number。
+- Scanner：證明符合 directory glob 的 subtree 會 prune traversal，incremental cache 不保留 excluded entries。
+- Sync：同一測試同時放入 local、remote 與 state-only glob matches，證明沒有 upload、download、delete 或 conflict，且四類 state metadata 都被清除。
 - Re-include：移除 rule 後，兩端不同內容走既有 create-create conflict。
 - Watch：`ignore` add、change、unlink 觸發 full sync，其他 `.wspc-drive/` event 仍不觸發。
 - Regression：沒有 `ignore` file 時，既有 Drive scanner、sync 與 watch tests 維持通過。
@@ -105,7 +109,7 @@ git diff --check
 
 ## Out of Scope
 
-- glob、wildcard、negation 或 `.gitignore` 相容語法
+- `.gitignore` 相容語法、rule ordering 或 `!` re-include
 - global 或 user-level exclude config
 - `--exclude` CLI flags 或管理 ignore rules 的新 command
 - 在 devices 間同步 `.wspc-drive/ignore`

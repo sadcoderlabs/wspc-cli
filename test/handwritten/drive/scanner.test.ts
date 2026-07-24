@@ -139,6 +139,37 @@ describe("drive scanner", () => {
     expect(updates).toEqual(["keep.txt"])
   })
 
+  it("prunes directory glob matches and removes their incremental cache entries", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-scan-glob-"))
+    await mkdir(join(root, "packages", "web", "dist"), { recursive: true })
+    await mkdir(join(root, "packages", "web", "src"), { recursive: true })
+    await writeFile(join(root, "packages", "web", "dist", "bundle.js"), "bundle")
+    await writeFile(join(root, "packages", "web", "src", "index.js"), "source")
+    const excludeRules = parseDriveExcludeRules("packages/*/dist/\n")
+
+    const files = await scanDriveFiles(root, { excludeRules })
+    const cachedFiles = await rescanDriveFiles(root, [], {
+      cache: {
+        "packages/web/dist/bundle.js": { mtime_ms: 1, size_bytes: 6, sha256: "excluded" },
+        "packages/web/src/index.js": { mtime_ms: 1, size_bytes: 6, sha256: "included" },
+      },
+      excludeRules,
+    })
+
+    expect(files).toEqual({
+      "packages/web/src/index.js": {
+        sha256: sha256("source"),
+        size_bytes: 6,
+      },
+    })
+    expect(cachedFiles).toEqual({
+      "packages/web/src/index.js": {
+        sha256: "included",
+        size_bytes: 6,
+      },
+    })
+  })
+
   it("rescans a directory that has the same path as an exact file rule", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-rescan-ignore-kind-"))
     await mkdir(join(root, "build"))

@@ -214,34 +214,34 @@ describe("drive sync once", () => {
     })
   })
 
-  it("excludes local, remote, and state-only paths at the shared sync boundary", async () => {
+  it("excludes local, remote, and state-only glob matches at the shared sync boundary", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-exclude-"))
     const state = await initDriveState(root, "lib_1")
-    state.entries["excluded/state.txt"] = stateEntry("excluded/state.txt", "state")
-    state.conflicts["excluded/conflict.txt"] = {
+    state.entries["packages/web/dist/state.txt"] = stateEntry("packages/web/dist/state.txt", "state")
+    state.conflicts["packages/web/dist/conflict.txt"] = {
       detected_at: "2026-06-21T00:00:00.000Z",
       reason: "existing conflict",
     }
     state.scan_cache = {
-      "excluded/cached.txt": {
+      "packages/web/dist/cached.txt": {
         mtime_ms: 1,
         size_bytes: 6,
         sha256: sha256("cached"),
       },
     }
     state.scan_errors = {
-      "excluded/error.txt": {
+      "packages/web/dist/error.txt": {
         code: "EPERM",
         message: "blocked",
         retryable: true,
       },
     }
     await writeDriveState(root, state)
-    await mkdir(join(root, "excluded"), { recursive: true })
-    await writeFile(join(root, "excluded/local.txt"), "local")
-    await writeFile(join(root, ".wspc-drive/ignore"), "excluded/\n")
-    const api = mkApi([{ entries: [entry("excluded/remote.txt", "remote")] }])
-    api.downloads.set("excluded/remote.txt", "remote")
+    await mkdir(join(root, "packages/web/dist"), { recursive: true })
+    await writeFile(join(root, "packages/web/dist/local.txt"), "local")
+    await writeFile(join(root, ".wspc-drive/ignore"), "packages/*/dist/\n")
+    const api = mkApi([{ entries: [entry("packages/web/dist/remote.txt", "remote")] }])
+    api.downloads.set("packages/web/dist/remote.txt", "remote")
 
     const result = await runDriveSyncOnce(root, api)
 
@@ -254,8 +254,8 @@ describe("drive sync once", () => {
     })
     expect(api.uploads).toEqual([])
     expect(api.deletes).toEqual([])
-    expect(await readFile(join(root, "excluded/local.txt"), "utf8")).toBe("local")
-    await expect(readFile(join(root, "excluded/remote.txt"), "utf8")).rejects.toMatchObject({ code: "ENOENT" })
+    expect(await readFile(join(root, "packages/web/dist/local.txt"), "utf8")).toBe("local")
+    await expect(readFile(join(root, "packages/web/dist/remote.txt"), "utf8")).rejects.toMatchObject({ code: "ENOENT" })
     const nextState = await readDriveState(root)
     expect(nextState.entries).toEqual({})
     expect(nextState.conflicts).toEqual({})

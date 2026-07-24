@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises"
-import { join } from "node:path"
+import { join, posix as pathPosix } from "node:path"
 import { validateDrivePath } from "./path-policy.js"
 import { DRIVE_DIR } from "./state.js"
 
@@ -36,8 +36,8 @@ export async function loadDriveExcludeRules(root: string): Promise<DriveExcludeR
 }
 
 export function parseDriveExcludeRules(content: string, source = `${DRIVE_DIR}/${IGNORE_FILE}`): DriveExcludeRules {
-  const exactPaths = new Set<string>()
-  const directoryPaths = new Set<string>()
+  const filePatterns = new Set<string>()
+  const directoryPatterns = new Set<string>()
   for (const [index, line] of content.split(/\r?\n/).entries()) {
     const rule = line.trim()
     if (rule === "" || rule.startsWith("#")) continue
@@ -49,15 +49,18 @@ export function parseDriveExcludeRules(content: string, source = `${DRIVE_DIR}/$
       const message = error instanceof Error ? error.message : String(error)
       throw new DriveIgnoreError(`${source}:${index + 1}: ${message}`, error)
     }
-    const paths = directory ? directoryPaths : exactPaths
-    paths.add(path)
+    const patterns = directory ? directoryPatterns : filePatterns
+    patterns.add(path)
   }
   return {
-    size: exactPaths.size + directoryPaths.size,
+    size: filePatterns.size + directoryPatterns.size,
     matches(path, kind = "file") {
-      if (kind === "file" && exactPaths.has(path)) return true
-      for (const directory of directoryPaths) {
-        if ((kind === "directory" && path === directory) || path.startsWith(`${directory}/`)) return true
+      if (kind === "file" && [...filePatterns].some((pattern) => pathPosix.matchesGlob(path, pattern))) return true
+      for (const pattern of directoryPatterns) {
+        if (kind === "directory" && pathPosix.matchesGlob(path, pattern)) return true
+        for (let ancestor = pathPosix.dirname(path); ancestor !== "."; ancestor = pathPosix.dirname(ancestor)) {
+          if (pathPosix.matchesGlob(ancestor, pattern)) return true
+        }
       }
       return false
     },
