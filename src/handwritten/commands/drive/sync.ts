@@ -4,6 +4,7 @@ import { createDriveApi } from "./api.js"
 import { noopDriveDebugLogger, type DriveDebugLogger } from "./debug-log.js"
 import { systemDriveClock, type DriveClock } from "./clock.js"
 import { decideDriveAction, type DriveAction } from "./decision.js"
+import { loadDriveExcludeRules, type DriveExcludeRules } from "./exclude-rules.js"
 import { normalizeRemoteManifest } from "./manifest.js"
 import { rescanDriveFiles, scanDriveFiles } from "./scanner.js"
 import {
@@ -82,6 +83,12 @@ export async function runDriveSyncOnce(
 ): Promise<DriveSyncSummary> {
   return withDriveLock(root, async () => {
     let state = await readDriveState(root)
+    const excludeRules = await loadDriveExcludeRules(root)
+    const stateWithoutExcludedPaths = removeExcludedState(state, excludeRules)
+    if (stateWithoutExcludedPaths !== state) {
+      state = stateWithoutExcludedPaths
+      await writeDriveState(root, state, clock)
+    }
     const syncApi = api ?? (await createDriveApi({ clientId: state.realtime?.client_id }))
     const summary = emptySummary()
     const blockedPaths = new Set<string>()
@@ -93,6 +100,7 @@ export async function runDriveSyncOnce(
       : {}
     const scanOptions = {
       cache: state.scan_cache,
+      excludeRules,
       onCacheUpdate: (path: string, entry: DriveScanCacheEntry) => {
         nextScanCache[path] = entry
       },
@@ -132,7 +140,7 @@ export async function runDriveSyncOnce(
       }
       throw error
     }
-    const remoteFiles = manifest.remoteFiles
+    const remoteFiles = removeExcludedFiles(manifest.remoteFiles, excludeRules)
     if (manifest.manifestCursor !== undefined && manifest.manifestCursor !== state.manifest_cursor) {
       state = { ...state, manifest_cursor: manifest.manifestCursor }
       await writeDriveState(root, state, clock)
@@ -141,7 +149,7 @@ export async function runDriveSyncOnce(
     const paths = Array.from(
       new Set([...Object.keys(localFiles), ...Object.keys(remoteFiles), ...Object.keys(state.entries)]),
     )
-      .filter((path) => !blockedPaths.has(path))
+      .filter((path) => !blockedPaths.has(path) && !excludeRules.matches(path))
       .sort((left, right) => left.localeCompare(right))
 
     let movedPaths: Set<string>
@@ -232,6 +240,34 @@ export async function runDriveSyncOnce(
     debug.log("sync_phases", { scan_ms: scanMs, manifest_ms: manifestMs, process_ms: Date.now() - processStartedMs })
     return summary
   })
+}
+
+function removeExcludedState(state: DriveState, excludeRules: DriveExcludeRules): DriveState {
+  if (excludeRules.size === 0) return state
+  const entries = removeExcludedFiles(state.entries, excludeRules)
+  const conflicts = removeExcludedFiles(state.conflicts, excludeRules)
+  const scanCache = removeExcludedFiles(state.scan_cache ?? {}, excludeRules)
+  const scanErrors = removeExcludedFiles(state.scan_errors ?? {}, excludeRules)
+  const changed =
+    Object.keys(entries).length !== Object.keys(state.entries).length ||
+    Object.keys(conflicts).length !== Object.keys(state.conflicts).length ||
+    Object.keys(scanCache).length !== Object.keys(state.scan_cache ?? {}).length ||
+    Object.keys(scanErrors).length !== Object.keys(state.scan_errors ?? {}).length
+  if (!changed) return state
+
+  const nextState: DriveState = {
+    ...state,
+    entries,
+    conflicts,
+    scan_cache: scanCache,
+    scan_errors: scanErrors,
+  }
+  if (Object.keys(scanErrors).length === 0) delete nextState.scan_errors
+  return nextState
+}
+
+function removeExcludedFiles<T>(files: Record<string, T>, excludeRules: DriveExcludeRules): Record<string, T> {
+  return Object.fromEntries(Object.entries(files).filter(([path]) => !excludeRules.matches(path)))
 }
 
 function decisionFields(

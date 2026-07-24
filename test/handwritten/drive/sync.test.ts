@@ -214,6 +214,101 @@ describe("drive sync once", () => {
     })
   })
 
+  it("excludes local, remote, and state-only paths at the shared sync boundary", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-exclude-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["excluded/state.txt"] = stateEntry("excluded/state.txt", "state")
+    state.conflicts["excluded/conflict.txt"] = {
+      detected_at: "2026-06-21T00:00:00.000Z",
+      reason: "existing conflict",
+    }
+    state.scan_cache = {
+      "excluded/cached.txt": {
+        mtime_ms: 1,
+        size_bytes: 6,
+        sha256: sha256("cached"),
+      },
+    }
+    state.scan_errors = {
+      "excluded/error.txt": {
+        code: "EPERM",
+        message: "blocked",
+        retryable: true,
+      },
+    }
+    await writeDriveState(root, state)
+    await mkdir(join(root, "excluded"), { recursive: true })
+    await writeFile(join(root, "excluded/local.txt"), "local")
+    await writeFile(join(root, ".wspc-drive/ignore"), "excluded/\n")
+    const api = mkApi([{ entries: [entry("excluded/remote.txt", "remote")] }])
+    api.downloads.set("excluded/remote.txt", "remote")
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result).toMatchObject({
+      uploaded: 0,
+      downloaded: 0,
+      deleted: 0,
+      conflicts: 0,
+      paths: [],
+    })
+    expect(api.uploads).toEqual([])
+    expect(api.deletes).toEqual([])
+    expect(await readFile(join(root, "excluded/local.txt"), "utf8")).toBe("local")
+    await expect(readFile(join(root, "excluded/remote.txt"), "utf8")).rejects.toMatchObject({ code: "ENOENT" })
+    const nextState = await readDriveState(root)
+    expect(nextState.entries).toEqual({})
+    expect(nextState.conflicts).toEqual({})
+    expect(nextState.scan_cache).toEqual({})
+    expect(nextState.scan_errors).toBeUndefined()
+  })
+
+  it("reloads exclude rules each round and routes re-included differences through create/create conflict handling", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-reinclude-"))
+    await initDriveState(root, "lib_1")
+    await writeFile(join(root, "notes.md"), "local\n")
+    const ignorePath = join(root, ".wspc-drive/ignore")
+    await writeFile(ignorePath, "notes.md\n")
+    const remote = entry("notes.md", "remote\n", 2)
+
+    const excludedResult = await runDriveSyncOnce(root, mkApi([{ entries: [remote] }]), conflictClock)
+
+    expect(excludedResult.paths).toEqual([])
+    await unlink(ignorePath)
+    const api = mkApi([{ entries: [remote] }])
+    api.downloads.set("notes.md@ver_2", "remote\n")
+
+    const reIncludedResult = await runDriveSyncOnce(root, api, conflictClock)
+
+    expect(reIncludedResult.conflicts).toBe(1)
+    expect(reIncludedResult.paths).toEqual([
+      { path: "notes.md", action: "conflict", conflict_paths: [reIncludedResult.conflict_paths[0]!] },
+    ])
+    expect(api.uploads).toEqual([{ id: "lib_1", path: "notes.md", sha256: sha256("local\n"), expectedEntryVersion: 2 }])
+  })
+
+  it("rejects invalid exclude rules before local, remote, or state mutation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-invalid-exclude-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["notes.md"] = stateEntry("notes.md", "base")
+    await writeDriveState(root, state)
+    await writeFile(join(root, "notes.md"), "local")
+    await writeFile(join(root, ".wspc-drive/ignore"), "../secret\n")
+    const before = await readDriveState(root)
+    const api = mkApi([{ entries: [entry("notes.md", "remote", 2)] }])
+
+    await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({
+      code: "INVALID_DRIVE_IGNORE",
+      retryable: false,
+    })
+
+    expect(api.manifests).toEqual([])
+    expect(api.uploads).toEqual([])
+    expect(api.deletes).toEqual([])
+    expect(await readFile(join(root, "notes.md"), "utf8")).toBe("local")
+    expect(await readDriveState(root)).toEqual(before)
+  })
+
   it("reports progress over actionable paths only, excluding unchanged", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-progress-"))
     const state = await initDriveState(root, "lib_1")
