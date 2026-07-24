@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  createChokidarSource,
   runDriveWatch,
   type DriveRealtimeSource,
   type DriveWatchTimer,
@@ -561,6 +562,31 @@ describe("drive watch", () => {
     await watching
   })
 
+  it("runs a full reconciliation when the ignore file changes", async () => {
+    const source = fakeSource()
+    const dirtyByCall: Array<string[] | undefined> = []
+    const runSync = vi.fn(async (_root: string, _onProgress?: unknown, dirtyPaths?: string[]) => {
+      dirtyByCall.push(dirtyPaths)
+      return syncSummary()
+    })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent: vi.fn(),
+    })
+    await source.waitForSubscription()
+    await flushMicrotasks()
+
+    source.emit("/tmp/root/.wspc-drive/ignore")
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(dirtyByCall).toEqual([undefined, undefined])
+    process.emit("SIGTERM")
+    await watching
+  })
+
   it("backs off and retries transient errors until a sync succeeds", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()
@@ -881,6 +907,35 @@ describe("drive watch", () => {
 })
 
 describe("createDefaultWatchSource", () => {
+  it("forwards ignore-file add, change, and unlink events while suppressing other internal paths", async () => {
+    let onAll!: (event: string, path: string) => void
+    let ignored!: (path: string) => boolean
+    const watcher = {
+      on: vi.fn((event: string, handler: (event: string, path: string) => void) => {
+        if (event === "all") onAll = handler
+        return watcher
+      }),
+      close: vi.fn(async () => {}),
+    }
+    const watch = vi.fn((_root, options) => {
+      ignored = options.ignored
+      return watcher
+    })
+    const source = createChokidarSource("/tmp/root", watch as never)
+    const onChange = vi.fn()
+    source.onChange(onChange)
+
+    expect(ignored("/tmp/root/.wspc-drive/ignore")).toBe(false)
+    expect(ignored("/tmp/root/.wspc-drive/state.json")).toBe(true)
+    for (const event of ["add", "change", "unlink"]) {
+      onAll(event, "/tmp/root/.wspc-drive/ignore")
+    }
+
+    expect(onChange).toHaveBeenCalledTimes(3)
+    expect(onChange).toHaveBeenCalledWith("/tmp/root/.wspc-drive/ignore")
+    await source.close()
+  })
+
   it("does not block renaming a watched subdirectory", async () => {
     const { mkdir, mkdtemp, rename, rm, writeFile } = await import("node:fs/promises")
     const { tmpdir } = await import("node:os")
