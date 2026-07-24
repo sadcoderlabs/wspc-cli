@@ -6,6 +6,7 @@
 - 前置規格：`docs/superpowers/specs/2026-06-21-drive-desktop-cli-sync-v1-design.md`
 - 前置實作：PR #31 已完成 `wspc drive bind` 與 `wspc drive sync once`
 - 首次同步 recovery canonical spec：[current](https://github.com/sadcoderlabs/wspc-drive/blob/main/docs/superpowers/specs/2026-07-23-drive-first-sync-recovery-design.md)、[pinned revision `591a2ac58d6ba51025e4bd42c0bbc0d6603d96f3`](https://github.com/sadcoderlabs/wspc-drive/blob/591a2ac58d6ba51025e4bd42c0bbc0d6603d96f3/docs/superpowers/specs/2026-07-23-drive-first-sync-recovery-design.md)
+- native watch 缺少 filename canonical spec：[pinned revision `ea57ddeaf96f265d392912075d71ef39cb394af5`](https://github.com/sadcoderlabs/wspc-drive/blob/ea57ddeaf96f265d392912075d71ef39cb394af5/docs/superpowers/specs/2026-07-13-sync-improvements-design.md)
 
 ## 目標
 
@@ -50,16 +51,17 @@ wspc drive bind --library <library_id> [path]
 
 ## Watch backend
 
-v1 使用 `chokidar` 監看本機 sync root。
+macOS 與 Linux 使用 `chokidar` 監看本機 sync root。Windows 使用單一 recursive native `fs.watch`，避免 chokidar 為每個子目錄保留 handle，導致目錄 rename 發生 `EPERM`。
 
 理由：
 
 - watch 是使用者可感知的長跑功能，跨平台事件穩定度比少一個 dependency 更重要。
-- chokidar 使用方式簡單，能處理較多 macOS / Windows / Linux watcher 差異。
-- watcher event 仍只用來排程完整掃描，不依賴 event payload 做單檔同步。
+- chokidar 使用方式簡單，能處理較多 macOS / Linux watcher 差異。
+- Windows 的 native callback 可能沒有 filename；此時 source 以 `undefined` 表示 unknown-path change，不可丟棄事件，也不可用空字串或 sync root 當 sentinel。
+- watcher event 的具體 path 可用於 incremental scan；unknown-path change 必須排程 Full Reconciliation。
 - 使用 chokidar 不改變同步正確性邊界：`runDriveSyncOnce(root)` 仍是唯一 sync engine。
 
-watch 必須透過 chokidar ignore `.wspc-drive/` 內事件，避免 state write、lock、temp file 造成自我觸發迴圈。
+watch 必須 ignore 已知 `.wspc-drive/` path 與 internal temp artifact，避免 state write、lock、temp file 造成自我觸發迴圈。Unknown-path change 無法安全歸因，因此不可 suppression。
 
 ## Sync loop
 
@@ -69,12 +71,14 @@ watch 啟動後流程：
 2. 讀取 `.wspc-drive/state.json`，確認資料夾已 bind。
 3. 建立 chokidar watcher。
 4. 立即排程一次 sync。
-5. 任一本機檔案事件把 library-relative path 加入 dirty set，並觸發 debounce timer。
-6. debounce 到期後把 dirty snapshot 傳給 `runDriveSyncOnce(root)`；initial、remote 與 retry 不傳 snapshot。
+5. 有具體 path 的本機檔案事件把 library-relative path 加入 dirty set，並觸發 debounce timer；unknown-path change 觸發 Full Reconciliation。
+6. debounce 到期後，只有不需要 Full Reconciliation 時才把 dirty snapshot 傳給 `runDriveSyncOnce(root)`；initial、remote、retry 與 unknown-path trigger 不傳 snapshot。
 7. 如果 sync 執行中又收到事件，只設定 `rerunRequested = true`。
 8. 本輪 sync 結束後，如果 `rerunRequested` 為 true，清掉 flag 並立刻再跑一輪。
 
 Debounce 初始值固定為 500ms。v1 不加 CLI flag；需要 tuning 時再新增。
+
+Scheduler 以 sticky `fullReconciliationRequired` 保存 correctness requirement，初始值為 true。Initial、remote、retry 與 unknown-path trigger 會設為 true；具體 local path 只會加入 dirty set，不可清除它。每輪 capture work 時，若此 flag 為 true 則傳入 `dirtyPaths === undefined`，然後清除 flag，讓本輪執行期間抵達的新事件可以要求 trailing Full Reconciliation。`nextTrigger` 只保留 debug attribution，不參與 Full 或 Incremental Reconciliation 的判斷。
 
 Pseudo flow：
 
@@ -171,6 +175,9 @@ wspc drive watch [path]
 - Startup：watch 啟動時會先跑一次 sync。
 - Debounce：多個 chokidar events 只觸發一次 sync。
 - Single-flight：sync 執行中收到事件，只在結束後補跑一輪。
+- Native unknown path：mock native `fs.watch` callback 的 `filename === null`，確認 source 發出 `undefined`。
+- Sticky full reconciliation：local 與 remote、local 與 unknown-path 在兩種抵達順序下都合併成一次 Full Reconciliation。
+- Unknown path during sync：active sync 期間收到 unknown-path change 時，只補跑一次 trailing Full Reconciliation。
 - Ignore internal files：`.wspc-drive/` 事件不觸發 sync。
 - Transient retry：429 遵守 `Retry-After`，network / 5xx 缺少 header 時使用 capped exponential fallback，且 retry 一律 full scan。
 - Recovery event：驗證 `reason`、`delay_ms`、optional `remaining` 與 `path_errors`，以及連續四次以上 failure 沒有 attempt cap。
@@ -192,7 +199,7 @@ CLI smoke test 再確認 command tree 掛載即可。
 已鎖定決策：
 
 - watch 是 `sync once` 的排程層，不重作同步決策。
-- v1 使用 chokidar，因為跨平台 watcher 穩定度值得這個小 dependency 成本。
+- macOS 與 Linux 使用 chokidar；Windows 使用單一 recursive native watch，避免子目錄 handle 阻擋 rename。
 - watch 不處理遠端即時通知，也不做 remote polling。
 - transient failure 保持 process，auth / binding / lock failure 直接停止。
 

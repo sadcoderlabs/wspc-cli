@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   createChokidarSource,
+  createNativeRecursiveSource,
   runDriveWatch,
   type DriveRealtimeSource,
   type DriveWatchTimer,
@@ -28,10 +29,10 @@ function syncSummary(overrides: Partial<DriveSyncSummary> = {}): DriveSyncSummar
 
 function fakeSource(): DriveWatchSource & {
   close: ReturnType<typeof vi.fn>
-  emit(path: string): void
+  emit(path?: string): void
   waitForSubscription(): Promise<void>
 } {
-  let handler: ((path: string) => void) | undefined
+  let handler: ((path?: string) => void) | undefined
   let resolveSubscription!: () => void
   const subscribed = new Promise<void>((resolve) => {
     resolveSubscription = resolve
@@ -42,7 +43,7 @@ function fakeSource(): DriveWatchSource & {
       resolveSubscription()
     },
     close: vi.fn(async () => {}),
-    emit(path: string) {
+    emit(path?: string) {
       handler?.(path)
     },
     waitForSubscription() {
@@ -322,6 +323,65 @@ describe("drive watch", () => {
     await watching
   })
 
+  it("runs a full reconciliation for an unknown local path", async () => {
+    const source = fakeSource()
+    const dirtyByCall: Array<string[] | undefined> = []
+    const runSync = vi.fn(async (_root: string, _onProgress?: unknown, dirtyPaths?: string[]) => {
+      dirtyByCall.push(dirtyPaths)
+      return syncSummary()
+    })
+    const watching = runDriveWatch("/tmp/root", {
+      source,
+      realtimeSource: fakeRealtimeSource(),
+      runSync,
+      readState,
+      onEvent: vi.fn(),
+    })
+    await source.waitForSubscription()
+    await flushMicrotasks()
+
+    source.emit()
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(dirtyByCall).toEqual([undefined, undefined])
+    process.emit("SIGINT")
+    await watching
+  })
+
+  it.each(["local-first", "unknown-first"] as const)(
+    "keeps coalesced concrete and unknown local events as a full reconciliation (%s)",
+    async (order) => {
+      const source = fakeSource()
+      const dirtyByCall: Array<string[] | undefined> = []
+      const runSync = vi.fn(async (_root: string, _onProgress?: unknown, dirtyPaths?: string[]) => {
+        dirtyByCall.push(dirtyPaths)
+        return syncSummary()
+      })
+      const watching = runDriveWatch("/tmp/root", {
+        source,
+        realtimeSource: fakeRealtimeSource(),
+        runSync,
+        readState,
+        onEvent: vi.fn(),
+      })
+      await source.waitForSubscription()
+      await flushMicrotasks()
+
+      if (order === "local-first") {
+        source.emit("/tmp/root/a.txt")
+        source.emit()
+      } else {
+        source.emit()
+        source.emit("/tmp/root/a.txt")
+      }
+      await vi.advanceTimersByTimeAsync(500)
+
+      expect(dirtyByCall).toEqual([undefined, undefined])
+      process.emit("SIGINT")
+      await watching
+    },
+  )
+
   it("ignores fs events for internal sync temp artifacts", async () => {
     const source = fakeSource()
     const onEvent = vi.fn()
@@ -536,6 +596,32 @@ describe("drive watch", () => {
     await Promise.resolve()
     expect(runSync).toHaveBeenCalledTimes(2)
 
+    await watching
+  })
+
+  it("runs one trailing full reconciliation for an unknown path during an active sync", async () => {
+    const source = fakeSource()
+    const dirtyByCall: Array<string[] | undefined> = []
+    let releaseFirstSync!: () => void
+    const firstSync = new Promise<DriveSyncSummary>((resolve) => {
+      releaseFirstSync = () => resolve(syncSummary())
+    })
+    const runSync = vi.fn(async (_root: string, _onProgress?: unknown, dirtyPaths?: string[]) => {
+      dirtyByCall.push(dirtyPaths)
+      if (dirtyByCall.length === 1) return firstSync
+      return syncSummary()
+    })
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent: vi.fn(), once: true })
+    await source.waitForSubscription()
+
+    source.emit()
+    await vi.advanceTimersByTimeAsync(500)
+    expect(runSync).toHaveBeenCalledTimes(1)
+
+    releaseFirstSync()
+    await flushMicrotasks()
+
+    expect(dirtyByCall).toEqual([undefined, undefined])
     await watching
   })
 
@@ -829,6 +915,44 @@ describe("drive watch", () => {
     }
   })
 
+  it.each(["local-first", "remote-first"] as const)(
+    "keeps coalesced local and remote events as a full reconciliation (%s)",
+    async (order) => {
+      const source = fakeSource()
+      const realtimeSource = fakeRealtimeSource()
+      const dirtyByCall: Array<string[] | undefined> = []
+      const runSync = vi.fn(async (_root: string, _onProgress?: unknown, dirtyPaths?: string[]) => {
+        dirtyByCall.push(dirtyPaths)
+        return syncSummary()
+      })
+      const watching = runDriveWatch("/tmp/root", {
+        source,
+        realtimeSource,
+        runSync,
+        readState,
+        onEvent: vi.fn(),
+      })
+      await source.waitForSubscription()
+      await flushMicrotasks()
+
+      try {
+        if (order === "local-first") {
+          source.emit("/tmp/root/a.txt")
+          realtimeSource.emitEvent({ cursor: "c1" })
+        } else {
+          realtimeSource.emitEvent({ cursor: "c1" })
+          source.emit("/tmp/root/a.txt")
+        }
+        await vi.advanceTimersByTimeAsync(500)
+
+        expect(dirtyByCall).toEqual([undefined, undefined])
+      } finally {
+        process.emit("SIGINT")
+        await watching
+      }
+    },
+  )
+
   it("runs immediate remote realtime events without waiting for remote debounce", async () => {
     const source = fakeSource()
     const realtimeSource = fakeRealtimeSource()
@@ -971,6 +1095,26 @@ describe("createDefaultWatchSource", () => {
     await source.close()
   })
 
+  it("emits an unknown-path change when native fs.watch omits the filename", async () => {
+    let callback!: (event: string, filename: string | Buffer | null) => void
+    const watcher = {
+      on: vi.fn(),
+      close: vi.fn(),
+    }
+    const watch = vi.fn((_root, _options, next) => {
+      callback = next
+      return watcher
+    })
+    const source = createNativeRecursiveSource("/tmp/root", watch as never)
+    const onChange = vi.fn()
+    source.onChange(onChange)
+
+    callback("change", null)
+
+    expect(onChange).toHaveBeenCalledWith(undefined)
+    await source.close()
+  })
+
   it("does not block renaming a watched subdirectory", async () => {
     const { mkdir, mkdtemp, rename, rm, writeFile } = await import("node:fs/promises")
     const { tmpdir } = await import("node:os")
@@ -989,7 +1133,7 @@ describe("createDefaultWatchSource", () => {
         sawInnerEvent = resolve
       })
       source.onChange((path) => {
-        if (path.includes("probe")) sawInnerEvent()
+        if (path?.includes("probe")) sawInnerEvent()
       })
 
       // Keep writing probes until one is observed: proves the watcher covers
