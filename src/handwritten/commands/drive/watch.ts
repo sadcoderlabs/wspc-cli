@@ -78,6 +78,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       render({ kind: "drive_watch", display: { shape: "object" } }, event)
     })
   let nextTrigger = "initial"
+  let fullReconciliationRequired = false
   // Paths touched by fs events since the last successful sync. Local-trigger
   // syncs re-stat only these; other triggers (initial/retry/remote) do a full
   // reconciliation walk that also self-heals any missed events.
@@ -110,7 +111,9 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           emit({ kind: "drive_sync_start" })
           dbg.log("sync_start", { trigger: nextTrigger })
           const startedAtMs = Date.now()
-          const dirtySnapshot = nextTrigger === "local" ? [...dirtyPaths] : undefined
+          const dirtySnapshot =
+            nextTrigger === "local" && !fullReconciliationRequired ? [...dirtyPaths] : undefined
+          fullReconciliationRequired = false
           dirtyPaths.clear()
           const summary = await runSync(
             root,
@@ -250,6 +253,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
     source.onChange((path) => {
       const drivePath = relative(root, path).replace(/\\/g, "/")
       if (drivePath === `${DRIVE_DIR}/ignore`) {
+        fullReconciliationRequired = true
         dbg.log("fs_event", { path: drivePath, full_reconciliation: true })
         scheduleSync(debounceMs, "ignore")
         return
@@ -352,7 +356,7 @@ function createNativeRecursiveSource(root: string): DriveWatchSource {
 export function createChokidarSource(root: string, watch = chokidar.watch): DriveWatchSource {
   const watcher = watch(root, {
     ignoreInitial: true,
-    ignored: (path) => isDriveInternalPath(root, path) && !isDriveIgnorePath(root, path),
+    ignored: (path) => shouldIgnoreDriveWatchPath(root, path),
   })
   return {
     onChange(handler) {
@@ -364,8 +368,10 @@ export function createChokidarSource(root: string, watch = chokidar.watch): Driv
   }
 }
 
-function isDriveIgnorePath(root: string, path: string): boolean {
-  return relative(root, path).replace(/\\/g, "/") === `${DRIVE_DIR}/ignore`
+function shouldIgnoreDriveWatchPath(root: string, path: string): boolean {
+  if (!isDriveInternalPath(root, path)) return false
+  const drivePath = relative(root, path).replace(/\\/g, "/")
+  return drivePath !== DRIVE_DIR && drivePath !== `${DRIVE_DIR}/ignore`
 }
 
 function isDriveInternalPath(root: string, path: string): boolean {

@@ -562,28 +562,62 @@ describe("drive watch", () => {
     await watching
   })
 
-  it("runs a full reconciliation when the ignore file changes", async () => {
+  it.each(["ignore-first", "local-first"] as const)(
+    "keeps coalesced ignore and local events as a full reconciliation (%s)",
+    async (order) => {
+      const source = fakeSource()
+      const dirtyByCall: Array<string[] | undefined> = []
+      const runSync = vi.fn(async (_root: string, _onProgress?: unknown, dirtyPaths?: string[]) => {
+        dirtyByCall.push(dirtyPaths)
+        return syncSummary()
+      })
+      const watching = runDriveWatch("/tmp/root", {
+        source,
+        realtimeSource: fakeRealtimeSource(),
+        runSync,
+        readState,
+        onEvent: vi.fn(),
+      })
+      await source.waitForSubscription()
+      await flushMicrotasks()
+
+      if (order === "ignore-first") {
+        source.emit("/tmp/root/.wspc-drive/ignore")
+        source.emit("/tmp/root/notes.md")
+      } else {
+        source.emit("/tmp/root/notes.md")
+        source.emit("/tmp/root/.wspc-drive/ignore")
+      }
+      await vi.advanceTimersByTimeAsync(500)
+
+      expect(dirtyByCall).toEqual([undefined, undefined])
+      process.emit("SIGTERM")
+      await watching
+    },
+  )
+
+  it("keeps a trailing reconciliation full when local activity follows an ignore event during sync", async () => {
     const source = fakeSource()
     const dirtyByCall: Array<string[] | undefined> = []
+    let releaseFirstSync!: () => void
+    const firstSync = new Promise<DriveSyncSummary>((resolve) => {
+      releaseFirstSync = () => resolve(syncSummary())
+    })
     const runSync = vi.fn(async (_root: string, _onProgress?: unknown, dirtyPaths?: string[]) => {
       dirtyByCall.push(dirtyPaths)
+      if (dirtyByCall.length === 1) return firstSync
       return syncSummary()
     })
-    const watching = runDriveWatch("/tmp/root", {
-      source,
-      realtimeSource: fakeRealtimeSource(),
-      runSync,
-      readState,
-      onEvent: vi.fn(),
-    })
+    const watching = runDriveWatch("/tmp/root", { source, runSync, readState, onEvent: vi.fn(), once: true })
     await source.waitForSubscription()
-    await flushMicrotasks()
 
     source.emit("/tmp/root/.wspc-drive/ignore")
+    source.emit("/tmp/root/notes.md")
     await vi.advanceTimersByTimeAsync(500)
+    releaseFirstSync()
+    await flushMicrotasks()
 
     expect(dirtyByCall).toEqual([undefined, undefined])
-    process.emit("SIGTERM")
     await watching
   })
 
@@ -925,6 +959,7 @@ describe("createDefaultWatchSource", () => {
     const onChange = vi.fn()
     source.onChange(onChange)
 
+    expect(ignored("/tmp/root/.wspc-drive")).toBe(false)
     expect(ignored("/tmp/root/.wspc-drive/ignore")).toBe(false)
     expect(ignored("/tmp/root/.wspc-drive/state.json")).toBe(true)
     for (const event of ["add", "change", "unlink"]) {
