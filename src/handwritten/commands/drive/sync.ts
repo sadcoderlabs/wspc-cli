@@ -140,8 +140,12 @@ export async function runDriveSyncOnce(
       }
       throw error
     }
-    const remoteFiles = removeExcludedFiles(manifest.remoteFiles, excludeRules)
-    if (manifest.manifestCursor !== undefined && manifest.manifestCursor !== state.manifest_cursor) {
+    const remoteFiles = removeExcludedPaths(manifest.remoteFiles, excludeRules)
+    if (
+      excludeRules.size === 0 &&
+      manifest.manifestCursor !== undefined &&
+      manifest.manifestCursor !== state.manifest_cursor
+    ) {
       state = { ...state, manifest_cursor: manifest.manifestCursor }
       await writeDriveState(root, state, clock)
     }
@@ -244,11 +248,12 @@ export async function runDriveSyncOnce(
 
 function removeExcludedState(state: DriveState, excludeRules: DriveExcludeRules): DriveState {
   if (excludeRules.size === 0) return state
-  const entries = removeExcludedFiles(state.entries, excludeRules)
-  const conflicts = removeExcludedFiles(state.conflicts, excludeRules)
-  const scanCache = removeExcludedFiles(state.scan_cache ?? {}, excludeRules)
-  const scanErrors = removeExcludedFiles(state.scan_errors ?? {}, excludeRules)
+  const entries = removeExcludedPaths(state.entries, excludeRules)
+  const conflicts = removeExcludedPaths(state.conflicts, excludeRules)
+  const scanCache = removeExcludedPaths(state.scan_cache ?? {}, excludeRules)
+  const scanErrors = removeExcludedPaths(state.scan_errors ?? {}, excludeRules)
   const changed =
+    state.manifest_cursor !== undefined ||
     Object.keys(entries).length !== Object.keys(state.entries).length ||
     Object.keys(conflicts).length !== Object.keys(state.conflicts).length ||
     Object.keys(scanCache).length !== Object.keys(state.scan_cache ?? {}).length ||
@@ -262,12 +267,13 @@ function removeExcludedState(state: DriveState, excludeRules: DriveExcludeRules)
     scan_cache: scanCache,
     scan_errors: scanErrors,
   }
+  delete nextState.manifest_cursor
   if (Object.keys(scanErrors).length === 0) delete nextState.scan_errors
   return nextState
 }
 
-function removeExcludedFiles<T>(files: Record<string, T>, excludeRules: DriveExcludeRules): Record<string, T> {
-  return Object.fromEntries(Object.entries(files).filter(([path]) => !excludeRules.matches(path)))
+function removeExcludedPaths<T>(records: Record<string, T>, excludeRules: DriveExcludeRules): Record<string, T> {
+  return Object.fromEntries(Object.entries(records).filter(([path]) => !excludeRules.matches(path)))
 }
 
 function decisionFields(

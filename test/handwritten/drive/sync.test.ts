@@ -265,15 +265,19 @@ describe("drive sync once", () => {
 
   it("reloads exclude rules each round and routes re-included differences through create/create conflict handling", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-reinclude-"))
-    await initDriveState(root, "lib_1")
+    const state = await initDriveState(root, "lib_1")
+    state.manifest_cursor = "cursor-0"
+    await writeDriveState(root, state)
     await writeFile(join(root, "notes.md"), "local\n")
     const ignorePath = join(root, ".wspc-drive/ignore")
     await writeFile(ignorePath, "notes.md\n")
     const remote = entry("notes.md", "remote\n", 2)
+    const excludedApi = mkApi([{ entries: [remote], latest_cursor: "cursor-1" }])
 
-    const excludedResult = await runDriveSyncOnce(root, mkApi([{ entries: [remote] }]), conflictClock)
+    const excludedResult = await runDriveSyncOnce(root, excludedApi, conflictClock)
 
     expect(excludedResult.paths).toEqual([])
+    expect(excludedApi.deltas).toEqual([])
     await unlink(ignorePath)
     const api = mkApi([{ entries: [remote] }])
     api.downloads.set("notes.md@ver_2", "remote\n")
@@ -281,6 +285,7 @@ describe("drive sync once", () => {
     const reIncludedResult = await runDriveSyncOnce(root, api, conflictClock)
 
     expect(reIncludedResult.conflicts).toBe(1)
+    expect(api.deltas).toEqual([])
     expect(reIncludedResult.paths).toEqual([
       { path: "notes.md", action: "conflict", conflict_paths: [reIncludedResult.conflict_paths[0]!] },
     ])
