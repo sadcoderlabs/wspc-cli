@@ -49,8 +49,8 @@ export function parseDriveExcludeRules(content: string, source = `${DRIVE_DIR}/$
       const message = error instanceof Error ? error.message : String(error)
       throw new DriveIgnoreError(`${source}:${index + 1}: ${message}`, error)
     }
-    const paths = directory ? directoryPatterns : filePatterns
-    paths.add(path)
+    const patterns = directory ? directoryPatterns : filePatterns
+    patterns.add(path)
   }
   return {
     size: filePatterns.size + directoryPatterns.size,
