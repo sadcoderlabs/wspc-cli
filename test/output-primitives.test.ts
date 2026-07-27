@@ -1,6 +1,41 @@
+import { execFileSync } from "node:child_process"
 import { describe, it, expect } from "vitest"
 import { idShort, red, truncate, statusBadge, relativeTime, visibleWidth, wrapToWidth } from "../src/handwritten/output/primitives.js"
 import { stripAnsi } from "./helpers/stdout.js"
+
+interface TerminalOptions {
+  isTTY: boolean
+  forceColor?: string
+  getColorDepth?: () => number
+}
+
+function withTerminal(options: TerminalOptions, run: () => void): void {
+  const originalTTY = Object.getOwnPropertyDescriptor(process.stdout, "isTTY")
+  const originalGetColorDepth = Object.getOwnPropertyDescriptor(process.stdout, "getColorDepth")
+  const originalForceColor = process.env.FORCE_COLOR
+  const originalNoColor = process.env.NO_COLOR
+
+  Object.defineProperty(process.stdout, "isTTY", { value: options.isTTY, configurable: true })
+  if (options.getColorDepth) {
+    Object.defineProperty(process.stdout, "getColorDepth", { value: options.getColorDepth, configurable: true })
+  }
+  if (options.forceColor === undefined) delete process.env.FORCE_COLOR
+  else process.env.FORCE_COLOR = options.forceColor
+  delete process.env.NO_COLOR
+
+  try {
+    run()
+  } finally {
+    if (originalTTY === undefined) Reflect.deleteProperty(process.stdout, "isTTY")
+    else Object.defineProperty(process.stdout, "isTTY", originalTTY)
+    if (originalGetColorDepth === undefined) Reflect.deleteProperty(process.stdout, "getColorDepth")
+    else Object.defineProperty(process.stdout, "getColorDepth", originalGetColorDepth)
+    if (originalForceColor === undefined) delete process.env.FORCE_COLOR
+    else process.env.FORCE_COLOR = originalForceColor
+    if (originalNoColor === undefined) delete process.env.NO_COLOR
+    else process.env.NO_COLOR = originalNoColor
+  }
+}
 
 describe("idShort", () => {
   it("preserves the full id for copy-paste", () => {
@@ -14,20 +49,11 @@ describe("idShort", () => {
   it("emits a dim escape that splits prefix from suffix", () => {
     // The prefix portion (`tod_` + 8 ULID chars) is rendered un-dimmed; the
     // discriminator suffix is wrapped in the ANSI dim sequence.
-    const originalForceColor = process.env.FORCE_COLOR
-    const originalNoColor = process.env.NO_COLOR
-    delete process.env.NO_COLOR
-    process.env.FORCE_COLOR = "1"
-    try {
+    withTerminal({ isTTY: false, forceColor: "1" }, () => {
       const out = idShort("tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F")
       expect(out.startsWith("tod_01HW3K4N")).toBe(true)
       expect(out).toMatch(/\x1b\[2m/)
-    } finally {
-      if (originalForceColor === undefined) delete process.env.FORCE_COLOR
-      else process.env.FORCE_COLOR = originalForceColor
-      if (originalNoColor === undefined) delete process.env.NO_COLOR
-      else process.env.NO_COLOR = originalNoColor
-    }
+    })
   })
 
   it("returns short ids unchanged when nothing to dim", () => {
@@ -43,49 +69,36 @@ describe("idShort", () => {
 
 describe("terminal styling", () => {
   it("leaves non-TTY output plain", () => {
-    const originalTTY = process.stdout.isTTY
-    const originalForceColor = process.env.FORCE_COLOR
-    Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true })
-    delete process.env.FORCE_COLOR
-    try {
+    withTerminal({ isTTY: false }, () => {
       expect(red("alert")).toBe("alert")
-    } finally {
-      Object.defineProperty(process.stdout, "isTTY", { value: originalTTY, configurable: true })
-      if (originalForceColor === undefined) delete process.env.FORCE_COLOR
-      else process.env.FORCE_COLOR = originalForceColor
-    }
+    })
   })
 
   it("honors a no-color stdout capability decision", () => {
-    const originalTTY = process.stdout.isTTY
-    const originalGetColorDepth = Object.getOwnPropertyDescriptor(process.stdout, "getColorDepth")
-    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true })
-    Object.defineProperty(process.stdout, "getColorDepth", { value: () => 1, configurable: true })
-    try {
+    withTerminal({ isTTY: true, getColorDepth: () => 1 }, () => {
       expect(red("alert")).toBe("alert")
-    } finally {
-      Object.defineProperty(process.stdout, "isTTY", { value: originalTTY, configurable: true })
-      if (originalGetColorDepth === undefined) Reflect.deleteProperty(process.stdout, "getColorDepth")
-      else Object.defineProperty(process.stdout, "getColorDepth", originalGetColorDepth)
-    }
+    })
+  })
+
+  it("honors NO_COLOR on a TTY", () => {
+    const primitivesUrl = new URL("../src/handwritten/output/primitives.ts", import.meta.url).href
+    const output = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "--eval",
+        `const { WriteStream } = await import("node:tty"); Object.defineProperties(process.stdout, { isTTY: { value: true }, getColorDepth: { value: WriteStream.prototype.getColorDepth }, hasColors: { value: WriteStream.prototype.hasColors } }); const { red } = await import(${JSON.stringify(primitivesUrl)}); process.stdout.write(red("alert"))`,
+      ],
+      { env: { ...process.env, FORCE_COLOR: undefined, NO_COLOR: "1" } },
+    ).toString()
+
+    expect(output).toBe("alert")
   })
 
   it("honors FORCE_COLOR=0 on a TTY", () => {
-    const originalTTY = process.stdout.isTTY
-    const originalForceColor = process.env.FORCE_COLOR
-    const originalNoColor = process.env.NO_COLOR
-    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true })
-    delete process.env.NO_COLOR
-    process.env.FORCE_COLOR = "0"
-    try {
+    withTerminal({ isTTY: true, forceColor: "0" }, () => {
       expect(red("alert")).toBe("alert")
-    } finally {
-      Object.defineProperty(process.stdout, "isTTY", { value: originalTTY, configurable: true })
-      if (originalForceColor === undefined) delete process.env.FORCE_COLOR
-      else process.env.FORCE_COLOR = originalForceColor
-      if (originalNoColor === undefined) delete process.env.NO_COLOR
-      else process.env.NO_COLOR = originalNoColor
-    }
+    })
   })
 })
 
