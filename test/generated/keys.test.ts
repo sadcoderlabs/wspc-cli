@@ -100,7 +100,7 @@ describe("wspc keys (generated)", () => {
       expect(plain).toContain("api_key")
       expect(plain).toContain("wspc_live_abcdef123456")
       expect(plain).toContain("⚠  This is the only time you'll see this key. Save it now.")
-      expect(out).toContain("\x1b[33m⚠  This is the only time you'll see this key. Save it now.\x1b[0m")
+      expect(out).toContain("\x1b[33m⚠  This is the only time you'll see this key. Save it now.\x1b[39m")
     } finally {
       cap.restore()
       Object.defineProperty(process.stdout, "isTTY", { value: origTTY, configurable: true })

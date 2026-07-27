@@ -5,29 +5,21 @@
  * specific renderer, not here.
  */
 
-const ESC = "\x1b["
+import { stripVTControlCharacters, styleText } from "node:util"
 
 // ---------- colour / weight ----------
 
-/** Honour NO_COLOR (https://no-color.org) and non-TTY destinations. */
-function colourEnabled(): boolean {
-  if (process.env.NO_COLOR) return false
-  if (process.env.FORCE_COLOR) return true
-  return !!process.stdout.isTTY
+function style(format: Parameters<typeof styleText>[0], s: string): string {
+  return styleText(format, s, { stream: process.stdout, validateStream: true })
 }
 
-function wrap(code: string, s: string): string {
-  if (!colourEnabled()) return s
-  return `${ESC}${code}m${s}${ESC}0m`
-}
-
-export const dim = (s: string): string => wrap("2", s)
-export const bold = (s: string): string => wrap("1", s)
-export const green = (s: string): string => wrap("32", s)
-export const yellow = (s: string): string => wrap("33", s)
-export const red = (s: string): string => wrap("31", s)
-export const gray = (s: string): string => wrap("90", s)
-export const cyan = (s: string): string => wrap("36", s)
+export const dim = (s: string): string => style("dim", s)
+export const bold = (s: string): string => style("bold", s)
+export const green = (s: string): string => style("green", s)
+export const yellow = (s: string): string => style("yellow", s)
+export const red = (s: string): string => style("red", s)
+export const gray = (s: string): string => style("gray", s)
+export const cyan = (s: string): string => style("cyan", s)
 
 export function colorise(s: string, color?: string): string {
   switch (color) {
@@ -52,11 +44,9 @@ export function colorise(s: string, color?: string): string {
 
 // ---------- value formatters ----------
 
-const ANSI_RE = /\x1b\[[0-9;]*m/g
-
 /** Count visible width ignoring ANSI codes. CJK width approximated as 2. */
 export function visibleWidth(s: string): number {
-  const stripped = s.replace(ANSI_RE, "")
+  const stripped = stripVTControlCharacters(s)
   let w = 0
   for (const ch of stripped) {
     const code = ch.codePointAt(0)!
@@ -85,11 +75,9 @@ function padEndVisible(s: string, target: number): string {
  */
 export function truncate(s: string, max = 50): string {
   if (visibleWidth(s) <= max) return s
-  // Trim character-by-character. Not perfect for embedded ANSI mid-string,
-  // but format hints today only colour the cell wholesale.
   let out = ""
   let w = 0
-  for (const ch of s.replace(ANSI_RE, "")) {
+  for (const ch of stripVTControlCharacters(s)) {
     const cw = visibleWidth(ch)
     if (w + cw + 1 > max) break
     out += ch

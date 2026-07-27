@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { idShort, truncate, statusBadge, relativeTime, wrapToWidth } from "../src/handwritten/output/primitives.js"
+import { idShort, red, truncate, statusBadge, relativeTime, visibleWidth, wrapToWidth } from "../src/handwritten/output/primitives.js"
 import { stripAnsi } from "./helpers/stdout.js"
 
 describe("idShort", () => {
@@ -13,18 +13,20 @@ describe("idShort", () => {
 
   it("emits a dim escape that splits prefix from suffix", () => {
     // The prefix portion (`tod_` + 8 ULID chars) is rendered un-dimmed; the
-    // discriminator suffix is wrapped in the ANSI dim sequence. Colour is
-    // gated on TTY detection / NO_COLOR / FORCE_COLOR, so force it on for
-    // this assertion — non-TTY test runs would otherwise see plain text.
-    const prev = process.env.FORCE_COLOR
+    // discriminator suffix is wrapped in the ANSI dim sequence.
+    const originalForceColor = process.env.FORCE_COLOR
+    const originalNoColor = process.env.NO_COLOR
+    delete process.env.NO_COLOR
     process.env.FORCE_COLOR = "1"
     try {
       const out = idShort("tod_01HW3K4N9V5G6Z8C2Q7B1Y0M3F")
       expect(out.startsWith("tod_01HW3K4N")).toBe(true)
       expect(out).toMatch(/\x1b\[2m/)
     } finally {
-      if (prev === undefined) delete process.env.FORCE_COLOR
-      else process.env.FORCE_COLOR = prev
+      if (originalForceColor === undefined) delete process.env.FORCE_COLOR
+      else process.env.FORCE_COLOR = originalForceColor
+      if (originalNoColor === undefined) delete process.env.NO_COLOR
+      else process.env.NO_COLOR = originalNoColor
     }
   })
 
@@ -39,6 +41,54 @@ describe("idShort", () => {
   })
 })
 
+describe("terminal styling", () => {
+  it("leaves non-TTY output plain", () => {
+    const originalTTY = process.stdout.isTTY
+    const originalForceColor = process.env.FORCE_COLOR
+    Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true })
+    delete process.env.FORCE_COLOR
+    try {
+      expect(red("alert")).toBe("alert")
+    } finally {
+      Object.defineProperty(process.stdout, "isTTY", { value: originalTTY, configurable: true })
+      if (originalForceColor === undefined) delete process.env.FORCE_COLOR
+      else process.env.FORCE_COLOR = originalForceColor
+    }
+  })
+
+  it("honors a no-color stdout capability decision", () => {
+    const originalTTY = process.stdout.isTTY
+    const originalGetColorDepth = Object.getOwnPropertyDescriptor(process.stdout, "getColorDepth")
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true })
+    Object.defineProperty(process.stdout, "getColorDepth", { value: () => 1, configurable: true })
+    try {
+      expect(red("alert")).toBe("alert")
+    } finally {
+      Object.defineProperty(process.stdout, "isTTY", { value: originalTTY, configurable: true })
+      if (originalGetColorDepth === undefined) Reflect.deleteProperty(process.stdout, "getColorDepth")
+      else Object.defineProperty(process.stdout, "getColorDepth", originalGetColorDepth)
+    }
+  })
+
+  it("honors FORCE_COLOR=0 on a TTY", () => {
+    const originalTTY = process.stdout.isTTY
+    const originalForceColor = process.env.FORCE_COLOR
+    const originalNoColor = process.env.NO_COLOR
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true })
+    delete process.env.NO_COLOR
+    process.env.FORCE_COLOR = "0"
+    try {
+      expect(red("alert")).toBe("alert")
+    } finally {
+      Object.defineProperty(process.stdout, "isTTY", { value: originalTTY, configurable: true })
+      if (originalForceColor === undefined) delete process.env.FORCE_COLOR
+      else process.env.FORCE_COLOR = originalForceColor
+      if (originalNoColor === undefined) delete process.env.NO_COLOR
+      else process.env.NO_COLOR = originalNoColor
+    }
+  })
+})
+
 describe("truncate", () => {
   it("leaves short strings alone", () => {
     expect(truncate("hello", 10)).toBe("hello")
@@ -46,6 +96,20 @@ describe("truncate", () => {
 
   it("appends ellipsis when over the limit", () => {
     expect(truncate("hello world", 8)).toBe("hello w…")
+  })
+
+  it("removes terminal control sequences before truncating", () => {
+    const hyperlink = "\x1b]8;;https://example.com\x07click here\x1b]8;;\x07"
+
+    expect(truncate(hyperlink, 7)).toBe("click …")
+  })
+})
+
+describe("visibleWidth", () => {
+  it("ignores terminal control sequences beyond color escapes", () => {
+    const hyperlink = "\x1b]8;;https://example.com\x07click\x1b]8;;\x07"
+
+    expect(visibleWidth(hyperlink)).toBe(5)
   })
 })
 

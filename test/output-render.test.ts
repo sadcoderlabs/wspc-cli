@@ -223,9 +223,9 @@ describe("render", () => {
     expect(plain).toContain("TG: telegram")
     expect(plain).toContain("No details")
 
-    expect(out).toContain("\x1b[32m✓ ok\x1b[0m")
-    expect(out).toContain("\x1b[36mTG: telegram\x1b[0m")
-    expect(out).toContain("\x1b[2mNo details\x1b[0m")
+    expect(out).toContain("\x1b[32m✓ ok\x1b[39m")
+    expect(out).toContain("\x1b[36mTG: telegram\x1b[39m")
+    expect(out).toContain("\x1b[2mNo details\x1b[22m")
   })
 
   it("handles unknown/wildcard and undefined values in enum-badge", () => {
@@ -269,9 +269,9 @@ describe("render", () => {
     expect(plain).toContain("Other: discord")
     expect(plain).toContain("No details")
 
-    expect(out).toContain("\x1b[31m✕ unknown_value\x1b[0m")
-    expect(out).toContain("\x1b[33mOther: discord\x1b[0m")
-    expect(out).toContain("\x1b[2mNo details\x1b[0m")
+    expect(out).toContain("\x1b[31m✕ unknown_value\x1b[39m")
+    expect(out).toContain("\x1b[33mOther: discord\x1b[39m")
+    expect(out).toContain("\x1b[2mNo details\x1b[22m")
   })
 
   it("prints a yellow warning block in pretty mode when secretField is present", () => {
@@ -293,7 +293,7 @@ describe("render", () => {
     expect(plain).toContain("wspc_live_xxxxxxxxxxxxxxxxxxxxxxx")
     expect(plain).toContain("⚠  This is the only time you'll see this key. Save it now.")
     expect(plain).toContain("wspc env add <name> --api-key wspc_live_xxxxxxxxxxxxxxxxxxxxxxx")
-    expect(out).toContain("\x1b[33m⚠  This is the only time you'll see this key. Save it now.\x1b[0m")
+    expect(out).toContain("\x1b[33m⚠  This is the only time you'll see this key. Save it now.\x1b[39m")
   })
 
   it("does not print the warning block in JSON mode when secretField is present", () => {
