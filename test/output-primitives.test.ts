@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process"
+import { DateTime } from "luxon"
 import { describe, it, expect } from "vitest"
 import { idShort, red, truncate, statusBadge, relativeTime, visibleWidth, wrapToWidth } from "../src/handwritten/output/primitives.js"
 import { stripAnsi } from "./helpers/stdout.js"
@@ -150,12 +151,38 @@ describe("relativeTime", () => {
     expect(relativeTime(NOW + 2 * 60 * 60 * 1000, NOW)).toBe("in 2h")
   })
 
-  it("accepts ISO and date-only strings", () => {
+  it("formats Z and explicit-offset ISO datetimes", () => {
     expect(relativeTime("2001-09-09T01:46:40.000Z", NOW)).toBe("just now")
+    expect(relativeTime("2001-09-09T09:46:40.000+08:00", NOW)).toBe("just now")
+    expect(relativeTime("2001-09-09T09:46:40.000+0800", NOW)).toBe("just now")
+    expect(relativeTime("2001-09-09T09:46:40.000+08", NOW)).toBe("just now")
+  })
+
+  it("keeps a Calendar Date raw near a UTC day boundary", () => {
+    const nearBoundary = DateTime.fromISO("2026-07-27T16:30:00Z", { setZone: true }).toMillis()
+
+    expect(relativeTime("2026-07-28", nearBoundary)).toBe("2026-07-28")
+  })
+
+  it("keeps an offsetless datetime raw", () => {
+    expect(relativeTime("2001-09-09T01:46:40.000", NOW)).toBe("2001-09-09T01:46:40.000")
   })
 
   it("returns the raw value on parse failure", () => {
     expect(relativeTime("not-a-date", NOW)).toBe("not-a-date")
+    expect(relativeTime("2026-02-30", NOW)).toBe("2026-02-30")
+    expect(relativeTime("2026-02-30T12:00:00Z", NOW)).toBe("2026-02-30T12:00:00Z")
+  })
+
+  it("returns invalid numeric values raw", () => {
+    expect(relativeTime(Number.NaN, NOW)).toBe("NaN")
+    expect(relativeTime(Number.POSITIVE_INFINITY, NOW)).toBe("Infinity")
+  })
+
+  it("uses elapsed hours across a DST transition", () => {
+    const before = DateTime.fromISO("2026-03-07T13:00:00-05:00", { setZone: true }).toMillis()
+
+    expect(relativeTime("2026-03-08T13:00:00-04:00", before)).toBe("in 23h")
   })
 })
 
