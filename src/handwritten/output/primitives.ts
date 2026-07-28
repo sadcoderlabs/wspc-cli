@@ -6,6 +6,7 @@
  */
 
 import { stripVTControlCharacters, styleText } from "node:util"
+import { DateTime } from "luxon"
 
 // ---------- colour / weight ----------
 
@@ -139,24 +140,27 @@ export function boolBadge(value: unknown): string {
 }
 
 /**
- * Render a timestamp as relative time. Accepts epoch-ms numbers (preferred —
- * matches the wspc API convention), ISO 8601 strings, or date-only strings.
- * Returns the raw input on parse failure rather than throwing, so a bad cell
- * doesn't crash the whole table.
+ * Render an Instant as relative time. Accepts epoch-ms numbers or ISO 8601
+ * strings with an explicit offset. Calendar Dates and invalid values stay raw
+ * so the formatter never invents a timezone for incomplete input.
  */
 export function relativeTime(value: unknown, now: number = Date.now()): string {
-  let ms: number
+  let instant: DateTime
   if (typeof value === "number") {
-    ms = value
+    instant = DateTime.fromMillis(value)
   } else if (typeof value === "string") {
-    // Accept "2026-06-01" (date-only) and full ISO; both parse via Date.
-    const parsed = Date.parse(value)
-    if (Number.isNaN(parsed)) return value
-    ms = parsed
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const date = DateTime.fromISO(value)
+      if (date.isValid && date.toISODate() === value) return value
+    }
+    if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return value
+    instant = DateTime.fromISO(value, { setZone: true })
   } else {
     return String(value)
   }
-  const diff = ms - now
+  const current = DateTime.fromMillis(now)
+  if (!instant.isValid || !current.isValid) return String(value)
+  const diff = instant.diff(current).as("milliseconds")
   const abs = Math.abs(diff)
   const future = diff > 0
 

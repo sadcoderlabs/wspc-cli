@@ -338,6 +338,64 @@ describe("render", () => {
     expect(out).toMatch(/ {2}title {2,}Buy milk/)
   })
 
+  it("keeps Todo Calendar Dates raw while formatting Instant fields relatively", () => {
+    const createdAt = Date.now() - 2 * 60 * 60 * 1000
+    render(
+      {
+        kind: "todo.get",
+        display: {
+          shape: "object",
+          fields: ["due_at", "created_at"],
+          format: { due_at: "relative-time", created_at: "relative-time" },
+        },
+      },
+      { due_at: "2026-07-28", created_at: createdAt },
+    )
+
+    const out = stripAnsi(cap.output())
+    expect(out).toMatch(/due_at\s+2026-07-28/)
+    expect(out).toMatch(/created_at\s+2h ago/)
+  })
+
+  it("keeps all-day event Calendar Dates and the Exclusive End raw", () => {
+    render(
+      {
+        kind: "event.get",
+        display: {
+          shape: "object",
+          fields: ["start", "end"],
+          format: { start: "relative-time", end: "relative-time" },
+        },
+      },
+      { start: "2026-06-01", end: "2026-06-02" },
+    )
+
+    const out = stripAnsi(cap.output())
+    expect(out).toMatch(/start\s+2026-06-01/)
+    expect(out).toMatch(/end\s+2026-06-02/)
+  })
+
+  it("leaves Calendar Date payloads unchanged in JSON output", () => {
+    process.env.WSPC_OUTPUT = "json"
+    const payload = {
+      start: "2026-06-01",
+      end: "2026-06-02",
+    }
+    render(
+      {
+        kind: "event.get",
+        display: {
+          shape: "object",
+          fields: ["start", "end"],
+          format: { start: "relative-time", end: "relative-time" },
+        },
+      },
+      payload,
+    )
+
+    expect(JSON.parse(cap.output())).toEqual(payload)
+  })
+
   it("does not emit a leading blank line when every field is a block", () => {
     Object.defineProperty(process.stdout, "columns", { value: 30, configurable: true })
     render(
