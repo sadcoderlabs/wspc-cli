@@ -174,6 +174,10 @@ export type GetMeResponse = {
      */
     email: string;
     /**
+     * Effective role in the user's current workspace.
+     */
+    role: 'owner' | 'admin' | 'member';
+    /**
      * Optional human-friendly display name. Omitted from the response when the user has not set one.
      */
     display_name?: string;
@@ -201,32 +205,35 @@ export type ListOrgMembersResponse = {
     /**
      * Members on this page, ordered by `joined_at` ascending. In v1 always contains exactly one entry (the authenticated caller).
      */
-    members: Array<{
-        /**
-         * Stable user id of this member. Use it as the `user_id` filter on `/todo/items` to scope to one assignee, or as the target of `PATCH /todo/items/{id}` `user_id` to reassign a todo.
-         */
-        user_id: string;
-        /**
-         * Primary email address used at signup. Acts as the human-facing identity for invitations and calendar attendee dedupe.
-         */
-        email: string;
-        /**
-         * Optional display name set during signup or profile edits. Falls back to the email address when absent.
-         */
-        display_name?: string;
-        /**
-         * Unix epoch in milliseconds at which the user joined this organization. In v1 (personal orgs), equals the user's signup time.
-         */
-        joined_at: number;
-        /**
-         * True when this member created the organization. The creator cannot be removed or leave; clients should disable the remove/leave action for this member.
-         */
-        is_creator: boolean;
-    }>;
+    members: Array<OrgMember>;
     /**
      * Opaque cursor for the next page. Absent when this page is the last one (no more results).
      */
     next_cursor?: string;
+};
+
+export type OrgMember = {
+    /**
+     * Stable user id of this member. Use it as the `user_id` filter on `/todo/items` to scope to one assignee, or as the target of `PATCH /todo/items/{id}` `user_id` to reassign a todo.
+     */
+    user_id: string;
+    /**
+     * Primary email address used at signup. Acts as the human-facing identity for invitations and calendar attendee dedupe.
+     */
+    email: string;
+    /**
+     * Optional display name set during signup or profile edits. Falls back to the email address when absent.
+     */
+    display_name?: string;
+    /**
+     * Unix epoch in milliseconds at which the user joined this organization. In v1 (personal orgs), equals the user's signup time.
+     */
+    joined_at: number;
+    /**
+     * True when this member created the organization. The creator cannot be removed or leave; clients should disable the remove/leave action for this member.
+     */
+    is_creator: boolean;
+    role: 'owner' | 'admin' | 'member';
 };
 
 export type ListApiKeysResponse = {
@@ -504,6 +511,13 @@ export type UpdateApiKeyBody = {
     label: string;
 };
 
+export type UpdateOrgMemberRole = {
+    /**
+     * Stored role for a non-Owner member in the Current Workspace.
+     */
+    role: 'admin' | 'member';
+};
+
 export type UpdateOrgInput = {
     /**
      * The new name for the organization. Cannot be empty or purely whitespace.
@@ -535,6 +549,111 @@ export type VerifyCodeBody = {
      * Numeric magic code delivered by email. Single-use; expires a few minutes after issuance. Treat as a short-lived secret.
      */
     code: string;
+};
+
+export type CustomDomainAddOnResult = {
+    status: 'active' | 'pending_payment' | 'requires_action' | 'payment_failed';
+    payment_confirmation_client_secret?: string;
+    idempotent_replay: boolean;
+};
+
+export type ChangeCustomDomainAddOnInput = {
+    action: 'activate' | 'remove';
+    domain: string;
+    idempotency_key: string;
+};
+
+export type CustomerPortalSessionResult = {
+    portal_url: string;
+};
+
+export type EffectiveEntitlements = {
+    tier: 'free' | 'personal' | 'startup' | 'business';
+    catalog_version: string;
+    source: 'free_fallback' | 'stored_assignment';
+    monthly_email_count: number;
+    workspace_storage_bytes: number;
+    reserved_platform_address_count: number;
+    included_custom_domain_count: number;
+    custom_domain_add_on_eligible: boolean;
+};
+
+export type DowngradePreviewResult = {
+    current_tier: 'personal' | 'startup' | 'business';
+    target_tier: 'personal' | 'startup' | 'business';
+    required_custom_domain_add_on_quantity: number;
+    next_period_amount_usd: number;
+};
+
+export type PreviewSubscriptionDowngradeInput = {
+    tier: 'personal' | 'startup';
+};
+
+export type UpgradePreviewResult = {
+    currency: string;
+    line_items: Array<{
+        kind: 'unused_tier_credit' | 'target_tier_proration' | 'custom_domain_add_on_proration' | 'other';
+        amount: number;
+        description: string;
+    }>;
+    tax_amount: number;
+    total: number;
+    estimated: true;
+    expires_at: number;
+    quote_token: string;
+};
+
+export type PreviewSubscriptionUpgradeInput = {
+    tier: 'personal' | 'startup' | 'business';
+};
+
+export type ScheduleDowngradeResult = {
+    status: 'scheduled';
+    target_tier: 'personal' | 'startup' | 'business';
+    effective_at: number;
+};
+
+export type ScheduleSubscriptionDowngradeInput = {
+    tier: 'personal' | 'startup';
+    idempotency_key: string;
+};
+
+export type SubscriptionCancellationResult = {
+    cancel_at_period_end: boolean;
+    effective_at: number;
+};
+
+export type SetSubscriptionCancellationInput = {
+    cancel_at_period_end: boolean;
+};
+
+export type CheckoutSessionResult = {
+    checkout_session_id: string;
+    checkout_url: string;
+    idempotent_replay: boolean;
+};
+
+export type StartInitialCheckoutInput = {
+    tier: 'personal' | 'startup' | 'business';
+    idempotency_key: string;
+};
+
+export type UpgradeSubscriptionResult = {
+    status: 'pending_payment' | 'requires_action' | 'payment_failed';
+    payment_confirmation_client_secret?: string;
+    idempotent_replay: boolean;
+};
+
+export type StartSubscriptionUpgradeInput = {
+    tier: 'personal' | 'startup' | 'business';
+    idempotency_key: string;
+    preview_token: string;
+};
+
+export type StripeWebhookResult = {
+    received: true;
+    processed: boolean;
+    activated: boolean;
 };
 
 /**
@@ -2720,7 +2839,7 @@ export type AuthMeError = AuthMeErrors[keyof AuthMeErrors];
 
 export type AuthMeResponses = {
     /**
-     * The bearer token is valid. The response carries the stable `user_id`, the user's email, and — for `wspc_*` API keys only — the `api_key_id` that authenticated the call.
+     * The bearer token is valid. The response carries the stable `user_id`, the user's email, effective current workspace `role`, and — for `wspc_*` API keys only — the `api_key_id` that authenticated the call.
      */
     200: GetMeResponse;
 };
@@ -3326,6 +3445,101 @@ export type OrgMemberRemoveResponses = {
 };
 
 export type OrgMemberRemoveResponse = OrgMemberRemoveResponses[keyof OrgMemberRemoveResponses];
+
+export type OrgMemberRoleUpdateData = {
+    body?: UpdateOrgMemberRole;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.
+         */
+        'x-cb-auth'?: string;
+    };
+    path: {
+        /**
+         * Member user id to update.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/auth/me/org/members/{id}';
+};
+
+export type OrgMemberRoleUpdateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type OrgMemberRoleUpdateError = OrgMemberRoleUpdateErrors[keyof OrgMemberRoleUpdateErrors];
+
+export type OrgMemberRoleUpdateResponses = {
+    /**
+     * The member with their updated effective Workspace role.
+     */
+    200: OrgMember;
+};
+
+export type OrgMemberRoleUpdateResponse = OrgMemberRoleUpdateResponses[keyof OrgMemberRoleUpdateResponses];
 
 export type AuthRequestCodeData = {
     body?: RequestCodeBody;
@@ -3989,6 +4203,861 @@ export type OauthDeviceVerifyResponses = {
 };
 
 export type OauthDeviceVerifyResponse = OauthDeviceVerifyResponses[keyof OauthDeviceVerifyResponses];
+
+export type BillingCustomDomainAddOnsChangeData = {
+    body: ChangeCustomDomainAddOnInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/custom-domain-add-ons';
+};
+
+export type BillingCustomDomainAddOnsChangeErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing, Email, or Stripe is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingCustomDomainAddOnsChangeError = BillingCustomDomainAddOnsChangeErrors[keyof BillingCustomDomainAddOnsChangeErrors];
+
+export type BillingCustomDomainAddOnsChangeResponses = {
+    /**
+     * Normalized custom-domain capacity state.
+     */
+    200: CustomDomainAddOnResult;
+};
+
+export type BillingCustomDomainAddOnsChangeResponse = BillingCustomDomainAddOnsChangeResponses[keyof BillingCustomDomainAddOnsChangeResponses];
+
+export type BillingPortalSessionsCreateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/portal-sessions';
+};
+
+export type BillingPortalSessionsCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage or Stripe is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingPortalSessionsCreateError = BillingPortalSessionsCreateErrors[keyof BillingPortalSessionsCreateErrors];
+
+export type BillingPortalSessionsCreateResponses = {
+    /**
+     * Customer Portal session created.
+     */
+    200: CustomerPortalSessionResult;
+};
+
+export type BillingPortalSessionsCreateResponse = BillingPortalSessionsCreateResponses[keyof BillingPortalSessionsCreateResponses];
+
+export type BillingEntitlementsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/entitlements';
+};
+
+export type BillingEntitlementsGetErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The stored assignment references an unknown catalog version, or the service failed unexpectedly.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingEntitlementsGetError = BillingEntitlementsGetErrors[keyof BillingEntitlementsGetErrors];
+
+export type BillingEntitlementsGetResponses = {
+    /**
+     * Effective Current Workspace entitlements.
+     */
+    200: EffectiveEntitlements;
+};
+
+export type BillingEntitlementsGetResponse = BillingEntitlementsGetResponses[keyof BillingEntitlementsGetResponses];
+
+export type BillingSubscriptionDowngradePreviewData = {
+    body: PreviewSubscriptionDowngradeInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/subscription-downgrade-preview';
+};
+
+export type BillingSubscriptionDowngradePreviewErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing, Email, or Stripe is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingSubscriptionDowngradePreviewError = BillingSubscriptionDowngradePreviewErrors[keyof BillingSubscriptionDowngradePreviewErrors];
+
+export type BillingSubscriptionDowngradePreviewResponses = {
+    /**
+     * Downgrade fits retained resources.
+     */
+    200: DowngradePreviewResult;
+};
+
+export type BillingSubscriptionDowngradePreviewResponse = BillingSubscriptionDowngradePreviewResponses[keyof BillingSubscriptionDowngradePreviewResponses];
+
+export type BillingSubscriptionUpgradePreviewsCreateData = {
+    body: PreviewSubscriptionUpgradeInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/subscription-upgrade-previews';
+};
+
+export type BillingSubscriptionUpgradePreviewsCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage, Email counts, or Stripe is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingSubscriptionUpgradePreviewsCreateError = BillingSubscriptionUpgradePreviewsCreateErrors[keyof BillingSubscriptionUpgradePreviewsCreateErrors];
+
+export type BillingSubscriptionUpgradePreviewsCreateResponses = {
+    /**
+     * Fresh estimated upgrade invoice.
+     */
+    200: UpgradePreviewResult;
+};
+
+export type BillingSubscriptionUpgradePreviewsCreateResponse = BillingSubscriptionUpgradePreviewsCreateResponses[keyof BillingSubscriptionUpgradePreviewsCreateResponses];
+
+export type BillingSubscriptionDowngradesCreateData = {
+    body: ScheduleSubscriptionDowngradeInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/subscription-downgrades';
+};
+
+export type BillingSubscriptionDowngradesCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing, Email, or Stripe is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingSubscriptionDowngradesCreateError = BillingSubscriptionDowngradesCreateErrors[keyof BillingSubscriptionDowngradesCreateErrors];
+
+export type BillingSubscriptionDowngradesCreateResponses = {
+    /**
+     * Downgrade scheduled.
+     */
+    200: ScheduleDowngradeResult;
+};
+
+export type BillingSubscriptionDowngradesCreateResponse = BillingSubscriptionDowngradesCreateResponses[keyof BillingSubscriptionDowngradesCreateResponses];
+
+export type BillingSubscriptionCancellationUpdateData = {
+    body: SetSubscriptionCancellationInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/subscription-cancellation';
+};
+
+export type BillingSubscriptionCancellationUpdateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage or Stripe is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingSubscriptionCancellationUpdateError = BillingSubscriptionCancellationUpdateErrors[keyof BillingSubscriptionCancellationUpdateErrors];
+
+export type BillingSubscriptionCancellationUpdateResponses = {
+    /**
+     * Cancellation state updated.
+     */
+    200: SubscriptionCancellationResult;
+};
+
+export type BillingSubscriptionCancellationUpdateResponse = BillingSubscriptionCancellationUpdateResponses[keyof BillingSubscriptionCancellationUpdateResponses];
+
+export type BillingCheckoutSessionsCreateData = {
+    body: StartInitialCheckoutInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/checkout-sessions';
+};
+
+export type BillingCheckoutSessionsCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage or Stripe is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingCheckoutSessionsCreateError = BillingCheckoutSessionsCreateErrors[keyof BillingCheckoutSessionsCreateErrors];
+
+export type BillingCheckoutSessionsCreateResponses = {
+    /**
+     * Checkout Session created or replayed.
+     */
+    200: CheckoutSessionResult;
+};
+
+export type BillingCheckoutSessionsCreateResponse = BillingCheckoutSessionsCreateResponses[keyof BillingCheckoutSessionsCreateResponses];
+
+export type BillingSubscriptionUpgradesCreateData = {
+    body: StartSubscriptionUpgradeInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/subscription-upgrades';
+};
+
+export type BillingSubscriptionUpgradesCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage or Stripe is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingSubscriptionUpgradesCreateError = BillingSubscriptionUpgradesCreateErrors[keyof BillingSubscriptionUpgradesCreateErrors];
+
+export type BillingSubscriptionUpgradesCreateResponses = {
+    /**
+     * Upgrade payment state normalized.
+     */
+    200: UpgradeSubscriptionResult;
+};
+
+export type BillingSubscriptionUpgradesCreateResponse = BillingSubscriptionUpgradesCreateResponses[keyof BillingSubscriptionUpgradesCreateResponses];
+
+export type BillingStripeWebhookReceiveData = {
+    body: unknown;
+    headers: {
+        'stripe-signature': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/stripe/webhook';
+};
+
+export type BillingStripeWebhookReceiveErrors = {
+    /**
+     * The Stripe signature or payload was invalid.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The Stripe webhook payload exceeded the accepted size.
+     */
+    413: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage or Stripe is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingStripeWebhookReceiveError = BillingStripeWebhookReceiveErrors[keyof BillingStripeWebhookReceiveErrors];
+
+export type BillingStripeWebhookReceiveResponses = {
+    /**
+     * The signed event was acknowledged.
+     */
+    200: StripeWebhookResult;
+};
+
+export type BillingStripeWebhookReceiveResponse = BillingStripeWebhookReceiveResponses[keyof BillingStripeWebhookReceiveResponses];
 
 export type EventListData = {
     body?: never;
@@ -6117,6 +7186,15 @@ export type EmailAliasCreateErrors = {
             message: string;
         };
     };
+    /**
+     * Billing entitlements were unavailable; no alias was created.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
 };
 
 export type EmailAliasCreateError = EmailAliasCreateErrors[keyof EmailAliasCreateErrors];
@@ -6217,6 +7295,15 @@ export type EmailDomainCreateErrors = {
         };
     };
     /**
+     * Custom domains are unavailable for the Current Workspace tier.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
      * This domain is already registered by an organization.
      */
     409: {
@@ -6247,6 +7334,15 @@ export type EmailDomainCreateErrors = {
      * The upstream provider call failed or provider credentials are missing.
      */
     502: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing entitlements were unavailable; no provider or D1 creation occurred.
+     */
+    503: {
         error: {
             code: string;
             message: string;

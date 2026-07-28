@@ -5,7 +5,7 @@ import { runSdkCommand } from "../../../handwritten/commands/run-sdk-command.js"
 
 export const orgUpdateCommand = new Command("rename")
   .description("Update the authenticated user's organization")
-  .addHelpText("after", "\n### Overview\nUpdates the metadata (currently, the name) of the organization associated with the authenticated user.\n\n### Constraints\n- Requires a valid Bearer token.\n- The organization name cannot be empty or purely whitespace.\n- Maximum length is capped by `MAX_ORG_NAME_LEN`.\n\nExamples:\n  $ wspc org rename \"New Name\"\n  $ wspc org rename \"New Name\" --json\n")
+  .addHelpText("after", "\n### Overview\nUpdates the metadata (currently, the name) of the organization associated with the authenticated user.\n\n### Constraints\n- Requires a valid Bearer token.\n- Requires the Owner or Admin workspace role.\n- The organization name cannot be empty or purely whitespace.\n- Maximum length is capped by `MAX_ORG_NAME_LEN`.\n\nExamples:\n  $ wspc org rename \"New Name\"\n  $ wspc org rename \"New Name\" --json\n")
   .option("--name <value>", "The new name for the organization. Cannot be empty or purely whitespace.")
   .action(async (opts) => {
     await runSdkCommand({
