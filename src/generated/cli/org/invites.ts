@@ -5,7 +5,7 @@ import { runSdkCommand } from "../../../handwritten/commands/run-sdk-command.js"
 
 export const orgInvitesListCommand = new Command("invites")
   .description("List invites issued by the caller's organization")
-  .addHelpText("after", "\nRetrieves a list of all active pending or expired organization invites issued by the caller's organization.\n")
+  .addHelpText("after", "\nOwner or Admin workspace role required. Retrieves a list of all active pending or expired organization invites issued by the caller's organization.\n")
   .action(async (opts) => {
     await runSdkCommand({
       operation: orgInvitesList,

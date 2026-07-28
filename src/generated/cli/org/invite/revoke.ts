@@ -5,7 +5,7 @@ import { runSdkCommand } from "../../../../handwritten/commands/run-sdk-command.
 
 export const orgInviteRevokeCommand = new Command("revoke")
   .description("Revoke a pending invite")
-  .addHelpText("after", "\nPermanently revokes a pending organization invite. The invitee will no longer be able to accept it.\n\nExamples:\n  $ wspc org invite revoke inv_...\n")
+  .addHelpText("after", "\nOwner or Admin workspace role required. Permanently revokes a pending organization invite. The invitee will no longer be able to accept it.\n\nExamples:\n  $ wspc org invite revoke inv_...\n")
   .argument("<id>", "id")
   .action(async (id, opts) => {
     await runSdkCommand({

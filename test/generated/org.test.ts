@@ -80,6 +80,7 @@ describe("wspc org (generated)", () => {
         {
           user_id: "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
           email: "alice@example.com",
+          role: "owner",
           display_name: "Alice Smith",
           joined_at: joinedAt,
         },
@@ -99,17 +100,19 @@ describe("wspc org (generated)", () => {
       expect(data).toEqual(mockMembers)
       expect(ctx.display.shape).toBe("list")
       expect(ctx.display.dataPath).toBe("members")
-      expect(ctx.display.columns).toEqual(["user_id", "email", "display_name", "joined_at"])
+      expect(ctx.display.columns).toEqual(["user_id", "email", "role", "display_name", "joined_at"])
       expect(ctx.display.format.user_id).toBe("id-short")
       expect(ctx.display.format.joined_at).toBe("relative-time")
 
       const out = stripAnsi(cap.output())
       expect(out).toContain("USER_ID")
       expect(out).toContain("EMAIL")
+      expect(out).toContain("ROLE")
       expect(out).toContain("DISPLAY_NAME")
       expect(out).toContain("JOINED_AT")
       expect(out).toContain("usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F")
       expect(out).toContain("alice@example.com")
+      expect(out).toContain("owner")
       expect(out).toContain("Alice Smith")
       expect(out).toContain("5m ago")
     } finally {
