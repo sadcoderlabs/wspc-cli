@@ -470,11 +470,7 @@ async function importScannerWithMockFiles(files: Record<string, string>, failure
       const name = basename(path)
       const content = files[name]
       if (content === undefined) throw new Error(`unexpected mock file: ${path}`)
-      return {
-        stat: async () => fakeStats(),
-        createReadStream: () => Readable.from([Buffer.from(content)]),
-        close: async () => undefined,
-      }
+      return fakeFileHandle(content)
     }),
   })
   return imported.scanDriveFiles
@@ -485,7 +481,7 @@ async function importScannerWithMockTree(
 ): Promise<typeof import("../../../src/handwritten/commands/drive/scanner.js")> {
   return importScannerWithMockFs({
     readdir: vi.fn(async (path: string) => {
-      const drivePath = String(path).replace(/^\/mock\/?/, "")
+      const drivePath = mockDrivePath(path)
       const prefix = drivePath === "" ? "" : `${drivePath}/`
       const names = new Set(
         Object.keys(files)
@@ -496,20 +492,16 @@ async function importScannerWithMockTree(
       return [...names].map((name) => ({ name }))
     }),
     lstat: vi.fn(async (path: string) => {
-      const drivePath = String(path).replace(/^\/mock\/?/, "")
+      const drivePath = mockDrivePath(path)
       if (Object.keys(files).some((filePath) => filePath.startsWith(`${drivePath}/`))) return fakeStats(true)
       if (files[drivePath] !== undefined) return fakeStats()
       throw errnoError("ENOENT")
     }),
     open: vi.fn(async (path: string) => {
-      const drivePath = String(path).replace(/^\/mock\/?/, "")
+      const drivePath = mockDrivePath(path)
       const content = files[drivePath]
       if (content === undefined) throw new Error(`unexpected mock file: ${path}`)
-      return {
-        stat: async () => fakeStats(),
-        createReadStream: () => Readable.from([Buffer.from(content)]),
-        close: async () => undefined,
-      }
+      return fakeFileHandle(content)
     }),
   })
 }
@@ -523,6 +515,18 @@ async function importScannerWithMockFs(
     return { ...actual, ...mocks }
   })
   return import("../../../src/handwritten/commands/drive/scanner.js")
+}
+
+function mockDrivePath(path: string): string {
+  return String(path).replace(/^\/mock\/?/, "")
+}
+
+function fakeFileHandle(content: string) {
+  return {
+    stat: async () => fakeStats(),
+    createReadStream: () => Readable.from([Buffer.from(content)]),
+    close: async () => undefined,
+  }
 }
 
 function fakeStats(isDirectory = false) {
