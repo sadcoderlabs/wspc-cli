@@ -153,7 +153,7 @@ export function relativeTime(value: unknown, now: number = Date.now()): string {
       const date = DateTime.fromISO(value)
       if (date.isValid && date.toISODate() === value) return value
     }
-    if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return value
+    if (!/[Tt].*(?:[Zz]|[+-]\d{2}(?::?\d{2})?)$/.test(value)) return value
     instant = DateTime.fromISO(value, { setZone: true })
   } else {
     return String(value)

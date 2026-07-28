@@ -154,6 +154,8 @@ describe("relativeTime", () => {
   it("formats Z and explicit-offset ISO datetimes", () => {
     expect(relativeTime("2001-09-09T01:46:40.000Z", NOW)).toBe("just now")
     expect(relativeTime("2001-09-09T09:46:40.000+08:00", NOW)).toBe("just now")
+    expect(relativeTime("2001-09-09T09:46:40.000+0800", NOW)).toBe("just now")
+    expect(relativeTime("2001-09-09T09:46:40.000+08", NOW)).toBe("just now")
   })
 
   it("keeps a Calendar Date raw near a UTC day boundary", () => {
