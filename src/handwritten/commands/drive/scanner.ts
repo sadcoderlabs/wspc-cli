@@ -33,6 +33,11 @@ interface AcceptedScanEntry {
   cache: ScanCacheEntry
 }
 
+interface ScanCandidate {
+  path: string
+  entry: AcceptedScanEntry
+}
+
 export async function scanDriveFiles(root: string, options: ScanDriveFilesOptions = {}): Promise<Record<string, DriveFileEntry>> {
   const accepted = await scanDriveEntries(root, options)
   const files: Record<string, DriveFileEntry> = {}
@@ -47,12 +52,10 @@ async function scanDriveEntries(
   root: string,
   options: ScanDriveFilesOptions,
 ): Promise<Record<string, AcceptedScanEntry>> {
-  const candidates: Array<{ path: string; entry: AcceptedScanEntry }> = []
-  const accepted: Record<string, AcceptedScanEntry> = {}
+  const candidates: ScanCandidate[] = []
   const startDrivePath = options.startDrivePath ?? ""
   await walk(startDrivePath === "" ? root : join(root, ...startDrivePath.split("/")), startDrivePath)
-  await addNonCollidingFiles(candidates)
-  return accepted
+  return acceptNonCollidingScanEntries(candidates, options.onPathError)
 
   async function walk(currentPath: string, currentDrivePath: string): Promise<void> {
     let entries
@@ -111,30 +114,6 @@ async function scanDriveEntries(
         if (!isTransientScanError(error) || !options.onPathError) throw error
         await options.onPathError(nextDrivePath, error)
       }
-    }
-  }
-
-  async function addNonCollidingFiles(candidates: Array<{ path: string; entry: AcceptedScanEntry }>): Promise<void> {
-    const byCaseFoldedPath = new Map<string, Array<{ path: string; entry: AcceptedScanEntry }>>()
-    for (const candidate of candidates) {
-      const folded = candidate.path.toLowerCase()
-      const group = byCaseFoldedPath.get(folded) ?? []
-      group.push(candidate)
-      byCaseFoldedPath.set(folded, group)
-    }
-
-    for (const group of byCaseFoldedPath.values()) {
-      if (group.length > 1) {
-        const sorted = group.sort((left, right) => left.path.localeCompare(right.path))
-        for (const candidate of sorted) {
-          const error = new Error(`LOCAL_PATH_CASE_CONFLICT: ${candidate.path}`)
-          if (!options.onPathError) throw error
-          await options.onPathError(candidate.path, error)
-        }
-        continue
-      }
-      const [candidate] = group
-      if (candidate) accepted[candidate.path] = candidate.entry
     }
   }
 
@@ -216,12 +195,49 @@ export async function rescanDriveFiles(
     }
   }
 
+  const candidates: ScanCandidate[] = Object.entries(kept).map(([path, cache]) => ({
+    path,
+    entry: {
+      file: { sha256: cache.sha256, size_bytes: cache.size_bytes },
+      cache,
+    },
+  }))
+  const accepted = await acceptNonCollidingScanEntries(candidates, options.onPathError)
   const files: Record<string, DriveFileEntry> = {}
-  for (const [path, entry] of Object.entries(kept)) {
-    options.onCacheUpdate?.(path, entry)
-    files[path] = { sha256: entry.sha256, size_bytes: entry.size_bytes }
+  for (const [path, entry] of Object.entries(accepted)) {
+    options.onCacheUpdate?.(path, entry.cache)
+    files[path] = entry.file
   }
   return files
+}
+
+async function acceptNonCollidingScanEntries(
+  candidates: ScanCandidate[],
+  onPathError: ScanDriveFilesOptions["onPathError"],
+): Promise<Record<string, AcceptedScanEntry>> {
+  const byCaseFoldedPath = new Map<string, ScanCandidate[]>()
+  for (const candidate of candidates) {
+    const folded = candidate.path.toLowerCase()
+    const group = byCaseFoldedPath.get(folded) ?? []
+    group.push(candidate)
+    byCaseFoldedPath.set(folded, group)
+  }
+
+  const accepted: Record<string, AcceptedScanEntry> = {}
+  for (const group of byCaseFoldedPath.values()) {
+    if (group.length > 1) {
+      const sorted = group.sort((left, right) => left.path.localeCompare(right.path))
+      for (const candidate of sorted) {
+        const error = new Error(`LOCAL_PATH_CASE_CONFLICT: ${candidate.path}`)
+        if (!onPathError) throw error
+        await onPathError(candidate.path, error)
+      }
+      continue
+    }
+    const [candidate] = group
+    if (candidate) accepted[candidate.path] = candidate.entry
+  }
+  return accepted
 }
 
 async function scanDriveFile(

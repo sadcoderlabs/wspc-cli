@@ -238,6 +238,30 @@ describe("drive scanner", () => {
     expect(incremental).toEqual(full)
   })
 
+  it("excludes a dirty file that case-collides with the retained cache", async () => {
+    const scanner = await importScannerWithMockTree({
+      "a.txt": "lower",
+    })
+    const errors: string[] = []
+    const updates: string[] = []
+
+    const files = await scanner.rescanDriveFiles("/mock", ["a.txt"], {
+      cache: {
+        "A.txt": { mtime_ms: 1, size_bytes: 5, sha256: "cached" },
+      },
+      onPathError: (path) => {
+        errors.push(path)
+      },
+      onCacheUpdate: (path) => {
+        updates.push(path)
+      },
+    })
+
+    expect(files).toEqual({})
+    expect(errors.sort()).toEqual(["A.txt", "a.txt"].sort())
+    expect(updates).toEqual([])
+  })
+
   it("skips symlink entries", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-scan-symlink-"))
     await writeFile(join(root, "target.txt"), "target")
@@ -424,80 +448,79 @@ interface MockFsFailures {
 }
 
 async function importScannerWithMockFiles(files: Record<string, string>, failures: MockFsFailures = {}): Promise<typeof scanDriveFiles> {
-  vi.resetModules()
-  vi.doMock("node:fs/promises", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("node:fs/promises")>()
-    return {
-      ...actual,
-      readdir: vi.fn(async (path: string) => {
-        const failure = failures.readdirError?.(String(path))
-        if (failure) throw failure
-        if (basename(String(path)) !== "mock") return []
-        return [
-          ...Object.keys(files).map((name) => ({ name })),
-          ...(failures.extraDirs ?? []).map((name) => ({ name, isDir: true })),
-        ]
-      }),
-      lstat: vi.fn(async (path: string) => {
-        const failure = failures.lstatError?.(String(path))
-        if (failure) throw failure
-        const isDir = (failures.extraDirs ?? []).includes(basename(String(path)))
-        return fakeStats(isDir)
-      }),
-      open: vi.fn(async (path: string) => {
-        const failure = failures.openError?.(String(path))
-        if (failure) throw failure
-        const name = basename(path)
-        const content = files[name]
-        if (content === undefined) throw new Error(`unexpected mock file: ${path}`)
-        return {
-          stat: async () => fakeStats(),
-          createReadStream: () => Readable.from([Buffer.from(content)]),
-          close: async () => undefined,
-        }
-      }),
-    }
+  const imported = await importScannerWithMockFs({
+    readdir: vi.fn(async (path: string) => {
+      const failure = failures.readdirError?.(String(path))
+      if (failure) throw failure
+      if (basename(String(path)) !== "mock") return []
+      return [
+        ...Object.keys(files).map((name) => ({ name })),
+        ...(failures.extraDirs ?? []).map((name) => ({ name, isDir: true })),
+      ]
+    }),
+    lstat: vi.fn(async (path: string) => {
+      const failure = failures.lstatError?.(String(path))
+      if (failure) throw failure
+      const isDir = (failures.extraDirs ?? []).includes(basename(String(path)))
+      return fakeStats(isDir)
+    }),
+    open: vi.fn(async (path: string) => {
+      const failure = failures.openError?.(String(path))
+      if (failure) throw failure
+      const name = basename(path)
+      const content = files[name]
+      if (content === undefined) throw new Error(`unexpected mock file: ${path}`)
+      return {
+        stat: async () => fakeStats(),
+        createReadStream: () => Readable.from([Buffer.from(content)]),
+        close: async () => undefined,
+      }
+    }),
   })
-  const imported = await import("../../../src/handwritten/commands/drive/scanner.js")
   return imported.scanDriveFiles
 }
 
 async function importScannerWithMockTree(
   files: Record<string, string>,
 ): Promise<typeof import("../../../src/handwritten/commands/drive/scanner.js")> {
+  return importScannerWithMockFs({
+    readdir: vi.fn(async (path: string) => {
+      const drivePath = String(path).replace(/^\/mock\/?/, "")
+      const prefix = drivePath === "" ? "" : `${drivePath}/`
+      const names = new Set(
+        Object.keys(files)
+          .filter((filePath) => filePath.startsWith(prefix))
+          .map((filePath) => filePath.slice(prefix.length).split("/")[0])
+          .filter((name): name is string => name !== undefined),
+      )
+      return [...names].map((name) => ({ name }))
+    }),
+    lstat: vi.fn(async (path: string) => {
+      const drivePath = String(path).replace(/^\/mock\/?/, "")
+      if (Object.keys(files).some((filePath) => filePath.startsWith(`${drivePath}/`))) return fakeStats(true)
+      if (files[drivePath] !== undefined) return fakeStats()
+      throw errnoError("ENOENT")
+    }),
+    open: vi.fn(async (path: string) => {
+      const drivePath = String(path).replace(/^\/mock\/?/, "")
+      const content = files[drivePath]
+      if (content === undefined) throw new Error(`unexpected mock file: ${path}`)
+      return {
+        stat: async () => fakeStats(),
+        createReadStream: () => Readable.from([Buffer.from(content)]),
+        close: async () => undefined,
+      }
+    }),
+  })
+}
+
+async function importScannerWithMockFs(
+  mocks: Record<string, unknown>,
+): Promise<typeof import("../../../src/handwritten/commands/drive/scanner.js")> {
   vi.resetModules()
   vi.doMock("node:fs/promises", async (importOriginal) => {
     const actual = await importOriginal<typeof import("node:fs/promises")>()
-    return {
-      ...actual,
-      readdir: vi.fn(async (path: string) => {
-        const drivePath = String(path).replace(/^\/mock\/?/, "")
-        const prefix = drivePath === "" ? "" : `${drivePath}/`
-        const names = new Set(
-          Object.keys(files)
-            .filter((filePath) => filePath.startsWith(prefix))
-            .map((filePath) => filePath.slice(prefix.length).split("/")[0])
-            .filter((name): name is string => name !== undefined),
-        )
-        return [...names].map((name) => ({ name }))
-      }),
-      lstat: vi.fn(async (path: string) => {
-        const drivePath = String(path).replace(/^\/mock\/?/, "")
-        if (Object.keys(files).some((filePath) => filePath.startsWith(`${drivePath}/`))) return fakeStats(true)
-        if (files[drivePath] !== undefined) return fakeStats()
-        throw errnoError("ENOENT")
-      }),
-      open: vi.fn(async (path: string) => {
-        const drivePath = String(path).replace(/^\/mock\/?/, "")
-        const content = files[drivePath]
-        if (content === undefined) throw new Error(`unexpected mock file: ${path}`)
-        return {
-          stat: async () => fakeStats(),
-          createReadStream: () => Readable.from([Buffer.from(content)]),
-          close: async () => undefined,
-        }
-      }),
-    }
+    return { ...actual, ...mocks }
   })
   return import("../../../src/handwritten/commands/drive/scanner.js")
 }
