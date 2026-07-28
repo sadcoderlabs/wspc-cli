@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { constants as fsConstants } from "node:fs"
-import { type Dirent } from "node:fs"
+import { type Dirent, type Stats } from "node:fs"
 import { open, readdir, lstat } from "node:fs/promises"
 import { isAbsolute, join, posix as pathPosix, relative, resolve, sep } from "node:path"
 import type { DriveExcludeRules } from "./exclude-rules.js"
@@ -28,13 +28,31 @@ export interface ScanDriveFilesOptions {
   excludeRules?: DriveExcludeRules
 }
 
+interface AcceptedScanEntry {
+  file: DriveFileEntry
+  cache: ScanCacheEntry
+}
+
 export async function scanDriveFiles(root: string, options: ScanDriveFilesOptions = {}): Promise<Record<string, DriveFileEntry>> {
-  const candidates: Array<{ path: string; entry: DriveFileEntry }> = []
+  const accepted = await scanDriveEntries(root, options)
   const files: Record<string, DriveFileEntry> = {}
+  for (const [path, entry] of Object.entries(accepted)) {
+    options.onCacheUpdate?.(path, entry.cache)
+    files[path] = entry.file
+  }
+  return files
+}
+
+async function scanDriveEntries(
+  root: string,
+  options: ScanDriveFilesOptions,
+): Promise<Record<string, AcceptedScanEntry>> {
+  const candidates: Array<{ path: string; entry: AcceptedScanEntry }> = []
+  const accepted: Record<string, AcceptedScanEntry> = {}
   const startDrivePath = options.startDrivePath ?? ""
   await walk(startDrivePath === "" ? root : join(root, ...startDrivePath.split("/")), startDrivePath)
   await addNonCollidingFiles(candidates)
-  return files
+  return accepted
 
   async function walk(currentPath: string, currentDrivePath: string): Promise<void> {
     let entries
@@ -85,19 +103,8 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
         }
         if (options.excludeRules?.matches(nextDrivePath, "file")) continue
 
-        const cached = options.cache?.[nextDrivePath]
-        if (cached !== undefined && cached.mtime_ms === stats.mtimeMs && cached.size_bytes === stats.size) {
-          options.onCacheUpdate?.(nextDrivePath, cached)
-          candidates.push({ path: nextDrivePath, entry: { sha256: cached.sha256, size_bytes: cached.size_bytes } })
-          continue
-        }
-
-        const digest = await hashDriveFile(nextPath)
-        if (!digest) {
-          continue
-        }
-        options.onCacheUpdate?.(nextDrivePath, { mtime_ms: stats.mtimeMs, size_bytes: digest.sizeBytes, sha256: digest.sha256 })
-        candidates.push({ path: nextDrivePath, entry: { sha256: digest.sha256, size_bytes: digest.sizeBytes } })
+        const scanned = await scanDriveFile(nextPath, nextDrivePath, stats, options.cache)
+        if (scanned) candidates.push({ path: nextDrivePath, entry: scanned })
       } catch (error) {
         // Files can vanish or lock mid-scan (rename transitions, editors
         // holding locks); skip and let the next sync pass reconcile them.
@@ -107,8 +114,8 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
     }
   }
 
-  async function addNonCollidingFiles(candidates: Array<{ path: string; entry: DriveFileEntry }>): Promise<void> {
-    const byCaseFoldedPath = new Map<string, Array<{ path: string; entry: DriveFileEntry }>>()
+  async function addNonCollidingFiles(candidates: Array<{ path: string; entry: AcceptedScanEntry }>): Promise<void> {
+    const byCaseFoldedPath = new Map<string, Array<{ path: string; entry: AcceptedScanEntry }>>()
     for (const candidate of candidates) {
       const folded = candidate.path.toLowerCase()
       const group = byCaseFoldedPath.get(folded) ?? []
@@ -127,7 +134,7 @@ export async function scanDriveFiles(root: string, options: ScanDriveFilesOption
         continue
       }
       const [candidate] = group
-      if (candidate) files[candidate.path] = candidate.entry
+      if (candidate) accepted[candidate.path] = candidate.entry
     }
   }
 
@@ -189,13 +196,11 @@ export async function rescanDriveFiles(
 
     if (stats.isDirectory()) {
       if (options.excludeRules?.matches(dirtyPath, "directory")) continue
-      await scanDriveFiles(root, {
+      const accepted = await scanDriveEntries(root, {
         ...options,
         startDrivePath: dirtyPath,
-        onCacheUpdate: (path, entry) => {
-          kept[path] = entry
-        },
       })
+      for (const [path, entry] of Object.entries(accepted)) kept[path] = entry.cache
       continue
     }
 
@@ -203,14 +208,8 @@ export async function rescanDriveFiles(
     if (options.excludeRules?.matches(dirtyPath, "file")) continue
 
     try {
-      const cached = options.cache?.[dirtyPath]
-      if (cached !== undefined && cached.mtime_ms === stats.mtimeMs && cached.size_bytes === stats.size) {
-        kept[dirtyPath] = cached
-        continue
-      }
-      const digest = await hashDriveFile(absPath)
-      if (!digest) continue
-      kept[dirtyPath] = { mtime_ms: stats.mtimeMs, size_bytes: digest.sizeBytes, sha256: digest.sha256 }
+      const scanned = await scanDriveFile(absPath, dirtyPath, stats, options.cache)
+      if (scanned) kept[dirtyPath] = scanned.cache
     } catch (error) {
       if (!isTransientScanError(error) || !options.onPathError) throw error
       await options.onPathError(dirtyPath, error)
@@ -223,6 +222,28 @@ export async function rescanDriveFiles(
     files[path] = { sha256: entry.sha256, size_bytes: entry.size_bytes }
   }
   return files
+}
+
+async function scanDriveFile(
+  absolutePath: string,
+  drivePath: string,
+  stats: Stats,
+  cache: Record<string, ScanCacheEntry> | undefined,
+): Promise<AcceptedScanEntry | undefined> {
+  const cached = cache?.[drivePath]
+  if (cached !== undefined && cached.mtime_ms === stats.mtimeMs && cached.size_bytes === stats.size) {
+    return {
+      file: { sha256: cached.sha256, size_bytes: cached.size_bytes },
+      cache: cached,
+    }
+  }
+
+  const digest = await hashDriveFile(absolutePath)
+  if (!digest) return undefined
+  return {
+    file: { sha256: digest.sha256, size_bytes: digest.sizeBytes },
+    cache: { mtime_ms: stats.mtimeMs, size_bytes: digest.sizeBytes, sha256: digest.sha256 },
+  }
 }
 
 function resolveDirtyPathInsideRoot(root: string, dirtyPath: string): string | undefined {
