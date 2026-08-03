@@ -8,6 +8,38 @@ afterEach(() => {
 })
 
 const UA = `@wspc/cli/${VERSION}`
+const TOKEN_URL = "https://api.wspc.ai/auth/oauth/token"
+
+// The server's half of the contract these tests exist for: refresh tokens are
+// single-use, every refresh rotates, and presenting one that was already
+// rotated away revokes the family (Sentry: auth.refresh_reuse_revoked).
+// `fetchFor` hands out an independent mock per interceptor while all of them
+// share one token ledger, the way separate CLI processes share one server.
+function rotatingTokenServer(initialRefreshToken: string) {
+  const live = new Set([initialRefreshToken])
+  let rotations = 0
+  const server = {
+    refreshCalls: 0,
+    fetchFor: () =>
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+        if (url !== TOKEN_URL) return new Response(JSON.stringify({ ok: true }), { status: 200 })
+        server.refreshCalls++
+        const presented = new URLSearchParams(String(init?.body)).get("refresh_token")!
+        if (!live.has(presented)) {
+          return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 401 })
+        }
+        live.delete(presented)
+        const next = `wrt_${++rotations}`
+        live.add(next)
+        return new Response(
+          JSON.stringify({ access_token: `wat_${rotations}`, refresh_token: next, expires_in: 900 }),
+          { status: 200 },
+        )
+      }),
+  }
+  return server
+}
 
 describe("createAuthInterceptor", () => {
   it("attaches bearer header (apiKey mode)", async () => {
@@ -169,33 +201,7 @@ describe("createAuthInterceptor", () => {
   })
 
   it("does not double-refresh (reuse the same refresh_token) under concurrent requests", async () => {
-    // Model the server's refresh-token rotation + reuse detection: a refresh
-    // token is single-use. Presenting one that was already rotated away means
-    // the whole family is revoked (Sentry: auth.refresh_reuse_revoked).
-    const liveRefreshTokens = new Set(["wrt_old"])
-    let rotations = 0
-    let refreshCalls = 0
-
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
-      if (url === "https://api.wspc.ai/auth/oauth/token") {
-        refreshCalls++
-        const presented = new URLSearchParams(String(init?.body)).get("refresh_token")!
-        if (!liveRefreshTokens.has(presented)) {
-          // Reuse of an already-rotated token → family revoked.
-          return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 401 })
-        }
-        liveRefreshTokens.delete(presented)
-        const next = `wrt_${++rotations}`
-        liveRefreshTokens.add(next)
-        return new Response(
-          JSON.stringify({ access_token: `wat_${rotations}`, refresh_token: next, expires_in: 900 }),
-          { status: 200 },
-        )
-      }
-      return new Response(JSON.stringify({ ok: true }), { status: 200 })
-    })
-
+    const server = rotatingTokenServer("wrt_old")
     const interceptor = createAuthInterceptor({
       accessToken: "wat_old",
       refreshToken: "wrt_old",
@@ -203,7 +209,7 @@ describe("createAuthInterceptor", () => {
       clientId: "oac_wspc_cli",
       expiresAt: 1_000, // already expired relative to `now`
       now: () => 100_000,
-      fetchImpl: fetchMock as unknown as typeof fetch,
+      fetchImpl: server.fetchFor() as unknown as typeof fetch,
       onTokenRefresh: () => {},
     })
 
@@ -216,7 +222,7 @@ describe("createAuthInterceptor", () => {
     for (const res of results) expect(res.ok).toBe(true)
     // A single-flight refresh hits the token endpoint exactly once; without it,
     // the second concurrent request reuses wrt_old and revokes the family.
-    expect(refreshCalls).toBe(1)
+    expect(server.refreshCalls).toBe(1)
   })
 
   it("does not reuse a stale in-memory refresh_token after another instance rotated it", async () => {
@@ -226,32 +232,12 @@ describe("createAuthInterceptor", () => {
     // B refreshes using the token it cached at startup — now stale. gap_ms ~8min
     // in Sentry matches this, not a sub-second concurrent race.
     const NOW = 100_000
-    const liveRefreshTokens = new Set(["wrt_old"])
-    let rotations = 0
+    const server = rotatingTokenServer("wrt_old")
     // Stands in for the on-disk config that ConfigStore reads and writes.
     const disk: PersistedTokens = { accessToken: "wat_old", refreshToken: "wrt_old", expiresAt: 1_000 }
 
-    const makeFetch = () =>
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
-        if (url === "https://api.wspc.ai/auth/oauth/token") {
-          const presented = new URLSearchParams(String(init?.body)).get("refresh_token")!
-          if (!liveRefreshTokens.has(presented)) {
-            return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 401 })
-          }
-          liveRefreshTokens.delete(presented)
-          const next = `wrt_${++rotations}`
-          liveRefreshTokens.add(next)
-          return new Response(
-            JSON.stringify({ access_token: `wat_${rotations}`, refresh_token: next, expires_in: 900 }),
-            { status: 200 },
-          )
-        }
-        return new Response(JSON.stringify({ ok: true }), { status: 200 })
-      })
-
     const build = () => {
-      const fetchMock = makeFetch()
+      const fetchMock = server.fetchFor()
       const interceptor = createAuthInterceptor({
         accessToken: disk.accessToken,
         refreshToken: disk.refreshToken, // both read the SAME disk token at startup

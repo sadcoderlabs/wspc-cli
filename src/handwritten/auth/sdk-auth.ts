@@ -79,7 +79,9 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
   // skewed clock) doesn't slip through and still eat a 401 server-side.
   const SKEW_MS = 30_000
 
-  function isUsable(until: number | undefined): boolean {
+  // "We positively know this token is still good." An unknown expiry is not
+  // fresh, but it isn't known-stale either — that case falls to the 401 path.
+  function isFresh(until: number | undefined): boolean {
     return until !== undefined && now() < until - SKEW_MS
   }
 
@@ -93,7 +95,7 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
     accessToken = persisted.accessToken
     refreshToken = persisted.refreshToken
     expiresAt = persisted.expiresAt
-    return isUsable(expiresAt)
+    return isFresh(expiresAt)
   }
 
   async function refreshOnce(): Promise<void> {
@@ -145,7 +147,7 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
     async execute(req) {
       // Proactive path: when we already know the token is expired, refresh
       // before the request rather than wasting a round-trip on a sure 401.
-      if (expiresAt !== undefined && now() >= expiresAt - SKEW_MS) {
+      if (expiresAt !== undefined && !isFresh(expiresAt)) {
         await refresh()
       }
 
