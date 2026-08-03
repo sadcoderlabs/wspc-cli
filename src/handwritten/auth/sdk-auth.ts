@@ -5,6 +5,12 @@ import { VERSION } from "../../version.js"
 // refresh/verify outcome to a specific CLI version.
 const USER_AGENT = `@wspc/cli/${VERSION}`
 
+export interface PersistedTokens {
+  accessToken: string
+  refreshToken: string
+  expiresAt?: number
+}
+
 export type AuthMode =
   | { apiKey: string; fetchImpl?: typeof fetch }
   | {
@@ -16,6 +22,12 @@ export type AuthMode =
       baseUrl: string
       clientId: string
       onTokenRefresh: (next: { accessToken: string; refreshToken: string; expiresAt: number }) => void | Promise<void>
+      // Re-read the tokens from wherever they are persisted. Refresh tokens are
+      // single-use: another process (or another interceptor in this one) may
+      // have rotated ours since we cached it, and presenting the superseded copy
+      // is what the server's reuse detection revokes the whole family for.
+      // Called immediately before every refresh; omit for in-memory-only use.
+      loadPersisted?: () => Promise<PersistedTokens | undefined>
       fetchImpl?: typeof fetch
       now?: () => number
     }
@@ -59,7 +71,7 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
   let accessToken = mode.accessToken
   let refreshToken = mode.refreshToken
   let expiresAt = mode.expiresAt
-  const { baseUrl, clientId, onTokenRefresh } = mode
+  const { baseUrl, clientId, onTokenRefresh, loadPersisted } = mode
   const fetchImpl = mode.fetchImpl ?? fetch
   const now = mode.now ?? Date.now
 
@@ -67,7 +79,26 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
   // skewed clock) doesn't slip through and still eat a 401 server-side.
   const SKEW_MS = 30_000
 
-  async function refresh(): Promise<void> {
+  function isUsable(until: number | undefined): boolean {
+    return until !== undefined && now() < until - SKEW_MS
+  }
+
+  // Adopt tokens that landed in the store after we cached ours. Returns true
+  // when the adopted access token is still usable, meaning no refresh is needed
+  // at all — someone else already did it and rotating again would present a
+  // token the server has superseded.
+  async function adoptPersisted(): Promise<boolean> {
+    const persisted = await loadPersisted?.()
+    if (!persisted || persisted.refreshToken === refreshToken) return false
+    accessToken = persisted.accessToken
+    refreshToken = persisted.refreshToken
+    expiresAt = persisted.expiresAt
+    return isUsable(expiresAt)
+  }
+
+  async function refreshOnce(): Promise<void> {
+    if (await adoptPersisted()) return
+
     const refreshRes = await fetchImpl(`${baseUrl}/auth/oauth/token`, {
       method: "POST",
       headers: {
@@ -94,6 +125,17 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
     await onTokenRefresh({ accessToken, refreshToken, expiresAt })
   }
 
+  // Single-flight: concurrent callers (e.g. a Promise.all of API requests that
+  // all see an expired token) share one rotation instead of racing to spend the
+  // same refresh token.
+  let inFlight: Promise<void> | undefined
+  function refresh(): Promise<void> {
+    inFlight ??= refreshOnce().finally(() => {
+      inFlight = undefined
+    })
+    return inFlight
+  }
+
   return {
     async onRequest(req) {
       req.headers.set("authorization", `Bearer ${accessToken}`)
@@ -107,11 +149,15 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
         await refresh()
       }
 
+      const sentWith = accessToken
       const first = await fetchImpl(await this.onRequest(req.clone()))
       if (first.status !== 401) return first
 
       // Reactive fallback: server revoked early, clock skew, or expiry unknown.
-      await refresh()
+      // If a concurrent refresh already replaced the token this request went out
+      // with, that 401 is stale — retry on the new token rather than rotating
+      // again for nothing.
+      if (accessToken === sentWith) await refresh()
       return fetchImpl(await this.onRequest(req.clone()))
     },
   }

@@ -45,6 +45,20 @@ function buildInterceptor(
     baseUrl: apiBase,
     clientId,
     fetchImpl,
+    // Every command builds its own interceptor, and long-running ones (`drive
+    // watch`) rebuild theirs per reconnect. Re-reading the config right before a
+    // refresh keeps a second interceptor — in this process or another `wspc` —
+    // from presenting a refresh token the first one has already rotated away.
+    loadPersisted: async () => {
+      const cfg = await store.read()
+      const a = cfg.envs[envName]?.accounts?.[email]
+      if (!a?.access_token || !a.refresh_token) return undefined
+      return {
+        accessToken: a.access_token,
+        refreshToken: a.refresh_token,
+        expiresAt: a.access_token_expires_at,
+      }
+    },
     onTokenRefresh: async ({ accessToken, refreshToken, expiresAt }) => {
       await store.update((cfg) => {
         const a = cfg.envs[envName]?.accounts?.[email]

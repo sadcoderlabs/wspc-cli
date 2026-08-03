@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from "vitest"
-import { createAuthInterceptor } from "../src/handwritten/auth/sdk-auth.js"
+import { createAuthInterceptor, type PersistedTokens } from "../src/handwritten/auth/sdk-auth.js"
 import { WspcAuthExpiredError } from "../src/index.js"
 import { VERSION } from "../src/version.js"
 
@@ -166,6 +166,160 @@ describe("createAuthInterceptor", () => {
     expect(res.ok).toBe(true)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(onTokenRefresh).not.toHaveBeenCalled()
+  })
+
+  it("does not double-refresh (reuse the same refresh_token) under concurrent requests", async () => {
+    // Model the server's refresh-token rotation + reuse detection: a refresh
+    // token is single-use. Presenting one that was already rotated away means
+    // the whole family is revoked (Sentry: auth.refresh_reuse_revoked).
+    const liveRefreshTokens = new Set(["wrt_old"])
+    let rotations = 0
+    let refreshCalls = 0
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      if (url === "https://api.wspc.ai/auth/oauth/token") {
+        refreshCalls++
+        const presented = new URLSearchParams(String(init?.body)).get("refresh_token")!
+        if (!liveRefreshTokens.has(presented)) {
+          // Reuse of an already-rotated token → family revoked.
+          return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 401 })
+        }
+        liveRefreshTokens.delete(presented)
+        const next = `wrt_${++rotations}`
+        liveRefreshTokens.add(next)
+        return new Response(
+          JSON.stringify({ access_token: `wat_${rotations}`, refresh_token: next, expires_in: 900 }),
+          { status: 200 },
+        )
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    })
+
+    const interceptor = createAuthInterceptor({
+      accessToken: "wat_old",
+      refreshToken: "wrt_old",
+      baseUrl: "https://api.wspc.ai",
+      clientId: "oac_wspc_cli",
+      expiresAt: 1_000, // already expired relative to `now`
+      now: () => 100_000,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      onTokenRefresh: () => {},
+    })
+
+    // Two commands fire at once (e.g. drive path-executor's Promise.all).
+    const results = await Promise.all([
+      interceptor.execute(new Request("https://api.wspc.ai/todo/items")),
+      interceptor.execute(new Request("https://api.wspc.ai/todo/items")),
+    ])
+
+    for (const res of results) expect(res.ok).toBe(true)
+    // A single-flight refresh hits the token endpoint exactly once; without it,
+    // the second concurrent request reuses wrt_old and revokes the family.
+    expect(refreshCalls).toBe(1)
+  })
+
+  it("does not reuse a stale in-memory refresh_token after another instance rotated it", async () => {
+    // Two interceptors built from the same on-disk state (e.g. `watch` rebuilds
+    // one per reconnect via loadRealtimeAuthHeaders, or two `wspc` processes).
+    // Instance A refreshes and rotates the token on disk; minutes later instance
+    // B refreshes using the token it cached at startup — now stale. gap_ms ~8min
+    // in Sentry matches this, not a sub-second concurrent race.
+    const NOW = 100_000
+    const liveRefreshTokens = new Set(["wrt_old"])
+    let rotations = 0
+    // Stands in for the on-disk config that ConfigStore reads and writes.
+    const disk: PersistedTokens = { accessToken: "wat_old", refreshToken: "wrt_old", expiresAt: 1_000 }
+
+    const makeFetch = () =>
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+        if (url === "https://api.wspc.ai/auth/oauth/token") {
+          const presented = new URLSearchParams(String(init?.body)).get("refresh_token")!
+          if (!liveRefreshTokens.has(presented)) {
+            return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 401 })
+          }
+          liveRefreshTokens.delete(presented)
+          const next = `wrt_${++rotations}`
+          liveRefreshTokens.add(next)
+          return new Response(
+            JSON.stringify({ access_token: `wat_${rotations}`, refresh_token: next, expires_in: 900 }),
+            { status: 200 },
+          )
+        }
+        return new Response(JSON.stringify({ ok: true }), { status: 200 })
+      })
+
+    const build = () => {
+      const fetchMock = makeFetch()
+      const interceptor = createAuthInterceptor({
+        accessToken: disk.accessToken,
+        refreshToken: disk.refreshToken, // both read the SAME disk token at startup
+        baseUrl: "https://api.wspc.ai",
+        clientId: "oac_wspc_cli",
+        expiresAt: disk.expiresAt, // expired → each will refresh on first use
+        now: () => NOW,
+        fetchImpl: fetchMock as unknown as typeof fetch,
+        loadPersisted: async () => ({ ...disk }),
+        onTokenRefresh: ({ accessToken, refreshToken, expiresAt }) => {
+          disk.accessToken = accessToken
+          disk.refreshToken = refreshToken
+          disk.expiresAt = expiresAt // persisted rotation, like store.update
+        },
+      })
+      return { interceptor, fetchMock }
+    }
+
+    const a = build()
+    const b = build() // started before A rotated; caches wrt_old in memory
+
+    await a.interceptor.execute(new Request("https://api.wspc.ai/todo/items")) // rotates wrt_old -> wrt_1
+    const res = await b.interceptor.execute(new Request("https://api.wspc.ai/todo/items"))
+
+    expect(res.ok).toBe(true)
+    // B adopts A's rotated tokens rather than presenting its superseded copy,
+    // so it never reaches the token endpoint at all.
+    const bTokenCalls = b.fetchMock.mock.calls.filter(
+      ([input]) => input === "https://api.wspc.ai/auth/oauth/token",
+    )
+    expect(bTokenCalls).toHaveLength(0)
+    const bApiReq = b.fetchMock.mock.calls[0]![0] as Request
+    expect(bApiReq.headers.get("authorization")).toBe("Bearer wat_1")
+  })
+
+  it("still refreshes when the persisted access token is also expired", async () => {
+    // Adopting persisted tokens must not swallow a genuinely needed refresh:
+    // if what is on disk is stale too, we still rotate.
+    const NOW = 100_000
+    const disk: PersistedTokens = { accessToken: "wat_disk", refreshToken: "wrt_disk", expiresAt: 1_000 }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      if (url === "https://api.wspc.ai/auth/oauth/token") {
+        expect(new URLSearchParams(String(init?.body)).get("refresh_token")).toBe("wrt_disk")
+        return new Response(
+          JSON.stringify({ access_token: "wat_new", refresh_token: "wrt_new", expires_in: 900 }),
+          { status: 200 },
+        )
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    })
+
+    const interceptor = createAuthInterceptor({
+      accessToken: "wat_mem",
+      refreshToken: "wrt_mem", // superseded by what is on disk
+      baseUrl: "https://api.wspc.ai",
+      clientId: "oac_wspc_cli",
+      expiresAt: 1_000,
+      now: () => NOW,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      loadPersisted: async () => ({ ...disk }),
+      onTokenRefresh: () => {},
+    })
+
+    const res = await interceptor.execute(new Request("https://api.wspc.ai/todo/items"))
+    expect(res.ok).toBe(true)
+    const apiReq = fetchMock.mock.calls[1]![0] as Request
+    expect(apiReq.headers.get("authorization")).toBe("Bearer wat_new")
   })
 
   it("throws WspcAuthExpiredError when refresh also returns 401", async () => {
