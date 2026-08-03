@@ -200,6 +200,64 @@ describe("createAuthInterceptor", () => {
     expect(onTokenRefresh).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ["refresh_token_reused", /used twice|another .*wspc|replay/i],
+    ["refresh_token_revoked", /revoked/i],
+    ["refresh_token_expired", /expired/i],
+  ])("explains a %s rejection instead of just echoing invalid_grant", async (reason, expected) => {
+    // Every refresh rejection comes back as invalid_grant, so error_description
+    // is the only signal. A revoked session and a lapsed one need different
+    // words: one means "sign in again", the other means something is replaying
+    // your credentials.
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      if (url === TOKEN_URL) {
+        return new Response(
+          JSON.stringify({ error: "invalid_grant", error_description: reason }),
+          { status: 401 },
+        )
+      }
+      return new Response(null, { status: 401 })
+    })
+
+    const interceptor = createAuthInterceptor({
+      accessToken: "wat_old",
+      refreshToken: "wrt_old",
+      baseUrl: "https://api.wspc.ai",
+      clientId: "oac_wspc_cli",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      onTokenRefresh: () => {},
+    })
+
+    await expect(
+      interceptor.execute(new Request("https://api.wspc.ai/todo/items")),
+    ).rejects.toThrow(expected)
+    await expect(
+      interceptor.execute(new Request("https://api.wspc.ai/todo/items")),
+    ).rejects.toThrow(/wspc login/)
+  })
+
+  it("falls back to echoing the code when the server sends a reason it doesn't know", async () => {
+    // An older or newer server may send something unmapped; the raw code still
+    // beats a blank message.
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ error: "invalid_grant", error_description: "something_new" }), {
+        status: 401,
+      }),
+    )
+    const interceptor = createAuthInterceptor({
+      accessToken: "wat_old",
+      refreshToken: "wrt_old",
+      baseUrl: "https://api.wspc.ai",
+      clientId: "oac_wspc_cli",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      onTokenRefresh: () => {},
+    })
+    await expect(
+      interceptor.execute(new Request("https://api.wspc.ai/todo/items")),
+    ).rejects.toThrow(/something_new/)
+  })
+
   it("does not double-refresh (reuse the same refresh_token) under concurrent requests", async () => {
     const server = rotatingTokenServer("wrt_old")
     const interceptor = createAuthInterceptor({

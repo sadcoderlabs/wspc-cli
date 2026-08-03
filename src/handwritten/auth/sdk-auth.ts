@@ -37,13 +37,28 @@ export interface AuthInterceptor {
   execute(req: Request): Promise<Response>
 }
 
-// Surface the server's OAuth error code on a failed refresh. The server maps
-// reuse/expired/revoked all to `invalid_grant`, so we can't tell them apart
-// here — but echoing the code still beats a blank message when diagnosing.
+// RFC 6749 §5.2 pins every refresh rejection to `invalid_grant`, so the server
+// puts the actual reason in `error_description`. These read differently to a
+// user: an expiry means "sign in again", a reuse means something is presenting
+// credentials that were already rotated away — usually a stale copy in another
+// process, occasionally a genuinely leaked token.
+const REFRESH_REJECTION_HELP: Record<string, string> = {
+  refresh_token_reused:
+    "wspc signed you out because a refresh token was used twice — another `wspc` process may be holding an old copy of your credentials",
+  refresh_token_revoked: "your wspc session was revoked",
+  refresh_token_expired: "your wspc session expired",
+  refresh_token_unknown: "wspc no longer recognises these credentials",
+}
+
+// Surface why the refresh failed. Falls back to echoing the raw code when the
+// server sends a reason this build doesn't know, which still beats a blank
+// message when diagnosing.
 async function expiredMessage(res: Response): Promise<string | undefined> {
   try {
     const body = (await res.clone().json()) as { error?: string; error_description?: string }
     if (!body.error) return undefined
+    const help = body.error_description ? REFRESH_REJECTION_HELP[body.error_description] : undefined
+    if (help) return `${help}; re-authenticate via \`wspc login\``
     const detail = body.error_description ? `: ${body.error_description}` : ""
     return `wspc token refresh failed (${body.error}${detail}); re-authenticate via \`wspc login\``
   } catch {
