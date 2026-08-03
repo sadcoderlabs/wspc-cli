@@ -302,4 +302,64 @@ describe("loadSdkClient", () => {
     // Verify the function is callable without arguments (uses default store)
     expect(typeof loadSdkClient).toBe("function")
   })
+
+  it("refreshes with the token another session persisted, not the one it started with", async () => {
+    // The interceptor caches credentials when the command starts, but a
+    // concurrent `wspc` (or a `drive watch` reconnect) can rotate them first.
+    // Presenting the copy this one started with is what makes the server revoke
+    // the whole token family and log the user out.
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-load-rotated-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write({
+      current_env: "prod",
+      envs: {
+        prod: {
+          api_base: "https://api.wspc.ai",
+          client_id: "oac_wspc_cli",
+          current_account: "a@x.com",
+          accounts: {
+            "a@x.com": {
+              email: "a@x.com",
+              access_token: "wat_start",
+              refresh_token: "wrt_start",
+              access_token_expires_at: Date.now() - 60_000, // expired -> will refresh
+            },
+          },
+        },
+      },
+    })
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      // The server has already rotated wrt_start away; presenting it again is
+      // exactly the reuse that revokes the family.
+      if (url.endsWith("/auth/oauth/token")) {
+        return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 401 })
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    })
+    const { fetch: authedFetch } = await loadAuthedFetch({
+      store,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    })
+
+    // Another session rotates the pair after this interceptor was built.
+    await store.update((cfg) => {
+      const a = cfg.envs.prod!.accounts!["a@x.com"]!
+      a.access_token = "wat_rotated"
+      a.refresh_token = "wrt_rotated"
+      a.access_token_expires_at = Date.now() + 900_000
+    })
+
+    const res = await authedFetch("https://api.wspc.ai/todo/items")
+    expect(res.ok).toBe(true)
+
+    const tokenCalls = fetchImpl.mock.calls.filter(([input]) => {
+      const url = typeof input === "string" ? input : (input as Request).url
+      return url.endsWith("/auth/oauth/token")
+    })
+    expect(tokenCalls).toEqual([])
+    const apiReq = fetchImpl.mock.calls[0]![0] as Request
+    expect(apiReq.headers.get("authorization")).toBe("Bearer wat_rotated")
+  })
 })

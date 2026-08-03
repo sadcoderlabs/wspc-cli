@@ -149,7 +149,18 @@ export class ConfigStore {
     if (process.platform !== "win32") {
       await fs.chmod(this.configDir, 0o700).catch(() => {})
     }
-    await fs.writeFile(this.configFile, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 })
+    // Write a sibling then rename over the target: readers are not serialized
+    // against writers (every token refresh re-reads this file), and truncating
+    // in place would let one parse a half-written config. Rename is atomic, so
+    // a reader sees either the whole old file or the whole new one.
+    const tmpFile = `${this.configFile}.${process.pid}.tmp`
+    try {
+      await fs.writeFile(tmpFile, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 })
+      await fs.rename(tmpFile, this.configFile)
+    } catch (e) {
+      await fs.rm(tmpFile, { force: true }).catch(() => {})
+      throw e
+    }
   }
 
   /**

@@ -5,6 +5,12 @@ import { VERSION } from "../../version.js"
 // refresh/verify outcome to a specific CLI version.
 const USER_AGENT = `@wspc/cli/${VERSION}`
 
+export interface PersistedTokens {
+  accessToken: string
+  refreshToken: string
+  expiresAt?: number
+}
+
 export type AuthMode =
   | { apiKey: string; fetchImpl?: typeof fetch }
   | {
@@ -16,6 +22,12 @@ export type AuthMode =
       baseUrl: string
       clientId: string
       onTokenRefresh: (next: { accessToken: string; refreshToken: string; expiresAt: number }) => void | Promise<void>
+      // Re-read the tokens from wherever they are persisted. Refresh tokens are
+      // single-use: another process (or another interceptor in this one) may
+      // have rotated ours since we cached it, and presenting the superseded copy
+      // is what the server's reuse detection revokes the whole family for.
+      // Called immediately before every refresh; omit for in-memory-only use.
+      loadPersisted?: () => Promise<PersistedTokens | undefined>
       fetchImpl?: typeof fetch
       now?: () => number
     }
@@ -25,13 +37,28 @@ export interface AuthInterceptor {
   execute(req: Request): Promise<Response>
 }
 
-// Surface the server's OAuth error code on a failed refresh. The server maps
-// reuse/expired/revoked all to `invalid_grant`, so we can't tell them apart
-// here — but echoing the code still beats a blank message when diagnosing.
+// RFC 6749 §5.2 pins every refresh rejection to `invalid_grant`, so the server
+// puts the actual reason in `error_description`. These read differently to a
+// user: an expiry means "sign in again", a reuse means something is presenting
+// credentials that were already rotated away — usually a stale copy in another
+// process, occasionally a genuinely leaked token.
+const REFRESH_REJECTION_HELP: Record<string, string> = {
+  refresh_token_reused:
+    "wspc signed you out because a refresh token was used twice — another `wspc` process may be holding an old copy of your credentials",
+  refresh_token_revoked: "your wspc session was revoked",
+  refresh_token_expired: "your wspc session expired",
+  refresh_token_unknown: "wspc no longer recognises these credentials",
+}
+
+// Surface why the refresh failed. Falls back to echoing the raw code when the
+// server sends a reason this build doesn't know, which still beats a blank
+// message when diagnosing.
 async function expiredMessage(res: Response): Promise<string | undefined> {
   try {
     const body = (await res.clone().json()) as { error?: string; error_description?: string }
     if (!body.error) return undefined
+    const help = body.error_description ? REFRESH_REJECTION_HELP[body.error_description] : undefined
+    if (help) return `${help}; re-authenticate via \`wspc login\``
     const detail = body.error_description ? `: ${body.error_description}` : ""
     return `wspc token refresh failed (${body.error}${detail}); re-authenticate via \`wspc login\``
   } catch {
@@ -59,7 +86,7 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
   let accessToken = mode.accessToken
   let refreshToken = mode.refreshToken
   let expiresAt = mode.expiresAt
-  const { baseUrl, clientId, onTokenRefresh } = mode
+  const { baseUrl, clientId, onTokenRefresh, loadPersisted } = mode
   const fetchImpl = mode.fetchImpl ?? fetch
   const now = mode.now ?? Date.now
 
@@ -67,7 +94,28 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
   // skewed clock) doesn't slip through and still eat a 401 server-side.
   const SKEW_MS = 30_000
 
-  async function refresh(): Promise<void> {
+  // "We positively know this token is still good." An unknown expiry is not
+  // fresh, but it isn't known-stale either — that case falls to the 401 path.
+  function isFresh(until: number | undefined): boolean {
+    return until !== undefined && now() < until - SKEW_MS
+  }
+
+  // Adopt tokens that landed in the store after we cached ours. Returns true
+  // when the adopted access token is still usable, meaning no refresh is needed
+  // at all — someone else already did it and rotating again would present a
+  // token the server has superseded.
+  async function adoptPersisted(): Promise<boolean> {
+    const persisted = await loadPersisted?.()
+    if (!persisted || persisted.refreshToken === refreshToken) return false
+    accessToken = persisted.accessToken
+    refreshToken = persisted.refreshToken
+    expiresAt = persisted.expiresAt
+    return isFresh(expiresAt)
+  }
+
+  async function refreshOnce(): Promise<void> {
+    if (await adoptPersisted()) return
+
     const refreshRes = await fetchImpl(`${baseUrl}/auth/oauth/token`, {
       method: "POST",
       headers: {
@@ -94,6 +142,17 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
     await onTokenRefresh({ accessToken, refreshToken, expiresAt })
   }
 
+  // Single-flight: concurrent callers (e.g. a Promise.all of API requests that
+  // all see an expired token) share one rotation instead of racing to spend the
+  // same refresh token.
+  let inFlight: Promise<void> | undefined
+  function refresh(): Promise<void> {
+    inFlight ??= refreshOnce().finally(() => {
+      inFlight = undefined
+    })
+    return inFlight
+  }
+
   return {
     async onRequest(req) {
       req.headers.set("authorization", `Bearer ${accessToken}`)
@@ -103,15 +162,19 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
     async execute(req) {
       // Proactive path: when we already know the token is expired, refresh
       // before the request rather than wasting a round-trip on a sure 401.
-      if (expiresAt !== undefined && now() >= expiresAt - SKEW_MS) {
+      if (expiresAt !== undefined && !isFresh(expiresAt)) {
         await refresh()
       }
 
+      const sentWith = accessToken
       const first = await fetchImpl(await this.onRequest(req.clone()))
       if (first.status !== 401) return first
 
       // Reactive fallback: server revoked early, clock skew, or expiry unknown.
-      await refresh()
+      // If a concurrent refresh already replaced the token this request went out
+      // with, that 401 is stale — retry on the new token rather than rotating
+      // again for nothing.
+      if (accessToken === sentWith) await refresh()
       return fetchImpl(await this.onRequest(req.clone()))
     },
   }
