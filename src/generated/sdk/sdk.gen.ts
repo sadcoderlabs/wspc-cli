@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, BillingCheckoutSessionsCreateData, BillingCheckoutSessionsCreateErrors, BillingCheckoutSessionsCreateResponses, BillingCustomDomainAddOnsChangeData, BillingCustomDomainAddOnsChangeErrors, BillingCustomDomainAddOnsChangeResponses, BillingEntitlementsGetData, BillingEntitlementsGetErrors, BillingEntitlementsGetResponses, BillingPortalSessionsCreateData, BillingPortalSessionsCreateErrors, BillingPortalSessionsCreateResponses, BillingStripeWebhookReceiveData, BillingStripeWebhookReceiveErrors, BillingStripeWebhookReceiveResponses, BillingSubscriptionCancellationUpdateData, BillingSubscriptionCancellationUpdateErrors, BillingSubscriptionCancellationUpdateResponses, BillingSubscriptionDowngradePreviewData, BillingSubscriptionDowngradePreviewErrors, BillingSubscriptionDowngradePreviewResponses, BillingSubscriptionDowngradesCreateData, BillingSubscriptionDowngradesCreateErrors, BillingSubscriptionDowngradesCreateResponses, BillingSubscriptionUpgradePreviewsCreateData, BillingSubscriptionUpgradePreviewsCreateErrors, BillingSubscriptionUpgradePreviewsCreateResponses, BillingSubscriptionUpgradesCreateData, BillingSubscriptionUpgradesCreateErrors, BillingSubscriptionUpgradesCreateResponses, DriveFileDeleteData, DriveFileDeleteErrors, DriveFileDeleteResponses, DriveFileDownloadData, DriveFileDownloadErrors, DriveFileDownloadResponses, DriveFileEditData, DriveFileEditErrors, DriveFileEditResponses, DriveFileHistoryData, DriveFileHistoryErrors, DriveFileHistoryResponses, DriveFileMoveData, DriveFileMoveErrors, DriveFileMoveResponses, DriveFileRestoreData, DriveFileRestoreErrors, DriveFileRestoreResponses, DriveFileUploadData, DriveFileUploadErrors, DriveFileUploadResponses, DriveLibraryCreateData, DriveLibraryCreateErrors, DriveLibraryCreateResponses, DriveLibraryDeleteData, DriveLibraryDeleteErrors, DriveLibraryDeleteResponses, DriveLibraryGetData, DriveLibraryGetErrors, DriveLibraryGetResponses, DriveLibraryListData, DriveLibraryListErrors, DriveLibraryListResponses, DriveLibraryUpdateData, DriveLibraryUpdateErrors, DriveLibraryUpdateResponses, DriveManifestGetData, DriveManifestGetErrors, DriveManifestGetResponses, DriveSearchData, DriveSearchErrors, DriveSearchResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainDeleteData, EmailDomainDeleteErrors, EmailDomainDeleteResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthAuthorizeGrantData, OauthAuthorizeGrantErrors, OauthAuthorizeGrantResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthDeviceConfirmData, OauthDeviceConfirmErrors, OauthDeviceConfirmResponses, OauthDeviceVerifyData, OauthDeviceVerifyErrors, OauthDeviceVerifyResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMemberRoleUpdateData, OrgMemberRoleUpdateErrors, OrgMemberRoleUpdateResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, BillingCheckoutSessionsCreateData, BillingCheckoutSessionsCreateErrors, BillingCheckoutSessionsCreateResponses, BillingCustomDomainAddOnsChangeData, BillingCustomDomainAddOnsChangeErrors, BillingCustomDomainAddOnsChangeResponses, BillingEmailUsageGetData, BillingEmailUsageGetErrors, BillingEmailUsageGetResponses, BillingEnforcementReadinessGetData, BillingEnforcementReadinessGetErrors, BillingEnforcementReadinessGetResponses, BillingEntitlementsGetData, BillingEntitlementsGetErrors, BillingEntitlementsGetResponses, BillingInboundProtectionGetData, BillingInboundProtectionGetErrors, BillingInboundProtectionGetResponses, BillingPortalSessionsCreateData, BillingPortalSessionsCreateErrors, BillingPortalSessionsCreateResponses, BillingStorageUsageGetData, BillingStorageUsageGetErrors, BillingStorageUsageGetResponses, BillingStripeWebhookReceiveData, BillingStripeWebhookReceiveErrors, BillingStripeWebhookReceiveResponses, BillingSubscriptionCancellationUpdateData, BillingSubscriptionCancellationUpdateErrors, BillingSubscriptionCancellationUpdateResponses, BillingSubscriptionDowngradePreviewData, BillingSubscriptionDowngradePreviewErrors, BillingSubscriptionDowngradePreviewResponses, BillingSubscriptionDowngradesCreateData, BillingSubscriptionDowngradesCreateErrors, BillingSubscriptionDowngradesCreateResponses, BillingSubscriptionStateGetData, BillingSubscriptionStateGetErrors, BillingSubscriptionStateGetResponses, BillingSubscriptionUpgradePreviewsCreateData, BillingSubscriptionUpgradePreviewsCreateErrors, BillingSubscriptionUpgradePreviewsCreateResponses, BillingSubscriptionUpgradesCreateData, BillingSubscriptionUpgradesCreateErrors, BillingSubscriptionUpgradesCreateResponses, DriveFileDeleteData, DriveFileDeleteErrors, DriveFileDeleteResponses, DriveFileDownloadData, DriveFileDownloadErrors, DriveFileDownloadResponses, DriveFileEditData, DriveFileEditErrors, DriveFileEditResponses, DriveFileHistoryData, DriveFileHistoryErrors, DriveFileHistoryResponses, DriveFileMoveData, DriveFileMoveErrors, DriveFileMoveResponses, DriveFileRestoreData, DriveFileRestoreErrors, DriveFileRestoreResponses, DriveFileUploadData, DriveFileUploadErrors, DriveFileUploadResponses, DriveLibraryCreateData, DriveLibraryCreateErrors, DriveLibraryCreateResponses, DriveLibraryDeleteData, DriveLibraryDeleteErrors, DriveLibraryDeleteResponses, DriveLibraryGetData, DriveLibraryGetErrors, DriveLibraryGetResponses, DriveLibraryListData, DriveLibraryListErrors, DriveLibraryListResponses, DriveLibraryUpdateData, DriveLibraryUpdateErrors, DriveLibraryUpdateResponses, DriveManifestGetData, DriveManifestGetErrors, DriveManifestGetResponses, DriveSearchData, DriveSearchErrors, DriveSearchResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainDeleteData, EmailDomainDeleteErrors, EmailDomainDeleteResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EmailSentDeleteData, EmailSentDeleteErrors, EmailSentDeleteResponses, EmailSentGetData, EmailSentGetErrors, EmailSentGetResponses, EmailSentListData, EmailSentListErrors, EmailSentListResponses, EmailSentRestoreData, EmailSentRestoreErrors, EmailSentRestoreResponses, EmailTrashEmptyData, EmailTrashEmptyErrors, EmailTrashEmptyResponses, EmailTrashSummaryData, EmailTrashSummaryErrors, EmailTrashSummaryResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthAuthorizeGrantData, OauthAuthorizeGrantErrors, OauthAuthorizeGrantResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthDeviceConfirmData, OauthDeviceConfirmErrors, OauthDeviceConfirmResponses, OauthDeviceVerifyData, OauthDeviceVerifyErrors, OauthDeviceVerifyResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMemberRoleUpdateData, OrgMemberRoleUpdateErrors, OrgMemberRoleUpdateResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -518,6 +518,8 @@ export const orgInviteRevoke = <ThrowOnError extends boolean = false>(options: O
  *
  * ### Troubleshooting
  * - **400 Bad Request / invalid_grant**: The authorization code, refresh token, or device code is expired, invalid, or belongs to a different client.
+ * For the `refresh_token` grant, `error_description` names which one it was, since `error` is always `invalid_grant`: `refresh_token_unknown`, `refresh_token_expired`, `refresh_token_revoked`, `refresh_token_reused`, `refresh_token_client_mismatch`, `refresh_token_resource_mismatch`.
+ * `refresh_token_reused` means a token that had already been rotated was presented again outside the tolerance window, so the whole token family was revoked as a possible replay — every session on that credential must sign in again. Treat it as a signal that something is holding a stale copy of the credentials, not as ordinary expiry.
  * - **400 Bad Request / authorization_pending**: Returned when polling for a device code that has not yet been approved by the user. Do not stop polling, but adhere to the polling interval.
  * - **400 Bad Request / slow_down**: Returned when polling the device code faster than the negotiated `interval`. Reduce polling frequency.
  */
@@ -599,6 +601,24 @@ export const billingPortalSessionsCreate = <ThrowOnError extends boolean = false
 });
 
 /**
+ * Get Current Workspace Email usage
+ */
+export const billingEmailUsageGet = <ThrowOnError extends boolean = false>(options?: Options<BillingEmailUsageGetData, ThrowOnError>) => (options?.client ?? client).get<BillingEmailUsageGetResponses, BillingEmailUsageGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/billing/email-usage',
+    ...options
+});
+
+/**
+ * Get Current Workspace enforcement migration readiness
+ */
+export const billingEnforcementReadinessGet = <ThrowOnError extends boolean = false>(options?: Options<BillingEnforcementReadinessGetData, ThrowOnError>) => (options?.client ?? client).get<BillingEnforcementReadinessGetResponses, BillingEnforcementReadinessGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/billing/enforcement-readiness',
+    ...options
+});
+
+/**
  * Get Current Workspace entitlements
  *
  * Returns effective entitlements for the authenticated caller's Current Workspace. Workspaces without a stored Plan Assignment receive the versioned Free catalog entitlements.
@@ -606,6 +626,35 @@ export const billingPortalSessionsCreate = <ThrowOnError extends boolean = false
 export const billingEntitlementsGet = <ThrowOnError extends boolean = false>(options?: Options<BillingEntitlementsGetData, ThrowOnError>) => (options?.client ?? client).get<BillingEntitlementsGetResponses, BillingEntitlementsGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/billing/entitlements',
+    ...options
+});
+
+/**
+ * Get Current Workspace inbound protection state
+ */
+export const billingInboundProtectionGet = <ThrowOnError extends boolean = false>(options?: Options<BillingInboundProtectionGetData, ThrowOnError>) => (options?.client ?? client).get<BillingInboundProtectionGetResponses, BillingInboundProtectionGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/billing/inbound-protection',
+    ...options
+});
+
+/**
+ * Get Current Workspace retained storage usage
+ */
+export const billingStorageUsageGet = <ThrowOnError extends boolean = false>(options?: Options<BillingStorageUsageGetData, ThrowOnError>) => (options?.client ?? client).get<BillingStorageUsageGetResponses, BillingStorageUsageGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/billing/storage-usage',
+    ...options
+});
+
+/**
+ * Get normalized Current Workspace subscription state
+ *
+ * Returns WSPC product state and safe management metadata without Stripe identifiers or raw provider status.
+ */
+export const billingSubscriptionStateGet = <ThrowOnError extends boolean = false>(options?: Options<BillingSubscriptionStateGetData, ThrowOnError>) => (options?.client ?? client).get<BillingSubscriptionStateGetResponses, BillingSubscriptionStateGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/billing/subscription-state',
     ...options
 });
 
@@ -672,7 +721,7 @@ export const billingSubscriptionCancellationUpdate = <ThrowOnError extends boole
 /**
  * Start initial paid subscription Checkout
  *
- * Creates or idempotently replays a Stripe-hosted Checkout Session for an allowlisted Current Workspace. Requires an OAuth-authenticated Owner or Admin. Redirect completion never changes entitlements; activation requires a verified Stripe webhook and fresh paid provider state.
+ * Creates or idempotently replays a Stripe-hosted Checkout Session for a Current Workspace admitted by the public Checkout rollout or operator allowlist. Requires an OAuth-authenticated Owner or Admin and fresh target-tier resource eligibility. Redirect completion never changes entitlements; activation requires a verified Stripe webhook and fresh paid provider state.
  */
 export const billingCheckoutSessionsCreate = <ThrowOnError extends boolean = false>(options: Options<BillingCheckoutSessionsCreateData, ThrowOnError>) => (options.client ?? client).post<BillingCheckoutSessionsCreateResponses, BillingCheckoutSessionsCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1308,6 +1357,36 @@ export const emailDomainGet = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
+ * Move sent messages to trash
+ *
+ * Soft-deletes current-user sent messages so they remain restorable during retention.
+ */
+export const emailSentDelete = <ThrowOnError extends boolean = false>(options: Options<EmailSentDeleteData, ThrowOnError>) => (options.client ?? client).post<EmailSentDeleteResponses, EmailSentDeleteErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/messages/sent/delete',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Permanently purge email trash before a fixed cutoff
+ *
+ * OAuth-only destructive operation. Pass the fixed deletion cutoff returned by the caller confirmation flow.
+ */
+export const emailTrashEmpty = <ThrowOnError extends boolean = false>(options: Options<EmailTrashEmptyData, ThrowOnError>) => (options.client ?? client).post<EmailTrashEmptyResponses, EmailTrashEmptyErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/messages/trash/empty',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Download an attachment by index
  *
  * ### Overview
@@ -1359,6 +1438,17 @@ export const emailGet = <ThrowOnError extends boolean = false>(options: Options<
 });
 
 /**
+ * Get a sent email
+ *
+ * Returns one non-purged sent message owned by the current user.
+ */
+export const emailSentGet = <ThrowOnError extends boolean = false>(options: Options<EmailSentGetData, ThrowOnError>) => (options.client ?? client).get<EmailSentGetResponses, EmailSentGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/messages/sent/{id}',
+    ...options
+});
+
+/**
  * List inbound emails
  *
  * ### Overview
@@ -1380,6 +1470,17 @@ export const emailGet = <ThrowOnError extends boolean = false>(options: Options<
 export const emailList = <ThrowOnError extends boolean = false>(options?: Options<EmailListData, ThrowOnError>) => (options?.client ?? client).get<EmailListResponses, EmailListErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/email/messages',
+    ...options
+});
+
+/**
+ * List sent email
+ *
+ * Lists the current user's non-purged sent messages, with optional trash filters.
+ */
+export const emailSentList = <ThrowOnError extends boolean = false>(options?: Options<EmailSentListData, ThrowOnError>) => (options?.client ?? client).get<EmailSentListResponses, EmailSentListErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/messages/sent',
     ...options
 });
 
@@ -1491,6 +1592,21 @@ export const emailRestore = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
+ * Restore sent messages from trash
+ *
+ * Restores current-user sent messages that have not been permanently purged.
+ */
+export const emailSentRestore = <ThrowOnError extends boolean = false>(options: Options<EmailSentRestoreData, ThrowOnError>) => (options.client ?? client).post<EmailSentRestoreResponses, EmailSentRestoreErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/messages/sent/restore',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Send an outbound email
  *
  * ### Overview
@@ -1525,6 +1641,17 @@ export const emailSend = <ThrowOnError extends boolean = false>(options: Options
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Get email trash summary
+ *
+ * Returns current-user inbound and sent trash counts, bytes, and earliest expiry.
+ */
+export const emailTrashSummary = <ThrowOnError extends boolean = false>(options?: Options<EmailTrashSummaryData, ThrowOnError>) => (options?.client ?? client).get<EmailTrashSummaryResponses, EmailTrashSummaryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/email/messages/trash-summary',
+    ...options
 });
 
 /**
@@ -2114,7 +2241,7 @@ export const recurrenceRuleUpdate = <ThrowOnError extends boolean = false>(optio
  * * **Optimistic Locking**: You may optionally pass `expected_version` to ensure the todo has not been modified since you last read it.
  *
  * ### ⚠️ Common Errors & Troubleshooting
- * * **`HAS_CHILDREN` (HTTP 400)**: Thrown if you attempt to delete a parent todo that has active subtasks without explicitly setting `cascade: true`.
+ * * **`HAS_CHILDREN` (HTTP 409)**: Thrown if you attempt to delete a parent todo that has active subtasks without explicitly setting `cascade: true`.
  * * **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` is provided and mismatches the database.
  * * **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo `id` does not exist or has already been soft-deleted.
  */

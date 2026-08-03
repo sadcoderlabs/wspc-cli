@@ -10,6 +10,7 @@ export const driveManifestGetCommand = new Command("get")
   .option("--limit <value>", "limit")
   .option("--cursor <value>", "cursor")
   .option("--include-deleted <value>", "include_deleted")
+  .option("--deleted-only <value>", "deleted_only")
   .option("--path-prefix <value>", "path_prefix")
   .option("--since-cursor <value>", "since_cursor")
   .action(async (id, opts) => {
@@ -23,6 +24,7 @@ export const driveManifestGetCommand = new Command("get")
           limit: opts.limit,
           cursor: opts.cursor,
           include_deleted: opts.includeDeleted,
+          deleted_only: opts.deletedOnly,
           path_prefix: opts.pathPrefix,
           since_cursor: opts.sinceCursor,
         },

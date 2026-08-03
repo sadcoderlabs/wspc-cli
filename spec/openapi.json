@@ -974,6 +974,187 @@
           "portal_url"
         ]
       },
+      "EmailUsage": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "mismatch",
+                  "unavailable"
+                ]
+              },
+              "period_start_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "period_end_ms": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "status",
+              "period_start_ms",
+              "period_end_ms"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ready"
+                ]
+              },
+              "period_start_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "period_end_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sent_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "received_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "pooled_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "measured_at_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "quota": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "not_enforced"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "status"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "below_80",
+                          "warning",
+                          "at_limit"
+                        ]
+                      },
+                      "included_count": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "remaining_count": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "status",
+                      "included_count",
+                      "remaining_count"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "period_start_ms",
+              "period_end_ms",
+              "sent_count",
+              "received_count",
+              "pooled_count",
+              "measured_at_ms",
+              "quota"
+            ]
+          }
+        ]
+      },
+      "EnforcementReadiness": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "preparing"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "action_required"
+                ]
+              },
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "reduce_email_usage",
+                    "reduce_storage",
+                    "reduce_platform_addresses",
+                    "remove_custom_domains",
+                    "resolve_billing"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "status",
+              "actions"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ready",
+                  "enforced",
+                  "rolled_back"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        ]
+      },
       "EffectiveEntitlements": {
         "type": "object",
         "properties": {
@@ -1025,6 +1206,322 @@
           "reserved_platform_address_count",
           "included_custom_domain_count",
           "custom_domain_add_on_eligible"
+        ]
+      },
+      "InboundProtection": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "inactive",
+                  "pending",
+                  "mismatch",
+                  "unavailable"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "protected",
+                  "pausing",
+                  "restricted",
+                  "recovering"
+                ]
+              },
+              "period_start_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "period_end_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "email",
+                  "storage",
+                  "email_and_storage",
+                  "manual",
+                  null
+                ]
+              },
+              "email": {
+                "type": "object",
+                "properties": {
+                  "used_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "allowance_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "used_count",
+                  "allowance_count"
+                ]
+              },
+              "storage": {
+                "type": "object",
+                "properties": {
+                  "used_bytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "allowance_bytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "used_bytes",
+                  "allowance_bytes"
+                ]
+              },
+              "consequence": {
+                "type": "object",
+                "properties": {
+                  "platform_domain": {
+                    "type": "string",
+                    "enum": [
+                      "accepting",
+                      "rejecting"
+                    ]
+                  },
+                  "custom_domains": {
+                    "type": "string",
+                    "enum": [
+                      "accepting",
+                      "pausing",
+                      "disabled",
+                      "recovering"
+                    ]
+                  }
+                },
+                "required": [
+                  "platform_domain",
+                  "custom_domains"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "period_start_ms",
+              "period_end_ms",
+              "reason",
+              "email",
+              "storage",
+              "consequence"
+            ]
+          }
+        ]
+      },
+      "StorageUsage": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ready"
+                ]
+              },
+              "period_start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "period_end": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "email_bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "drive_bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "current_bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "high_water_bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "measured_at": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "quota": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "not_enforced"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "status"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "below_80",
+                          "warning",
+                          "at_limit"
+                        ]
+                      },
+                      "included_bytes": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "remaining_bytes": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "status",
+                      "included_bytes",
+                      "remaining_bytes"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "period_start",
+              "period_end",
+              "email_bytes",
+              "drive_bytes",
+              "current_bytes",
+              "high_water_bytes",
+              "measured_at",
+              "quota"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "mismatch"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        ]
+      },
+      "SubscriptionState": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "free",
+              "active",
+              "pending_payment",
+              "payment_issue",
+              "scheduled_change",
+              "restricted"
+            ]
+          },
+          "checkout_eligible": {
+            "type": "boolean"
+          },
+          "grace_started_at": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "grace_ends_at": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pending_mutation": {
+            "type": "string",
+            "enum": [
+              "checkout",
+              "upgrade"
+            ]
+          },
+          "payment_action_required": {
+            "type": "boolean"
+          },
+          "scheduled_change": {
+            "type": "object",
+            "properties": {
+              "target_tier": {
+                "type": "string",
+                "enum": [
+                  "personal",
+                  "startup",
+                  "business"
+                ]
+              },
+              "effective_at": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "next_period_amount_usd": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "target_tier",
+              "effective_at",
+              "next_period_amount_usd"
+            ]
+          },
+          "cancellation_scheduled": {
+            "type": "object",
+            "properties": {
+              "effective_at": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "effective_at"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "checkout_eligible"
         ]
       },
       "DowngradePreviewResult": {
@@ -2406,6 +2903,113 @@
           "ids"
         ]
       },
+      "PublicOutboundEmail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted)."
+          },
+          "org_id": {
+            "type": "string",
+            "description": "Organization scope that owns the outbound email."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Sender (the authenticated user)."
+          },
+          "from_alias_email": {
+            "type": "string",
+            "format": "email",
+            "description": "Full wspc alias email address the message was sent from."
+          },
+          "from_addr": {
+            "type": "string",
+            "description": "Materialized `From` address."
+          },
+          "to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Recipient addresses as actually submitted to the provider."
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Outbound subject as sent (may include `Re: ` prefix for replies)."
+          },
+          "text_body": {
+            "type": "string",
+            "description": "Plain-text body as sent."
+          },
+          "in_reply_to_email_id": {
+            "type": "string",
+            "description": "Inbound email id this is a reply to, if applicable."
+          },
+          "message_id": {
+            "type": "string",
+            "description": "Observed outbound RFC 5322 `Message-ID`, when known."
+          },
+          "references_header": {
+            "type": "string",
+            "description": "Materialized `References` header for threaded replies."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "sent",
+              "failed"
+            ],
+            "description": "Lifecycle status. `submitted`: the row is persisted; provider call is in flight. `sent`: provider accepted the message. `failed`: provider rejected; see `error_code`/`error_message`."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "Echo of the idempotency key used for this send."
+          },
+          "idempotency_expires_at": {
+            "type": "number",
+            "description": "Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged."
+          },
+          "deleted_at": {
+            "type": "number",
+            "description": "Unix epoch milliseconds the sent message entered trash."
+          },
+          "attachment_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of attachments on this outbound email. 0 when none."
+          },
+          "submitted_at": {
+            "type": "number",
+            "description": "Unix epoch milliseconds the provider accepted the message."
+          },
+          "created_at": {
+            "type": "number",
+            "description": "Unix epoch milliseconds the outbound row was first written."
+          },
+          "updated_at": {
+            "type": "number",
+            "description": "Unix epoch milliseconds the outbound row was last modified."
+          }
+        },
+        "required": [
+          "id",
+          "org_id",
+          "user_id",
+          "from_alias_email",
+          "from_addr",
+          "to",
+          "text_body",
+          "status",
+          "idempotency_key",
+          "idempotency_expires_at",
+          "attachment_count",
+          "created_at",
+          "updated_at"
+        ]
+      },
       "EmailDomainListResponse": {
         "type": "object",
         "properties": {
@@ -2587,102 +3191,7 @@
         "type": "object",
         "properties": {
           "email": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "description": "Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted)."
-              },
-              "org_id": {
-                "type": "string",
-                "description": "Organization scope that owns the outbound email."
-              },
-              "user_id": {
-                "type": "string",
-                "description": "Sender (the authenticated user)."
-              },
-              "from_alias_email": {
-                "type": "string",
-                "format": "email",
-                "description": "Full wspc alias email address the message was sent from."
-              },
-              "from_addr": {
-                "type": "string",
-                "description": "Materialized `From` address."
-              },
-              "to": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Recipient addresses as actually submitted to the provider."
-              },
-              "subject": {
-                "type": "string",
-                "maxLength": 500,
-                "description": "Outbound subject as sent (may include `Re: ` prefix for replies)."
-              },
-              "text_body": {
-                "type": "string",
-                "description": "Plain-text body as sent."
-              },
-              "in_reply_to_email_id": {
-                "type": "string",
-                "description": "Inbound email id this is a reply to, if applicable."
-              },
-              "message_id": {
-                "type": "string",
-                "description": "Observed outbound RFC 5322 `Message-ID`, when known."
-              },
-              "references_header": {
-                "type": "string",
-                "description": "Materialized `References` header for threaded replies."
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "submitted",
-                  "sent",
-                  "failed"
-                ],
-                "description": "Lifecycle status. `submitted`: the row is persisted; provider call is in flight. `sent`: provider accepted the message. `failed`: provider rejected; see `error_code`/`error_message`."
-              },
-              "idempotency_key": {
-                "type": "string",
-                "description": "Echo of the idempotency key used for this send."
-              },
-              "attachment_count": {
-                "type": "integer",
-                "minimum": 0,
-                "description": "Number of attachments on this outbound email. 0 when none."
-              },
-              "submitted_at": {
-                "type": "number",
-                "description": "Unix epoch milliseconds the provider accepted the message."
-              },
-              "created_at": {
-                "type": "number",
-                "description": "Unix epoch milliseconds the outbound row was first written."
-              },
-              "updated_at": {
-                "type": "number",
-                "description": "Unix epoch milliseconds the outbound row was last modified."
-              }
-            },
-            "required": [
-              "id",
-              "org_id",
-              "user_id",
-              "from_alias_email",
-              "from_addr",
-              "to",
-              "text_body",
-              "status",
-              "idempotency_key",
-              "attachment_count",
-              "created_at",
-              "updated_at"
-            ]
+            "$ref": "#/components/schemas/PublicOutboundEmail"
           },
           "idempotent_replay": {
             "type": "boolean",
@@ -12804,7 +13313,7 @@
         ],
         "security": [],
         "summary": "Exchange a grant for an access token",
-        "description": "### Overview\nImplements the RFC 6749 OAuth 2.0 token endpoint. It processes token requests for three grant types: `authorization_code` (with PKCE), `refresh_token`, and `urn:ietf:params:oauth:grant-type:device_code` (device flow), issuing an access token and a rotated refresh token upon success.\n\n### When to Use\n- Use this endpoint to redeem a temporary code or device code for a fresh token pair once the user has approved authentication.\n- Use this endpoint to rotate and refresh an expiring access token using a refresh token.\n\n### Constraints\n- Public endpoint (no authentication required).\n- **Refresh Token Rotation**: Old refresh tokens are invalidated immediately upon exchange, and a fresh refresh token is issued.\n- **PKCE**: For the `authorization_code` grant, a valid `code_verifier` matching the original `code_challenge` must be provided.\n\n### Troubleshooting\n- **400 Bad Request / invalid_grant**: The authorization code, refresh token, or device code is expired, invalid, or belongs to a different client.\n- **400 Bad Request / authorization_pending**: Returned when polling for a device code that has not yet been approved by the user. Do not stop polling, but adhere to the polling interval.\n- **400 Bad Request / slow_down**: Returned when polling the device code faster than the negotiated `interval`. Reduce polling frequency.",
+        "description": "### Overview\nImplements the RFC 6749 OAuth 2.0 token endpoint. It processes token requests for three grant types: `authorization_code` (with PKCE), `refresh_token`, and `urn:ietf:params:oauth:grant-type:device_code` (device flow), issuing an access token and a rotated refresh token upon success.\n\n### When to Use\n- Use this endpoint to redeem a temporary code or device code for a fresh token pair once the user has approved authentication.\n- Use this endpoint to rotate and refresh an expiring access token using a refresh token.\n\n### Constraints\n- Public endpoint (no authentication required).\n- **Refresh Token Rotation**: Old refresh tokens are invalidated immediately upon exchange, and a fresh refresh token is issued.\n- **PKCE**: For the `authorization_code` grant, a valid `code_verifier` matching the original `code_challenge` must be provided.\n\n### Troubleshooting\n- **400 Bad Request / invalid_grant**: The authorization code, refresh token, or device code is expired, invalid, or belongs to a different client.\n  For the `refresh_token` grant, `error_description` names which one it was, since `error` is always `invalid_grant`: `refresh_token_unknown`, `refresh_token_expired`, `refresh_token_revoked`, `refresh_token_reused`, `refresh_token_client_mismatch`, `refresh_token_resource_mismatch`.\n  `refresh_token_reused` means a token that had already been rotated was presented again outside the tolerance window, so the whole token family was revoked as a possible replay — every session on that credential must sign in again. Treat it as a signal that something is holding a stale copy of the credentials, not as ordinary expiry.\n- **400 Bad Request / authorization_pending**: Returned when polling for a device code that has not yet been approved by the user. Do not stop polling, but adhere to the polling interval.\n- **400 Bad Request / slow_down**: Returned when polling the device code faster than the negotiated `interval`. Reduce polling frequency.",
         "x-codeSamples": [
           {
             "lang": "shell",
@@ -14386,6 +14895,222 @@
         }
       }
     },
+    "/billing/email-usage": {
+      "get": {
+        "operationId": "billing_email_usage_get",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get Current Workspace Email usage",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current-period sent, received, and pooled Email usage.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailUsage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing/enforcement-readiness": {
+      "get": {
+        "operationId": "billing_enforcement_readiness_get",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get Current Workspace enforcement migration readiness",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current Workspace enforcement migration readiness.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnforcementReadiness"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/billing/entitlements": {
       "get": {
         "operationId": "billing_entitlements_get",
@@ -14597,6 +15322,411 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing/inbound-protection": {
+      "get": {
+        "operationId": "billing_inbound_protection_get",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get Current Workspace inbound protection state",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current Workspace protected inbound usage and enforcement state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundProtection"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing/storage-usage": {
+      "get": {
+        "operationId": "billing_storage_usage_get",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get Current Workspace retained storage usage",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current-period retained Email and Drive storage usage.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageUsage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Email or Drive storage accounting is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing/subscription-state": {
+      "get": {
+        "operationId": "billing_subscription_state_get",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get normalized Current Workspace subscription state",
+        "description": "Returns WSPC product state and safe management metadata without Stripe identifiers or raw provider status.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-billing",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Normalized subscription state.",
+            "headers": {
+              "x-cb-billing": {
+                "description": "Opaque consistency bookmark for the latest billing database position observed by this request. Store and send it on the next billing request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionState"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Billing storage is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -15963,7 +17093,7 @@
           "Billing"
         ],
         "summary": "Start initial paid subscription Checkout",
-        "description": "Creates or idempotently replays a Stripe-hosted Checkout Session for an allowlisted Current Workspace. Requires an OAuth-authenticated Owner or Admin. Redirect completion never changes entitlements; activation requires a verified Stripe webhook and fresh paid provider state.",
+        "description": "Creates or idempotently replays a Stripe-hosted Checkout Session for a Current Workspace admitted by the public Checkout rollout or operator allowlist. Requires an OAuth-authenticated Owner or Admin and fresh target-tier resource eligibility. Redirect completion never changes entitlements; activation requires a verified Stripe webhook and fresh paid provider state.",
         "security": [
           {
             "bearerAuth": []
@@ -16134,42 +17264,81 @@
             }
           },
           "409": {
-            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "description": "Another billing mutation is pending or current resources do not fit the tier.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message"
+                          ]
                         }
                       },
                       "required": [
-                        "code",
-                        "message"
+                        "error"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "enum": [
+                                "CHECKOUT_TARGET_TIER_INELIGIBLE"
+                              ]
+                            },
+                            "message": {
+                              "type": "string"
+                            },
+                            "details": {
+                              "type": "object",
+                              "properties": {
+                                "actions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "reduce_platform_addresses",
+                                      "remove_custom_domains",
+                                      "select_higher_tier"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "actions"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "details"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "error"
                       ]
                     }
-                  },
-                  "required": [
-                    "error"
                   ]
-                },
-                "examples": {
-                  "versionConflict": {
-                    "summary": "expected_version does not match server version",
-                    "value": {
-                      "error": {
-                        "code": "VERSION_CONFLICT",
-                        "message": "expected_version 3 but current is 4"
-                      }
-                    }
-                  }
                 }
               }
             }
@@ -22929,7 +24098,7 @@
             }
           },
           "409": {
-            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "description": "The expected entry version conflicts with the current version, or the upload would exceed the Workspace pooled storage quota.",
             "content": {
               "application/json": {
                 "schema": {
@@ -22962,6 +24131,14 @@
                       "error": {
                         "code": "VERSION_CONFLICT",
                         "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  },
+                  "quotaExceeded": {
+                    "value": {
+                      "error": {
+                        "code": "STORAGE_QUOTA_EXCEEDED",
+                        "message": "Workspace storage quota exceeded."
                       }
                     }
                   }
@@ -23052,7 +24229,16 @@
             }
           },
           "503": {
-            "description": "The storage provider is temporarily unavailable after a bounded retry.",
+            "description": "The storage provider or Workspace quota accounting is temporarily unavailable.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying a quota-accounting failure.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -23084,6 +24270,17 @@
                       "error": {
                         "code": "STORAGE_UNAVAILABLE",
                         "message": "Storage temporarily unavailable."
+                      }
+                    }
+                  },
+                  "quotaUnavailable": {
+                    "value": {
+                      "error": {
+                        "code": "STORAGE_QUOTA_UNAVAILABLE",
+                        "message": "Workspace storage quota is temporarily unavailable.",
+                        "details": {
+                          "retryAfterSeconds": 60
+                        }
                       }
                     }
                   }
@@ -23928,6 +25125,14 @@
             },
             "required": false,
             "name": "include_deleted",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "deleted_only",
             "in": "query"
           },
           {
@@ -24970,7 +26175,7 @@
             }
           },
           "409": {
-            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "description": "The restore would exceed the Workspace pooled storage quota.",
             "content": {
               "application/json": {
                 "schema": {
@@ -24997,12 +26202,11 @@
                   ]
                 },
                 "examples": {
-                  "versionConflict": {
-                    "summary": "expected_version does not match server version",
+                  "quotaExceeded": {
                     "value": {
                       "error": {
-                        "code": "VERSION_CONFLICT",
-                        "message": "expected_version 3 but current is 4"
+                        "code": "STORAGE_QUOTA_EXCEEDED",
+                        "message": "Workspace storage quota exceeded."
                       }
                     }
                   }
@@ -25085,6 +26289,58 @@
                       "error": {
                         "code": "INTERNAL_ERROR",
                         "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Workspace quota accounting is temporarily unavailable.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "quotaUnavailable": {
+                    "value": {
+                      "error": {
+                        "code": "STORAGE_QUOTA_UNAVAILABLE",
+                        "message": "Workspace storage quota is temporarily unavailable.",
+                        "details": {
+                          "retryAfterSeconds": 60
+                        }
                       }
                     }
                   }
@@ -27796,6 +29052,765 @@
         }
       }
     },
+    "/email/messages/sent/delete": {
+      "post": {
+        "operationId": "email_sent_delete",
+        "tags": [
+          "Emails"
+        ],
+        "summary": "Move sent messages to trash",
+        "description": "Soft-deletes current-user sent messages so they remain restorable during retention.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "source": "curl -X POST \"https://api.wspc.ai/email/messages/sent/delete\" -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"ids\":[\"out_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\"]}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deleted sent messages",
+            "headers": {
+              "x-cb-email": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "changed": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "not_found": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "changed",
+                    "not_found"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/messages/trash/empty": {
+      "post": {
+        "operationId": "email_trash_empty",
+        "tags": [
+          "Emails"
+        ],
+        "summary": "Permanently purge email trash before a fixed cutoff",
+        "description": "OAuth-only destructive operation. Pass the fixed deletion cutoff returned by the caller confirmation flow.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "source": "curl -X POST \"https://api.wspc.ai/email/messages/trash/empty\" -H \"Authorization: Bearer $WSPC_OAUTH_TOKEN\" -H \"Content-Type: application/json\" -d '{\"deleted_before\":1748736000000}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "deleted_before": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "deleted_before"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Purge progress",
+            "headers": {
+              "x-cb-email": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted_before": {
+                      "type": "integer"
+                    },
+                    "purged_items": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "purged_bytes": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "deleted_before",
+                    "purged_items",
+                    "purged_bytes",
+                    "has_more"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/email/messages/{id}/attachments/{idx}": {
       "get": {
         "operationId": "email_attachment_get",
@@ -28548,6 +30563,343 @@
         }
       }
     },
+    "/email/messages/sent/{id}": {
+      "get": {
+        "operationId": "email_sent_get",
+        "tags": [
+          "Emails"
+        ],
+        "summary": "Get a sent email",
+        "description": "Returns one non-purged sent message owned by the current user.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "source": "curl \"https://api.wspc.ai/email/messages/sent/out_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\" -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sent message",
+            "headers": {
+              "x-cb-email": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicOutboundEmail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sent message not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/email/messages": {
       "get": {
         "operationId": "email_list",
@@ -28629,6 +30981,14 @@
             },
             "required": false,
             "name": "include_deleted",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "deleted_only",
             "in": "query"
           }
         ],
@@ -28894,6 +31254,395 @@
                       "error": {
                         "code": "AUTH_REQUIRED",
                         "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/messages/sent": {
+      "get": {
+        "operationId": "email_sent_list",
+        "tags": [
+          "Emails"
+        ],
+        "summary": "List sent email",
+        "description": "Lists the current user's non-purged sent messages, with optional trash filters.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "include_deleted",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "deleted_only",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "source": "curl \"https://api.wspc.ai/email/messages/sent\" -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sent messages",
+            "headers": {
+              "x-cb-email": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicOutboundEmail"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
                       }
                     }
                   }
@@ -29988,6 +32737,393 @@
         }
       }
     },
+    "/email/messages/sent/restore": {
+      "post": {
+        "operationId": "email_sent_restore",
+        "tags": [
+          "Emails"
+        ],
+        "summary": "Restore sent messages from trash",
+        "description": "Restores current-user sent messages that have not been permanently purged.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "source": "curl -X POST \"https://api.wspc.ai/email/messages/sent/restore\" -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"ids\":[\"out_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\"]}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Restored sent messages",
+            "headers": {
+              "x-cb-email": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "changed": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "not_found": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "changed",
+                    "not_found"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The restore conflicts with the current version or storage lifecycle cleanup is in progress.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  },
+                  "purgeInProgress": {
+                    "value": {
+                      "error": {
+                        "code": "PURGE_IN_PROGRESS",
+                        "message": "Storage lifecycle cleanup is in progress."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/email/messages/send": {
       "post": {
         "operationId": "email_send",
@@ -30527,6 +33663,73 @@
                         }
                       }
                     }
+                  },
+                  "storageQuotaExceeded": {
+                    "summary": "Workspace pooled storage is full",
+                    "value": {
+                      "error": {
+                        "code": "STORAGE_QUOTA_EXCEEDED",
+                        "message": "Workspace storage quota exceeded."
+                      }
+                    }
+                  },
+                  "emailQuotaExceeded": {
+                    "summary": "Workspace pooled Email quota is full",
+                    "value": {
+                      "error": {
+                        "code": "EMAIL_QUOTA_EXCEEDED",
+                        "message": "Workspace Email quota exceeded.",
+                        "details": {
+                          "included_count": 100,
+                          "pooled_count": 90,
+                          "pending_outbound_count": 5,
+                          "requested_recipient_count": 6,
+                          "remaining_count": 5
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The idempotency result was permanently purged after its retention window; use a new idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": {
+                    "code": "IDEMPOTENT_RESULT_PURGED",
+                    "message": "The idempotent send result has been permanently purged.",
+                    "details": {
+                      "idempotent_replay": true,
+                      "outbound_email_id": "out_01JABCDEFGHJKMNPQRSTVWXYZ",
+                      "terminal_status": "sent",
+                      "purged_at": 1785283200000
+                    }
                   }
                 }
               }
@@ -30629,6 +33832,442 @@
                   "required": [
                     "error"
                   ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Workspace quota accounting is temporarily unavailable.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "quotaUnavailable": {
+                    "value": {
+                      "error": {
+                        "code": "STORAGE_QUOTA_UNAVAILABLE",
+                        "message": "Workspace storage quota is temporarily unavailable.",
+                        "details": {
+                          "retryAfterSeconds": 60
+                        }
+                      }
+                    }
+                  },
+                  "emailQuotaUnavailable": {
+                    "value": {
+                      "error": {
+                        "code": "EMAIL_QUOTA_UNAVAILABLE",
+                        "message": "Workspace Email quota temporarily unavailable.",
+                        "details": {
+                          "retryAfterSeconds": 60
+                        }
+                      }
+                    }
+                  },
+                  "sendOutcomeUnknown": {
+                    "value": {
+                      "error": {
+                        "code": "EMAIL_SEND_OUTCOME_UNKNOWN",
+                        "message": "EMAIL_SEND_OUTCOME_UNKNOWN",
+                        "details": {
+                          "retryAfterSeconds": 60
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/messages/trash-summary": {
+      "get": {
+        "operationId": "email_trash_summary",
+        "tags": [
+          "Emails"
+        ],
+        "summary": "Get email trash summary",
+        "description": "Returns current-user inbound and sent trash counts, bytes, and earliest expiry.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "source": "curl \"https://api.wspc.ai/email/messages/trash-summary\" -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trash summary",
+            "headers": {
+              "x-cb-email": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "inbound_count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "outbound_count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "earliest_expires_at": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "inbound_count",
+                    "outbound_count",
+                    "bytes"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -39628,7 +43267,7 @@
           }
         },
         "summary": "Soft-delete a todo",
-        "description": "### 🎯 Overview & Purpose\nSoft-delete a todo item so that it no longer appears in active list queries. The record remains in the database and can be recovered later.\n\n### 🔍 When to Use\n* Use this to hide an item from your active listings without permanently losing the history or metrics.\n\n### 💡 Key Features & Constraints\n* **Cascading Delete (`cascade`)**: If the target todo has active child subtasks:\n  - If `cascade: false` (default), the deletion will fail and throw a `HAS_CHILDREN` error to prevent accidental orphaned tasks.\n  - If `cascade: true`, the target todo and all its nested child subtasks will be soft-deleted together.\n* **Optimistic Locking**: You may optionally pass `expected_version` to ensure the todo has not been modified since you last read it.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`HAS_CHILDREN` (HTTP 400)**: Thrown if you attempt to delete a parent todo that has active subtasks without explicitly setting `cascade: true`.\n* **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` is provided and mismatches the database.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo `id` does not exist or has already been soft-deleted.",
+        "description": "### 🎯 Overview & Purpose\nSoft-delete a todo item so that it no longer appears in active list queries. The record remains in the database and can be recovered later.\n\n### 🔍 When to Use\n* Use this to hide an item from your active listings without permanently losing the history or metrics.\n\n### 💡 Key Features & Constraints\n* **Cascading Delete (`cascade`)**: If the target todo has active child subtasks:\n  - If `cascade: false` (default), the deletion will fail and throw a `HAS_CHILDREN` error to prevent accidental orphaned tasks.\n  - If `cascade: true`, the target todo and all its nested child subtasks will be soft-deleted together.\n* **Optimistic Locking**: You may optionally pass `expected_version` to ensure the todo has not been modified since you last read it.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`HAS_CHILDREN` (HTTP 409)**: Thrown if you attempt to delete a parent todo that has active subtasks without explicitly setting `cascade: true`.\n* **`VERSION_CONFLICT` (HTTP 409)**: Thrown if `expected_version` is provided and mismatches the database.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target todo `id` does not exist or has already been soft-deleted.",
         "security": [
           {
             "bearerAuth": []

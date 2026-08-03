@@ -567,6 +567,36 @@ export type CustomerPortalSessionResult = {
     portal_url: string;
 };
 
+export type EmailUsage = {
+    status: 'pending' | 'mismatch' | 'unavailable';
+    period_start_ms: number;
+    period_end_ms: number;
+} | {
+    status: 'ready';
+    period_start_ms: number;
+    period_end_ms: number;
+    sent_count: number;
+    received_count: number;
+    pooled_count: number;
+    measured_at_ms: number;
+    quota: {
+        status: 'not_enforced';
+    } | {
+        status: 'below_80' | 'warning' | 'at_limit';
+        included_count: number;
+        remaining_count: number;
+    };
+};
+
+export type EnforcementReadiness = {
+    status: 'preparing';
+} | {
+    status: 'action_required';
+    actions: Array<'reduce_email_usage' | 'reduce_storage' | 'reduce_platform_addresses' | 'remove_custom_domains' | 'resolve_billing'>;
+} | {
+    status: 'ready' | 'enforced' | 'rolled_back';
+};
+
 export type EffectiveEntitlements = {
     tier: 'free' | 'personal' | 'startup' | 'business';
     catalog_version: string;
@@ -576,6 +606,64 @@ export type EffectiveEntitlements = {
     reserved_platform_address_count: number;
     included_custom_domain_count: number;
     custom_domain_add_on_eligible: boolean;
+};
+
+export type InboundProtection = {
+    status: 'inactive' | 'pending' | 'mismatch' | 'unavailable';
+} | {
+    status: 'protected' | 'pausing' | 'restricted' | 'recovering';
+    period_start_ms: number;
+    period_end_ms: number;
+    reason: 'email' | 'storage' | 'email_and_storage' | 'manual' | null;
+    email: {
+        used_count: number;
+        allowance_count: number;
+    };
+    storage: {
+        used_bytes: number;
+        allowance_bytes: number;
+    };
+    consequence: {
+        platform_domain: 'accepting' | 'rejecting';
+        custom_domains: 'accepting' | 'pausing' | 'disabled' | 'recovering';
+    };
+};
+
+export type StorageUsage = {
+    status: 'ready';
+    period_start: number;
+    period_end: number;
+    email_bytes: number;
+    drive_bytes: number;
+    current_bytes: number;
+    high_water_bytes: number;
+    measured_at: number;
+    quota: {
+        status: 'not_enforced';
+    } | {
+        status: 'below_80' | 'warning' | 'at_limit';
+        included_bytes: number;
+        remaining_bytes: number;
+    };
+} | {
+    status: 'pending' | 'mismatch';
+};
+
+export type SubscriptionState = {
+    status: 'free' | 'active' | 'pending_payment' | 'payment_issue' | 'scheduled_change' | 'restricted';
+    checkout_eligible: boolean;
+    grace_started_at?: number;
+    grace_ends_at?: number;
+    pending_mutation?: 'checkout' | 'upgrade';
+    payment_action_required?: boolean;
+    scheduled_change?: {
+        target_tier: 'personal' | 'startup' | 'business';
+        effective_at: number;
+        next_period_amount_usd: number;
+    };
+    cancellation_scheduled?: {
+        effective_at: number;
+    };
 };
 
 export type DowngradePreviewResult = {
@@ -1134,6 +1222,85 @@ export type BatchIdsBody = {
     ids: Array<string>;
 };
 
+export type PublicOutboundEmail = {
+    /**
+     * Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted).
+     */
+    id: string;
+    /**
+     * Organization scope that owns the outbound email.
+     */
+    org_id: string;
+    /**
+     * Sender (the authenticated user).
+     */
+    user_id: string;
+    /**
+     * Full wspc alias email address the message was sent from.
+     */
+    from_alias_email: string;
+    /**
+     * Materialized `From` address.
+     */
+    from_addr: string;
+    /**
+     * Recipient addresses as actually submitted to the provider.
+     */
+    to: Array<string>;
+    /**
+     * Outbound subject as sent (may include `Re: ` prefix for replies).
+     */
+    subject?: string;
+    /**
+     * Plain-text body as sent.
+     */
+    text_body: string;
+    /**
+     * Inbound email id this is a reply to, if applicable.
+     */
+    in_reply_to_email_id?: string;
+    /**
+     * Observed outbound RFC 5322 `Message-ID`, when known.
+     */
+    message_id?: string;
+    /**
+     * Materialized `References` header for threaded replies.
+     */
+    references_header?: string;
+    /**
+     * Lifecycle status. `submitted`: the row is persisted; provider call is in flight. `sent`: provider accepted the message. `failed`: provider rejected; see `error_code`/`error_message`.
+     */
+    status: 'submitted' | 'sent' | 'failed';
+    /**
+     * Echo of the idempotency key used for this send.
+     */
+    idempotency_key: string;
+    /**
+     * Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged.
+     */
+    idempotency_expires_at: number;
+    /**
+     * Unix epoch milliseconds the sent message entered trash.
+     */
+    deleted_at?: number;
+    /**
+     * Number of attachments on this outbound email. 0 when none.
+     */
+    attachment_count: number;
+    /**
+     * Unix epoch milliseconds the provider accepted the message.
+     */
+    submitted_at?: number;
+    /**
+     * Unix epoch milliseconds the outbound row was first written.
+     */
+    created_at: number;
+    /**
+     * Unix epoch milliseconds the outbound row was last modified.
+     */
+    updated_at: number;
+};
+
 export type EmailDomainListResponse = {
     domains: Array<{
         /**
@@ -1227,76 +1394,7 @@ export type RestoreBatchResponse = {
 };
 
 export type SendEmailResponse = {
-    email: {
-        /**
-         * Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted).
-         */
-        id: string;
-        /**
-         * Organization scope that owns the outbound email.
-         */
-        org_id: string;
-        /**
-         * Sender (the authenticated user).
-         */
-        user_id: string;
-        /**
-         * Full wspc alias email address the message was sent from.
-         */
-        from_alias_email: string;
-        /**
-         * Materialized `From` address.
-         */
-        from_addr: string;
-        /**
-         * Recipient addresses as actually submitted to the provider.
-         */
-        to: Array<string>;
-        /**
-         * Outbound subject as sent (may include `Re: ` prefix for replies).
-         */
-        subject?: string;
-        /**
-         * Plain-text body as sent.
-         */
-        text_body: string;
-        /**
-         * Inbound email id this is a reply to, if applicable.
-         */
-        in_reply_to_email_id?: string;
-        /**
-         * Observed outbound RFC 5322 `Message-ID`, when known.
-         */
-        message_id?: string;
-        /**
-         * Materialized `References` header for threaded replies.
-         */
-        references_header?: string;
-        /**
-         * Lifecycle status. `submitted`: the row is persisted; provider call is in flight. `sent`: provider accepted the message. `failed`: provider rejected; see `error_code`/`error_message`.
-         */
-        status: 'submitted' | 'sent' | 'failed';
-        /**
-         * Echo of the idempotency key used for this send.
-         */
-        idempotency_key: string;
-        /**
-         * Number of attachments on this outbound email. 0 when none.
-         */
-        attachment_count: number;
-        /**
-         * Unix epoch milliseconds the provider accepted the message.
-         */
-        submitted_at?: number;
-        /**
-         * Unix epoch milliseconds the outbound row was first written.
-         */
-        created_at: number;
-        /**
-         * Unix epoch milliseconds the outbound row was last modified.
-         */
-        updated_at: number;
-    };
+    email: PublicOutboundEmail;
     /**
      * `true` if this response is a replay of an earlier send with the same `idempotency_key` + identical content; `false` if the message was newly submitted on this request.
      */
@@ -4379,6 +4477,84 @@ export type BillingPortalSessionsCreateResponses = {
 
 export type BillingPortalSessionsCreateResponse = BillingPortalSessionsCreateResponses[keyof BillingPortalSessionsCreateResponses];
 
+export type BillingEmailUsageGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/billing/email-usage';
+};
+
+export type BillingEmailUsageGetErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingEmailUsageGetError = BillingEmailUsageGetErrors[keyof BillingEmailUsageGetErrors];
+
+export type BillingEmailUsageGetResponses = {
+    /**
+     * Current-period sent, received, and pooled Email usage.
+     */
+    200: EmailUsage;
+};
+
+export type BillingEmailUsageGetResponse = BillingEmailUsageGetResponses[keyof BillingEmailUsageGetResponses];
+
+export type BillingEnforcementReadinessGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/billing/enforcement-readiness';
+};
+
+export type BillingEnforcementReadinessGetErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingEnforcementReadinessGetError = BillingEnforcementReadinessGetErrors[keyof BillingEnforcementReadinessGetErrors];
+
+export type BillingEnforcementReadinessGetResponses = {
+    /**
+     * Current Workspace enforcement migration readiness.
+     */
+    200: EnforcementReadiness;
+};
+
+export type BillingEnforcementReadinessGetResponse = BillingEnforcementReadinessGetResponses[keyof BillingEnforcementReadinessGetResponses];
+
 export type BillingEntitlementsGetData = {
     body?: never;
     headers?: {
@@ -4441,6 +4617,147 @@ export type BillingEntitlementsGetResponses = {
 };
 
 export type BillingEntitlementsGetResponse = BillingEntitlementsGetResponses[keyof BillingEntitlementsGetResponses];
+
+export type BillingInboundProtectionGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/billing/inbound-protection';
+};
+
+export type BillingInboundProtectionGetErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingInboundProtectionGetError = BillingInboundProtectionGetErrors[keyof BillingInboundProtectionGetErrors];
+
+export type BillingInboundProtectionGetResponses = {
+    /**
+     * Current Workspace protected inbound usage and enforcement state.
+     */
+    200: InboundProtection;
+};
+
+export type BillingInboundProtectionGetResponse = BillingInboundProtectionGetResponses[keyof BillingInboundProtectionGetResponses];
+
+export type BillingStorageUsageGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/billing/storage-usage';
+};
+
+export type BillingStorageUsageGetErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Email or Drive storage accounting is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingStorageUsageGetError = BillingStorageUsageGetErrors[keyof BillingStorageUsageGetErrors];
+
+export type BillingStorageUsageGetResponses = {
+    /**
+     * Current-period retained Email and Drive storage usage.
+     */
+    200: StorageUsage;
+};
+
+export type BillingStorageUsageGetResponse = BillingStorageUsageGetResponses[keyof BillingStorageUsageGetResponses];
+
+export type BillingSubscriptionStateGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/subscription-state';
+};
+
+export type BillingSubscriptionStateGetErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingSubscriptionStateGetError = BillingSubscriptionStateGetErrors[keyof BillingSubscriptionStateGetErrors];
+
+export type BillingSubscriptionStateGetResponses = {
+    /**
+     * Normalized subscription state.
+     */
+    200: SubscriptionState;
+};
+
+export type BillingSubscriptionStateGetResponse = BillingSubscriptionStateGetResponses[keyof BillingSubscriptionStateGetResponses];
 
 export type BillingSubscriptionDowngradePreviewData = {
     body: PreviewSubscriptionDowngradeInput;
@@ -4852,12 +5169,20 @@ export type BillingCheckoutSessionsCreateErrors = {
         };
     };
     /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     * Another billing mutation is pending or current resources do not fit the tier.
      */
     409: {
         error: {
             code: string;
             message: string;
+        };
+    } | {
+        error: {
+            code: 'CHECKOUT_TARGET_TIER_INELIGIBLE';
+            message: string;
+            details: {
+                actions: Array<'reduce_platform_addresses' | 'remove_custom_domains' | 'select_higher_tier'>;
+            };
         };
     };
     /**
@@ -6458,7 +6783,7 @@ export type DriveFileUploadErrors = {
         };
     };
     /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     * The expected entry version conflicts with the current version, or the upload would exceed the Workspace pooled storage quota.
      */
     409: {
         error: {
@@ -6485,7 +6810,7 @@ export type DriveFileUploadErrors = {
         };
     };
     /**
-     * The storage provider is temporarily unavailable after a bounded retry.
+     * The storage provider or Workspace quota accounting is temporarily unavailable.
      */
     503: {
         error: {
@@ -6707,6 +7032,7 @@ export type DriveManifestGetData = {
         limit?: string;
         cursor?: string;
         include_deleted?: string;
+        deleted_only?: string;
         path_prefix?: string;
         since_cursor?: string;
     };
@@ -6935,7 +7261,7 @@ export type DriveFileRestoreErrors = {
         };
     };
     /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     * The restore would exceed the Workspace pooled storage quota.
      */
     409: {
         error: {
@@ -6956,6 +7282,15 @@ export type DriveFileRestoreErrors = {
      * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
      */
     500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Workspace quota accounting is temporarily unavailable.
+     */
+    503: {
         error: {
             code: string;
             message: string;
@@ -7640,6 +7975,198 @@ export type EmailDomainGetResponses = {
 
 export type EmailDomainGetResponse = EmailDomainGetResponses[keyof EmailDomainGetResponses];
 
+export type EmailSentDeleteData = {
+    body: {
+        ids: Array<string>;
+    };
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/email/messages/sent/delete';
+};
+
+export type EmailSentDeleteErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EmailSentDeleteError = EmailSentDeleteErrors[keyof EmailSentDeleteErrors];
+
+export type EmailSentDeleteResponses = {
+    /**
+     * Deleted sent messages
+     */
+    200: {
+        changed: number;
+        not_found: Array<string>;
+    };
+};
+
+export type EmailSentDeleteResponse = EmailSentDeleteResponses[keyof EmailSentDeleteResponses];
+
+export type EmailTrashEmptyData = {
+    body: {
+        deleted_before: number;
+    };
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/email/messages/trash/empty';
+};
+
+export type EmailTrashEmptyErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EmailTrashEmptyError = EmailTrashEmptyErrors[keyof EmailTrashEmptyErrors];
+
+export type EmailTrashEmptyResponses = {
+    /**
+     * Purge progress
+     */
+    200: {
+        deleted_before: number;
+        purged_items: number;
+        purged_bytes: number;
+        has_more: boolean;
+    };
+};
+
+export type EmailTrashEmptyResponse = EmailTrashEmptyResponses[keyof EmailTrashEmptyResponses];
+
 export type EmailAttachmentGetData = {
     body?: never;
     headers?: {
@@ -7907,6 +8434,98 @@ export type EmailGetResponses = {
 
 export type EmailGetResponse = EmailGetResponses[keyof EmailGetResponses];
 
+export type EmailSentGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/email/messages/sent/{id}';
+};
+
+export type EmailSentGetErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Sent message not found
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EmailSentGetError = EmailSentGetErrors[keyof EmailSentGetErrors];
+
+export type EmailSentGetResponses = {
+    /**
+     * Sent message
+     */
+    200: PublicOutboundEmail;
+};
+
+export type EmailSentGetResponse = EmailSentGetResponses[keyof EmailSentGetResponses];
+
 export type EmailListData = {
     body?: never;
     headers?: {
@@ -7938,6 +8557,7 @@ export type EmailListData = {
          */
         cursor?: string;
         include_deleted?: string;
+        deleted_only?: string;
     };
     url: '/email/messages';
 };
@@ -8070,6 +8690,104 @@ export type EmailListResponses = {
 };
 
 export type EmailListResponse = EmailListResponses[keyof EmailListResponses];
+
+export type EmailSentListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path?: never;
+    query?: {
+        include_deleted?: string;
+        deleted_only?: string;
+        limit?: number | null;
+        cursor?: string;
+    };
+    url: '/email/messages/sent';
+};
+
+export type EmailSentListErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EmailSentListError = EmailSentListErrors[keyof EmailSentListErrors];
+
+export type EmailSentListResponses = {
+    /**
+     * Sent messages
+     */
+    200: {
+        items: Array<PublicOutboundEmail>;
+        next_cursor?: string;
+    };
+};
+
+export type EmailSentListResponse = EmailSentListResponses[keyof EmailSentListResponses];
 
 export type EmailMarkReadData = {
     body: BatchIdsBody;
@@ -8304,6 +9022,101 @@ export type EmailRestoreResponses = {
 
 export type EmailRestoreResponse = EmailRestoreResponses[keyof EmailRestoreResponses];
 
+export type EmailSentRestoreData = {
+    body: {
+        ids: Array<string>;
+    };
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/email/messages/sent/restore';
+};
+
+export type EmailSentRestoreErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The restore conflicts with the current version or storage lifecycle cleanup is in progress.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EmailSentRestoreError = EmailSentRestoreErrors[keyof EmailSentRestoreErrors];
+
+export type EmailSentRestoreResponses = {
+    /**
+     * Restored sent messages
+     */
+    200: {
+        changed: number;
+        not_found: Array<string>;
+    };
+};
+
+export type EmailSentRestoreResponse = EmailSentRestoreResponses[keyof EmailSentRestoreResponses];
+
 export type EmailSendData = {
     body: SendEmailBody;
     headers?: {
@@ -8387,6 +9200,15 @@ export type EmailSendErrors = {
         };
     };
     /**
+     * The idempotency result was permanently purged after its retention window; use a new idempotency key.
+     */
+    410: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
      * Either the middleware send rate limit (`RATE_LIMITED`), the per-user daily cap of 100 sends (`RATE_LIMITED`), or the per-alias daily cap of 50 sends (`QUOTA_EXCEEDED`).
      */
     429: {
@@ -8413,6 +9235,15 @@ export type EmailSendErrors = {
             message: string;
         };
     };
+    /**
+     * Workspace quota accounting is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
 };
 
 export type EmailSendError = EmailSendErrors[keyof EmailSendErrors];
@@ -8425,6 +9256,101 @@ export type EmailSendResponses = {
 };
 
 export type EmailSendResponse = EmailSendResponses[keyof EmailSendResponses];
+
+export type EmailTrashSummaryData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/email/messages/trash-summary';
+};
+
+export type EmailTrashSummaryErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EmailTrashSummaryError = EmailTrashSummaryErrors[keyof EmailTrashSummaryErrors];
+
+export type EmailTrashSummaryResponses = {
+    /**
+     * Trash summary
+     */
+    200: {
+        inbound_count: number;
+        outbound_count: number;
+        bytes: number;
+        earliest_expires_at?: number;
+    };
+};
+
+export type EmailTrashSummaryResponse = EmailTrashSummaryResponses[keyof EmailTrashSummaryResponses];
 
 export type EmailDomainVerifyData = {
     body?: never;

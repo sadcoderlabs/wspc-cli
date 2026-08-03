@@ -12,6 +12,7 @@ export const emailListCommand = new Command("ls")
   .option("--since <value>", "Unix epoch milliseconds — only return emails with `received_at >= since`. Useful for incremental sync.")
   .option("--cursor <value>", "Opaque pagination cursor returned in `next_cursor` of a previous response.")
   .option("--include-deleted", "include_deleted")
+  .option("--deleted-only <value>", "deleted_only")
   .action(async (opts) => {
     await runSdkCommand({
       operation: emailList,
@@ -23,6 +24,7 @@ export const emailListCommand = new Command("ls")
           since: opts.since,
           cursor: opts.cursor,
           include_deleted: opts.includeDeleted,
+          deleted_only: opts.deletedOnly,
         },
       },
       context: { kind: "email_list", display: {"shape":"list","columns":["id","from_addr","subject","is_read","received_at"],"format":{"id":"id-short","from_addr":"truncate","subject":"truncate","is_read":"bool-badge","received_at":"relative-time"},"emptyMessage":"no emails"} },
