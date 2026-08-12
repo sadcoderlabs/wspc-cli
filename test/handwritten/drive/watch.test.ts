@@ -59,8 +59,8 @@ function fakeRealtimeSource(): DriveRealtimeSource & {
   close: ReturnType<typeof vi.fn>
   emitConnected(): void
   emitEvent(event: RealtimeEvent): void
-  emitReconnect(delayMs: number, error: string): void
-  emitAuthFailed(error?: string): void
+  emitReconnect(delayMs: number, error: string, reason?: "auth" | "network"): void
+  emitAuthFailed(error?: string, reason?: string): void
   emitWarning(warning: string): void
 } {
   let handlers: Parameters<DriveRealtimeSource["start"]>[0] | undefined
@@ -75,11 +75,11 @@ function fakeRealtimeSource(): DriveRealtimeSource & {
     emitEvent(event) {
       handlers?.onEvent(event)
     },
-    emitReconnect(delayMs, error) {
-      handlers?.onReconnect(delayMs, error)
+    emitReconnect(delayMs, error, reason) {
+      handlers?.onReconnect(delayMs, error, reason ?? "network")
     },
-    emitAuthFailed(error) {
-      handlers?.onAuthFailed(error)
+    emitAuthFailed(error, reason) {
+      handlers?.onAuthFailed(error, reason)
     },
     emitWarning(warning) {
       handlers?.onWarning?.(warning)
@@ -985,8 +985,15 @@ describe("drive watch", () => {
     await Promise.resolve()
 
     try {
-      realtimeSource.emitAuthFailed()
-      expect(onEvent).toHaveBeenCalledWith({ kind: "drive_realtime_auth_failed", error: "auth failed" })
+      realtimeSource.emitAuthFailed("auth failed", "refresh_token_reused")
+      // Only an unrecoverable rejection reaches this handler now, and the raw
+      // reason has to ride along or the log cannot say why sync stopped.
+      expect(onEvent).toHaveBeenCalledWith({
+        kind: "drive_realtime_auth_failed",
+        error: "auth failed",
+        recoverable: false,
+        reason: "refresh_token_reused",
+      })
 
       source.emit("after-auth.txt")
       await vi.advanceTimersByTimeAsync(500)
@@ -1010,12 +1017,22 @@ describe("drive watch", () => {
     try {
       realtimeSource.emitConnected()
       realtimeSource.emitReconnect(1000, "network failed")
+      realtimeSource.emitReconnect(2000, "HTTP 401", "auth")
 
       expect(onEvent).toHaveBeenCalledWith({ kind: "drive_realtime_connected", library_id: "lib_1" })
       expect(onEvent).toHaveBeenCalledWith({
         kind: "drive_realtime_reconnecting",
         delay_ms: 1000,
         error: "network failed",
+        reason: "network",
+      })
+      // An auth reconnect looks identical to the user but must stay separable
+      // from a rate limit in the log.
+      expect(onEvent).toHaveBeenCalledWith({
+        kind: "drive_realtime_reconnecting",
+        delay_ms: 2000,
+        error: "HTTP 401",
+        reason: "auth",
       })
     } finally {
       process.emit("SIGINT")

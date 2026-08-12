@@ -164,7 +164,7 @@ export function createDriveRealtimeSource(args: {
       message(data) {
         if (id !== connectionId || stopped || authFailed) return
         markAlive(id)
-        void handleMessage(data).catch((error) => handlers?.onWarning?.(redactedRealtimeError(error)))
+        void handleMessage(id, data).catch((error) => handlers?.onWarning?.(redactedRealtimeError(error)))
       },
       close(error) {
         closeConnection(id, error ?? "close")
@@ -180,13 +180,17 @@ export function createDriveRealtimeSource(args: {
     clearReconnectTimer()
     clearKeepaliveTimers()
     socket?.close()
-    if (isRealtimeAuthError(error)) {
+    // A socket rejected on auth grounds is not terminal: the header provider
+    // re-resolves credentials per attempt, so reconnecting is what lets an
+    // expired access token rotate. Giving up would leave the watch with no
+    // source of remote changes at all. See ADR-0001 in wspc-drive.
+    if (isTerminalAuthError(error)) {
       authFailed = true
-      handlers?.onAuthFailed(redactedRealtimeError(error))
+      handlers?.onAuthFailed(redactedRealtimeError(error), refreshRejectionReason(error))
       return
     }
     const delayMs = reconnectDelayMs
-    handlers?.onReconnect(delayMs, redactedRealtimeError(error))
+    handlers?.onReconnect(delayMs, redactedRealtimeError(error), isRealtimeAuthError(error) ? "auth" : "network")
     reconnectTimer = scheduleTimeout(() => {
       reconnectTimer = undefined
       connectNow()
@@ -194,7 +198,7 @@ export function createDriveRealtimeSource(args: {
     reconnectDelayMs = Math.min(delayMs * 2, 60_000)
   }
 
-  async function handleMessage(data: string): Promise<void> {
+  async function handleMessage(id: number, data: string): Promise<void> {
     const message = parseDriveRealtimeMessage(data)
     if (message.type === "ready") {
       if (message.replayed > 0) {
@@ -243,14 +247,11 @@ export function createDriveRealtimeSource(args: {
     }
     if (message.type === "error") {
       const error = message.message ?? message.code ?? "realtime error"
+      // An auth frame from the server says this socket's credentials were
+      // rejected, never that the refresh token itself is dead. Drop the
+      // connection and let the reconnect path re-resolve credentials.
       if (isRealtimeAuthError(error) || isRealtimeAuthError(message.code)) {
-        authFailed = true
-        connectionId += 1
-        clearReconnectTimer()
-        clearKeepaliveTimers()
-        handlers?.onAuthFailed(redactedRealtimeError(error))
-        activeSocket?.close()
-        activeSocket = undefined
+        closeConnection(id, error)
         return
       }
       handlers?.onWarning?.(redactedRealtimeError(error))
@@ -395,10 +396,25 @@ function isInvalidCursorReason(reason: string): boolean {
   return /\bcursor[_ -]?(invalid|expired|gone|missing|not[_ -]?found)\b|\binvalid[_ -]?cursor\b/i.test(reason)
 }
 
+// The server refused to rotate the refresh token, so no amount of reconnecting
+// will help and only a human running `wspc login` can recover.
+function isTerminalAuthError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "WSPC_AUTH_EXPIRED"
+}
+
+// `redactedRealtimeError` flattens every auth message to "auth failed", so the
+// machine reason has to be read off the error itself to survive into the log.
+function refreshRejectionReason(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) return undefined
+  const reason = (error as { reason?: unknown }).reason
+  return typeof reason === "string" && reason.length > 0 ? reason : undefined
+}
+
+// Recognises an auth-shaped failure so we can drop the socket and label the
+// reconnect. Deliberately loose, which is safe now that it never decides
+// whether to give up: only isTerminalAuthError does that.
 function isRealtimeAuthError(error: unknown): boolean {
-  if (typeof error === "object" && error !== null && (error as { code?: unknown }).code === "WSPC_AUTH_EXPIRED") {
-    return true
-  }
+  if (isTerminalAuthError(error)) return true
   return /\b(401|403|auth|authorization|unauthorized|forbidden)\b/i.test(String(error))
 }
 

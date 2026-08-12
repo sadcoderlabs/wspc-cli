@@ -16,6 +16,8 @@ export interface DriveWatchSource {
   close(): Promise<void>
 }
 
+export type DriveRealtimeReconnectReason = "auth" | "network"
+
 export interface DriveRealtimeSource {
   start(handlers: {
     onConnected: () => void
@@ -26,8 +28,8 @@ export interface DriveRealtimeSource {
       path?: string
       reason?: string
     }) => void
-    onReconnect: (delayMs: number, error: string) => void
-    onAuthFailed: (error?: string) => void
+    onReconnect: (delayMs: number, error: string, reason: DriveRealtimeReconnectReason) => void
+    onAuthFailed: (error?: string, reason?: string) => void
     onWarning?: (warning: string) => void
   }): Promise<void>
   close(): Promise<void>
@@ -290,13 +292,18 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           }
           scheduleSync(event.debounce_ms ?? remoteDebounceMs, "remote")
         },
-        onReconnect(delayMs, error) {
-          emit({ kind: "drive_realtime_reconnecting", delay_ms: delayMs, error })
-          dbg.log("realtime_reconnecting", { delay_ms: delayMs, error })
+        onReconnect(delayMs, error, reason) {
+          emit({ kind: "drive_realtime_reconnecting", delay_ms: delayMs, error, reason })
+          dbg.log("realtime_reconnecting", { delay_ms: delayMs, error, reason })
         },
-        onAuthFailed(error) {
-          emit({ kind: "drive_realtime_auth_failed", error: error ?? "auth failed" })
-          dbg.log("realtime_auth_failed", { error: error ?? "auth failed" })
+        onAuthFailed(error, reason) {
+          const detail = {
+            error: error ?? "auth failed",
+            recoverable: false as const,
+            ...(reason === undefined ? {} : { reason }),
+          }
+          emit({ kind: "drive_realtime_auth_failed", ...detail })
+          dbg.log("realtime_auth_failed", { ...detail })
         },
         onWarning(warning) {
           emit({ kind: "drive_realtime_warning", warning })
