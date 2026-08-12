@@ -99,7 +99,7 @@ Auth 沿用現有 CLI auth 設定。若後端 endpoint 需要 bearer token，Web
 | `ready` | 保存 server 提供的最新 cursor；如果 `replayed > 0`，排程一次 full sync |
 | `library_changed` | 保存 event cursor 與 `last_event_at`，排程 debounced full sync |
 | `resync_required` | 保存 latest cursor 與 `last_event_at`，立刻排程 full sync |
-| `error` | 記錄低敏 summary；通常保留連線，除非 server 關閉或錯誤代表 auth failure |
+| `error` | 記錄低敏 summary；通常保留連線。代表 auth failure 的 error frame 會關閉這條連線並走下面的 backoff 重連，不停止 realtime |
 
 CLI message 第一版只需要 optional application ping：
 
@@ -135,7 +135,10 @@ WebSocket 斷線不停止 `drive watch`。CLI 保留本機 chokidar watch，並�
 | reconnect ready replay 成功 | 如果 replayed events 大於 0，排程 sync |
 | `resync_required` | 立刻排程 full sync |
 | cursor invalid | 清空 local `last_cursor`，持久化 state，重連或排程 full sync |
-| `401` / `403` / auth failure | 停止 realtime reconnect，提示重新 login 或確認權限；本機 watch 是否繼續依既有 sync auth failure 策略停止 |
+| socket 層 `401` / `403` / close code `4401` / auth error frame | 從 `1` 秒開始 backoff，最高 `60` 秒，持續重連，不設次數上限。每次重連都重新解析 credentials，過期的 access token 會在這一步 rotate。event 標記 `reason: "auth"` |
+| token endpoint 拒絕 refresh（`WSPC_AUTH_EXPIRED`） | 停止 realtime reconnect，提示重新 login；本機 watch 是否繼續依既有 sync auth failure 策略 |
+
+> **2026-08-12 修訂。**原本的規則是「`401` / `403` / auth failure 一律停止 reconnect」。那條規則跟下一段「不做固定 polling」相加的後果是：socket 只要因為 access token 過期被拒一次，遠端變更就再也不會抵達，同步安靜地變成單向，而使用者看到的只是一個要求重新登入的提示。改成只有 token endpoint 拒絕 refresh 時才停止重連。完整理由見 wspc-drive 的 `docs/adr/0001-auth-failure-recoverability-by-layer.md`。
 
 WebSocket 長時間無法連線時，第一版不做固定 polling。CLI output 要清楚顯示 realtime reconnecting，避免使用者誤以為遠端更新仍會即時抵達。若未來要加入 safety polling，間隔不得低於 `5` 分鐘，且必須另寫 spec，避免 foreground watch 偷偷變成 daemon-like polling service。
 
@@ -148,8 +151,8 @@ Human output 使用既有 renderer，不新增 output framework。新增 event k
 - `drive_watch_started`：沿用現況，包含 root 與 library id。
 - `drive_realtime_connected`：顯示 library realtime connected。
 - `drive_realtime_event`：顯示收到 remote update、reason 或 path summary，文字需表達「收到更新，正在同步」，不能說「檔案已更新」。
-- `drive_realtime_reconnecting`：顯示 delay 與低敏 error summary。
-- `drive_realtime_auth_failed`：提示重新 login 或確認權限。
+- `drive_realtime_reconnecting`：顯示 delay 與低敏 error summary，並帶 `reason: "auth" | "network"`。畫面上兩者一樣，`reason` 只是為了讓 log 分得出來。
+- `drive_realtime_auth_failed`：提示重新 login。只在不可恢復時送出，固定帶 `recoverable: false`，並在 server 有給的時候帶 `reason`（`refresh_token_reused` 等原始 `error_description`）。訊息本身會被 redaction 壓成 `auth failed`，所以 `reason` 是 log 裡唯一能還原「為什麼被登出」的欄位。
 - `drive_sync_once`：沿用現有 sync summary，這才是實際同步結果。
 
 `--json` 模式下輸出 newline-delimited JSON object。這仍是 CLI structured log stream，不是正式 Drive protocol；不要新增 ad-hoc `--drive-json` 或 `--realtime-json`。
@@ -170,7 +173,7 @@ Event payload 中的 path 若要輸出，仍應視為 display-only。任何會�
 - URL/auth tests：從 API base URL 推導 `ws` / `wss` endpoint；cursor 只在存在時送；client id 必送；token 不寫入 state，也不出現在 log event。
 - Message tests：`ready` replay、`library_changed`、`resync_required` 都透過同一個 sync scheduler 排程 full sync；unknown message 忽略；`error` 只輸出低敏 summary。
 - Debounce tests：local 與 remote events 共用同一 pending sync；sync running 時只設定 rerun flag；remote events 在 `2` 秒內合併。
-- Reconnect tests：network close/backoff 到上限 `60` 秒；successful connect reset backoff；`401`/`403` 停止 reconnect 並輸出 auth failure。
+- Reconnect tests：network close/backoff 到上限 `60` 秒；successful connect reset backoff；socket 層 `401`/`403`/close code `4401`/auth error frame 都繼續重連並標記 `reason: "auth"`；只有 headers provider 丟出 `WSPC_AUTH_EXPIRED` 才停止 reconnect 並輸出 auth failure。
 - Cursor tests：event 被接受後保存 cursor；cursor invalid 時清空 cursor 並排程 full sync；crash/replay 重複 event 不會直接改 state entries。
 - Safety tests：event payload 不直接改 local file、state entries、conflicts 或 manifest cache；真正同步仍呼叫 `runDriveSyncOnce(root)`。
 - Watch integration tests：fake local source 與 fake realtime source 共用 queue；realtime source close 時 local watch 仍可觸發 sync。

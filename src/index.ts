@@ -42,9 +42,14 @@ export type WspcClientOptions =
 
 export class WspcAuthExpiredError extends Error {
   readonly code = "WSPC_AUTH_EXPIRED" as const
-  constructor(message = "wspc credentials expired; re-authenticate via `wspc login`") {
+  // Raw RFC 6749 `error_description` (`refresh_token_reused`, `..._revoked`,
+  // ...). Carried alongside the prose because consumers redact the message
+  // before logging it, which would otherwise erase why the session ended.
+  readonly reason: string | undefined
+  constructor(message = "wspc credentials expired; re-authenticate via `wspc login`", reason?: string) {
     super(message)
     this.name = "WspcAuthExpiredError"
+    this.reason = reason
   }
 }
 

@@ -237,6 +237,29 @@ describe("createAuthInterceptor", () => {
     ).rejects.toThrow(/wspc login/)
   })
 
+  it("carries the raw rejection reason so callers can log it verbatim", async () => {
+    // By the time a rejection reaches a drive event its message is redacted
+    // down to "auth failed", so the machine code has to travel separately or
+    // the reason for a sign-out is unrecoverable from logs.
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ error: "invalid_grant", error_description: "refresh_token_reused" }), {
+        status: 401,
+      }),
+    )
+    const interceptor = createAuthInterceptor({
+      accessToken: "wat_old",
+      refreshToken: "wrt_old",
+      baseUrl: "https://api.wspc.ai",
+      clientId: "oac_wspc_cli",
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      onTokenRefresh: () => {},
+    })
+
+    await expect(
+      interceptor.execute(new Request("https://api.wspc.ai/todo/items")),
+    ).rejects.toMatchObject({ code: "WSPC_AUTH_EXPIRED", reason: "refresh_token_reused" })
+  })
+
   it("falls back to echoing the code when the server sends a reason it doesn't know", async () => {
     // An older or newer server may send something unmapped; the raw code still
     // beats a blank message.

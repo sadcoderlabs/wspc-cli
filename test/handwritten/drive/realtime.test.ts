@@ -475,38 +475,40 @@ describe("drive realtime helpers", () => {
     expect(events).toContainEqual({ reconnect: 2000, error: "network error" })
   })
 
-  it("stops reconnecting after auth errors", async () => {
+  it("recovers from a server-sent auth error frame, keeping the token redacted", async () => {
     const connect = fakeConnector()
     const events: unknown[] = []
+    const handlers = realtimeHandlers(events)
     const source = createDriveRealtimeSource(sourceArgs({ connect }))
 
-    await source.start(realtimeHandlers(events))
+    await source.start(handlers)
     connect.connections[0]?.handlers.message(JSON.stringify({
       type: "error",
       code: "forbidden",
       message: "HTTP 403: Bearer secret-token",
     }))
-    connect.connections[0]?.handlers.close(new Error("HTTP 403: Bearer secret-token"))
-    await vi.advanceTimersByTimeAsync(60_000)
+    await vi.advanceTimersByTimeAsync(1000)
 
-    expect(events).toContainEqual({ authFailed: "HTTP 403" })
-    expect(connect.connections).toHaveLength(1)
+    expect(connect.connections).toHaveLength(2)
+    expect(handlers.onAuthFailed).not.toHaveBeenCalled()
+    expect(events).toEqual([{ reconnect: 1000, error: "HTTP 403" }])
   })
 
-  it("stops reconnecting after auth close errors", async () => {
+  it("reconnects after a socket-level auth close", async () => {
     const connect = fakeConnector()
     const events: unknown[] = []
+    const handlers = realtimeHandlers(events)
     const source = createDriveRealtimeSource(sourceArgs({ connect }))
 
-    await source.start(realtimeHandlers(events))
+    await source.start(handlers)
     connect.connections[0]?.handlers.close(new Error("HTTP 401"))
-    await vi.advanceTimersByTimeAsync(60_000)
+    await vi.advanceTimersByTimeAsync(1000)
 
-    expect(events).toEqual([{ authFailed: "HTTP 401" }])
-    expect(connect.connections).toHaveLength(1)
+    expect(connect.connections).toHaveLength(2)
+    expect(handlers.onAuthFailed).not.toHaveBeenCalled()
   })
 
-  it("uses auth close codes after generic native websocket errors", async () => {
+  it("recovers from auth close codes after generic native websocket errors", async () => {
     const listeners: Record<string, Array<(event: Event) => void>> = {}
     class FakeWebSocket extends EventTarget {
       constructor(readonly url: string, readonly init?: unknown) {
@@ -528,9 +530,9 @@ describe("drive realtime helpers", () => {
     await source.start(realtimeHandlers(events))
     listeners.error?.forEach((listener) => listener(new Event("error")))
     listeners.close?.forEach((listener) => listener(new CloseEvent("close", { code: 4401 })))
-    await vi.advanceTimersByTimeAsync(60_000)
+    await vi.advanceTimersByTimeAsync(1000)
 
-    expect(events).toEqual([{ authFailed: "HTTP 401" }])
+    expect(events).toEqual([{ reconnect: 1000, error: "HTTP 401" }])
   })
 
   it("ignores stale messages after a connection closes", async () => {
@@ -661,6 +663,23 @@ describe("drive realtime helpers", () => {
 
     expect(events).toEqual([{ authFailed: "auth failed" }])
     expect(connect.connections).toHaveLength(0)
+  })
+
+  it("reports why the session ended, since redaction erases it from the message", async () => {
+    const connect = fakeConnector()
+    const handlers = realtimeHandlers()
+    const headers = vi.fn(async () => {
+      throw Object.assign(new Error("wspc signed you out because a refresh token was used twice"), {
+        code: "WSPC_AUTH_EXPIRED",
+        reason: "refresh_token_reused",
+      })
+    })
+    const source = createDriveRealtimeSource(sourceArgs({ connect, headers }))
+
+    await source.start(handlers)
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(handlers.onAuthFailed).toHaveBeenCalledWith(expect.any(String), "refresh_token_reused")
   })
 
   it("retries with backoff when the headers provider hits a network error", async () => {

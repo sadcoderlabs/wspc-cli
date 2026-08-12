@@ -53,16 +53,20 @@ const REFRESH_REJECTION_HELP: Record<string, string> = {
 // Surface why the refresh failed. Falls back to echoing the raw code when the
 // server sends a reason this build doesn't know, which still beats a blank
 // message when diagnosing.
-async function expiredMessage(res: Response): Promise<string | undefined> {
+async function refreshRejection(res: Response): Promise<{ message?: string; reason?: string }> {
   try {
     const body = (await res.clone().json()) as { error?: string; error_description?: string }
-    if (!body.error) return undefined
-    const help = body.error_description ? REFRESH_REJECTION_HELP[body.error_description] : undefined
-    if (help) return `${help}; re-authenticate via \`wspc login\``
-    const detail = body.error_description ? `: ${body.error_description}` : ""
-    return `wspc token refresh failed (${body.error}${detail}); re-authenticate via \`wspc login\``
+    if (!body.error) return {}
+    const reason = body.error_description
+    const help = reason ? REFRESH_REJECTION_HELP[reason] : undefined
+    if (help) return { message: `${help}; re-authenticate via \`wspc login\``, reason }
+    const detail = reason ? `: ${reason}` : ""
+    return {
+      message: `wspc token refresh failed (${body.error}${detail}); re-authenticate via \`wspc login\``,
+      reason,
+    }
   } catch {
-    return undefined
+    return {}
   }
 }
 
@@ -129,7 +133,8 @@ export function createAuthInterceptor(mode: AuthMode): AuthInterceptor {
       }),
     })
     if (!refreshRes.ok) {
-      throw new WspcAuthExpiredError(await expiredMessage(refreshRes))
+      const { message, reason } = await refreshRejection(refreshRes)
+      throw new WspcAuthExpiredError(message, reason)
     }
     const tokens = (await refreshRes.json()) as {
       access_token: string

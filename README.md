@@ -80,6 +80,13 @@ watch output 會顯示 `drive_watch_started`、`drive_sync_once`、
 `drive_realtime_auth_failed`。在 `--json` / pipe 模式下，這些 event 會以
 newline-delimited JSON objects 輸出，方便 scripts 追蹤 foreground watch 狀態。
 
+socket 被拒（`401`、`403`、close code `4401`、server 送的 auth error frame）不會
+停止 realtime。watch 會照 backoff 一直重連，並送出帶 `reason: "auth"` 的
+`drive_realtime_reconnecting`；每次重連都重新解析 credentials，所以過期的 access
+token 會在這一步 rotate。只有 server 拒絕 rotate refresh token 時才會送出
+`drive_realtime_auth_failed`，它固定帶 `recoverable: false`，並在 server 有給的時候
+帶 `reason`（`refresh_token_reused` 等原始 `error_description`）。
+
 ### Running a command as a specific account
 
 You can run any single command as a particular account without switching the active one:
