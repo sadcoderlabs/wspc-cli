@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, BillingCheckoutSessionsCreateData, BillingCheckoutSessionsCreateErrors, BillingCheckoutSessionsCreateResponses, BillingCustomDomainAddOnsChangeData, BillingCustomDomainAddOnsChangeErrors, BillingCustomDomainAddOnsChangeResponses, BillingEmailUsageGetData, BillingEmailUsageGetErrors, BillingEmailUsageGetResponses, BillingEnforcementReadinessGetData, BillingEnforcementReadinessGetErrors, BillingEnforcementReadinessGetResponses, BillingEntitlementsGetData, BillingEntitlementsGetErrors, BillingEntitlementsGetResponses, BillingInboundProtectionGetData, BillingInboundProtectionGetErrors, BillingInboundProtectionGetResponses, BillingPortalSessionsCreateData, BillingPortalSessionsCreateErrors, BillingPortalSessionsCreateResponses, BillingStorageUsageGetData, BillingStorageUsageGetErrors, BillingStorageUsageGetResponses, BillingStripeWebhookReceiveData, BillingStripeWebhookReceiveErrors, BillingStripeWebhookReceiveResponses, BillingSubscriptionCancellationUpdateData, BillingSubscriptionCancellationUpdateErrors, BillingSubscriptionCancellationUpdateResponses, BillingSubscriptionDowngradePreviewData, BillingSubscriptionDowngradePreviewErrors, BillingSubscriptionDowngradePreviewResponses, BillingSubscriptionDowngradesCreateData, BillingSubscriptionDowngradesCreateErrors, BillingSubscriptionDowngradesCreateResponses, BillingSubscriptionStateGetData, BillingSubscriptionStateGetErrors, BillingSubscriptionStateGetResponses, BillingSubscriptionUpgradePreviewsCreateData, BillingSubscriptionUpgradePreviewsCreateErrors, BillingSubscriptionUpgradePreviewsCreateResponses, BillingSubscriptionUpgradesCreateData, BillingSubscriptionUpgradesCreateErrors, BillingSubscriptionUpgradesCreateResponses, DriveFileDeleteData, DriveFileDeleteErrors, DriveFileDeleteResponses, DriveFileDownloadData, DriveFileDownloadErrors, DriveFileDownloadResponses, DriveFileEditData, DriveFileEditErrors, DriveFileEditResponses, DriveFileHistoryData, DriveFileHistoryErrors, DriveFileHistoryResponses, DriveFileMoveData, DriveFileMoveErrors, DriveFileMoveResponses, DriveFileRestoreData, DriveFileRestoreErrors, DriveFileRestoreResponses, DriveFileUploadData, DriveFileUploadErrors, DriveFileUploadResponses, DriveLibraryCreateData, DriveLibraryCreateErrors, DriveLibraryCreateResponses, DriveLibraryDeleteData, DriveLibraryDeleteErrors, DriveLibraryDeleteResponses, DriveLibraryGetData, DriveLibraryGetErrors, DriveLibraryGetResponses, DriveLibraryListData, DriveLibraryListErrors, DriveLibraryListResponses, DriveLibraryUpdateData, DriveLibraryUpdateErrors, DriveLibraryUpdateResponses, DriveManifestGetData, DriveManifestGetErrors, DriveManifestGetResponses, DriveSearchData, DriveSearchErrors, DriveSearchResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainDeleteData, EmailDomainDeleteErrors, EmailDomainDeleteResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EmailSentDeleteData, EmailSentDeleteErrors, EmailSentDeleteResponses, EmailSentGetData, EmailSentGetErrors, EmailSentGetResponses, EmailSentListData, EmailSentListErrors, EmailSentListResponses, EmailSentRestoreData, EmailSentRestoreErrors, EmailSentRestoreResponses, EmailTrashEmptyData, EmailTrashEmptyErrors, EmailTrashEmptyResponses, EmailTrashSummaryData, EmailTrashSummaryErrors, EmailTrashSummaryResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthAuthorizeGrantData, OauthAuthorizeGrantErrors, OauthAuthorizeGrantResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthDeviceConfirmData, OauthDeviceConfirmErrors, OauthDeviceConfirmResponses, OauthDeviceVerifyData, OauthDeviceVerifyErrors, OauthDeviceVerifyResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMemberRoleUpdateData, OrgMemberRoleUpdateErrors, OrgMemberRoleUpdateResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
+import type { AccountDeletionCancelData, AccountDeletionCancelErrors, AccountDeletionCancelResponses, AccountDeletionGetData, AccountDeletionGetErrors, AccountDeletionGetResponses, AccountDeletionRequestData, AccountDeletionRequestErrors, AccountDeletionRequestResponses, AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, BillingCheckoutSessionsCreateData, BillingCheckoutSessionsCreateErrors, BillingCheckoutSessionsCreateResponses, BillingCustomDomainAddOnPreviewData, BillingCustomDomainAddOnPreviewErrors, BillingCustomDomainAddOnPreviewResponses, BillingCustomDomainAddOnsChangeData, BillingCustomDomainAddOnsChangeErrors, BillingCustomDomainAddOnsChangeResponses, BillingEmailUsageGetData, BillingEmailUsageGetErrors, BillingEmailUsageGetResponses, BillingEnforcementReadinessGetData, BillingEnforcementReadinessGetErrors, BillingEnforcementReadinessGetResponses, BillingEntitlementsGetData, BillingEntitlementsGetErrors, BillingEntitlementsGetResponses, BillingInboundProtectionGetData, BillingInboundProtectionGetErrors, BillingInboundProtectionGetResponses, BillingPaddleWebhookReceiveData, BillingPaddleWebhookReceiveErrors, BillingPaddleWebhookReceiveResponses, BillingPortalSessionsCreateData, BillingPortalSessionsCreateErrors, BillingPortalSessionsCreateResponses, BillingStorageUsageGetData, BillingStorageUsageGetErrors, BillingStorageUsageGetResponses, BillingSubscriptionCancellationUpdateData, BillingSubscriptionCancellationUpdateErrors, BillingSubscriptionCancellationUpdateResponses, BillingSubscriptionDowngradePreviewData, BillingSubscriptionDowngradePreviewErrors, BillingSubscriptionDowngradePreviewResponses, BillingSubscriptionDowngradesCreateData, BillingSubscriptionDowngradesCreateErrors, BillingSubscriptionDowngradesCreateResponses, BillingSubscriptionStateGetData, BillingSubscriptionStateGetErrors, BillingSubscriptionStateGetResponses, BillingSubscriptionUpgradePreviewsCreateData, BillingSubscriptionUpgradePreviewsCreateErrors, BillingSubscriptionUpgradePreviewsCreateResponses, BillingSubscriptionUpgradesCreateData, BillingSubscriptionUpgradesCreateErrors, BillingSubscriptionUpgradesCreateResponses, CalendarExportData, CalendarExportErrors, CalendarExportResponses, DriveFileDeleteData, DriveFileDeleteErrors, DriveFileDeleteResponses, DriveFileDownloadData, DriveFileDownloadErrors, DriveFileDownloadResponses, DriveFileEditData, DriveFileEditErrors, DriveFileEditResponses, DriveFileHistoryData, DriveFileHistoryErrors, DriveFileHistoryResponses, DriveFileMoveData, DriveFileMoveErrors, DriveFileMoveResponses, DriveFileRestoreData, DriveFileRestoreErrors, DriveFileRestoreResponses, DriveFileUploadData, DriveFileUploadErrors, DriveFileUploadResponses, DriveLibraryCreateData, DriveLibraryCreateErrors, DriveLibraryCreateResponses, DriveLibraryDeleteData, DriveLibraryDeleteErrors, DriveLibraryDeleteResponses, DriveLibraryGetData, DriveLibraryGetErrors, DriveLibraryGetResponses, DriveLibraryListData, DriveLibraryListErrors, DriveLibraryListResponses, DriveLibraryUpdateData, DriveLibraryUpdateErrors, DriveLibraryUpdateResponses, DriveManifestGetData, DriveManifestGetErrors, DriveManifestGetResponses, DriveSearchData, DriveSearchErrors, DriveSearchResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainDeleteData, EmailDomainDeleteErrors, EmailDomainDeleteResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EmailSentDeleteData, EmailSentDeleteErrors, EmailSentDeleteResponses, EmailSentGetData, EmailSentGetErrors, EmailSentGetResponses, EmailSentListData, EmailSentListErrors, EmailSentListResponses, EmailSentRestoreData, EmailSentRestoreErrors, EmailSentRestoreResponses, EmailTrashEmptyData, EmailTrashEmptyErrors, EmailTrashEmptyResponses, EmailTrashSummaryData, EmailTrashSummaryErrors, EmailTrashSummaryResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthAuthorizeGrantData, OauthAuthorizeGrantErrors, OauthAuthorizeGrantResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthDeviceConfirmData, OauthDeviceConfirmErrors, OauthDeviceConfirmResponses, OauthDeviceVerifyData, OauthDeviceVerifyErrors, OauthDeviceVerifyResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMemberRoleUpdateData, OrgMemberRoleUpdateErrors, OrgMemberRoleUpdateResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoExportData, TodoExportErrors, TodoExportResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -37,6 +37,67 @@ export const inviteAccept = <ThrowOnError extends boolean = false>(options: Opti
 export const oauthAuthorizeGrant = <ThrowOnError extends boolean = false>(options: Options<OauthAuthorizeGrantData, ThrowOnError>) => (options.client ?? client).post<OauthAuthorizeGrantResponses, OauthAuthorizeGrantErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/auth/oauth/grant',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Cancel a scheduled deletion
+ *
+ * ### Overview
+ * Calls off a scheduled deletion and restores a subscription that was scheduled to cancel with it. Credentials revoked when the deletion was requested stay revoked — issue new ones.
+ *
+ * ### Troubleshooting
+ * - **404 DELETION_NOT_REQUESTED**: Nothing is scheduled for this Workspace.
+ * - **409 DELETION_IN_PROGRESS**: A domain already began clearing data; it cannot be called off.
+ */
+export const accountDeletionCancel = <ThrowOnError extends boolean = false>(options?: Options<AccountDeletionCancelData, ThrowOnError>) => (options?.client ?? client).delete<AccountDeletionCancelResponses, AccountDeletionCancelErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/account/deletion',
+    ...options
+});
+
+/**
+ * Check whether this Workspace is scheduled for deletion
+ *
+ * ### Overview
+ * Returns the pending deletion for the authenticated Workspace, or `status: "none"`. Drives the banner that offers to cancel.
+ *
+ * ### Constraints
+ * - Once `purge_started` is true the deletion can no longer be cancelled.
+ */
+export const accountDeletionGet = <ThrowOnError extends boolean = false>(options?: Options<AccountDeletionGetData, ThrowOnError>) => (options?.client ?? client).get<AccountDeletionGetResponses, AccountDeletionGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/account/deletion',
+    ...options
+});
+
+/**
+ * Schedule this Workspace and everything in it for deletion
+ *
+ * ### Overview
+ * Starts a 30-day grace period, after which the Workspace's todos, events, files, mail, push configs, and billing records are removed and the identity is deleted. Requires a magic code delivered to the account's login email, on top of the bearer credential.
+ *
+ * ### When to Use
+ * - Only from a web deletion screen a person is looking at. This is not exposed to the CLI or to MCP: it is irreversible and should not be reachable by an agent.
+ *
+ * ### Constraints
+ * - The Workspace must have exactly one member. Otherwise the call is refused and the membership has to be resolved first.
+ * - Succeeding revokes every OAuth token and API key immediately, including the one used for this request. Agents lose access at once; the user signs back in with a magic code.
+ * - An active subscription is scheduled to cancel at the end of the paid period. Time remaining after the deletion date is not refunded.
+ * - Export packages are removed with the account — download them before the deletion date.
+ *
+ * ### Troubleshooting
+ * - **400 INVALID_CODE**: The magic code was wrong, expired, or already used. Request a new one.
+ * - **409 WORKSPACE_HAS_OTHER_MEMBERS**: Remove the other members first.
+ * - **409 DELETION_ALREADY_REQUESTED**: A deletion is already scheduled; cancel it before requesting another.
+ */
+export const accountDeletionRequest = <ThrowOnError extends boolean = false>(options: Options<AccountDeletionRequestData, ThrowOnError>) => (options.client ?? client).post<AccountDeletionRequestResponses, AccountDeletionRequestErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/account/deletion',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -575,9 +636,24 @@ export const oauthDeviceVerify = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
+ * Apply an immediate downgrade
+ *
+ * Revalidates retained resources and immediately replaces Paddle Subscription items. Any resulting credit remains in the Paddle customer balance and is not a cash refund.
+ */
+export const billingSubscriptionDowngradesCreate = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionDowngradesCreateData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionDowngradesCreateResponses, BillingSubscriptionDowngradesCreateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/billing/subscription-downgrades',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Change paid custom-domain capacity
  *
- * Activates the next eligible verified custom domain or removes the last billable domain. Included capacity is repaired without charge; additional capacity waits for verified prorated payment, while removal creates a next-invoice credit.
+ * Activates the next eligible verified custom domain or removes the last billable domain immediately. Paddle settles any prorated charge or credit at the next renewal.
  */
 export const billingCustomDomainAddOnsChange = <ThrowOnError extends boolean = false>(options: Options<BillingCustomDomainAddOnsChangeData, ThrowOnError>) => (options.client ?? client).post<BillingCustomDomainAddOnsChangeResponses, BillingCustomDomainAddOnsChangeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -590,14 +666,18 @@ export const billingCustomDomainAddOnsChange = <ThrowOnError extends boolean = f
 });
 
 /**
- * Open Stripe Customer Portal
+ * Open Paddle Customer Portal
  *
- * Creates a Stripe-hosted Customer Portal session for the Current Workspace subscription. The operator-managed Portal configuration permits payment methods, billing details, tax IDs, invoices, and period-end cancellation only. Returning from Portal never changes entitlements directly.
+ * Creates a fresh Paddle Customer Portal overview or Retain cancellation deep link for the Current Workspace subscription. Returning from Portal never changes entitlements directly.
  */
-export const billingPortalSessionsCreate = <ThrowOnError extends boolean = false>(options?: Options<BillingPortalSessionsCreateData, ThrowOnError>) => (options?.client ?? client).post<BillingPortalSessionsCreateResponses, BillingPortalSessionsCreateErrors, ThrowOnError>({
+export const billingPortalSessionsCreate = <ThrowOnError extends boolean = false>(options: Options<BillingPortalSessionsCreateData, ThrowOnError>) => (options.client ?? client).post<BillingPortalSessionsCreateResponses, BillingPortalSessionsCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/billing/portal-sessions',
-    ...options
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
@@ -650,7 +730,7 @@ export const billingStorageUsageGet = <ThrowOnError extends boolean = false>(opt
 /**
  * Get normalized Current Workspace subscription state
  *
- * Returns WSPC product state and safe management metadata without Stripe identifiers or raw provider status.
+ * Returns WSPC product state, Paddle credit, and safe management metadata without provider identifiers or raw status.
  */
 export const billingSubscriptionStateGet = <ThrowOnError extends boolean = false>(options?: Options<BillingSubscriptionStateGetData, ThrowOnError>) => (options?.client ?? client).get<BillingSubscriptionStateGetResponses, BillingSubscriptionStateGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -659,7 +739,36 @@ export const billingSubscriptionStateGet = <ThrowOnError extends boolean = false
 });
 
 /**
- * Preview a period-end downgrade
+ * Receive Paddle subscription events
+ *
+ * Verifies Paddle-Signature against the exact raw request body, stores a minimal deduplicated receipt, acknowledges it, then reconciles fresh provider state in the background.
+ */
+export const billingPaddleWebhookReceive = <ThrowOnError extends boolean = false>(options: Options<BillingPaddleWebhookReceiveData, ThrowOnError>) => (options.client ?? client).post<BillingPaddleWebhookReceiveResponses, BillingPaddleWebhookReceiveErrors, ThrowOnError>({
+    url: '/billing/paddle/webhook',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Preview a paid custom-domain capacity change
+ *
+ * Returns the next-renewal Paddle estimate. The immediate charge and credit are zero; next_payment_total reports the expected renewal payment.
+ */
+export const billingCustomDomainAddOnPreview = <ThrowOnError extends boolean = false>(options: Options<BillingCustomDomainAddOnPreviewData, ThrowOnError>) => (options.client ?? client).post<BillingCustomDomainAddOnPreviewResponses, BillingCustomDomainAddOnPreviewErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/billing/custom-domain-add-on-preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Preview an immediate downgrade
  *
  * Uses authoritative Email resource counts to validate retained resources and return the target period base and custom-domain add-on price without creating a billing mutation.
  */
@@ -676,7 +785,7 @@ export const billingSubscriptionDowngradePreview = <ThrowOnError extends boolean
 /**
  * Preview a paid subscription upgrade
  *
- * Returns a read-only Stripe estimate for the complete tier and custom-domain add-on proration. No mutation, invoice, PaymentIntent, entitlement change, or charge is created.
+ * Returns a read-only Paddle estimate for the complete recurring items replacement. No subscription mutation or charge is created.
  */
 export const billingSubscriptionUpgradePreviewsCreate = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionUpgradePreviewsCreateData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionUpgradePreviewsCreateResponses, BillingSubscriptionUpgradePreviewsCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -689,39 +798,20 @@ export const billingSubscriptionUpgradePreviewsCreate = <ThrowOnError extends bo
 });
 
 /**
- * Schedule a period-end downgrade
+ * Withdraw period-end cancellation
  *
- * Revalidates authoritative retained resources and creates a Stripe Subscription Schedule. The current tier remains effective until the period boundary.
+ * Withdraws a period-end cancellation. New cancellation requests use a fresh Paddle Retain deep link from the Customer Portal session endpoint.
  */
-export const billingSubscriptionDowngradesCreate = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionDowngradesCreateData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionDowngradesCreateResponses, BillingSubscriptionDowngradesCreateErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/billing/subscription-downgrades',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Set period-end cancellation
- *
- * Schedules or withdraws period-end cancellation without requiring resource cleanup. Paid entitlements remain effective until the period boundary.
- */
-export const billingSubscriptionCancellationUpdate = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionCancellationUpdateData, ThrowOnError>) => (options.client ?? client).patch<BillingSubscriptionCancellationUpdateResponses, BillingSubscriptionCancellationUpdateErrors, ThrowOnError>({
+export const billingSubscriptionCancellationUpdate = <ThrowOnError extends boolean = false>(options?: Options<BillingSubscriptionCancellationUpdateData, ThrowOnError>) => (options?.client ?? client).delete<BillingSubscriptionCancellationUpdateResponses, BillingSubscriptionCancellationUpdateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/billing/subscription-cancellation',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
+    ...options
 });
 
 /**
  * Start initial paid subscription Checkout
  *
- * Creates or idempotently replays a Stripe-hosted Checkout Session for a Current Workspace admitted by the public Checkout rollout or operator allowlist. Requires an OAuth-authenticated Owner or Admin and fresh target-tier resource eligibility. Redirect completion never changes entitlements; activation requires a verified Stripe webhook and fresh paid provider state.
+ * Creates or idempotently replays a Paddle automatic Transaction for Overlay Checkout when admitted by the public Checkout rollout or operator allowlist. Requires an OAuth-authenticated Owner or Admin; allowlist-only rollout also requires fresh target-tier resource eligibility. Browser completion never changes entitlements; activation requires a verified Paddle webhook plus fresh Subscription and Transaction state.
  */
 export const billingCheckoutSessionsCreate = <ThrowOnError extends boolean = false>(options: Options<BillingCheckoutSessionsCreateData, ThrowOnError>) => (options.client ?? client).post<BillingCheckoutSessionsCreateResponses, BillingCheckoutSessionsCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -736,25 +826,11 @@ export const billingCheckoutSessionsCreate = <ThrowOnError extends boolean = fal
 /**
  * Upgrade a paid subscription
  *
- * Starts an immediate prorated Stripe pending update. The effective tier changes only after a verified webhook and a matching fresh paid subscription read.
+ * Applies a prorated Paddle item replacement. Ambiguous outcomes remain reconciliation-required and do not change WSPC entitlements until fresh provider evidence is applied.
  */
 export const billingSubscriptionUpgradesCreate = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionUpgradesCreateData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionUpgradesCreateResponses, BillingSubscriptionUpgradesCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/billing/subscription-upgrades',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Receive Stripe subscription events
- *
- * Verifies the Stripe-Signature header against the exact raw request body, deduplicates Event IDs, and activates a plan only after a fresh Subscription and paid Invoice read.
- */
-export const billingStripeWebhookReceive = <ThrowOnError extends boolean = false>(options: Options<BillingStripeWebhookReceiveData, ThrowOnError>) => (options.client ?? client).post<BillingStripeWebhookReceiveResponses, BillingStripeWebhookReceiveErrors, ThrowOnError>({
-    url: '/billing/stripe/webhook',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -896,6 +972,28 @@ export const eventUpdate = <ThrowOnError extends boolean = false>(options: Optio
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Export the whole calendar as `.ics`
+ *
+ * ### Overview
+ * Stream every event of the current Workspace as a single RFC 5545 `VCALENDAR` document, one `VEVENT` per event.
+ *
+ * ### When to Use
+ * Take a copy of the calendar out of wspc, or import it into Google Calendar, Apple Calendar, or any other iCalendar client.
+ *
+ * ### Constraints
+ * - **Response Payload**: Plain iCalendar text with `Content-Type: text/calendar; charset=utf-8` and `Content-Disposition: attachment; filename="wspc-calendar.ics"`, so browsers save it as a file.
+ * - **Scope**: Only events owned by the authenticated user in the current Workspace. Soft-deleted (trashed) events are left out; past events are included.
+ * - **Delivery**: The body is streamed while the events are read page by page. Nothing is stored server-side and there is nothing to expire.
+ * - **Method**: The document carries `METHOD:PUBLISH`; cancelled events carry `STATUS:CANCELLED`.
+ * - **Consistency**: send `x-cb-cal` to anchor the read at a known bookmark. No bookmark comes back — the body is streamed after the response headers are already out.
+ */
+export const calendarExport = <ThrowOnError extends boolean = false>(options?: Options<CalendarExportData, ThrowOnError>) => (options?.client ?? client).get<CalendarExportResponses, CalendarExportErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/calendar/export',
+    ...options
 });
 
 /**
@@ -1171,7 +1269,7 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  * - Requires a valid Bearer token in the `Authorization` header.
  * - **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
  * - **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization, fully verified, and enabled by the Workspace entitlement.
- * - **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 50, Business 200). Soft-deleted addresses release capacity.
+ * - **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 40, Business 200). Custom-domain aliases use the per-user limit of 10 active aliases. Soft-deleted addresses release capacity.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Bearer token is missing, invalid, or expired.
@@ -1180,7 +1278,7 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  * - **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.
  * - **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain is not fully verified, enabled, or currently within entitlement.
  * - **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).
- * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The Current Workspace has reached its reserved platform address capacity.
+ * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The Current Workspace has reached its reserved platform address capacity, or the caller has reached the custom-domain per-user alias limit.
  * - **503 Service Unavailable / EMAIL_ENTITLEMENTS_UNAVAILABLE**: Billing could not provide a trustworthy entitlement, so creation failed closed.
  */
 export const emailAliasCreate = <ThrowOnError extends boolean = false>(options: Options<EmailAliasCreateData, ThrowOnError>) => (options.client ?? client).post<EmailAliasCreateResponses, EmailAliasCreateErrors, ThrowOnError>({
@@ -1550,13 +1648,13 @@ export const emailMarkUnread = <ThrowOnError extends boolean = false>(options: O
  *
  * ### Constraints
  * - Requires a valid Bearer token in the `Authorization` header.
- * - **Quota Check**: Reactivating an alias increases the active alias count towards the user's maximum quota of 10 active aliases. If the limit is exceeded, a `429 ALIAS_LIMIT_EXCEEDED` error is returned.
+ * - **Quota Check**: Restoring a reserved platform address uses the Current Workspace tier capacity. Restoring a custom-domain alias uses the per-user limit of 10 active aliases. If the applicable limit is exceeded, a `429 ALIAS_LIMIT_EXCEEDED` error is returned.
  * - **Path Parameter**: The `@` character in the path parameter must be URL-encoded as `%40`.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Missing or invalid token.
  * - **404 Not Found**: No soft-deleted alias with this exact address was found for the authenticated user.
- * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: Reactivating this alias would exceed the per-user limit of 10 active aliases.
+ * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: Reactivating this address would exceed the Current Workspace reserved-platform capacity or the custom-domain per-user limit of 10 active aliases.
  */
 export const emailAliasRestore = <ThrowOnError extends boolean = false>(options: Options<EmailAliasRestoreData, ThrowOnError>) => (options.client ?? client).post<EmailAliasRestoreResponses, EmailAliasRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -2379,6 +2477,31 @@ export const todoTypeUpdate = <ThrowOnError extends boolean = false>(options: Op
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Export the workspace as JSON
+ *
+ * ### Overview
+ * Stream the complete Todo data of the caller's workspace as a single JSON document. There is no job to poll and nothing to expire: the response is the export.
+ *
+ * ### When to Use
+ * Offer a 'download my data' link, take a personal backup, or move todos to another service.
+ *
+ * ### Constraints
+ * - **Response Payload**: `Content-Type: application/json; charset=utf-8` with `Content-Disposition: attachment; filename="wspc-todo-export-<YYYY-MM-DD>.json"`, so a browser saves it as a file.
+ * - **Scope**: only the caller's current workspace. Items in the trash (soft-deleted projects, todos and comments) are left out.
+ * - **Recurrence templates included**: `todos` carries the hidden template todo behind every recurrence rule, so the export holds rows `GET /todo/items` hides unless you pass `include_templates=true`. Without them a materialized instance or a template's subtask would point at a `parent_id` that is not in the document.
+ * - **Streaming**: the body is produced page by page while the response is being written, so a large workspace does not have to fit in memory.
+ * - **Consistency**: send `x-cb-todo` to anchor the read at a known bookmark. No bookmark comes back — the body is streamed after the response headers are already out.
+ *
+ * ### Troubleshooting
+ * - An empty workspace still returns a well-formed document with empty arrays.
+ */
+export const todoExport = <ThrowOnError extends boolean = false>(options?: Options<TodoExportData, ThrowOnError>) => (options?.client ?? client).get<TodoExportResponses, TodoExportErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/todo/export',
+    ...options
 });
 
 /**

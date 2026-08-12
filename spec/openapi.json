@@ -910,20 +910,61 @@
           "code"
         ]
       },
+      "ApplyDowngradeResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "reconciliation_required"
+            ]
+          },
+          "idempotent_replay": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status",
+          "idempotent_replay"
+        ]
+      },
+      "ApplySubscriptionDowngradeInput": {
+        "type": "object",
+        "properties": {
+          "tier": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "startup"
+            ]
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "preview_token": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "tier",
+          "idempotency_key",
+          "preview_token"
+        ],
+        "additionalProperties": false
+      },
       "CustomDomainAddOnResult": {
         "type": "object",
         "properties": {
           "status": {
             "type": "string",
             "enum": [
-              "active",
-              "pending_payment",
-              "requires_action",
-              "payment_failed"
+              "applied",
+              "reconciliation_required"
             ]
-          },
-          "payment_confirmation_client_secret": {
-            "type": "string"
           },
           "idempotent_replay": {
             "type": "boolean"
@@ -953,12 +994,17 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 200
+          },
+          "preview_token": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
           "action",
           "domain",
-          "idempotency_key"
+          "idempotency_key",
+          "preview_token"
         ],
         "additionalProperties": false
       },
@@ -973,6 +1019,22 @@
         "required": [
           "portal_url"
         ]
+      },
+      "CustomerPortalSessionInput": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": [
+              "overview",
+              "cancel"
+            ]
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "additionalProperties": false
       },
       "EmailUsage": {
         "anyOf": [
@@ -1455,7 +1517,6 @@
               "active",
               "pending_payment",
               "payment_issue",
-              "scheduled_change",
               "restricted"
             ]
           },
@@ -1474,36 +1535,8 @@
             "type": "string",
             "enum": [
               "checkout",
-              "upgrade"
-            ]
-          },
-          "payment_action_required": {
-            "type": "boolean"
-          },
-          "scheduled_change": {
-            "type": "object",
-            "properties": {
-              "target_tier": {
-                "type": "string",
-                "enum": [
-                  "personal",
-                  "startup",
-                  "business"
-                ]
-              },
-              "effective_at": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "next_period_amount_usd": {
-                "type": "number",
-                "minimum": 0
-              }
-            },
-            "required": [
-              "target_tier",
-              "effective_at",
-              "next_period_amount_usd"
+              "tier_change",
+              "add_on_change"
             ]
           },
           "cancellation_scheduled": {
@@ -1517,6 +1550,24 @@
             "required": [
               "effective_at"
             ]
+          },
+          "customer_credit": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "USD"
+                ]
+              },
+              "available": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currency",
+              "available"
+            ]
           }
         },
         "required": [
@@ -1524,39 +1575,212 @@
           "checkout_eligible"
         ]
       },
-      "DowngradePreviewResult": {
+      "PaddleWebhookResult": {
         "type": "object",
         "properties": {
-          "current_tier": {
-            "type": "string",
+          "received": {
+            "type": "boolean",
             "enum": [
-              "personal",
-              "startup",
-              "business"
+              true
             ]
           },
-          "target_tier": {
-            "type": "string",
-            "enum": [
-              "personal",
-              "startup",
-              "business"
-            ]
-          },
-          "required_custom_domain_add_on_quantity": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "next_period_amount_usd": {
-            "type": "number",
-            "minimum": 0
+          "duplicate": {
+            "type": "boolean"
           }
         },
         "required": [
-          "current_tier",
-          "target_tier",
-          "required_custom_domain_add_on_quantity",
-          "next_period_amount_usd"
+          "received",
+          "duplicate"
+        ]
+      },
+      "UpgradePreviewResult": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD"
+            ]
+          },
+          "line_items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "unused_credit",
+                    "target_tier",
+                    "custom_domain_add_on",
+                    "tax",
+                    "other"
+                  ]
+                },
+                "amount": {
+                  "type": "integer"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "amount",
+                "description"
+              ]
+            }
+          },
+          "charge_now": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "credit_to_balance": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "next_payment_total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "recurring_total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "next_billed_at": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "estimated": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "expires_at": {
+            "type": "integer"
+          },
+          "quote_token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "line_items",
+          "charge_now",
+          "credit_to_balance",
+          "next_payment_total",
+          "recurring_total",
+          "next_billed_at",
+          "estimated",
+          "expires_at",
+          "quote_token"
+        ]
+      },
+      "PreviewCustomDomainAddOnInput": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "activate",
+              "remove"
+            ]
+          },
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253
+          }
+        },
+        "required": [
+          "action",
+          "domain"
+        ],
+        "additionalProperties": false
+      },
+      "DowngradePreviewResult": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD"
+            ]
+          },
+          "line_items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "unused_credit",
+                    "target_tier",
+                    "custom_domain_add_on",
+                    "tax",
+                    "other"
+                  ]
+                },
+                "amount": {
+                  "type": "integer"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "amount",
+                "description"
+              ]
+            }
+          },
+          "charge_now": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "credit_to_balance": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "next_payment_total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "recurring_total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "next_billed_at": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "estimated": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "expires_at": {
+            "type": "integer"
+          },
+          "quote_token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "line_items",
+          "charge_now",
+          "credit_to_balance",
+          "next_payment_total",
+          "recurring_total",
+          "next_billed_at",
+          "estimated",
+          "expires_at",
+          "quote_token"
         ]
       },
       "PreviewSubscriptionDowngradeInput": {
@@ -1575,69 +1799,6 @@
         ],
         "additionalProperties": false
       },
-      "UpgradePreviewResult": {
-        "type": "object",
-        "properties": {
-          "currency": {
-            "type": "string"
-          },
-          "line_items": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "enum": [
-                    "unused_tier_credit",
-                    "target_tier_proration",
-                    "custom_domain_add_on_proration",
-                    "other"
-                  ]
-                },
-                "amount": {
-                  "type": "integer"
-                },
-                "description": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "kind",
-                "amount",
-                "description"
-              ]
-            }
-          },
-          "tax_amount": {
-            "type": "integer"
-          },
-          "total": {
-            "type": "integer"
-          },
-          "estimated": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "expires_at": {
-            "type": "integer"
-          },
-          "quote_token": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "currency",
-          "line_items",
-          "tax_amount",
-          "total",
-          "estimated",
-          "expires_at",
-          "quote_token"
-        ]
-      },
       "PreviewSubscriptionUpgradeInput": {
         "type": "object",
         "properties": {
@@ -1652,56 +1813,6 @@
         },
         "required": [
           "tier"
-        ],
-        "additionalProperties": false
-      },
-      "ScheduleDowngradeResult": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "scheduled"
-            ]
-          },
-          "target_tier": {
-            "type": "string",
-            "enum": [
-              "personal",
-              "startup",
-              "business"
-            ]
-          },
-          "effective_at": {
-            "type": "integer",
-            "minimum": 0
-          }
-        },
-        "required": [
-          "status",
-          "target_tier",
-          "effective_at"
-        ]
-      },
-      "ScheduleSubscriptionDowngradeInput": {
-        "type": "object",
-        "properties": {
-          "tier": {
-            "type": "string",
-            "enum": [
-              "personal",
-              "startup"
-            ]
-          },
-          "idempotency_key": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          }
-        },
-        "required": [
-          "tier",
-          "idempotency_key"
         ],
         "additionalProperties": false
       },
@@ -1721,35 +1832,18 @@
           "effective_at"
         ]
       },
-      "SetSubscriptionCancellationInput": {
-        "type": "object",
-        "properties": {
-          "cancel_at_period_end": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "cancel_at_period_end"
-        ],
-        "additionalProperties": false
-      },
       "CheckoutSessionResult": {
         "type": "object",
         "properties": {
-          "checkout_session_id": {
+          "checkout_transaction_id": {
             "type": "string"
-          },
-          "checkout_url": {
-            "type": "string",
-            "format": "uri"
           },
           "idempotent_replay": {
             "type": "boolean"
           }
         },
         "required": [
-          "checkout_session_id",
-          "checkout_url",
+          "checkout_transaction_id",
           "idempotent_replay"
         ]
       },
@@ -1782,13 +1876,9 @@
           "status": {
             "type": "string",
             "enum": [
-              "pending_payment",
-              "requires_action",
-              "payment_failed"
+              "applied",
+              "reconciliation_required"
             ]
-          },
-          "payment_confirmation_client_secret": {
-            "type": "string"
           },
           "idempotent_replay": {
             "type": "boolean"
@@ -1826,28 +1916,6 @@
           "preview_token"
         ],
         "additionalProperties": false
-      },
-      "StripeWebhookResult": {
-        "type": "object",
-        "properties": {
-          "received": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "processed": {
-            "type": "boolean"
-          },
-          "activated": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "received",
-          "processed",
-          "activated"
-        ]
       },
       "Event": {
         "type": "object",
@@ -4120,6 +4188,60 @@
           }
         }
       },
+      "TodoExportDocument": {
+        "type": "object",
+        "properties": {
+          "export_version": {
+            "type": "integer"
+          },
+          "exported_at": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Project"
+            }
+          },
+          "todo_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoType"
+            }
+          },
+          "todos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            }
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            }
+          },
+          "recurrence_rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecurrenceRule"
+            }
+          }
+        },
+        "required": [
+          "export_version",
+          "exported_at",
+          "org_id",
+          "projects",
+          "todo_types",
+          "todos",
+          "comments",
+          "recurrence_rules"
+        ]
+      },
       "RecurrenceRuleDetail": {
         "type": "object",
         "properties": {
@@ -5096,6 +5218,1112 @@
                   },
                   "required": [
                     "redirect_to"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/account/deletion": {
+      "delete": {
+        "operationId": "account_deletion_cancel",
+        "tags": [
+          "Account"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Cancel a scheduled deletion",
+        "parameters": [
+          {
+            "name": "x-cb-auth",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "description": "### Overview\nCalls off a scheduled deletion and restores a subscription that was scheduled to cancel with it. Credentials revoked when the deletion was requested stay revoked — issue new ones.\n\n### Troubleshooting\n- **404 DELETION_NOT_REQUESTED**: Nothing is scheduled for this Workspace.\n- **409 DELETION_IN_PROGRESS**: A domain already began clearing data; it cannot be called off.",
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X DELETE https://api.wspc.ai/auth/account/deletion \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The scheduled deletion was called off.",
+            "headers": {
+              "x-cb-auth": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "account_deletion_get",
+        "tags": [
+          "Account"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Check whether this Workspace is scheduled for deletion",
+        "parameters": [
+          {
+            "name": "x-cb-auth",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "description": "### Overview\nReturns the pending deletion for the authenticated Workspace, or `status: \"none\"`. Drives the banner that offers to cancel.\n\n### Constraints\n- Once `purge_started` is true the deletion can no longer be cancelled.",
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/auth/account/deletion \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The Workspace's pending deletion, if there is one.",
+            "headers": {
+              "x-cb-auth": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "none"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending"
+                          ]
+                        },
+                        "requested_at": {
+                          "type": "number"
+                        },
+                        "purge_at": {
+                          "type": "number"
+                        },
+                        "purge_started": {
+                          "type": "boolean",
+                          "description": "True once a domain has begun clearing data, after which cancelling is refused."
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "requested_at",
+                        "purge_at",
+                        "purge_started"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "account_deletion_request",
+        "tags": [
+          "Account"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Schedule this Workspace and everything in it for deletion",
+        "parameters": [
+          {
+            "name": "x-cb-auth",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous auth response. Send it back unchanged to continue read-after-write consistency for auth D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "description": "### Overview\nStarts a 30-day grace period, after which the Workspace's todos, events, files, mail, push configs, and billing records are removed and the identity is deleted. Requires a magic code delivered to the account's login email, on top of the bearer credential.\n\n### When to Use\n- Only from a web deletion screen a person is looking at. This is not exposed to the CLI or to MCP: it is irreversible and should not be reachable by an agent.\n\n### Constraints\n- The Workspace must have exactly one member. Otherwise the call is refused and the membership has to be resolved first.\n- Succeeding revokes every OAuth token and API key immediately, including the one used for this request. Agents lose access at once; the user signs back in with a magic code.\n- An active subscription is scheduled to cancel at the end of the paid period. Time remaining after the deletion date is not refunded.\n- Export packages are removed with the account — download them before the deletion date.\n\n### Troubleshooting\n- **400 INVALID_CODE**: The magic code was wrong, expired, or already used. Request a new one.\n- **409 WORKSPACE_HAS_OTHER_MEMBERS**: Remove the other members first.\n- **409 DELETION_ALREADY_REQUESTED**: A deletion is already scheduled; cancel it before requesting another.",
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/auth/account/deletion \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"content-type: application/json\" \\\n  -d '{\"code\":\"418302\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "A magic code just delivered to the account's login email. Request one with `POST /auth/code`. A live session is deliberately not enough on its own — deletion is irreversible."
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deletion scheduled. Every credential for the user is now revoked.",
+            "headers": {
+              "x-cb-auth": {
+                "description": "Opaque consistency bookmark for the latest auth database position observed by this request. Store and send it on the next auth request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requested_at": {
+                      "type": "number",
+                      "description": "Unix epoch in milliseconds at which the deletion was requested."
+                    },
+                    "purge_at": {
+                      "type": "number",
+                      "description": "Unix epoch in milliseconds at which the Workspace data is removed. Cancelling is possible until a domain starts clearing, which happens on or shortly after this moment."
+                    }
+                  },
+                  "required": [
+                    "requested_at",
+                    "purge_at"
                   ]
                 }
               }
@@ -14264,14 +15492,14 @@
         }
       }
     },
-    "/billing/custom-domain-add-ons": {
+    "/billing/subscription-downgrades": {
       "post": {
-        "operationId": "billing_custom_domain_add_ons_change",
+        "operationId": "billing_subscription_downgrades_create",
         "tags": [
           "Billing"
         ],
-        "summary": "Change paid custom-domain capacity",
-        "description": "Activates the next eligible verified custom domain or removes the last billable domain. Included capacity is repaired without charge; additional capacity waits for verified prorated payment, while removal creates a next-invoice credit.",
+        "summary": "Apply an immediate downgrade",
+        "description": "Revalidates retained resources and immediately replaces Paddle Subscription items. Any resulting credit remains in the Paddle customer balance and is not a cash refund.",
         "security": [
           {
             "bearerAuth": []
@@ -14304,23 +15532,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ChangeCustomDomainAddOnInput"
+                "$ref": "#/components/schemas/ApplySubscriptionDowngradeInput"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Normalized custom-domain capacity state.",
+            "description": "Downgrade applied or queued for reconciliation.",
             "headers": {
               "x-cb-billing": {
                 "description": "Opaque consistency bookmark for the latest billing database position observed by this request. Store and send it on the next billing request to continue read-after-write consistency.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "x-cb-email": {
-                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
                 }
@@ -14329,7 +15551,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CustomDomainAddOnResult"
+                  "$ref": "#/components/schemas/ApplyDowngradeResult"
                 }
               }
             }
@@ -14412,6 +15634,36 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Paddle could not collect payment; the subscription was not changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -14581,7 +15833,380 @@
             }
           },
           "503": {
-            "description": "Billing, Email, or Stripe is temporarily unavailable.",
+            "description": "Billing, Email, or Paddle is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing/custom-domain-add-ons": {
+      "post": {
+        "operationId": "billing_custom_domain_add_ons_change",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Change paid custom-domain capacity",
+        "description": "Activates the next eligible verified custom domain or removes the last billable domain immediately. Paddle settles any prorated charge or credit at the next renewal.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-billing",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeCustomDomainAddOnInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Normalized custom-domain capacity state.",
+            "headers": {
+              "x-cb-billing": {
+                "description": "Opaque consistency bookmark for the latest billing database position observed by this request. Store and send it on the next billing request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomDomainAddOnResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Paddle could not collect payment; the subscription was not changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Billing, Email, or Paddle is temporarily unavailable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14619,8 +16244,8 @@
         "tags": [
           "Billing"
         ],
-        "summary": "Open Stripe Customer Portal",
-        "description": "Creates a Stripe-hosted Customer Portal session for the Current Workspace subscription. The operator-managed Portal configuration permits payment methods, billing details, tax IDs, invoices, and period-end cancellation only. Returning from Portal never changes entitlements directly.",
+        "summary": "Open Paddle Customer Portal",
+        "description": "Creates a fresh Paddle Customer Portal overview or Retain cancellation deep link for the Current Workspace subscription. Returning from Portal never changes entitlements directly.",
         "security": [
           {
             "bearerAuth": []
@@ -14638,6 +16263,16 @@
             "example": "opaque-consistency-bookmark"
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerPortalSessionInput"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Customer Portal session created.",
@@ -14863,7 +16498,7 @@
             }
           },
           "503": {
-            "description": "Billing storage or Stripe is temporarily unavailable.",
+            "description": "Billing storage or Paddle is temporarily unavailable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15582,7 +17217,7 @@
           "Billing"
         ],
         "summary": "Get normalized Current Workspace subscription state",
-        "description": "Returns WSPC product state and safe management metadata without Stripe identifiers or raw provider status.",
+        "description": "Returns WSPC product state, Paddle credit, and safe management metadata without provider identifiers or raw status.",
         "security": [
           {
             "bearerAuth": []
@@ -15734,13 +17369,569 @@
         }
       }
     },
+    "/billing/paddle/webhook": {
+      "post": {
+        "operationId": "billing_paddle_webhook_receive",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Receive Paddle subscription events",
+        "description": "Verifies Paddle-Signature against the exact raw request body, stores a minimal deduplicated receipt, acknowledges it, then reconciles fresh provider state in the background.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "paddle-signature",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The signed event was acknowledged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaddleWebhookResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The Paddle signature or payload was invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The Paddle webhook payload exceeded the accepted size.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Billing storage or Paddle is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing/custom-domain-add-on-preview": {
+      "post": {
+        "operationId": "billing_custom_domain_add_on_preview",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Preview a paid custom-domain capacity change",
+        "description": "Returns the next-renewal Paddle estimate. The immediate charge and credit are zero; next_payment_total reports the expected renewal payment.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-billing",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewCustomDomainAddOnInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Custom-domain capacity change previewed.",
+            "headers": {
+              "x-cb-billing": {
+                "description": "Opaque consistency bookmark for the latest billing database position observed by this request. Store and send it on the next billing request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpgradePreviewResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Billing, Email, or Paddle is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/billing/subscription-downgrade-preview": {
       "post": {
         "operationId": "billing_subscription_downgrade_preview",
         "tags": [
           "Billing"
         ],
-        "summary": "Preview a period-end downgrade",
+        "summary": "Preview an immediate downgrade",
         "description": "Uses authoritative Email resource counts to validate retained resources and return the target period base and custom-domain add-on price without creating a billing mutation.",
         "security": [
           {
@@ -16045,7 +18236,7 @@
             }
           },
           "503": {
-            "description": "Billing, Email, or Stripe is temporarily unavailable.",
+            "description": "Billing, Email, or Paddle is temporarily unavailable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16084,7 +18275,7 @@
           "Billing"
         ],
         "summary": "Preview a paid subscription upgrade",
-        "description": "Returns a read-only Stripe estimate for the complete tier and custom-domain add-on proration. No mutation, invoice, PaymentIntent, entitlement change, or charge is created.",
+        "description": "Returns a read-only Paddle estimate for the complete recurring items replacement. No subscription mutation or charge is created.",
         "security": [
           {
             "bearerAuth": []
@@ -16378,350 +18569,7 @@
             }
           },
           "503": {
-            "description": "Billing storage, Email counts, or Stripe is temporarily unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/billing/subscription-downgrades": {
-      "post": {
-        "operationId": "billing_subscription_downgrades_create",
-        "tags": [
-          "Billing"
-        ],
-        "summary": "Schedule a period-end downgrade",
-        "description": "Revalidates authoritative retained resources and creates a Stripe Subscription Schedule. The current tier remains effective until the period boundary.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "x-cb-billing",
-            "in": "header",
-            "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.",
-            "schema": {
-              "type": "string"
-            },
-            "example": "opaque-consistency-bookmark"
-          },
-          {
-            "name": "x-cb-email",
-            "in": "header",
-            "required": false,
-            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
-            "schema": {
-              "type": "string"
-            },
-            "example": "opaque-consistency-bookmark"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScheduleSubscriptionDowngradeInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Downgrade scheduled.",
-            "headers": {
-              "x-cb-billing": {
-                "description": "Opaque consistency bookmark for the latest billing database position observed by this request. Store and send it on the next billing request to continue read-after-write consistency.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScheduleDowngradeResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "validationError": {
-                    "summary": "Body failed schema validation",
-                    "value": {
-                      "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "title must not be empty"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "authRequired": {
-                    "summary": "Missing Authorization header",
-                    "value": {
-                      "error": {
-                        "code": "AUTH_REQUIRED",
-                        "message": "missing bearer token"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "forbidden": {
-                    "summary": "Caller does not own the resource",
-                    "value": {
-                      "error": {
-                        "code": "FORBIDDEN",
-                        "message": "not allowed"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "versionConflict": {
-                    "summary": "expected_version does not match server version",
-                    "value": {
-                      "error": {
-                        "code": "VERSION_CONFLICT",
-                        "message": "expected_version 3 but current is 4"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "rateLimited": {
-                    "summary": "Per-key rate limit hit",
-                    "value": {
-                      "error": {
-                        "code": "RATE_LIMITED",
-                        "message": "Too many requests, please retry after 60 seconds."
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "internalError": {
-                    "summary": "Unhandled exception",
-                    "value": {
-                      "error": {
-                        "code": "INTERNAL_ERROR",
-                        "message": "internal error"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Billing, Email, or Stripe is temporarily unavailable.",
+            "description": "Billing storage, Email counts, or Paddle is temporarily unavailable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16754,13 +18602,13 @@
       }
     },
     "/billing/subscription-cancellation": {
-      "patch": {
+      "delete": {
         "operationId": "billing_subscription_cancellation_update",
         "tags": [
           "Billing"
         ],
-        "summary": "Set period-end cancellation",
-        "description": "Schedules or withdraws period-end cancellation without requiring resource cleanup. Paid entitlements remain effective until the period boundary.",
+        "summary": "Withdraw period-end cancellation",
+        "description": "Withdraws a period-end cancellation. New cancellation requests use a fresh Paddle Retain deep link from the Customer Portal session endpoint.",
         "security": [
           {
             "bearerAuth": []
@@ -16778,16 +18626,6 @@
             "example": "opaque-consistency-bookmark"
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetSubscriptionCancellationInput"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Cancellation state updated.",
@@ -17054,7 +18892,7 @@
             }
           },
           "503": {
-            "description": "Billing storage or Stripe is temporarily unavailable.",
+            "description": "Billing storage or Paddle is temporarily unavailable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -17093,7 +18931,7 @@
           "Billing"
         ],
         "summary": "Start initial paid subscription Checkout",
-        "description": "Creates or idempotently replays a Stripe-hosted Checkout Session for a Current Workspace admitted by the public Checkout rollout or operator allowlist. Requires an OAuth-authenticated Owner or Admin and fresh target-tier resource eligibility. Redirect completion never changes entitlements; activation requires a verified Stripe webhook and fresh paid provider state.",
+        "description": "Creates or idempotently replays a Paddle automatic Transaction for Overlay Checkout when admitted by the public Checkout rollout or operator allowlist. Requires an OAuth-authenticated Owner or Admin; allowlist-only rollout also requires fresh target-tier resource eligibility. Browser completion never changes entitlements; activation requires a verified Paddle webhook plus fresh Subscription and Transaction state.",
         "security": [
           {
             "bearerAuth": []
@@ -17123,7 +18961,7 @@
         },
         "responses": {
           "200": {
-            "description": "Checkout Session created or replayed.",
+            "description": "Checkout Transaction created or replayed.",
             "headers": {
               "x-cb-billing": {
                 "description": "Opaque consistency bookmark for the latest billing database position observed by this request. Store and send it on the next billing request to continue read-after-write consistency.",
@@ -17426,7 +19264,7 @@
             }
           },
           "503": {
-            "description": "Billing storage or Stripe is temporarily unavailable.",
+            "description": "Billing storage or Paddle is temporarily unavailable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -17465,7 +19303,7 @@
           "Billing"
         ],
         "summary": "Upgrade a paid subscription",
-        "description": "Starts an immediate prorated Stripe pending update. The effective tier changes only after a verified webhook and a matching fresh paid subscription read.",
+        "description": "Applies a prorated Paddle item replacement. Ambiguous outcomes remain reconciliation-required and do not change WSPC entitlements until fresh provider evidence is applied.",
         "security": [
           {
             "bearerAuth": []
@@ -17590,6 +19428,36 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Paddle could not collect payment; the subscription was not changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -17759,220 +19627,7 @@
             }
           },
           "503": {
-            "description": "Billing storage or Stripe is temporarily unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/billing/stripe/webhook": {
-      "post": {
-        "operationId": "billing_stripe_webhook_receive",
-        "tags": [
-          "Billing"
-        ],
-        "summary": "Receive Stripe subscription events",
-        "description": "Verifies the Stripe-Signature header against the exact raw request body, deduplicates Event IDs, and activates a plan only after a fresh Subscription and paid Invoice read.",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1
-            },
-            "required": true,
-            "name": "stripe-signature",
-            "in": "header"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {}
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The signed event was acknowledged.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StripeWebhookResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The Stripe signature or payload was invalid.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "The Stripe webhook payload exceeded the accepted size.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "rateLimited": {
-                    "summary": "Per-key rate limit hit",
-                    "value": {
-                      "error": {
-                        "code": "RATE_LIMITED",
-                        "message": "Too many requests, please retry after 60 seconds."
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                },
-                "examples": {
-                  "internalError": {
-                    "summary": "Unhandled exception",
-                    "value": {
-                      "error": {
-                        "code": "INTERNAL_ERROR",
-                        "message": "internal error"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Billing storage or Stripe is temporarily unavailable.",
+            "description": "Billing storage or Paddle is temporarily unavailable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -19983,6 +21638,343 @@
                       ]
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/export": {
+      "get": {
+        "operationId": "calendar_export",
+        "tags": [
+          "Events"
+        ],
+        "x-cli": {
+          "command": "_internal",
+          "hidden": true
+        },
+        "summary": "Export the whole calendar as `.ics`",
+        "parameters": [
+          {
+            "name": "x-cb-cal",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "description": "### Overview\nStream every event of the current Workspace as a single RFC 5545 `VCALENDAR` document, one `VEVENT` per event.\n\n### When to Use\nTake a copy of the calendar out of wspc, or import it into Google Calendar, Apple Calendar, or any other iCalendar client.\n\n### Constraints\n- **Response Payload**: Plain iCalendar text with `Content-Type: text/calendar; charset=utf-8` and `Content-Disposition: attachment; filename=\"wspc-calendar.ics\"`, so browsers save it as a file.\n- **Scope**: Only events owned by the authenticated user in the current Workspace. Soft-deleted (trashed) events are left out; past events are included.\n- **Delivery**: The body is streamed while the events are read page by page. Nothing is stored server-side and there is nothing to expire.\n- **Method**: The document carries `METHOD:PUBLISH`; cancelled events carry `STATUS:CANCELLED`.\n- **Consistency**: send `x-cb-cal` to anchor the read at a known bookmark. No bookmark comes back — the body is streamed after the response headers are already out.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/calendar/export \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -o wspc-calendar.ics"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RFC 5545 iCalendar payload as plain text. Content-Type `text/calendar; charset=utf-8`. One `BEGIN:VCALENDAR` wrapping one `VEVENT` per event.",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -26750,7 +28742,7 @@
           "EmailAliases"
         ],
         "summary": "Create a receiving alias",
-        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization, fully verified, and enabled by the Workspace entitlement.\n- **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 50, Business 200). Soft-deleted addresses release capacity.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.\n- **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain is not fully verified, enabled, or currently within entitlement.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The Current Workspace has reached its reserved platform address capacity.\n- **503 Service Unavailable / EMAIL_ENTITLEMENTS_UNAVAILABLE**: Billing could not provide a trustworthy entitlement, so creation failed closed.",
+        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization, fully verified, and enabled by the Workspace entitlement.\n- **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 40, Business 200). Custom-domain aliases use the per-user limit of 10 active aliases. Soft-deleted addresses release capacity.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.\n- **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain is not fully verified, enabled, or currently within entitlement.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The Current Workspace has reached its reserved platform address capacity, or the caller has reached the custom-domain per-user alias limit.\n- **503 Service Unavailable / EMAIL_ENTITLEMENTS_UNAVAILABLE**: Billing could not provide a trustworthy entitlement, so creation failed closed.",
         "security": [
           {
             "bearerAuth": []
@@ -26957,7 +28949,7 @@
             }
           },
           "429": {
-            "description": "Either the per-user alias limit (10 active) was exceeded (`ALIAS_LIMIT_EXCEEDED`) or the write rate limit was hit (`RATE_LIMITED`).",
+            "description": "Either the Current Workspace reserved-platform capacity or the custom-domain per-user limit of 10 active aliases was exceeded (`ALIAS_LIMIT_EXCEEDED`), or the write rate limit was hit (`RATE_LIMITED`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -32276,7 +34268,7 @@
           "EmailAliases"
         ],
         "summary": "Restore a soft-deleted alias",
-        "description": "### Overview\nReactivates a previously soft-deleted email receiving alias, immediately resuming mail forwarding to the user's inbox.\n\n### When to Use\n- Use this endpoint to re-enable a temporarily disabled alias or to recover one that was deleted by mistake.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Quota Check**: Reactivating an alias increases the active alias count towards the user's maximum quota of 10 active aliases. If the limit is exceeded, a `429 ALIAS_LIMIT_EXCEEDED` error is returned.\n- **Path Parameter**: The `@` character in the path parameter must be URL-encoded as `%40`.\n\n### Troubleshooting\n- **401 Unauthorized**: Missing or invalid token.\n- **404 Not Found**: No soft-deleted alias with this exact address was found for the authenticated user.\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: Reactivating this alias would exceed the per-user limit of 10 active aliases.",
+        "description": "### Overview\nReactivates a previously soft-deleted email receiving alias, immediately resuming mail forwarding to the user's inbox.\n\n### When to Use\n- Use this endpoint to re-enable a temporarily disabled alias or to recover one that was deleted by mistake.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Quota Check**: Restoring a reserved platform address uses the Current Workspace tier capacity. Restoring a custom-domain alias uses the per-user limit of 10 active aliases. If the applicable limit is exceeded, a `429 ALIAS_LIMIT_EXCEEDED` error is returned.\n- **Path Parameter**: The `@` character in the path parameter must be URL-encoded as `%40`.\n\n### Troubleshooting\n- **401 Unauthorized**: Missing or invalid token.\n- **404 Not Found**: No soft-deleted alias with this exact address was found for the authenticated user.\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: Reactivating this address would exceed the Current Workspace reserved-platform capacity or the custom-domain per-user limit of 10 active aliases.",
         "security": [
           {
             "bearerAuth": []
@@ -32397,7 +34389,7 @@
             }
           },
           "429": {
-            "description": "Either restoring would exceed the per-user active-alias limit (`ALIAS_LIMIT_EXCEEDED`) or the write rate limit was hit (`RATE_LIMITED`).",
+            "description": "Either restoring would exceed the Current Workspace reserved-platform capacity or the custom-domain per-user limit of 10 active aliases (`ALIAS_LIMIT_EXCEEDED`), or the write rate limit was hit (`RATE_LIMITED`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -45642,6 +47634,343 @@
         }
       }
     },
+    "/todo/export": {
+      "get": {
+        "operationId": "todo_export",
+        "tags": [
+          "Todos"
+        ],
+        "x-cli": {
+          "command": "_internal",
+          "hidden": true
+        },
+        "summary": "Export the workspace as JSON",
+        "description": "### Overview\nStream the complete Todo data of the caller's workspace as a single JSON document. There is no job to poll and nothing to expire: the response is the export.\n\n### When to Use\nOffer a 'download my data' link, take a personal backup, or move todos to another service.\n\n### Constraints\n- **Response Payload**: `Content-Type: application/json; charset=utf-8` with `Content-Disposition: attachment; filename=\"wspc-todo-export-<YYYY-MM-DD>.json\"`, so a browser saves it as a file.\n- **Scope**: only the caller's current workspace. Items in the trash (soft-deleted projects, todos and comments) are left out.\n- **Recurrence templates included**: `todos` carries the hidden template todo behind every recurrence rule, so the export holds rows `GET /todo/items` hides unless you pass `include_templates=true`. Without them a materialized instance or a template's subtask would point at a `parent_id` that is not in the document.\n- **Streaming**: the body is produced page by page while the response is being written, so a large workspace does not have to fit in memory.\n- **Consistency**: send `x-cb-todo` to anchor the read at a known bookmark. No bookmark comes back — the body is streamed after the response headers are already out.\n\n### Troubleshooting\n- An empty workspace still returns a well-formed document with empty arrays.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-todo",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous todo response. Send it back unchanged to continue read-after-write consistency for todo D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl https://api.wspc.ai/todo/export \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -o wspc-todo-export.json"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workspace's Todo data as one JSON document: projects, todo types with their custom field definitions, todos with parent/child links and custom field values, comments, and recurrence rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoExportDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/todo/projects/{id}/restore": {
       "post": {
         "operationId": "project_restore",
@@ -46793,6 +49122,10 @@
   },
   "webhooks": {},
   "tags": [
+    {
+      "name": "Account",
+      "description": "Account endpoints."
+    },
     {
       "name": "Auth",
       "description": "Email magic-code login: request code, verify code, current user."
