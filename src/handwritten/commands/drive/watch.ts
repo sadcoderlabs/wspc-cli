@@ -297,8 +297,6 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
           dbg.log("realtime_reconnecting", { delay_ms: delayMs, error, reason })
         },
         onAuthFailed(error, reason) {
-          // Reaching here means the server refused to rotate the refresh token,
-          // so this is never recoverable by retrying.
           const detail = {
             error: error ?? "auth failed",
             recoverable: false as const,

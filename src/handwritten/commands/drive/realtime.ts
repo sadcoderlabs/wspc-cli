@@ -180,11 +180,10 @@ export function createDriveRealtimeSource(args: {
     clearReconnectTimer()
     clearKeepaliveTimers()
     socket?.close()
-    // Only a refresh the server refused is terminal. A socket rejected on auth
-    // grounds is not: the header provider re-resolves credentials on every
-    // attempt, so reconnecting is what gives an expired access token the chance
-    // to rotate. Giving up here would leave the watch with no source of remote
-    // changes at all. See ADR-0001 in wspc-drive.
+    // A socket rejected on auth grounds is not terminal: the header provider
+    // re-resolves credentials per attempt, so reconnecting is what lets an
+    // expired access token rotate. Giving up would leave the watch with no
+    // source of remote changes at all. See ADR-0001 in wspc-drive.
     if (isTerminalAuthError(error)) {
       authFailed = true
       handlers?.onAuthFailed(redactedRealtimeError(error), refreshRejectionReason(error))
@@ -411,8 +410,9 @@ function refreshRejectionReason(error: unknown): string | undefined {
   return typeof reason === "string" && reason.length > 0 ? reason : undefined
 }
 
-// Labels a reconnect as auth-related for the event stream. Deliberately loose:
-// it only picks which word goes in the log, never whether we keep trying.
+// Recognises an auth-shaped failure so we can drop the socket and label the
+// reconnect. Deliberately loose, which is safe now that it never decides
+// whether to give up: only isTerminalAuthError does that.
 function isRealtimeAuthError(error: unknown): boolean {
   if (isTerminalAuthError(error)) return true
   return /\b(401|403|auth|authorization|unauthorized|forbidden)\b/i.test(String(error))
