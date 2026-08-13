@@ -871,6 +871,9 @@ export const eventList = <ThrowOnError extends boolean = false>(options?: Option
  * ### When to Use
  * Book a meeting, lunch, all-day trip, or any time-bound item. Optionally provide `attendees` to automatically dispatch invitation emails containing an `.ics` REQUEST attachment to each participant as a side effect.
  *
+ * ### Recurring Series
+ * Pass `recurrence_rule` as an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series require date-only `start`, `end`, and `UNTIL`; timed series require UTC `start`, `end`, and UTC DATE-TIME `UNTIL`. The response returns the canonical rule. Calendar lists persist and return one series master instead of expanding occurrences.
+ *
  * ### Constraints
  * - **Format Integrity**: `start` and `end` must be of the exact same type (both ISO 8601 datetimes with offset, or both ISO date-only for all-day).
  * - **Chronological Order**: `end` must be strictly after `start`.
@@ -953,7 +956,8 @@ export const eventGet = <ThrowOnError extends boolean = false>(options: Options<
  *
  * ### Constraints
  * - **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.
- * - **Field Clearing**: Pass an empty string `""` for `description`, `location`, or `url` to clear those fields in the database.
+ * - **Field Clearing**: Pass an empty string `""` for `description`, `location`, `url`, or `recurrence_rule` to clear those fields in the database. Omitting `recurrence_rule` leaves it unchanged.
+ * - **Recurring Series**: A recurrence rule is an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series require date-only values; timed series require UTC values. Update, cancel, delete, and restore always affect the whole series master.
  * - **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list. The server automatically diffs participants and asynchronously sends invitations (for newly added), updates (for kept), or cancellations (for removed) via Cloudflare `waitUntil`.
  * - **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.
  * - **Attendee Limit**: A maximum of 50 unique attendees is allowed.
@@ -1269,7 +1273,7 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  * - Requires a valid Bearer token in the `Authorization` header.
  * - **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
  * - **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization, fully verified, and enabled by the Workspace entitlement.
- * - **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 40, Business 200). Custom-domain aliases use the per-user limit of 10 active aliases. Soft-deleted addresses release capacity.
+ * - **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 40, Business 200) for both active capacity and a Workspace-wide rolling 30-day creation budget. Soft-deleted platform addresses release active capacity but remain in the creation budget until their original creation leaves the window. Custom-domain aliases use the per-user limit of 10 active aliases.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Bearer token is missing, invalid, or expired.
@@ -1279,6 +1283,7 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  * - **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain is not fully verified, enabled, or currently within entitlement.
  * - **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).
  * - **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The Current Workspace has reached its reserved platform address capacity, or the caller has reached the custom-domain per-user alias limit.
+ * - **429 Too Many Requests / ALIAS_CREATION_LIMIT_EXCEEDED**: The Workspace exhausted its rolling 30-day platform-address creation budget. Retry timing is in the `Retry-After` header.
  * - **503 Service Unavailable / EMAIL_ENTITLEMENTS_UNAVAILABLE**: Billing could not provide a trustworthy entitlement, so creation failed closed.
  */
 export const emailAliasCreate = <ThrowOnError extends boolean = false>(options: Options<EmailAliasCreateData, ThrowOnError>) => (options.client ?? client).post<EmailAliasCreateResponses, EmailAliasCreateErrors, ThrowOnError>({

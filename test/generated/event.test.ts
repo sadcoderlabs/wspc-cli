@@ -30,14 +30,17 @@ const ZONE = "Asia/Taipei"
 async function loadCommands() {
   vi.resetModules()
   const add = await import("../../src/generated/cli/event/add.js")
+  const set = await import("../../src/generated/cli/event/set.js")
   const ls = await import("../../src/generated/cli/event/ls.js")
   const ics = await import("../../src/generated/cli/event/ics.js")
   const sdk = await import("../../src/generated/sdk/index.js")
   return {
     eventCreateCommand: add.eventCreateCommand,
+    eventUpdateCommand: set.eventUpdateCommand,
     eventListCommand: ls.eventListCommand,
     eventIcsDownloadCommand: ics.eventIcsDownloadCommand,
     eventCreate: sdk.eventCreate as ReturnType<typeof vi.fn>,
+    eventUpdate: sdk.eventUpdate as ReturnType<typeof vi.fn>,
     eventList: sdk.eventList as ReturnType<typeof vi.fn>,
     eventIcsDownload: sdk.eventIcsDownload as ReturnType<typeof vi.fn>,
   }
@@ -102,6 +105,40 @@ describe("event add", () => {
       { email: "a@x", display_name: "Alice" },
       { email: "b@y" },
     ])
+  })
+
+  it("passes a literal --rrule value as recurrence_rule", async () => {
+    const { eventCreateCommand, eventCreate } = await loadCommands()
+    await eventCreateCommand.parseAsync([
+      "node",
+      "add",
+      "Office days",
+      "--all-day",
+      "--start",
+      "2026-08-17",
+      "--end",
+      "2026-08-17",
+      "--rrule",
+      "FREQ=WEEKLY;BYDAY=MO,WE",
+    ])
+
+    expect(eventCreate.mock.calls[0]![0].body).toMatchObject({
+      start: "2026-08-17",
+      end: "2026-08-18",
+      recurrence_rule: "FREQ=WEEKLY;BYDAY=MO,WE",
+    })
+  })
+})
+
+describe("event set", () => {
+  it("preserves an empty --rrule value for recurrence clearing", async () => {
+    const { eventUpdateCommand, eventUpdate } = await loadCommands()
+    await eventUpdateCommand.parseAsync(["node", "set", "evt_1", "--rrule", ""])
+
+    expect(eventUpdate.mock.calls[0]![0]).toMatchObject({
+      path: { id: "evt_1" },
+      body: { recurrence_rule: "" },
+    })
   })
 })
 

@@ -352,9 +352,9 @@ export type OAuthRegisterBody = {
      */
     redirect_uris: Array<string>;
     /**
-     * Client authentication method to use at the token endpoint. `none` (the default and the only fully supported value today) is for public PKCE clients; `client_secret_basic` is reserved for future confidential clients.
+     * Client authentication method to use at the token endpoint. WSPC supports public PKCE clients only, so the value is always `none`.
      */
-    token_endpoint_auth_method?: 'none' | 'client_secret_basic';
+    token_endpoint_auth_method?: 'none';
     /**
      * List of grant types the client intends to use. Defaults to `["authorization_code", "refresh_token"]`; add `urn:ietf:params:oauth:grant-type:device_code` for device flow.
      */
@@ -798,6 +798,10 @@ export type Event = {
      */
     status: 'confirmed' | 'tentative' | 'cancelled';
     /**
+     * Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series.
+     */
+    recurrence_rule?: string;
+    /**
      * Derived from the format of `start`/`end`. When `true`, both endpoints are ISO date-only (`YYYY-MM-DD`) and the event spans full calendar day(s) using RFC 5545 exclusive end.
      */
     all_day: boolean;
@@ -878,6 +882,10 @@ export type CreateEventBody = {
         display_name?: string;
     }>;
     idempotency_key?: string;
+    /**
+     * Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series.
+     */
+    recurrence_rule?: string;
 };
 
 /**
@@ -971,6 +979,7 @@ export type UpdateEventBody = {
          */
         display_name?: string;
     }>;
+    recurrence_rule?: string | '';
 };
 
 export type DriveLibrary = {
@@ -2863,7 +2872,7 @@ export type OauthDeviceAuthorizeErrors = {
         error_uri?: string;
     };
     /**
-     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.
+     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered.
      */
     401: {
         error: string;
@@ -3638,7 +3647,7 @@ export type OauthClientRegisterErrors = {
         error_uri?: string;
     };
     /**
-     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.
+     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered.
      */
     401: {
         error: string;
@@ -4256,7 +4265,7 @@ export type OauthTokenRevokeErrors = {
         error_uri?: string;
     };
     /**
-     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.
+     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered.
      */
     401: {
         error: string;
@@ -4406,7 +4415,7 @@ export type OauthTokenExchangeErrors = {
         error_uri?: string;
     };
     /**
-     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.
+     * OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered.
      */
     401: {
         error: string;
@@ -8035,7 +8044,7 @@ export type EmailAliasCreateErrors = {
         };
     };
     /**
-     * Either the Current Workspace reserved-platform capacity or the custom-domain per-user limit of 10 active aliases was exceeded (`ALIAS_LIMIT_EXCEEDED`), or the write rate limit was hit (`RATE_LIMITED`).
+     * Either the Current Workspace reserved-platform capacity or the custom-domain per-user limit of 10 active aliases was exceeded (`ALIAS_LIMIT_EXCEEDED`), the rolling 30-day platform-address creation budget was exhausted (`ALIAS_CREATION_LIMIT_EXCEEDED`), or the write rate limit was hit (`RATE_LIMITED`).
      */
     429: {
         error: {
