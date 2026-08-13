@@ -938,6 +938,36 @@ export type ListEventsResponse = {
     next_cursor?: string;
 };
 
+export type ListEventOccurrencesResponse = {
+    occurrences: Array<{
+        series_id: string;
+        recurrence_id: string;
+        start: string;
+        end: string;
+        title: string;
+        description: string;
+        location?: string;
+        url?: string;
+        /**
+         * Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses.
+         */
+        status: 'confirmed' | 'tentative' | 'cancelled';
+        all_day: boolean;
+        time_zone?: string;
+        attendees: Array<{
+            /**
+             * Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out.
+             */
+            email: string;
+            /**
+             * Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address.
+             */
+            display_name?: string;
+        }>;
+    }>;
+    next_cursor?: string;
+};
+
 /**
  * Request body for PATCH `/calendar/events/{id}`. All fields are optional partial updates. To CANCEL a meeting (preserve the record and notify attendees) set `status: cancelled`; to remove the event from default listings, call DELETE instead.
  */
@@ -6534,6 +6564,103 @@ export type EventIcsDownloadResponses = {
 };
 
 export type EventIcsDownloadResponse = EventIcsDownloadResponses[keyof EventIcsDownloadResponses];
+
+export type EventOccurrencesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
+         */
+        'x-cb-cal'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        start: string;
+        end: string;
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/calendar/events/{id}/occurrences';
+};
+
+export type EventOccurrencesErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EventOccurrencesError = EventOccurrencesErrors[keyof EventOccurrencesErrors];
+
+export type EventOccurrencesResponses = {
+    /**
+     * Occurrence page ordered by recurrence_id.
+     */
+    200: ListEventOccurrencesResponse;
+};
+
+export type EventOccurrencesResponse = EventOccurrencesResponses[keyof EventOccurrencesResponses];
 
 export type EventRestoreData = {
     body?: VersionBody;

@@ -189,7 +189,7 @@ function renderList(data: unknown, hints?: XCliDisplay): void {
 }
 
 function pickColumns(first: Record<string, unknown>, hint?: string[]): string[] {
-  if (hint && hint.length > 0) return hint.filter((c) => c in first)
+  if (hint && hint.length > 0) return hint
   // Auto-pick: prefer well-known leading fields, then any other scalar field,
   // capped at 5 to avoid runaway-wide tables.
   const PREFERRED = ["id", "name", "title", "label", "status", "due_at", "created_at"]

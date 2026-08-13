@@ -1,15 +1,10 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
 import { DateTime } from "luxon"
-import {
-  parseAttendee,
-} from "../../src/handwritten/utils/parse-attendee.js"
-import {
-  parseDateOnly,
-  inclusiveEndToExclusive,
-  ParseDateError,
-} from "../../src/handwritten/utils/parse-date.js"
+import { parseAttendee } from "../../src/handwritten/utils/parse-attendee.js"
+import { parseDateOnly, inclusiveEndToExclusive, ParseDateError } from "../../src/handwritten/utils/parse-date.js"
 import {
   parseTimeInput,
+  parseOccurrenceBoundary,
   resolveTimezone,
   ParseTimeError,
 } from "../../src/handwritten/utils/parse-time.js"
@@ -71,15 +66,11 @@ describe("inclusiveEndToExclusive", () => {
 
 describe("resolveTimezone", () => {
   it("prefers explicit flag", () => {
-    expect(resolveTimezone("Asia/Tokyo", { WSPC_TZ: "Asia/Taipei" })).toBe(
-      "Asia/Tokyo",
-    )
+    expect(resolveTimezone("Asia/Tokyo", { WSPC_TZ: "Asia/Taipei" })).toBe("Asia/Tokyo")
   })
 
   it("falls back to WSPC_TZ env", () => {
-    expect(resolveTimezone(undefined, { WSPC_TZ: "Asia/Taipei" })).toBe(
-      "Asia/Taipei",
-    )
+    expect(resolveTimezone(undefined, { WSPC_TZ: "Asia/Taipei" })).toBe("Asia/Taipei")
   })
 
   it("falls back to system zone when neither flag nor env is set", () => {
@@ -138,8 +129,16 @@ describe("parseTimeInput", () => {
   })
 
   it("throws ParseTimeError on gibberish", () => {
-    expect(() => parseTimeInput("not a real time", "UTC")).toThrow(
-      ParseTimeError,
-    )
+    expect(() => parseTimeInput("not a real time", "UTC")).toThrow(ParseTimeError)
+  })
+})
+
+describe("parseOccurrenceBoundary", () => {
+  it("preserves an ISO date-only boundary", () => {
+    expect(parseOccurrenceBoundary("2026-08-13", "Asia/Taipei")).toBe("2026-08-13")
+  })
+
+  it("resolves a timed boundary with the parse-only zone", () => {
+    expect(parseOccurrenceBoundary("tomorrow 9am", "Asia/Taipei")).toMatch(/T09:00:00\.000\+08:00$/)
   })
 })
