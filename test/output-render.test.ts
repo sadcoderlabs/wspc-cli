@@ -81,6 +81,40 @@ describe("render", () => {
     expect(out).toContain("2026-06-01")
   })
 
+  it("keeps fixed agenda union columns blank for a single item", () => {
+    render(
+      {
+        kind: "event_agenda",
+        display: {
+          shape: "list",
+          columns: ["kind", "start", "end", "title", "status", "event_id", "series_id", "recurrence_id", "time_zone"],
+        },
+      },
+      {
+        items: [
+          {
+            kind: "single",
+            event_id: "evt_1",
+            start: "2026-08-14T09:00:00Z",
+            end: "2026-08-14T10:00:00Z",
+            title: "Planning",
+            status: "confirmed",
+          },
+        ],
+      },
+    )
+
+    const out = stripAnsi(cap.output())
+    const header = out.split("\n").find((line) => line.includes("SERIES_ID"))!
+    const row = out.split("\n").find((line) => line.includes("evt_1"))!
+    const seriesStart = header.indexOf("SERIES_ID")
+    const recurrenceStart = header.indexOf("RECURRENCE_ID")
+    const timeZoneStart = header.indexOf("TIME_ZONE")
+    expect(row.slice(seriesStart, recurrenceStart).trim()).toBe("—")
+    expect(row.slice(recurrenceStart, timeZoneStart).trim()).toBe("—")
+    expect(row.slice(timeZoneStart).trim()).toBe("—")
+  })
+
   it("marks soft-deleted list rows without marking active rows", () => {
     render(
       { kind: "todo.list", display: { shape: "list", columns: ["id", "title"] } },

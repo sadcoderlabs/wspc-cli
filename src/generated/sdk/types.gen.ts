@@ -924,6 +924,62 @@ export type VersionBody = {
     expected_version?: number;
 };
 
+export type ListAgendaResponse = {
+    items: Array<{
+        start: string;
+        end: string;
+        title: string;
+        description: string;
+        location?: string;
+        url?: string;
+        /**
+         * Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses.
+         */
+        status: 'confirmed' | 'tentative' | 'cancelled';
+        all_day: boolean;
+        attendees: Array<{
+            /**
+             * Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out.
+             */
+            email: string;
+            /**
+             * Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address.
+             */
+            display_name?: string;
+        }>;
+        kind: 'single';
+        event_id: string;
+    } | {
+        start: string;
+        end: string;
+        title: string;
+        description: string;
+        location?: string;
+        url?: string;
+        /**
+         * Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses.
+         */
+        status: 'confirmed' | 'tentative' | 'cancelled';
+        all_day: boolean;
+        attendees: Array<{
+            /**
+             * Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out.
+             */
+            email: string;
+            /**
+             * Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address.
+             */
+            display_name?: string;
+        }>;
+        kind: 'occurrence';
+        series_id: string;
+        recurrence_id: string;
+        time_zone?: string;
+    }>;
+    view_time_zone: string;
+    next_cursor?: string;
+};
+
 /**
  * Paginated list response for GET `/calendar/events`.
  */
@@ -6564,6 +6620,130 @@ export type EventIcsDownloadResponses = {
 };
 
 export type EventIcsDownloadResponse = EventIcsDownloadResponses[keyof EventIcsDownloadResponses];
+
+export type EventAgendaData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
+         */
+        'x-cb-cal'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Offset-bearing ISO 8601 date-time boundary for the half-open agenda window.
+         */
+        start: string;
+        /**
+         * Offset-bearing ISO 8601 date-time boundary for the half-open agenda window.
+         */
+        end: string;
+        /**
+         * UTC or a supported IANA time zone. Aliases are accepted and the response returns the canonical zone.
+         */
+        view_time_zone: string;
+        /**
+         * Include cancelled single events and whole-series occurrences. Default false.
+         */
+        include_cancelled?: 'true' | 'false';
+        /**
+         * Maximum agenda items on this page. Default 100; range 1 to 200.
+         */
+        limit?: number;
+        /**
+         * Opaque agenda pagination cursor.
+         */
+        cursor?: string;
+    };
+    url: '/calendar/agenda';
+};
+
+export type EventAgendaErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Agenda candidate or expanded-item budget exceeded.
+     */
+    422: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EventAgendaError = EventAgendaErrors[keyof EventAgendaErrors];
+
+export type EventAgendaResponses = {
+    /**
+     * Stable agenda page with canonical view time zone.
+     */
+    200: ListAgendaResponse;
+};
+
+export type EventAgendaResponse = EventAgendaResponses[keyof EventAgendaResponses];
 
 export type EventOccurrencesData = {
     body?: never;

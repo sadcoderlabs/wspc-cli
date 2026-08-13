@@ -2148,6 +2148,185 @@
         "additionalProperties": false,
         "description": "Request body for DELETE `/calendar/events/{id}` and POST `/calendar/events/{id}/restore`. Carries only the optional optimistic-lock version."
       },
+      "ListAgendaResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "start": {
+                      "type": "string"
+                    },
+                    "end": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "confirmed",
+                        "tentative",
+                        "cancelled"
+                      ],
+                      "description": "Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses."
+                    },
+                    "all_day": {
+                      "type": "boolean"
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "email": {
+                            "type": "string",
+                            "description": "Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out."
+                          },
+                          "display_name": {
+                            "type": "string",
+                            "description": "Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address."
+                          }
+                        },
+                        "required": [
+                          "email"
+                        ],
+                        "description": "A single attendee on a calendar event. Each event supports up to 50 unique attendees after case-insensitive email dedupe; new attendees receive an invitation email with an `.ics` REQUEST attachment, kept attendees receive an update email when the event is mutated, and removed attendees receive a cancellation."
+                      }
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "single"
+                      ]
+                    },
+                    "event_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end",
+                    "title",
+                    "description",
+                    "status",
+                    "all_day",
+                    "attendees",
+                    "kind",
+                    "event_id"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "start": {
+                      "type": "string"
+                    },
+                    "end": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "confirmed",
+                        "tentative",
+                        "cancelled"
+                      ],
+                      "description": "Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses."
+                    },
+                    "all_day": {
+                      "type": "boolean"
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "email": {
+                            "type": "string",
+                            "description": "Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out."
+                          },
+                          "display_name": {
+                            "type": "string",
+                            "description": "Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address."
+                          }
+                        },
+                        "required": [
+                          "email"
+                        ],
+                        "description": "A single attendee on a calendar event. Each event supports up to 50 unique attendees after case-insensitive email dedupe; new attendees receive an invitation email with an `.ics` REQUEST attachment, kept attendees receive an update email when the event is mutated, and removed attendees receive a cancellation."
+                      }
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "occurrence"
+                      ]
+                    },
+                    "series_id": {
+                      "type": "string"
+                    },
+                    "recurrence_id": {
+                      "type": "string"
+                    },
+                    "time_zone": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end",
+                    "title",
+                    "description",
+                    "status",
+                    "all_day",
+                    "attendees",
+                    "kind",
+                    "series_id",
+                    "recurrence_id"
+                  ]
+                }
+              ]
+            }
+          },
+          "view_time_zone": {
+            "type": "string"
+          },
+          "next_cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "view_time_zone"
+        ]
+      },
       "ListEventsResponse": {
         "type": "object",
         "properties": {
@@ -22690,6 +22869,508 @@
                         "message": "expected_version 3 but current is 4"
                       }
                     }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/agenda": {
+      "get": {
+        "operationId": "event_agenda",
+        "tags": [
+          "Events"
+        ],
+        "x-cli": {
+          "command": "event agenda",
+          "booleanFlags": [
+            "include_cancelled"
+          ],
+          "options": {
+            "from": {
+              "parser": "agenda-boundary",
+              "mapsTo": "start",
+              "required": true
+            },
+            "to": {
+              "parser": "agenda-boundary",
+              "mapsTo": "end",
+              "required": true
+            },
+            "tz": {
+              "parser": "agenda-time-zone",
+              "mapsTo": "view_time_zone"
+            }
+          },
+          "examples": [
+            "wspc event agenda --from \"this Monday\" --to \"next Monday\""
+          ],
+          "display": {
+            "shape": "list",
+            "columns": [
+              "kind",
+              "start",
+              "end",
+              "title",
+              "status",
+              "event_id",
+              "series_id",
+              "recurrence_id",
+              "time_zone"
+            ],
+            "format": {
+              "start": "relative-time",
+              "end": "relative-time",
+              "title": "truncate",
+              "status": "status-badge",
+              "event_id": "id-short",
+              "series_id": "id-short",
+              "recurrence_id": "truncate"
+            },
+            "emptyMessage": "no agenda items"
+          }
+        },
+        "summary": "List a bounded calendar agenda",
+        "parameters": [
+          {
+            "name": "x-cb-cal",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "T.*(?:Z|[+-]\\d{2}:\\d{2})$",
+              "description": "Offset-bearing ISO 8601 date-time boundary for the half-open agenda window."
+            },
+            "required": true,
+            "description": "Offset-bearing ISO 8601 date-time boundary for the half-open agenda window.",
+            "name": "start",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "T.*(?:Z|[+-]\\d{2}:\\d{2})$",
+              "description": "Offset-bearing ISO 8601 date-time boundary for the half-open agenda window."
+            },
+            "required": true,
+            "description": "Offset-bearing ISO 8601 date-time boundary for the half-open agenda window.",
+            "name": "end",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "UTC or a supported IANA time zone. Aliases are accepted and the response returns the canonical zone."
+            },
+            "required": true,
+            "description": "UTC or a supported IANA time zone. Aliases are accepted and the response returns the canonical zone.",
+            "name": "view_time_zone",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false",
+              "description": "Include cancelled single events and whole-series occurrences. Default false."
+            },
+            "required": false,
+            "description": "Include cancelled single events and whole-series occurrences. Default false.",
+            "name": "include_cancelled",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100,
+              "description": "Maximum agenda items on this page. Default 100; range 1 to 200."
+            },
+            "required": false,
+            "description": "Maximum agenda items on this page. Default 100; range 1 to 200.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque agenda pagination cursor."
+            },
+            "required": false,
+            "description": "Opaque agenda pagination cursor.",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "description": "Merge overlapping single events and recurring occurrences in a required bounded instant window. The view time zone controls all-day overlap and ordering; event lists remain master-only.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -G https://api.wspc.ai/calendar/agenda \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  --data-urlencode \"start=2026-08-10T00:00:00+08:00\" \\\n  --data-urlencode \"end=2026-08-17T00:00:00+08:00\" \\\n  --data-urlencode \"view_time_zone=Asia/Taipei\""
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc event agenda --from \"this Monday\" --to \"next Monday\" --tz Asia/Taipei"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stable agenda page with canonical view time zone.",
+            "headers": {
+              "x-cb-cal": {
+                "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAgendaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Agenda candidate or expanded-item budget exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": {
+                    "code": "AGENDA_LIMIT_EXCEEDED",
+                    "message": "Agenda expansion limit exceeded; use a smaller window"
                   }
                 }
               }
