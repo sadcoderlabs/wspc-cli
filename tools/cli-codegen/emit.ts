@@ -7,7 +7,7 @@ export interface XCliDisplay {
 }
 
 export interface XCliOption {
-  parser?: "datetime" | "occurrence-boundary" | "attendee" | "series-time-zone"
+  parser?: "datetime" | "occurrence-boundary" | "agenda-boundary" | "agenda-time-zone" | "attendee" | "series-time-zone"
   required?: boolean
   array?: boolean
   mapsTo?: string
@@ -172,10 +172,11 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Does this operation need a --tz flag and resolveTimezone() call?
   const hasDatetimeParser = Object.values(xCliOptions).some(
-    (o) => o.parser === "datetime" || o.parser === "occurrence-boundary",
+    (o) => o.parser === "datetime" || o.parser === "occurrence-boundary" || o.parser === "agenda-boundary",
   )
   const usesParseTimeInput = Object.values(xCliOptions).some((o) => o.parser === "datetime")
   const hasOccurrenceBoundaryParser = Object.values(xCliOptions).some((o) => o.parser === "occurrence-boundary")
+  const hasAgendaBoundaryParser = Object.values(xCliOptions).some((o) => o.parser === "agenda-boundary")
   const hasAttendeeParser = Object.values(xCliOptions).some((o) => o.parser === "attendee")
   const usesParseDateOnly = Object.values(xCliOptions).some((o) => o.parser === "datetime" && o.allDayFlag)
   const usesInclusiveEndToExclusive = Object.values(xCliOptions).some(
@@ -315,7 +316,7 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Implicit --tz flag when any datetime parser is present.
   const tzOption =
-    hasDatetimeParser && !hasSeriesTimeZoneParser
+    hasDatetimeParser && !hasSeriesTimeZoneParser && xCliOptions.tz === undefined
       ? [`.option("--tz <zone>", "IANA timezone for relative time parsing")`]
       : []
 
@@ -341,7 +342,7 @@ export function emitCommand(input: EmitInput): string | null {
   function valueExprForOption(optKey: string): string {
     const optDef = xCliOptions[optKey]!
     const camelKey = kebabToCamel(kebab(optKey))
-    if (optDef.parser === "datetime" || optDef.parser === "occurrence-boundary") {
+    if (optDef.parser === "datetime" || optDef.parser === "occurrence-boundary" || optDef.parser === "agenda-boundary") {
       return `${camelKey}Value`
     }
     if (optDef.parser === "attendee") {
@@ -350,6 +351,9 @@ export function emitCommand(input: EmitInput): string | null {
     }
     if (optDef.parser === "series-time-zone") {
       return "seriesTimeZoneValue"
+    }
+    if (optDef.parser === "agenda-time-zone") {
+      return "zone"
     }
     if (optDef.array && !optDef.parser) {
       const target = optDef.mapsTo ?? optKey
@@ -504,6 +508,16 @@ export function emitCommand(input: EmitInput): string | null {
         conversionLines.push(`      ${valueVar} = parseOccurrenceBoundary(opts.${camelKey} as string, zone)`)
         conversionLines.push(`    }`)
       }
+    } else if (optDef.parser === "agenda-boundary") {
+      const camelKey = kebabToCamel(kebab(optKey))
+      const valueVar = `${camelKey}Value`
+      if (optDef.required) {
+        conversionLines.push(`    const ${valueVar} = parseAgendaBoundary(opts.${camelKey} as string, zone)`)
+      } else {
+        conversionLines.push(
+          `    const ${valueVar} = opts.${camelKey} === undefined ? undefined : parseAgendaBoundary(opts.${camelKey} as string, zone)`,
+        )
+      }
     } else if (optDef.parser === "datetime") {
       const camelKey = kebabToCamel(kebab(optKey))
       const valueVar = `${camelKey}Value`
@@ -586,7 +600,7 @@ export function emitCommand(input: EmitInput): string | null {
   ]
   if (hasDatetimeParser) {
     imports.push(
-      `import { ${[...(usesParseTimeInput ? ["parseTimeInput"] : []), "resolveTimezone", ...(hasOccurrenceBoundaryParser ? ["parseOccurrenceBoundary"] : [])].join(", ")} } from "${handwrittenRelPrefix}handwritten/utils/parse-time.js"`,
+      `import { ${[...(usesParseTimeInput ? ["parseTimeInput"] : []), "resolveTimezone", ...(hasOccurrenceBoundaryParser ? ["parseOccurrenceBoundary"] : []), ...(hasAgendaBoundaryParser ? ["parseAgendaBoundary"] : [])].join(", ")} } from "${handwrittenRelPrefix}handwritten/utils/parse-time.js"`,
     )
   }
   const dateImports: string[] = []

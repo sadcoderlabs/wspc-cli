@@ -18,6 +18,10 @@ vi.mock("../../src/generated/sdk/index.js", () => ({
     data: { occurrences: [] },
     response: { ok: true, status: 200 },
   })),
+  eventAgenda: vi.fn(async () => ({
+    data: { items: [], view_time_zone: "UTC" },
+    response: { ok: true, status: 200 },
+  })),
   eventIcsDownload: vi.fn(async () => ({
     data: "BEGIN:VCALENDAR",
     response: { ok: true, status: 200 },
@@ -56,6 +60,7 @@ async function loadCommands() {
   const ls = await import("../../src/generated/cli/event/ls.js")
   const ics = await import("../../src/generated/cli/event/ics.js")
   const occurrences = await import("../../src/generated/cli/event/occurrences.js")
+  const agenda = await import("../../src/generated/cli/event/agenda.js")
   const sdk = await import("../../src/generated/sdk/index.js")
   return {
     eventCreateCommand: add.eventCreateCommand,
@@ -63,12 +68,14 @@ async function loadCommands() {
     eventListCommand: ls.eventListCommand,
     eventIcsDownloadCommand: ics.eventIcsDownloadCommand,
     eventOccurrencesCommand: occurrences.eventOccurrencesCommand,
+    eventAgendaCommand: agenda.eventAgendaCommand,
     eventCreate: sdk.eventCreate as ReturnType<typeof vi.fn>,
     eventUpdate: sdk.eventUpdate as ReturnType<typeof vi.fn>,
     eventGet: sdk.eventGet as ReturnType<typeof vi.fn>,
     eventList: sdk.eventList as ReturnType<typeof vi.fn>,
     eventIcsDownload: sdk.eventIcsDownload as ReturnType<typeof vi.fn>,
     eventOccurrences: sdk.eventOccurrences as ReturnType<typeof vi.fn>,
+    eventAgenda: sdk.eventAgenda as ReturnType<typeof vi.fn>,
   }
 }
 
@@ -139,6 +146,61 @@ describe("event occurrences", () => {
       end: "2026-11-08T09:00:00.000-05:00",
     })
     expect(eventOccurrences.mock.calls[0]![0].query.time_zone).toBeUndefined()
+  })
+})
+
+describe("event agenda", () => {
+  it("requires both boundaries and sends the resolved view zone", async () => {
+    const { eventAgendaCommand, eventAgenda } = await loadCommands()
+    await eventAgendaCommand.parseAsync([
+      "node",
+      "agenda",
+      "--from",
+      "2026-11-01 9am",
+      "--to",
+      "2026-11-08 9am",
+      "--tz",
+      "America/New_York",
+      "--include-cancelled",
+      "--limit",
+      "25",
+      "--cursor",
+      "next-page",
+    ])
+
+    expect(eventAgenda).toHaveBeenCalledWith({
+      client: expect.anything(),
+      query: {
+        start: "2026-11-01T09:00:00.000-05:00",
+        end: "2026-11-08T09:00:00.000-05:00",
+        view_time_zone: "America/New_York",
+        include_cancelled: true,
+        limit: 25,
+        cursor: "next-page",
+      },
+    })
+  })
+
+  it("uses WSPC_TZ when --tz is omitted", async () => {
+    const { eventAgendaCommand, eventAgenda } = await loadCommands()
+    process.env.WSPC_TZ = "Asia/Taipei"
+    await eventAgendaCommand.parseAsync(["node", "agenda", "--from", "2026-08-14 9am", "--to", "2026-08-15 9am"])
+
+    expect(eventAgenda.mock.calls[0]![0].query).toMatchObject({
+      start: "2026-08-14T09:00:00.000+08:00",
+      end: "2026-08-15T09:00:00.000+08:00",
+      view_time_zone: "Asia/Taipei",
+    })
+  })
+
+  it("blocks a request when a required boundary is missing", async () => {
+    const { eventAgendaCommand, eventAgenda } = await loadCommands()
+    eventAgendaCommand.exitOverride()
+
+    await expect(eventAgendaCommand.parseAsync(["node", "agenda", "--from", "2026-08-14 9am"])).rejects.toMatchObject({
+      code: "commander.missingMandatoryOptionValue",
+    })
+    expect(eventAgenda).not.toHaveBeenCalled()
   })
 })
 

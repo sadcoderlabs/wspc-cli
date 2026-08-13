@@ -139,6 +139,39 @@ describe("emitCommand: array option without parser", () => {
   })
 })
 
+describe("emitCommand: agenda parsers", () => {
+  it("resolves one view zone and parses required human-time boundaries", () => {
+    const out = emitCommand({
+      operationId: "event_agenda",
+      method: "get",
+      path: "/calendar/agenda",
+      xCli: {
+        command: "event agenda",
+        options: {
+          from: { parser: "agenda-boundary", mapsTo: "start", required: true },
+          to: { parser: "agenda-boundary", mapsTo: "end", required: true },
+          tz: { parser: "agenda-time-zone", mapsTo: "view_time_zone" },
+        },
+      },
+      bodyFields: [],
+      queryFields: [
+        { name: "start", type: "string", required: true },
+        { name: "end", type: "string", required: true },
+        { name: "view_time_zone", type: "string", required: true },
+      ],
+    })
+
+    expect(out).not.toBeNull()
+    expect(out).toContain('.requiredOption("--from <value>"')
+    expect(out).toContain('.requiredOption("--to <value>"')
+    expect(out?.match(/\.option\("--tz <value>"/g)).toHaveLength(1)
+    expect(out).toContain("const zone = resolveTimezone(opts.tz as string | undefined)")
+    expect(out).toContain("const fromValue = parseAgendaBoundary(opts.from as string, zone)")
+    expect(out).toContain("start: fromValue,")
+    expect(out).toContain("view_time_zone: zone,")
+  })
+})
+
 describe("emitCommand: body unwrap", () => {
   it("supports body.unwrap to flatten 1-level nested body wrapper field into top-level flags, and reconstructs it when calling the SDK", () => {
     const out = emitCommand({

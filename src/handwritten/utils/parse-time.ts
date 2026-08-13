@@ -27,6 +27,15 @@ export function parseOccurrenceBoundary(input: string, zone: string): string {
   return parseTimeInput(input, zone).toISO()!
 }
 
+export function parseAgendaBoundary(input: string, zone: string): string {
+  const value = parseTimeInput(input, zone)
+  const iso = value.toISO()
+  if (!value.isValid || !iso) {
+    throw new ParseTimeError(`Cannot parse agenda boundary: "${input}".`)
+  }
+  return iso
+}
+
 export function parseTimeInput(input: string, zone: string): DateTime {
   // Only fast-path ISO strings that carry an explicit offset/Z. Naive ISO
   // (e.g. "2026-05-12T10:00") would land in the system zone with setZone:true,
