@@ -872,12 +872,13 @@ export const eventList = <ThrowOnError extends boolean = false>(options?: Option
  * Book a meeting, lunch, all-day trip, or any time-bound item. Optionally provide `attendees` to automatically dispatch invitation emails containing an `.ics` REQUEST attachment to each participant as a side effect.
  *
  * ### Recurring Series
- * Pass `recurrence_rule` as an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series require date-only `start`, `end`, and `UNTIL`; timed series require UTC `start`, `end`, and UTC DATE-TIME `UNTIL`. The response returns the canonical rule. Calendar lists persist and return one series master instead of expanding occurrences.
+ * Pass `recurrence_rule` as an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series use date-only values. Timed series either use UTC values or provide `time_zone` with offset-bearing local values; timed `UNTIL` remains UTC. The response returns the canonical rule and canonical IANA zone. Calendar lists persist and return one series master instead of expanding occurrences.
  *
  * ### Constraints
  * - **Format Integrity**: `start` and `end` must be of the exact same type (both ISO 8601 datetimes with offset, or both ISO date-only for all-day).
  * - **Chronological Order**: `end` must be strictly after `start`.
  * - **All-Day boundary**: All-day events use RFC 5545 exclusive end (e.g., a one-day event on June 1st is specified as `start=2026-06-01` and `end=2026-06-02`).
+ * - **Series time zone**: `time_zone` is valid only for timed recurring series. DST gaps and offset mismatches are rejected; overlap offsets select the intended instant.
  * - **Attendee Limit**: Up to 50 unique attendees are supported after case-insensitive email address deduplication.
  *
  * ### Troubleshooting
@@ -956,8 +957,8 @@ export const eventGet = <ThrowOnError extends boolean = false>(options: Options<
  *
  * ### Constraints
  * - **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.
- * - **Field Clearing**: Pass an empty string `""` for `description`, `location`, `url`, or `recurrence_rule` to clear those fields in the database. Omitting `recurrence_rule` leaves it unchanged.
- * - **Recurring Series**: A recurrence rule is an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series require date-only values; timed series require UTC values. Update, cancel, delete, and restore always affect the whole series master.
+ * - **Field Clearing**: Pass an empty string `""` for `description`, `location`, `url`, `recurrence_rule`, or `time_zone` to clear that field. Clearing recurrence also clears its zone; clearing only the zone preserves the instants and returns the series to UTC semantics.
+ * - **Recurring Series**: A recurrence rule is an RFC 5545 RRULE value without the `RRULE:` prefix. Local timed series provide canonicalizable `time_zone` and matching offset-bearing start/end. Update, cancel, delete, and restore always affect the whole series master.
  * - **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list. The server automatically diffs participants and asynchronously sends invitations (for newly added), updates (for kept), or cancellations (for removed) via Cloudflare `waitUntil`.
  * - **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.
  * - **Attendee Limit**: A maximum of 50 unique attendees is allowed.
