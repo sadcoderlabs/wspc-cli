@@ -41,6 +41,7 @@ async function loadCommands() {
     eventIcsDownloadCommand: ics.eventIcsDownloadCommand,
     eventCreate: sdk.eventCreate as ReturnType<typeof vi.fn>,
     eventUpdate: sdk.eventUpdate as ReturnType<typeof vi.fn>,
+    eventGet: sdk.eventGet as ReturnType<typeof vi.fn>,
     eventList: sdk.eventList as ReturnType<typeof vi.fn>,
     eventIcsDownload: sdk.eventIcsDownload as ReturnType<typeof vi.fn>,
   }
@@ -149,6 +150,30 @@ describe("event add", () => {
       recurrence_rule: "FREQ=WEEKLY;BYDAY=FR",
     })
   })
+
+  it("persists an explicit --tz and keeps recurring timestamps in that offset", async () => {
+    const { eventCreateCommand, eventCreate } = await loadCommands()
+    await eventCreateCommand.parseAsync([
+      "node",
+      "add",
+      "New York office hours",
+      "--start",
+      "2026-03-02 9am",
+      "--end",
+      "2026-03-02 10am",
+      "--rrule",
+      "FREQ=WEEKLY;BYDAY=MO",
+      "--tz",
+      "America/New_York",
+    ])
+
+    expect(eventCreate.mock.calls[0]![0].body).toMatchObject({
+      start: "2026-03-02T09:00:00.000-05:00",
+      end: "2026-03-02T10:00:00.000-05:00",
+      recurrence_rule: "FREQ=WEEKLY;BYDAY=MO",
+      time_zone: "America/New_York",
+    })
+  })
 })
 
 describe("event set", () => {
@@ -160,6 +185,59 @@ describe("event set", () => {
       path: { id: "evt_1" },
       body: { recurrence_rule: "" },
     })
+  })
+
+  it("sends --tz empty as the time-zone clear semantic", async () => {
+    const { eventUpdateCommand, eventUpdate, eventGet } = await loadCommands()
+    await eventUpdateCommand.parseAsync(["node", "set", "evt_1", "--tz", ""])
+
+    expect(eventGet).not.toHaveBeenCalled()
+    expect(eventUpdate.mock.calls[0]![0].body.time_zone).toBe("")
+  })
+
+  it("prefetches a series before persisting explicit --tz without --rrule", async () => {
+    const { eventUpdateCommand, eventUpdate, eventGet } = await loadCommands()
+    eventGet.mockResolvedValueOnce({
+      data: { recurrence_rule: "FREQ=WEEKLY;BYDAY=MO" },
+      response: { ok: true, status: 200 },
+    })
+
+    await eventUpdateCommand.parseAsync([
+      "node",
+      "set",
+      "evt_1",
+      "--start",
+      "2026-11-02 9am",
+      "--end",
+      "2026-11-02 10am",
+      "--tz",
+      "America/New_York",
+    ])
+
+    expect(eventGet).toHaveBeenCalledWith(expect.objectContaining({ path: { id: "evt_1" } }))
+    expect(eventUpdate.mock.calls[0]![0].body).toMatchObject({
+      start: "2026-11-02T09:00:00.000-05:00",
+      end: "2026-11-02T10:00:00.000-05:00",
+      time_zone: "America/New_York",
+    })
+  })
+
+  it("uses explicit --tz only for parsing when the prefetched event is single", async () => {
+    const { eventUpdateCommand, eventUpdate, eventGet } = await loadCommands()
+    eventGet.mockResolvedValueOnce({ data: {}, response: { ok: true, status: 200 } })
+
+    await eventUpdateCommand.parseAsync([
+      "node",
+      "set",
+      "evt_1",
+      "--start",
+      "2026-08-17 9am",
+      "--tz",
+      "Asia/Taipei",
+    ])
+
+    expect(eventUpdate.mock.calls[0]![0].body.start).toBe("2026-08-17T09:00:00.000+08:00")
+    expect(eventUpdate.mock.calls[0]![0].body.time_zone).toBeUndefined()
   })
 })
 

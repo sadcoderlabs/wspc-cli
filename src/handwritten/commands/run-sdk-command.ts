@@ -16,6 +16,7 @@ interface RunSdkCommandOptions<Data> {
   input: Record<string, unknown>
   context: RenderContext
   selectData?: (data: Data) => unknown
+  renderResult?: boolean
 }
 
 export async function runSdkCommand<Data>({
@@ -23,6 +24,7 @@ export async function runSdkCommand<Data>({
   input,
   context,
   selectData,
+  renderResult = true,
 }: RunSdkCommandOptions<Data>): Promise<Data | undefined> {
   const client = await loadSdkClient()
   const result = await operation({
@@ -36,9 +38,11 @@ export async function runSdkCommand<Data>({
     process.exitCode = 1
     return undefined
   }
-  render(
-    context,
-    result.data === undefined || selectData === undefined ? result.data : selectData(result.data),
-  )
+  if (renderResult) {
+    render(
+      context,
+      result.data === undefined || selectData === undefined ? result.data : selectData(result.data),
+    )
+  }
   return result.data
 }

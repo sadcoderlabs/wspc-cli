@@ -7,7 +7,7 @@ export interface XCliDisplay {
 }
 
 export interface XCliOption {
-  parser?: "datetime" | "attendee"
+  parser?: "datetime" | "attendee" | "series-time-zone"
   array?: boolean
   mapsTo?: string
   allDayFlag?: string
@@ -82,6 +82,7 @@ function timedConversionLines(
   camelKey: string,
   utcWhenPresent: string | undefined,
   indent: string,
+  explicitSeriesTimeZone?: string,
 ): string[] {
   const parseExpression = `parseTimeInput(opts.${camelKey} as string, zone)`
   if (!utcWhenPresent) {
@@ -90,9 +91,12 @@ function timedConversionLines(
 
   const dateTimeVar = `${camelKey}DateTime`
   const camelCondition = kebabToCamel(kebab(utcWhenPresent))
+  const condition = explicitSeriesTimeZone
+    ? `opts.${camelCondition} !== undefined && !${explicitSeriesTimeZone}`
+    : `opts.${camelCondition} !== undefined`
   return [
     `${indent}const ${dateTimeVar} = ${parseExpression}`,
-    `${indent}${valueVar} = (opts.${camelCondition} !== undefined ? ${dateTimeVar}.toUTC() : ${dateTimeVar}).toISO() ?? undefined`,
+    `${indent}${valueVar} = (${condition} ? ${dateTimeVar}.toUTC() : ${dateTimeVar}).toISO() ?? undefined`,
   ]
 }
 
@@ -124,6 +128,14 @@ export function emitCommand(input: EmitInput): string | null {
   const aliases = input.xCli.aliases ?? {}
   const queryFields = input.queryFields ?? []
   const xCliOptions = input.xCli.options ?? {}
+  const seriesTimeZoneEntry = Object.entries(xCliOptions).find(
+    ([, option]) => option.parser === "series-time-zone",
+  )
+  const seriesTimeZoneOptionKey = seriesTimeZoneEntry?.[0]
+  const recurrenceOptionKey = Object.entries(xCliOptions).find(
+    ([key, option]) => (option.mapsTo ?? key) === "recurrence_rule",
+  )?.[0]
+  const hasSeriesTimeZoneParser = seriesTimeZoneOptionKey !== undefined
 
   // Find the alias entry for a field: alias key can be exact field name, its kebab,
   // or a prefix segment (e.g. alias key "project" covers field "project_id").
@@ -306,7 +318,10 @@ export function emitCommand(input: EmitInput): string | null {
   }
 
   // Implicit --tz flag when any datetime parser is present.
-  const tzOption = hasDatetimeParser ? [`.option("--tz <zone>", "IANA timezone for relative time parsing")`] : []
+  const tzOption =
+    hasDatetimeParser && !hasSeriesTimeZoneParser
+      ? [`.option("--tz <zone>", "IANA timezone for relative time parsing")`]
+      : []
 
   const options = [...bodyOptions, ...queryOptions, ...virtualOptions, ...allDayFlagOptions, ...tzOption]
 
@@ -336,6 +351,9 @@ export function emitCommand(input: EmitInput): string | null {
     if (optDef.parser === "attendee") {
       const target = optDef.mapsTo ?? optKey
       return snakeToCamel(target)
+    }
+    if (optDef.parser === "series-time-zone") {
+      return "seriesTimeZoneValue"
     }
     if (optDef.array && !optDef.parser) {
       const target = optDef.mapsTo ?? optKey
@@ -448,8 +466,42 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Emit parser conversion block at top of action body.
   const conversionLines: string[] = []
+  if (hasSeriesTimeZoneParser && seriesTimeZoneOptionKey && recurrenceOptionKey) {
+    const timeZoneCamel = kebabToCamel(kebab(seriesTimeZoneOptionKey))
+    const recurrenceCamel = kebabToCamel(kebab(recurrenceOptionKey))
+    if (input.operationId === "event_update") {
+      conversionLines.push(
+        `    let existingRecurringSeries = false`,
+        `    if (opts.${timeZoneCamel} !== undefined && opts.${timeZoneCamel} !== "" && opts.${recurrenceCamel} === undefined) {`,
+        `      const existingEvent = await runSdkCommand({`,
+        `        operation: eventGet,`,
+        `        input: { path: { id } },`,
+        `        context: { kind: "event_get", display: undefined },`,
+        `        renderResult: false,`,
+        `      })`,
+        `      if (existingEvent === undefined) return`,
+        `      existingRecurringSeries = existingEvent.recurrence_rule !== undefined`,
+        `    }`,
+        `    const recurringWithTimeZone = opts.${recurrenceCamel} !== undefined ? opts.${recurrenceCamel} !== "" : existingRecurringSeries`,
+      )
+    } else {
+      conversionLines.push(
+        `    const recurringWithTimeZone = opts.${recurrenceCamel} !== undefined && opts.${recurrenceCamel} !== ""`,
+      )
+    }
+    conversionLines.push(
+      `    const explicitSeriesTimeZone = opts.${timeZoneCamel} !== undefined && opts.${timeZoneCamel} !== "" && recurringWithTimeZone`,
+      input.operationId === "event_update"
+        ? `    const seriesTimeZoneValue = opts.${timeZoneCamel} === "" ? "" : explicitSeriesTimeZone ? opts.${timeZoneCamel} : undefined`
+        : `    const seriesTimeZoneValue = explicitSeriesTimeZone ? opts.${timeZoneCamel} : undefined`,
+    )
+  }
   if (hasDatetimeParser) {
-    conversionLines.push(`    const zone = resolveTimezone(opts.tz as string | undefined)`)
+    conversionLines.push(
+      hasSeriesTimeZoneParser
+        ? `    const zone = resolveTimezone(opts.tz === "" ? undefined : (opts.tz as string | undefined))`
+        : `    const zone = resolveTimezone(opts.tz as string | undefined)`,
+    )
   }
   for (const [optKey, optDef] of Object.entries(xCliOptions)) {
     if (optDef.parser === "datetime") {
@@ -467,12 +519,24 @@ export function emitCommand(input: EmitInput): string | null {
         }
         conversionLines.push(`      } else {`)
         conversionLines.push(
-          ...timedConversionLines(valueVar, camelKey, optDef.utcWhenPresent, "        "),
+          ...timedConversionLines(
+            valueVar,
+            camelKey,
+            optDef.utcWhenPresent,
+            "        ",
+            hasSeriesTimeZoneParser ? "explicitSeriesTimeZone" : undefined,
+          ),
         )
         conversionLines.push(`      }`)
       } else {
         conversionLines.push(
-          ...timedConversionLines(valueVar, camelKey, optDef.utcWhenPresent, "      "),
+          ...timedConversionLines(
+            valueVar,
+            camelKey,
+            optDef.utcWhenPresent,
+            "      ",
+            hasSeriesTimeZoneParser ? "explicitSeriesTimeZone" : undefined,
+          ),
         )
       }
       conversionLines.push(`    }`)
@@ -517,7 +581,7 @@ export function emitCommand(input: EmitInput): string | null {
   // Build import list — only include helpers actually used.
   const imports: string[] = [
     `import { Command } from "commander"`,
-    `import { ${fnName} } from "${sdkRelPrefix}sdk/index.js"`,
+    `import { ${[fnName, ...(input.operationId === "event_update" && hasSeriesTimeZoneParser ? ["eventGet"] : [])].join(", ")} } from "${sdkRelPrefix}sdk/index.js"`,
     `import { runSdkCommand } from "${handwrittenRelPrefix}handwritten/commands/run-sdk-command.js"`,
   ]
   if (hasDatetimeParser) {

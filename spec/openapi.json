@@ -1963,7 +1963,11 @@
           "recurrence_rule": {
             "type": "string",
             "minLength": 1,
-            "description": "Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series."
+            "description": "Optional RFC 5545 RECUR value without the `RRULE:` prefix. Supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day, UTC, or IANA time-zone recurring series."
+          },
+          "time_zone": {
+            "type": "string",
+            "description": "Optional recurring-series time zone. Use `UTC` or a supported IANA identifier; aliases are canonicalized. Only timed recurring series may persist this field."
           },
           "all_day": {
             "type": "boolean",
@@ -2094,7 +2098,11 @@
           "recurrence_rule": {
             "type": "string",
             "minLength": 1,
-            "description": "Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series."
+            "description": "Optional RFC 5545 RECUR value without the `RRULE:` prefix. Supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day, UTC, or IANA time-zone recurring series."
+          },
+          "time_zone": {
+            "type": "string",
+            "description": "Optional recurring-series time zone. Use `UTC` or a supported IANA identifier; aliases are canonicalized. Only timed recurring series may persist this field."
           }
         },
         "required": [
@@ -2242,7 +2250,7 @@
               {
                 "type": "string",
                 "minLength": 1,
-                "description": "Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series."
+                "description": "Optional RFC 5545 RECUR value without the `RRULE:` prefix. Supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day, UTC, or IANA time-zone recurring series."
               },
               {
                 "type": "string",
@@ -2251,6 +2259,10 @@
                 ]
               }
             ]
+          },
+          "time_zone": {
+            "type": "string",
+            "description": "Optional recurring-series time zone. Use `UTC` or a supported IANA identifier; aliases are canonicalized. Only timed recurring series may persist this field."
           }
         },
         "additionalProperties": false,
@@ -19717,6 +19729,10 @@
             },
             "rrule": {
               "mapsTo": "recurrence_rule"
+            },
+            "tz": {
+              "parser": "series-time-zone",
+              "mapsTo": "time_zone"
             }
           },
           "examples": [
@@ -19750,7 +19766,7 @@
             "example": "opaque-consistency-bookmark"
           }
         ],
-        "description": "### Overview\nCreate a new calendar event owned by the authenticated user.\n\n### When to Use\nBook a meeting, lunch, all-day trip, or any time-bound item. Optionally provide `attendees` to automatically dispatch invitation emails containing an `.ics` REQUEST attachment to each participant as a side effect.\n\n### Recurring Series\nPass `recurrence_rule` as an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series require date-only `start`, `end`, and `UNTIL`; timed series require UTC `start`, `end`, and UTC DATE-TIME `UNTIL`. The response returns the canonical rule. Calendar lists persist and return one series master instead of expanding occurrences.\n\n### Constraints\n- **Format Integrity**: `start` and `end` must be of the exact same type (both ISO 8601 datetimes with offset, or both ISO date-only for all-day).\n- **Chronological Order**: `end` must be strictly after `start`.\n- **All-Day boundary**: All-day events use RFC 5545 exclusive end (e.g., a one-day event on June 1st is specified as `start=2026-06-01` and `end=2026-06-02`).\n- **Attendee Limit**: Up to 50 unique attendees are supported after case-insensitive email address deduplication.\n\n### Troubleshooting\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` format mismatch, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if more than 50 unique attendees are supplied.\n- Invitation emails are processed and dispatched asynchronously via Cloudflare `waitUntil`; the analytics counter `event_created` is emitted automatically.",
+        "description": "### Overview\nCreate a new calendar event owned by the authenticated user.\n\n### When to Use\nBook a meeting, lunch, all-day trip, or any time-bound item. Optionally provide `attendees` to automatically dispatch invitation emails containing an `.ics` REQUEST attachment to each participant as a side effect.\n\n### Recurring Series\nPass `recurrence_rule` as an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series use date-only values. Timed series either use UTC values or provide `time_zone` with offset-bearing local values; timed `UNTIL` remains UTC. The response returns the canonical rule and canonical IANA zone. Calendar lists persist and return one series master instead of expanding occurrences.\n\n### Constraints\n- **Format Integrity**: `start` and `end` must be of the exact same type (both ISO 8601 datetimes with offset, or both ISO date-only for all-day).\n- **Chronological Order**: `end` must be strictly after `start`.\n- **All-Day boundary**: All-day events use RFC 5545 exclusive end (e.g., a one-day event on June 1st is specified as `start=2026-06-01` and `end=2026-06-02`).\n- **Series time zone**: `time_zone` is valid only for timed recurring series. DST gaps and offset mismatches are rejected; overlap offsets select the intended instant.\n- **Attendee Limit**: Up to 50 unique attendees are supported after case-insensitive email address deduplication.\n\n### Troubleshooting\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` format mismatch, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if more than 50 unique attendees are supplied.\n- Invitation emails are processed and dispatched asynchronously via Cloudflare `waitUntil`; the analytics counter `event_created` is emitted automatically.",
         "security": [
           {
             "bearerAuth": []
@@ -21526,6 +21542,10 @@
             },
             "rrule": {
               "mapsTo": "recurrence_rule"
+            },
+            "tz": {
+              "parser": "series-time-zone",
+              "mapsTo": "time_zone"
             }
           },
           "examples": [
@@ -21569,7 +21589,7 @@
             "in": "path"
           }
         ],
-        "description": "### Overview\nPartially update fields of an existing calendar event. All properties in the request body are optional.\n\n### When to Use\nReschedule an event, update its location or notes, cancel the meeting (retaining the record but notifying participants), or replace/update the attendee list.\n\n### Constraints\n- **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.\n- **Field Clearing**: Pass an empty string `\"\"` for `description`, `location`, `url`, or `recurrence_rule` to clear those fields in the database. Omitting `recurrence_rule` leaves it unchanged.\n- **Recurring Series**: A recurrence rule is an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series require date-only values; timed series require UTC values. Update, cancel, delete, and restore always affect the whole series master.\n- **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list. The server automatically diffs participants and asynchronously sends invitations (for newly added), updates (for kept), or cancellations (for removed) via Cloudflare `waitUntil`.\n- **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.\n- **Attendee Limit**: A maximum of 50 unique attendees is allowed.\n\n### Troubleshooting\n- Returns 404 `NOT_FOUND` if the event does not exist or is soft-deleted.\n- Returns 409 `VERSION_CONFLICT` if `expected_version` is provided but stale.\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` kinds do not match, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if unique attendees exceed 50.",
+        "description": "### Overview\nPartially update fields of an existing calendar event. All properties in the request body are optional.\n\n### When to Use\nReschedule an event, update its location or notes, cancel the meeting (retaining the record but notifying participants), or replace/update the attendee list.\n\n### Constraints\n- **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.\n- **Field Clearing**: Pass an empty string `\"\"` for `description`, `location`, `url`, `recurrence_rule`, or `time_zone` to clear that field. Clearing recurrence also clears its zone; clearing only the zone preserves the instants and returns the series to UTC semantics.\n- **Recurring Series**: A recurrence rule is an RFC 5545 RRULE value without the `RRULE:` prefix. Local timed series provide canonicalizable `time_zone` and matching offset-bearing start/end. Update, cancel, delete, and restore always affect the whole series master.\n- **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list. The server automatically diffs participants and asynchronously sends invitations (for newly added), updates (for kept), or cancellations (for removed) via Cloudflare `waitUntil`.\n- **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.\n- **Attendee Limit**: A maximum of 50 unique attendees is allowed.\n\n### Troubleshooting\n- Returns 404 `NOT_FOUND` if the event does not exist or is soft-deleted.\n- Returns 409 `VERSION_CONFLICT` if `expected_version` is provided but stale.\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` kinds do not match, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if unique attendees exceed 50.",
         "security": [
           {
             "bearerAuth": []

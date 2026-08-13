@@ -170,6 +170,75 @@ describe("emitCommand", () => {
     )
   })
 
+  it("persists an explicit series time zone and keeps local offsets", () => {
+    const code = emitCommand({
+      operationId: "event_create",
+      method: "post",
+      path: "/events",
+      summary: "Schedule",
+      xCli: {
+        command: "event add",
+        options: {
+          start: { parser: "datetime", utcWhenPresent: "rrule" },
+          rrule: { mapsTo: "recurrence_rule" },
+          tz: { parser: "series-time-zone", mapsTo: "time_zone" },
+        },
+      },
+      bodyFields: [
+        { name: "start", type: "string", required: false },
+        { name: "recurrence_rule", type: "string", required: false },
+        { name: "time_zone", type: "string", required: false },
+      ],
+    })
+
+    expect(code).toContain(
+      'const recurringWithTimeZone = opts.rrule !== undefined && opts.rrule !== ""',
+    )
+    expect(code).toContain(
+      'const explicitSeriesTimeZone = opts.tz !== undefined && opts.tz !== "" && recurringWithTimeZone',
+    )
+    expect(code).toContain(
+      "opts.rrule !== undefined && !explicitSeriesTimeZone ? startDateTime.toUTC() : startDateTime",
+    )
+    expect(code).toContain(
+      "const seriesTimeZoneValue = explicitSeriesTimeZone ? opts.tz : undefined",
+    )
+    expect(code).toContain("time_zone: seriesTimeZoneValue")
+    expect(code?.match(/\.option\("--tz/g)).toHaveLength(1)
+  })
+
+  it("prefetches event set only when explicit --tz needs recurring-series context", () => {
+    const code = emitCommand({
+      operationId: "event_update",
+      method: "patch",
+      path: "/events/{id}",
+      summary: "Update",
+      xCli: {
+        command: "event set",
+        positional: ["id"],
+        options: {
+          start: { parser: "datetime", utcWhenPresent: "rrule" },
+          rrule: { mapsTo: "recurrence_rule" },
+          tz: { parser: "series-time-zone", mapsTo: "time_zone" },
+        },
+      },
+      bodyFields: [
+        { name: "start", type: "string", required: false },
+        { name: "recurrence_rule", type: "string", required: false },
+        { name: "time_zone", type: "string", required: false },
+      ],
+      pathParams: ["id"],
+    })
+
+    expect(code).toContain('opts.tz !== undefined && opts.tz !== "" && opts.rrule === undefined')
+    expect(code).toContain("operation: eventGet")
+    expect(code).toContain("renderResult: false")
+    expect(code).toContain(
+      'const seriesTimeZoneValue = opts.tz === "" ? "" : explicitSeriesTimeZone ? opts.tz : undefined',
+    )
+    expect(code).toContain("time_zone: seriesTimeZoneValue")
+  })
+
   it("uses mapsTo target as the SDK field name but keeps the flag named by option key", () => {
     const code = emitCommand({
       operationId: "event_list",

@@ -798,9 +798,13 @@ export type Event = {
      */
     status: 'confirmed' | 'tentative' | 'cancelled';
     /**
-     * Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series.
+     * Optional RFC 5545 RECUR value without the `RRULE:` prefix. Supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day, UTC, or IANA time-zone recurring series.
      */
     recurrence_rule?: string;
+    /**
+     * Optional recurring-series time zone. Use `UTC` or a supported IANA identifier; aliases are canonicalized. Only timed recurring series may persist this field.
+     */
+    time_zone?: string;
     /**
      * Derived from the format of `start`/`end`. When `true`, both endpoints are ISO date-only (`YYYY-MM-DD`) and the event spans full calendar day(s) using RFC 5545 exclusive end.
      */
@@ -883,9 +887,13 @@ export type CreateEventBody = {
     }>;
     idempotency_key?: string;
     /**
-     * Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series.
+     * Optional RFC 5545 RECUR value without the `RRULE:` prefix. Supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day, UTC, or IANA time-zone recurring series.
      */
     recurrence_rule?: string;
+    /**
+     * Optional recurring-series time zone. Use `UTC` or a supported IANA identifier; aliases are canonicalized. Only timed recurring series may persist this field.
+     */
+    time_zone?: string;
 };
 
 /**
@@ -980,6 +988,10 @@ export type UpdateEventBody = {
         display_name?: string;
     }>;
     recurrence_rule?: string | '';
+    /**
+     * Optional recurring-series time zone. Use `UTC` or a supported IANA identifier; aliases are canonicalized. Only timed recurring series may persist this field.
+     */
+    time_zone?: string;
 };
 
 export type DriveLibrary = {
