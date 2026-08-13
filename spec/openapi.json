@@ -19701,12 +19701,14 @@
           "options": {
             "start": {
               "parser": "datetime",
-              "allDayFlag": "all_day"
+              "allDayFlag": "all_day",
+              "utcWhenPresent": "rrule"
             },
             "end": {
               "parser": "datetime",
               "allDayFlag": "all_day",
-              "exclusive": true
+              "exclusive": true,
+              "utcWhenPresent": "rrule"
             },
             "attendee": {
               "parser": "attendee",
@@ -21508,12 +21510,14 @@
           "options": {
             "start": {
               "parser": "datetime",
-              "allDayFlag": "all_day"
+              "allDayFlag": "all_day",
+              "utcWhenPresent": "rrule"
             },
             "end": {
               "parser": "datetime",
               "allDayFlag": "all_day",
-              "exclusive": true
+              "exclusive": true,
+              "utcWhenPresent": "rrule"
             },
             "attendee": {
               "parser": "attendee",

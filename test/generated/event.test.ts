@@ -128,6 +128,27 @@ describe("event add", () => {
       recurrence_rule: "FREQ=WEEKLY;BYDAY=MO,WE",
     })
   })
+
+  it("converts timed recurrence endpoints to UTC", async () => {
+    const { eventCreateCommand, eventCreate } = await loadCommands()
+    await eventCreateCommand.parseAsync([
+      "node",
+      "add",
+      "Office hours",
+      "--start",
+      "tomorrow 10am",
+      "--end",
+      "tomorrow 11am",
+      "--rrule",
+      "FREQ=WEEKLY;BYDAY=FR",
+    ])
+
+    expect(eventCreate.mock.calls[0]![0].body).toMatchObject({
+      start: "2026-05-28T02:00:00.000Z",
+      end: "2026-05-28T03:00:00.000Z",
+      recurrence_rule: "FREQ=WEEKLY;BYDAY=FR",
+    })
+  })
 })
 
 describe("event set", () => {
