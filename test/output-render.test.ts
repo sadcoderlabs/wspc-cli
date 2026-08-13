@@ -66,6 +66,21 @@ describe("render", () => {
     expect(out).toContain("Submit expenses")
   })
 
+  it("keeps explicitly requested columns when an optional value is absent", () => {
+    render(
+      {
+        kind: "event_occurrences",
+        display: { shape: "list", columns: ["recurrence_id", "time_zone"] },
+      },
+      { occurrences: [{ recurrence_id: "2026-06-01" }] },
+    )
+
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("RECURRENCE_ID")
+    expect(out).toContain("TIME_ZONE")
+    expect(out).toContain("2026-06-01")
+  })
+
   it("marks soft-deleted list rows without marking active rows", () => {
     render(
       { kind: "todo.list", display: { shape: "list", columns: ["id", "title"] } },

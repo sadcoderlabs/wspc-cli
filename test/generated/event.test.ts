@@ -6,12 +6,34 @@ import { DateTime } from "luxon"
 // location; from this test file (and after vitest module resolution), the
 // canonical path is "../src/generated/sdk/index.js".
 vi.mock("../../src/generated/sdk/index.js", () => ({
-  eventCreate: vi.fn(async () => ({ data: { id: "evt_1" }, response: { ok: true, status: 200 } })),
-  eventList: vi.fn(async () => ({ data: { items: [] }, response: { ok: true, status: 200 } })),
-  eventIcsDownload: vi.fn(async () => ({ data: "BEGIN:VCALENDAR", response: { ok: true, status: 200 } })),
-  eventGet: vi.fn(async () => ({ data: {}, response: { ok: true, status: 200 } })),
-  eventUpdate: vi.fn(async () => ({ data: {}, response: { ok: true, status: 200 } })),
-  eventDelete: vi.fn(async () => ({ data: {}, response: { ok: true, status: 200 } })),
+  eventCreate: vi.fn(async () => ({
+    data: { id: "evt_1" },
+    response: { ok: true, status: 200 },
+  })),
+  eventList: vi.fn(async () => ({
+    data: { items: [] },
+    response: { ok: true, status: 200 },
+  })),
+  eventOccurrences: vi.fn(async () => ({
+    data: { occurrences: [] },
+    response: { ok: true, status: 200 },
+  })),
+  eventIcsDownload: vi.fn(async () => ({
+    data: "BEGIN:VCALENDAR",
+    response: { ok: true, status: 200 },
+  })),
+  eventGet: vi.fn(async () => ({
+    data: {},
+    response: { ok: true, status: 200 },
+  })),
+  eventUpdate: vi.fn(async () => ({
+    data: {},
+    response: { ok: true, status: 200 },
+  })),
+  eventDelete: vi.fn(async () => ({
+    data: {},
+    response: { ok: true, status: 200 },
+  })),
 }))
 
 // Mock loadSdkClient so commands don't try to read config / network.
@@ -33,17 +55,20 @@ async function loadCommands() {
   const set = await import("../../src/generated/cli/event/set.js")
   const ls = await import("../../src/generated/cli/event/ls.js")
   const ics = await import("../../src/generated/cli/event/ics.js")
+  const occurrences = await import("../../src/generated/cli/event/occurrences.js")
   const sdk = await import("../../src/generated/sdk/index.js")
   return {
     eventCreateCommand: add.eventCreateCommand,
     eventUpdateCommand: set.eventUpdateCommand,
     eventListCommand: ls.eventListCommand,
     eventIcsDownloadCommand: ics.eventIcsDownloadCommand,
+    eventOccurrencesCommand: occurrences.eventOccurrencesCommand,
     eventCreate: sdk.eventCreate as ReturnType<typeof vi.fn>,
     eventUpdate: sdk.eventUpdate as ReturnType<typeof vi.fn>,
     eventGet: sdk.eventGet as ReturnType<typeof vi.fn>,
     eventList: sdk.eventList as ReturnType<typeof vi.fn>,
     eventIcsDownload: sdk.eventIcsDownload as ReturnType<typeof vi.fn>,
+    eventOccurrences: sdk.eventOccurrences as ReturnType<typeof vi.fn>,
   }
 }
 
@@ -55,19 +80,77 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-05-27T03:00:00Z"))
 })
 
+describe("event occurrences", () => {
+  it("preserves date-only boundaries and forwards pagination", async () => {
+    const { eventOccurrencesCommand, eventOccurrences } = await loadCommands()
+    await eventOccurrencesCommand.parseAsync([
+      "node",
+      "occurrences",
+      "evt_1",
+      "--from",
+      "2026-06-01",
+      "--to",
+      "2026-07-01",
+      "--limit",
+      "25",
+      "--cursor",
+      "next-page",
+      "--tz",
+      "America/New_York",
+    ])
+
+    expect(eventOccurrences).toHaveBeenCalledWith({
+      client: expect.anything(),
+      path: { id: "evt_1" },
+      query: {
+        start: "2026-06-01",
+        end: "2026-07-01",
+        limit: 25,
+        cursor: "next-page",
+      },
+    })
+  })
+
+  it("requires both window boundaries before making a request", async () => {
+    const { eventOccurrencesCommand, eventOccurrences } = await loadCommands()
+    eventOccurrencesCommand.exitOverride()
+
+    await expect(
+      eventOccurrencesCommand.parseAsync(["node", "occurrences", "evt_1", "--from", "2026-06-01"]),
+    ).rejects.toMatchObject({ code: "commander.missingMandatoryOptionValue" })
+    expect(eventOccurrences).not.toHaveBeenCalled()
+  })
+
+  it("uses --tz only to parse timed boundaries", async () => {
+    const { eventOccurrencesCommand, eventOccurrences } = await loadCommands()
+    await eventOccurrencesCommand.parseAsync([
+      "node",
+      "occurrences",
+      "evt_1",
+      "--from",
+      "2026-11-01 9am",
+      "--to",
+      "2026-11-08 9am",
+      "--tz",
+      "America/New_York",
+    ])
+    expect(eventOccurrences.mock.calls[0]![0].query).toMatchObject({
+      start: "2026-11-01T09:00:00.000-05:00",
+      end: "2026-11-08T09:00:00.000-05:00",
+    })
+    expect(eventOccurrences.mock.calls[0]![0].query.time_zone).toBeUndefined()
+  })
+})
+
 afterEach(() => {
   vi.useRealTimers()
   delete process.env.WSPC_TZ
 })
 
 describe("event add", () => {
-  it("parses --start \"tomorrow 10am\" into ISO 8601 with zone offset, hour 10 in that zone", async () => {
+  it('parses --start "tomorrow 10am" into ISO 8601 with zone offset, hour 10 in that zone', async () => {
     const { eventCreateCommand, eventCreate } = await loadCommands()
-    await eventCreateCommand.parseAsync([
-      "node", "add",
-      "Meeting",
-      "--start", "tomorrow 10am",
-    ])
+    await eventCreateCommand.parseAsync(["node", "add", "Meeting", "--start", "tomorrow 10am"])
     expect(eventCreate).toHaveBeenCalledTimes(1)
     const call = eventCreate.mock.calls[0]![0]
     const startIso = call.body.start as string
@@ -81,11 +164,14 @@ describe("event add", () => {
   it("encodes --all-day with inclusive end date as date-only strings (end +1 exclusive)", async () => {
     const { eventCreateCommand, eventCreate } = await loadCommands()
     await eventCreateCommand.parseAsync([
-      "node", "add",
+      "node",
+      "add",
       "Trip",
       "--all-day",
-      "--start", "2026-05-10",
-      "--end", "2026-05-12",
+      "--start",
+      "2026-05-10",
+      "--end",
+      "2026-05-12",
     ])
     const call = eventCreate.mock.calls[0]![0]
     expect(call.body.start).toBe("2026-05-10")
@@ -95,17 +181,18 @@ describe("event add", () => {
   it("collects multiple --attendee flags and parses display name / email", async () => {
     const { eventCreateCommand, eventCreate } = await loadCommands()
     await eventCreateCommand.parseAsync([
-      "node", "add",
+      "node",
+      "add",
       "Lunch",
-      "--start", "2026-05-10T12:00:00+08:00",
-      "--attendee", "Alice <a@x>",
-      "--attendee", "b@y",
+      "--start",
+      "2026-05-10T12:00:00+08:00",
+      "--attendee",
+      "Alice <a@x>",
+      "--attendee",
+      "b@y",
     ])
     const call = eventCreate.mock.calls[0]![0]
-    expect(call.body.attendees).toEqual([
-      { email: "a@x", display_name: "Alice" },
-      { email: "b@y" },
-    ])
+    expect(call.body.attendees).toEqual([{ email: "a@x", display_name: "Alice" }, { email: "b@y" }])
   })
 
   it("passes a literal --rrule value as recurrence_rule", async () => {
@@ -224,17 +311,12 @@ describe("event set", () => {
 
   it("uses explicit --tz only for parsing when the prefetched event is single", async () => {
     const { eventUpdateCommand, eventUpdate, eventGet } = await loadCommands()
-    eventGet.mockResolvedValueOnce({ data: {}, response: { ok: true, status: 200 } })
+    eventGet.mockResolvedValueOnce({
+      data: {},
+      response: { ok: true, status: 200 },
+    })
 
-    await eventUpdateCommand.parseAsync([
-      "node",
-      "set",
-      "evt_1",
-      "--start",
-      "2026-08-17 9am",
-      "--tz",
-      "Asia/Taipei",
-    ])
+    await eventUpdateCommand.parseAsync(["node", "set", "evt_1", "--start", "2026-08-17 9am", "--tz", "Asia/Taipei"])
 
     expect(eventUpdate.mock.calls[0]![0].body.start).toBe("2026-08-17T09:00:00.000+08:00")
     expect(eventUpdate.mock.calls[0]![0].body.time_zone).toBeUndefined()
@@ -244,11 +326,7 @@ describe("event set", () => {
 describe("event ls", () => {
   it("renames --from / --to to query.start_from / query.start_to and emits ISO strings", async () => {
     const { eventListCommand, eventList } = await loadCommands()
-    await eventListCommand.parseAsync([
-      "node", "ls",
-      "--from", "today",
-      "--to", "next week",
-    ])
+    await eventListCommand.parseAsync(["node", "ls", "--from", "today", "--to", "next week"])
     const call = eventList.mock.calls[0]![0]
     // Field renames: from -> start_from, to -> start_to
     expect(call.query.start_from).toBeDefined()
@@ -256,8 +334,12 @@ describe("event ls", () => {
     expect(call.query).not.toHaveProperty("from")
     expect(call.query).not.toHaveProperty("to")
     // Values are ISO 8601 strings parseable by Luxon with explicit offset.
-    const from = DateTime.fromISO(call.query.start_from as string, { setZone: true })
-    const to = DateTime.fromISO(call.query.start_to as string, { setZone: true })
+    const from = DateTime.fromISO(call.query.start_from as string, {
+      setZone: true,
+    })
+    const to = DateTime.fromISO(call.query.start_to as string, {
+      setZone: true,
+    })
     expect(from.isValid).toBe(true)
     expect(to.isValid).toBe(true)
     // Frozen "now" = 2026-05-27T03:00:00Z = 2026-05-27T11:00:00+08:00,
@@ -271,10 +353,7 @@ describe("event ls", () => {
 describe("event ics", () => {
   it("passes id as filename (id + .ics suffix), NOT as bare id", async () => {
     const { eventIcsDownloadCommand, eventIcsDownload } = await loadCommands()
-    await eventIcsDownloadCommand.parseAsync([
-      "node", "ics",
-      "evt_xyz",
-    ])
+    await eventIcsDownloadCommand.parseAsync(["node", "ics", "evt_xyz"])
     const call = eventIcsDownload.mock.calls[0]![0]
     expect(call.path.filename).toBe("evt_xyz.ics")
     expect(call.path).not.toHaveProperty("id")

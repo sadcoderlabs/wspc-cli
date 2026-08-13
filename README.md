@@ -39,6 +39,7 @@ scopes todos per project. Run `wspc todo project ls` to discover ids.
 | `wspc todo project {add, ls}` | Project scope. |
 | `wspc todo type ls` | List todo types. |
 | `wspc todo rule ls` | List recurrence rules. |
+| `wspc event occurrences <id> --from <value> --to <value>` | Expand one recurring series in a bounded half-open window; supports cursor pagination and parse-only `--tz`. |
 | `wspc drive bind --library <id> [path]` | Bind an existing Drive library to a local folder. |
 | `wspc drive sync once [path]` | Run one manual whole-file Drive sync pass. |
 | `wspc drive watch [path]` | Keep a bound Drive folder in foreground watch mode. |

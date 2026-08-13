@@ -21,6 +21,7 @@ import { eventDeleteCommand } from "./event/rm.js"
 import { eventGetCommand } from "./event/show.js"
 import { eventUpdateCommand } from "./event/set.js"
 import { eventIcsDownloadCommand } from "./event/ics.js"
+import { eventOccurrencesCommand } from "./event/occurrences.js"
 import { eventRestoreCommand } from "./event/restore.js"
 import { driveLibraryCreateCommand } from "./drive/library/add.js"
 import { driveLibraryListCommand } from "./drive/library/ls.js"
@@ -102,6 +103,7 @@ export function registerGeneratedCommands(root: Command): void {
   root_event.addCommand(eventGetCommand)
   root_event.addCommand(eventUpdateCommand)
   root_event.addCommand(eventIcsDownloadCommand)
+  root_event.addCommand(eventOccurrencesCommand)
   root_event.addCommand(eventRestoreCommand)
   const root_drive = root.command("drive").description("drive commands")
   const root_drive_library = root_drive.command("library").description("library commands")

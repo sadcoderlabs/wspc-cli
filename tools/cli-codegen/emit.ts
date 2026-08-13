@@ -7,7 +7,8 @@ export interface XCliDisplay {
 }
 
 export interface XCliOption {
-  parser?: "datetime" | "attendee" | "series-time-zone"
+  parser?: "datetime" | "occurrence-boundary" | "attendee" | "series-time-zone"
+  required?: boolean
   array?: boolean
   mapsTo?: string
   allDayFlag?: string
@@ -121,16 +122,12 @@ export function emitCommand(input: EmitInput): string | null {
   // most commands; auto-append any it omits. event_ics_download is special-cased
   // below (its `filename` path param is surfaced as `id`), so skip it here.
   const autoPathPositional =
-    input.operationId === "event_ics_download"
-      ? []
-      : pathParams.filter((p) => !explicitPositional.includes(p))
+    input.operationId === "event_ics_download" ? [] : pathParams.filter((p) => !explicitPositional.includes(p))
   const positional = [...explicitPositional, ...autoPathPositional]
   const aliases = input.xCli.aliases ?? {}
   const queryFields = input.queryFields ?? []
   const xCliOptions = input.xCli.options ?? {}
-  const seriesTimeZoneEntry = Object.entries(xCliOptions).find(
-    ([, option]) => option.parser === "series-time-zone",
-  )
+  const seriesTimeZoneEntry = Object.entries(xCliOptions).find(([, option]) => option.parser === "series-time-zone")
   const seriesTimeZoneOptionKey = seriesTimeZoneEntry?.[0]
   const recurrenceOptionKey = Object.entries(xCliOptions).find(
     ([key, option]) => (option.mapsTo ?? key) === "recurrence_rule",
@@ -139,7 +136,10 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Find the alias entry for a field: alias key can be exact field name, its kebab,
   // or a prefix segment (e.g. alias key "project" covers field "project_id").
-  function resolveAlias(fieldName: string): { longFlag: string; short?: string } {
+  function resolveAlias(fieldName: string): {
+    longFlag: string
+    short?: string
+  } {
     const flagName = kebab(fieldName)
     // Exact match on field name or kebab form
     if (aliases[fieldName] !== undefined) return { longFlag: flagName, short: aliases[fieldName] }
@@ -171,11 +171,13 @@ export function emitCommand(input: EmitInput): string | null {
   }
 
   // Does this operation need a --tz flag and resolveTimezone() call?
-  const hasDatetimeParser = Object.values(xCliOptions).some((o) => o.parser === "datetime")
-  const hasAttendeeParser = Object.values(xCliOptions).some((o) => o.parser === "attendee")
-  const usesParseDateOnly = Object.values(xCliOptions).some(
-    (o) => o.parser === "datetime" && o.allDayFlag,
+  const hasDatetimeParser = Object.values(xCliOptions).some(
+    (o) => o.parser === "datetime" || o.parser === "occurrence-boundary",
   )
+  const usesParseTimeInput = Object.values(xCliOptions).some((o) => o.parser === "datetime")
+  const hasOccurrenceBoundaryParser = Object.values(xCliOptions).some((o) => o.parser === "occurrence-boundary")
+  const hasAttendeeParser = Object.values(xCliOptions).some((o) => o.parser === "attendee")
+  const usesParseDateOnly = Object.values(xCliOptions).some((o) => o.parser === "datetime" && o.allDayFlag)
   const usesInclusiveEndToExclusive = Object.values(xCliOptions).some(
     (o) => o.parser === "datetime" && o.allDayFlag && o.exclusive,
   )
@@ -194,9 +196,7 @@ export function emitCommand(input: EmitInput): string | null {
   // variadic positional (`<name...>`) bound to the option's body target via
   // `mapsTo`. e.g. `positional: ["id"]` + `options.id.array: true` →
   // `wspc email rm <id...>` writing into `body.ids: string[]`.
-  const variadicPositionalSet = new Set(
-    positional.filter((p) => xCliOptions[p]?.array === true),
-  )
+  const variadicPositionalSet = new Set(positional.filter((p) => xCliOptions[p]?.array === true))
 
   function scalarParserName(
     field: BodyField,
@@ -231,7 +231,7 @@ export function emitCommand(input: EmitInput): string | null {
     return `.argument("${required ? `<${name}>` : `[${name}]`}", "${name}")`
   })
 
-  function emitFieldOption(f: BodyField): string {
+  function emitFieldOption(f: BodyField, enforceRequired = false): string {
     if (f.boolFlag) {
       const { longFlag, short } = resolveAlias(f.name)
       const flagSpec = short ? `-${short}, --${longFlag}` : `--${longFlag}`
@@ -247,13 +247,15 @@ export function emitCommand(input: EmitInput): string | null {
       if (optDef.array) {
         return `.option("${flagSpec}", ${optLabel}, (val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[])`
       }
-      return `.option("${flagSpec}", ${optLabel}${scalarParserArgument(f, longFlag)})`
+      const method = enforceRequired && optDef.required ? "requiredOption" : "option"
+      return `.${method}("${flagSpec}", ${optLabel}${scalarParserArgument(f, longFlag)})`
     }
     const { longFlag, short } = resolveAlias(f.name)
     const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
     // Prefer the field's OpenAPI description so `--help` carries real guidance;
     // fall back to the field name. JSON.stringify keeps quotes/newlines safe.
-    return `.option("${flagSpec}", ${JSON.stringify(f.description ?? f.name)}${scalarParserArgument(f, longFlag)})`
+    const method = "option"
+    return `.${method}("${flagSpec}", ${JSON.stringify(f.description ?? f.name)}${scalarParserArgument(f, longFlag)})`
   }
 
   // Skip body fields whose x-cli option key has been promoted to a variadic
@@ -265,12 +267,9 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Options from body fields (skip positional and path params)
   const bodyOptionFields = input.bodyFields.filter(
-    (f) =>
-      !positionalSet.has(f.name) &&
-      !pathParamSet.has(f.name) &&
-      !bodyFieldOwnedByVariadicPositional(f),
+    (f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !bodyFieldOwnedByVariadicPositional(f),
   )
-  const bodyOptions = bodyOptionFields.map(emitFieldOption)
+  const bodyOptions = bodyOptionFields.map((field) => emitFieldOption(field))
 
   // fixedQuery keys win over same-named query fields — suppress the dynamic field
   // from both the options list and the query block to avoid duplicate object keys.
@@ -278,12 +277,9 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Options from query fields (skip positional, path params, and fixedQuery-shadowed fields)
   const queryOptionFields = queryFields.filter(
-    (f) =>
-      !positionalSet.has(f.name) &&
-      !pathParamSet.has(f.name) &&
-      !fixedQueryKeys.has(f.name),
+    (f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name),
   )
-  const queryOptions = queryOptionFields.map(emitFieldOption)
+  const queryOptions = queryOptionFields.map((field) => emitFieldOption(field, true))
 
   // Virtual x-cli options: option keys that map to no existing body/query field
   // (e.g. `attendee` mapping to `attendees` is NOT virtual; `all_day` mapping
@@ -345,7 +341,7 @@ export function emitCommand(input: EmitInput): string | null {
   function valueExprForOption(optKey: string): string {
     const optDef = xCliOptions[optKey]!
     const camelKey = kebabToCamel(kebab(optKey))
-    if (optDef.parser === "datetime") {
+    if (optDef.parser === "datetime" || optDef.parser === "occurrence-boundary") {
       return `${camelKey}Value`
     }
     if (optDef.parser === "attendee") {
@@ -425,21 +421,13 @@ export function emitCommand(input: EmitInput): string | null {
         `      },`,
       ]
     } else {
-      bodyBlock = [
-        `      body: {`,
-        ...bodyPositionals.map((p) => `        ${p},`),
-        ...bodyOptLines,
-        `      },`,
-      ]
+      bodyBlock = [`      body: {`, ...bodyPositionals.map((p) => `        ${p},`), ...bodyOptLines, `      },`]
     }
   }
 
   // Build query block (dynamic query fields + constant fixedQuery).
   const queryOptLines = queryFields
-    .filter(
-      (f) =>
-        !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name),
-    )
+    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name))
     .map((f) => {
       const optKey = fieldToOptionKey[f.name]
       if (optKey !== undefined) {
@@ -452,17 +440,14 @@ export function emitCommand(input: EmitInput): string | null {
     ([k, v]) => `        ${k}: ${JSON.stringify(v)},`,
   )
   const allQueryLines = [...queryOptLines, ...fixedQueryLines]
-  const queryBlock =
-    allQueryLines.length > 0 ? [`      query: {`, ...allQueryLines, `      },`] : []
+  const queryBlock = allQueryLines.length > 0 ? [`      query: {`, ...allQueryLines, `      },`] : []
 
   // `kind` is the renderer registry key. We use the operationId verbatim so
   // every operation has a unique, stable identifier — handwritten renderers
   // register under the same string. Embedding `display` inline keeps the
   // generated file self-contained (no JSON-file reads at startup).
   const kind = input.operationId
-  const displayLiteral = input.xCli.display
-    ? JSON.stringify(input.xCli.display)
-    : "undefined"
+  const displayLiteral = input.xCli.display ? JSON.stringify(input.xCli.display) : "undefined"
 
   // Emit parser conversion block at top of action body.
   const conversionLines: string[] = []
@@ -504,7 +489,22 @@ export function emitCommand(input: EmitInput): string | null {
     )
   }
   for (const [optKey, optDef] of Object.entries(xCliOptions)) {
-    if (optDef.parser === "datetime") {
+    if (optDef.parser === "occurrence-boundary") {
+      const camelKey = kebabToCamel(kebab(optKey))
+      const valueVar = `${camelKey}Value`
+      const target = optDef.mapsTo ?? optKey
+      const required = optDef.required === true
+      if (required) {
+        conversionLines.push(
+          `    const ${valueVar} = parseOccurrenceBoundary(opts.${camelKey} as string, zone)`,
+        )
+      } else {
+        conversionLines.push(`    let ${valueVar}: string | undefined`)
+        conversionLines.push(`    if (opts.${camelKey} !== undefined) {`)
+        conversionLines.push(`      ${valueVar} = parseOccurrenceBoundary(opts.${camelKey} as string, zone)`)
+        conversionLines.push(`    }`)
+      }
+    } else if (optDef.parser === "datetime") {
       const camelKey = kebabToCamel(kebab(optKey))
       const valueVar = `${camelKey}Value`
       conversionLines.push(`    let ${valueVar}: string | undefined`)
@@ -586,35 +586,23 @@ export function emitCommand(input: EmitInput): string | null {
   ]
   if (hasDatetimeParser) {
     imports.push(
-      `import { parseTimeInput, resolveTimezone } from "${handwrittenRelPrefix}handwritten/utils/parse-time.js"`,
+      `import { ${[...(usesParseTimeInput ? ["parseTimeInput"] : []), "resolveTimezone", ...(hasOccurrenceBoundaryParser ? ["parseOccurrenceBoundary"] : [])].join(", ")} } from "${handwrittenRelPrefix}handwritten/utils/parse-time.js"`,
     )
   }
   const dateImports: string[] = []
   if (usesParseDateOnly) dateImports.push("parseDateOnly")
   if (usesInclusiveEndToExclusive) dateImports.push("inclusiveEndToExclusive")
   if (dateImports.length > 0) {
-    imports.push(
-      `import { ${dateImports.join(", ")} } from "${handwrittenRelPrefix}handwritten/utils/parse-date.js"`,
-    )
+    imports.push(`import { ${dateImports.join(", ")} } from "${handwrittenRelPrefix}handwritten/utils/parse-date.js"`)
   }
   if (hasAttendeeParser) {
-    imports.push(
-      `import { parseAttendee } from "${handwrittenRelPrefix}handwritten/utils/parse-attendee.js"`,
-    )
+    imports.push(`import { parseAttendee } from "${handwrittenRelPrefix}handwritten/utils/parse-attendee.js"`)
   }
   if (usesJsonField) {
-    imports.push(
-      `import { parseJsonField } from "${handwrittenRelPrefix}handwritten/utils/parse-json-field.js"`,
-    )
+    imports.push(`import { parseJsonField } from "${handwrittenRelPrefix}handwritten/utils/parse-json-field.js"`)
   }
-  const scalarParserImports = [
-    "parseIntegerField",
-    "parseNumberField",
-    "parseBooleanField",
-  ].filter((parserName) =>
-    [...bodyOptionFields, ...queryOptionFields].some(
-      (field) => scalarParserName(field) === parserName,
-    ),
+  const scalarParserImports = ["parseIntegerField", "parseNumberField", "parseBooleanField"].filter((parserName) =>
+    [...bodyOptionFields, ...queryOptionFields].some((field) => scalarParserName(field) === parserName),
   )
   if (scalarParserImports.length > 0) {
     imports.push(

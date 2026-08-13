@@ -2,6 +2,32 @@ import { describe, it, expect } from "vitest"
 import { emitCommand } from "../tools/cli-codegen/emit.js"
 
 describe("emitCommand", () => {
+  it("emits date-preserving occurrence boundaries with an implicit parse-only --tz", () => {
+    const code = emitCommand({
+      operationId: "event_occurrences",
+      method: "get",
+      path: "/calendar/events/{id}/occurrences",
+      xCli: {
+        command: "event occurrences",
+        positional: ["id"],
+        options: {
+          from: { parser: "occurrence-boundary", mapsTo: "start", required: true },
+          to: { parser: "occurrence-boundary", mapsTo: "end", required: true },
+        },
+      },
+      bodyFields: [],
+      pathParams: ["id"],
+      queryFields: [
+        { name: "start", type: "string", required: true },
+        { name: "end", type: "string", required: true },
+      ],
+    })!
+
+    expect(code).toContain('.option("--tz <zone>", "IANA timezone for relative time parsing")')
+    expect(code).toContain("fromValue = parseOccurrenceBoundary(opts.from as string, zone)")
+    expect(code).toContain("start: fromValue")
+    expect(code).toContain('.requiredOption("--from <value>", "from")')
+  })
   it("emits a commander Command file for a POST with positional body field", () => {
     const code = emitCommand({
       operationId: "todo_create",
@@ -94,9 +120,7 @@ describe("emitCommand", () => {
       bodyFields: [{ name: "tag", type: "array", required: false }],
     })
     expect(code).not.toBeNull()
-    expect(code).toContain(
-      '(val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[]',
-    )
+    expect(code).toContain("(val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[]")
   })
 
   it("emits resolveTimezone, parseTimeInput, and --tz flag for datetime parser", () => {
@@ -154,7 +178,11 @@ describe("emitCommand", () => {
       xCli: {
         command: "event add",
         options: {
-          start: { parser: "datetime", allDayFlag: "all_day", utcWhenPresent: "rrule" },
+          start: {
+            parser: "datetime",
+            allDayFlag: "all_day",
+            utcWhenPresent: "rrule",
+          },
           rrule: { mapsTo: "recurrence_rule" },
         },
       },
@@ -165,9 +193,7 @@ describe("emitCommand", () => {
     })
 
     expect(code).toContain("opts.rrule !== undefined ? startDateTime.toUTC() : startDateTime")
-    expect(code).toContain(
-      "const startDateTime = parseTimeInput(opts.start as string, zone)",
-    )
+    expect(code).toContain("const startDateTime = parseTimeInput(opts.start as string, zone)")
   })
 
   it("persists an explicit series time zone and keeps local offsets", () => {
@@ -191,18 +217,14 @@ describe("emitCommand", () => {
       ],
     })
 
-    expect(code).toContain(
-      'const recurringWithTimeZone = opts.rrule !== undefined && opts.rrule !== ""',
-    )
+    expect(code).toContain('const recurringWithTimeZone = opts.rrule !== undefined && opts.rrule !== ""')
     expect(code).toContain(
       'const explicitSeriesTimeZone = opts.tz !== undefined && opts.tz !== "" && recurringWithTimeZone',
     )
     expect(code).toContain(
       "opts.rrule !== undefined && !explicitSeriesTimeZone ? startDateTime.toUTC() : startDateTime",
     )
-    expect(code).toContain(
-      "const seriesTimeZoneValue = explicitSeriesTimeZone ? opts.tz : undefined",
-    )
+    expect(code).toContain("const seriesTimeZoneValue = explicitSeriesTimeZone ? opts.tz : undefined")
     expect(code).toContain("time_zone: seriesTimeZoneValue")
     expect(code?.match(/\.option\("--tz/g)).toHaveLength(1)
   })

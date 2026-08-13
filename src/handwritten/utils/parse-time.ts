@@ -16,6 +16,16 @@ export function resolveTimezone(
 }
 
 const HAS_OFFSET = /(Z|[+-]\d{2}:?\d{2})$/
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
+export function parseOccurrenceBoundary(input: string, zone: string): string {
+  if (DATE_ONLY.test(input)) {
+    const date = DateTime.fromISO(input, { zone: "utc" })
+    if (date.isValid && date.toISODate() === input) return input
+    throw new ParseTimeError(`Cannot parse occurrence boundary: "${input}".`)
+  }
+  return parseTimeInput(input, zone).toISO()!
+}
 
 export function parseTimeInput(input: string, zone: string): DateTime {
   // Only fast-path ISO strings that carry an explicit offset/Z. Naive ISO
