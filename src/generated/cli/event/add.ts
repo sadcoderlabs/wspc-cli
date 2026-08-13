@@ -28,7 +28,8 @@ export const eventCreateCommand = new Command("add")
       if (opts.allDay) {
         startValue = parseDateOnly(opts.start as string)
       } else {
-        startValue = parseTimeInput(opts.start as string, zone).toISO() ?? undefined
+        const startDateTime = parseTimeInput(opts.start as string, zone)
+        startValue = (opts.rrule !== undefined ? startDateTime.toUTC() : startDateTime).toISO() ?? undefined
       }
     }
     let endValue: string | undefined
@@ -36,7 +37,8 @@ export const eventCreateCommand = new Command("add")
       if (opts.allDay) {
         endValue = inclusiveEndToExclusive(opts.end as string)
       } else {
-        endValue = parseTimeInput(opts.end as string, zone).toISO() ?? undefined
+        const endDateTime = parseTimeInput(opts.end as string, zone)
+        endValue = (opts.rrule !== undefined ? endDateTime.toUTC() : endDateTime).toISO() ?? undefined
       }
     }
     const attendeeRaw = opts.attendee as string[]

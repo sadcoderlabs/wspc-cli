@@ -145,6 +145,31 @@ describe("emitCommand", () => {
     expect(code).toContain("inclusiveEndToExclusive")
   })
 
+  it("converts a datetime to UTC when the configured option is present", () => {
+    const code = emitCommand({
+      operationId: "event_create",
+      method: "post",
+      path: "/events",
+      summary: "Schedule",
+      xCli: {
+        command: "event add",
+        options: {
+          start: { parser: "datetime", allDayFlag: "all_day", utcWhenPresent: "rrule" },
+          rrule: { mapsTo: "recurrence_rule" },
+        },
+      },
+      bodyFields: [
+        { name: "start", type: "string", required: false },
+        { name: "recurrence_rule", type: "string", required: false },
+      ],
+    })
+
+    expect(code).toContain("opts.rrule !== undefined ? startDateTime.toUTC() : startDateTime")
+    expect(code).toContain(
+      "const startDateTime = parseTimeInput(opts.start as string, zone)",
+    )
+  })
+
   it("uses mapsTo target as the SDK field name but keeps the flag named by option key", () => {
     const code = emitCommand({
       operationId: "event_list",

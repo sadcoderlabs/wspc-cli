@@ -12,6 +12,7 @@ export interface XCliOption {
   mapsTo?: string
   allDayFlag?: string
   exclusive?: boolean
+  utcWhenPresent?: string
 }
 
 export interface XCliBody {
@@ -74,6 +75,25 @@ function kebab(s: string): string {
 
 function kebabToCamel(kebabStr: string): string {
   return kebabStr.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+}
+
+function timedConversionLines(
+  valueVar: string,
+  camelKey: string,
+  utcWhenPresent: string | undefined,
+  indent: string,
+): string[] {
+  const parseExpression = `parseTimeInput(opts.${camelKey} as string, zone)`
+  if (!utcWhenPresent) {
+    return [`${indent}${valueVar} = ${parseExpression}.toISO() ?? undefined`]
+  }
+
+  const dateTimeVar = `${camelKey}DateTime`
+  const camelCondition = kebabToCamel(kebab(utcWhenPresent))
+  return [
+    `${indent}const ${dateTimeVar} = ${parseExpression}`,
+    `${indent}${valueVar} = (opts.${camelCondition} !== undefined ? ${dateTimeVar}.toUTC() : ${dateTimeVar}).toISO() ?? undefined`,
+  ]
 }
 
 export function emitCommand(input: EmitInput): string | null {
@@ -446,10 +466,14 @@ export function emitCommand(input: EmitInput): string | null {
           conversionLines.push(`        ${valueVar} = parseDateOnly(opts.${camelKey} as string)`)
         }
         conversionLines.push(`      } else {`)
-        conversionLines.push(`        ${valueVar} = parseTimeInput(opts.${camelKey} as string, zone).toISO() ?? undefined`)
+        conversionLines.push(
+          ...timedConversionLines(valueVar, camelKey, optDef.utcWhenPresent, "        "),
+        )
         conversionLines.push(`      }`)
       } else {
-        conversionLines.push(`      ${valueVar} = parseTimeInput(opts.${camelKey} as string, zone).toISO() ?? undefined`)
+        conversionLines.push(
+          ...timedConversionLines(valueVar, camelKey, optDef.utcWhenPresent, "      "),
+        )
       }
       conversionLines.push(`    }`)
     } else if (optDef.parser === "attendee") {
