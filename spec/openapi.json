@@ -571,11 +571,10 @@
           "token_endpoint_auth_method": {
             "type": "string",
             "enum": [
-              "none",
-              "client_secret_basic"
+              "none"
             ],
             "default": "none",
-            "description": "Client authentication method to use at the token endpoint. `none` (the default and the only fully supported value today) is for public PKCE clients; `client_secret_basic` is reserved for future confidential clients."
+            "description": "Client authentication method to use at the token endpoint. WSPC supports public PKCE clients only, so the value is always `none`."
           },
           "grant_types": {
             "type": "array",
@@ -1961,6 +1960,11 @@
             ],
             "description": "Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses."
           },
+          "recurrence_rule": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series."
+          },
           "all_day": {
             "type": "boolean",
             "description": "Derived from the format of `start`/`end`. When `true`, both endpoints are ISO date-only (`YYYY-MM-DD`) and the event spans full calendar day(s) using RFC 5545 exclusive end."
@@ -2086,6 +2090,11 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 200
+          },
+          "recurrence_rule": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series."
           }
         },
         "required": [
@@ -2227,6 +2236,21 @@
               "description": "A single attendee on a calendar event. Each event supports up to 50 unique attendees after case-insensitive email dedupe; new attendees receive an invitation email with an `.ics` REQUEST attachment, kept attendees receive an update email when the event is mutated, and removed attendees receive a cancellation."
             },
             "description": "If provided, REPLACES the attendee list (after case-insensitive email dedupe, up to 50). Added attendees receive a fresh invitation, kept attendees receive an update email, removed attendees receive a cancellation."
+          },
+          "recurrence_rule": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "description": "Optional RFC 5545 RECUR value without the `RRULE:` prefix. M1 supports DAILY, WEEKLY, MONTHLY, and YEARLY all-day or UTC recurring series."
+              },
+              {
+                "type": "string",
+                "enum": [
+                  ""
+                ]
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -8571,7 +8595,7 @@
             }
           },
           "401": {
-            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.",
+            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11709,7 +11733,7 @@
             }
           },
           "401": {
-            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.",
+            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14077,7 +14101,7 @@
             }
           },
           "401": {
-            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.",
+            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14660,7 +14684,7 @@
             }
           },
           "401": {
-            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered, or for confidential clients the credentials were rejected.",
+            "description": "OAuth client authentication failed (RFC 6749 §5.2). The client_id was not registered.",
             "content": {
               "application/json": {
                 "schema": {
@@ -19688,6 +19712,9 @@
               "parser": "attendee",
               "array": true,
               "mapsTo": "attendees"
+            },
+            "rrule": {
+              "mapsTo": "recurrence_rule"
             }
           },
           "examples": [
@@ -19721,7 +19748,7 @@
             "example": "opaque-consistency-bookmark"
           }
         ],
-        "description": "### Overview\nCreate a new calendar event owned by the authenticated user.\n\n### When to Use\nBook a meeting, lunch, all-day trip, or any time-bound item. Optionally provide `attendees` to automatically dispatch invitation emails containing an `.ics` REQUEST attachment to each participant as a side effect.\n\n### Constraints\n- **Format Integrity**: `start` and `end` must be of the exact same type (both ISO 8601 datetimes with offset, or both ISO date-only for all-day).\n- **Chronological Order**: `end` must be strictly after `start`.\n- **All-Day boundary**: All-day events use RFC 5545 exclusive end (e.g., a one-day event on June 1st is specified as `start=2026-06-01` and `end=2026-06-02`).\n- **Attendee Limit**: Up to 50 unique attendees are supported after case-insensitive email address deduplication.\n\n### Troubleshooting\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` format mismatch, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if more than 50 unique attendees are supplied.\n- Invitation emails are processed and dispatched asynchronously via Cloudflare `waitUntil`; the analytics counter `event_created` is emitted automatically.",
+        "description": "### Overview\nCreate a new calendar event owned by the authenticated user.\n\n### When to Use\nBook a meeting, lunch, all-day trip, or any time-bound item. Optionally provide `attendees` to automatically dispatch invitation emails containing an `.ics` REQUEST attachment to each participant as a side effect.\n\n### Recurring Series\nPass `recurrence_rule` as an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series require date-only `start`, `end`, and `UNTIL`; timed series require UTC `start`, `end`, and UTC DATE-TIME `UNTIL`. The response returns the canonical rule. Calendar lists persist and return one series master instead of expanding occurrences.\n\n### Constraints\n- **Format Integrity**: `start` and `end` must be of the exact same type (both ISO 8601 datetimes with offset, or both ISO date-only for all-day).\n- **Chronological Order**: `end` must be strictly after `start`.\n- **All-Day boundary**: All-day events use RFC 5545 exclusive end (e.g., a one-day event on June 1st is specified as `start=2026-06-01` and `end=2026-06-02`).\n- **Attendee Limit**: Up to 50 unique attendees are supported after case-insensitive email address deduplication.\n\n### Troubleshooting\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` format mismatch, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if more than 50 unique attendees are supplied.\n- Invitation emails are processed and dispatched asynchronously via Cloudflare `waitUntil`; the analytics counter `event_created` is emitted automatically.",
         "security": [
           {
             "bearerAuth": []
@@ -21492,6 +21519,9 @@
               "parser": "attendee",
               "array": true,
               "mapsTo": "attendees"
+            },
+            "rrule": {
+              "mapsTo": "recurrence_rule"
             }
           },
           "examples": [
@@ -21535,7 +21565,7 @@
             "in": "path"
           }
         ],
-        "description": "### Overview\nPartially update fields of an existing calendar event. All properties in the request body are optional.\n\n### When to Use\nReschedule an event, update its location or notes, cancel the meeting (retaining the record but notifying participants), or replace/update the attendee list.\n\n### Constraints\n- **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.\n- **Field Clearing**: Pass an empty string `\"\"` for `description`, `location`, or `url` to clear those fields in the database.\n- **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list. The server automatically diffs participants and asynchronously sends invitations (for newly added), updates (for kept), or cancellations (for removed) via Cloudflare `waitUntil`.\n- **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.\n- **Attendee Limit**: A maximum of 50 unique attendees is allowed.\n\n### Troubleshooting\n- Returns 404 `NOT_FOUND` if the event does not exist or is soft-deleted.\n- Returns 409 `VERSION_CONFLICT` if `expected_version` is provided but stale.\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` kinds do not match, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if unique attendees exceed 50.",
+        "description": "### Overview\nPartially update fields of an existing calendar event. All properties in the request body are optional.\n\n### When to Use\nReschedule an event, update its location or notes, cancel the meeting (retaining the record but notifying participants), or replace/update the attendee list.\n\n### Constraints\n- **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.\n- **Field Clearing**: Pass an empty string `\"\"` for `description`, `location`, `url`, or `recurrence_rule` to clear those fields in the database. Omitting `recurrence_rule` leaves it unchanged.\n- **Recurring Series**: A recurrence rule is an RFC 5545 RRULE value without the `RRULE:` prefix. All-day series require date-only values; timed series require UTC values. Update, cancel, delete, and restore always affect the whole series master.\n- **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list. The server automatically diffs participants and asynchronously sends invitations (for newly added), updates (for kept), or cancellations (for removed) via Cloudflare `waitUntil`.\n- **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.\n- **Attendee Limit**: A maximum of 50 unique attendees is allowed.\n\n### Troubleshooting\n- Returns 404 `NOT_FOUND` if the event does not exist or is soft-deleted.\n- Returns 409 `VERSION_CONFLICT` if `expected_version` is provided but stale.\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` kinds do not match, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if unique attendees exceed 50.",
         "security": [
           {
             "bearerAuth": []
@@ -28742,7 +28772,7 @@
           "EmailAliases"
         ],
         "summary": "Create a receiving alias",
-        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization, fully verified, and enabled by the Workspace entitlement.\n- **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 40, Business 200). Custom-domain aliases use the per-user limit of 10 active aliases. Soft-deleted addresses release capacity.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.\n- **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain is not fully verified, enabled, or currently within entitlement.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The Current Workspace has reached its reserved platform address capacity, or the caller has reached the custom-domain per-user alias limit.\n- **503 Service Unavailable / EMAIL_ENTITLEMENTS_UNAVAILABLE**: Billing could not provide a trustworthy entitlement, so creation failed closed.",
+        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization, fully verified, and enabled by the Workspace entitlement.\n- **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 40, Business 200) for both active capacity and a Workspace-wide rolling 30-day creation budget. Soft-deleted platform addresses release active capacity but remain in the creation budget until their original creation leaves the window. Custom-domain aliases use the per-user limit of 10 active aliases.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.\n- **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain is not fully verified, enabled, or currently within entitlement.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The Current Workspace has reached its reserved platform address capacity, or the caller has reached the custom-domain per-user alias limit.\n- **429 Too Many Requests / ALIAS_CREATION_LIMIT_EXCEEDED**: The Workspace exhausted its rolling 30-day platform-address creation budget. Retry timing is in the `Retry-After` header.\n- **503 Service Unavailable / EMAIL_ENTITLEMENTS_UNAVAILABLE**: Billing could not provide a trustworthy entitlement, so creation failed closed.",
         "security": [
           {
             "bearerAuth": []
@@ -28949,7 +28979,16 @@
             }
           },
           "429": {
-            "description": "Either the Current Workspace reserved-platform capacity or the custom-domain per-user limit of 10 active aliases was exceeded (`ALIAS_LIMIT_EXCEEDED`), or the write rate limit was hit (`RATE_LIMITED`).",
+            "description": "Either the Current Workspace reserved-platform capacity or the custom-domain per-user limit of 10 active aliases was exceeded (`ALIAS_LIMIT_EXCEEDED`), the rolling 30-day platform-address creation budget was exhausted (`ALIAS_CREATION_LIMIT_EXCEEDED`), or the write rate limit was hit (`RATE_LIMITED`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the earliest recently created platform address leaves the rolling window, or until the write rate limit resets.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
