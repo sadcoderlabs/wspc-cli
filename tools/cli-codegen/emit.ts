@@ -12,7 +12,6 @@ export interface XCliOption {
   array?: boolean
   mapsTo?: string
   allDayFlag?: string
-  exclusive?: boolean
   utcWhenPresent?: string
 }
 
@@ -185,9 +184,6 @@ export function emitCommand(input: EmitInput): string | null {
   const hasAgendaBoundaryParser = Object.values(xCliOptions).some((o) => o.parser === "agenda-boundary")
   const hasAttendeeParser = Object.values(xCliOptions).some((o) => o.parser === "attendee")
   const usesParseDateOnly = Object.values(xCliOptions).some((o) => o.parser === "datetime" && o.allDayFlag)
-  const usesInclusiveEndToExclusive = Object.values(xCliOptions).some(
-    (o) => o.parser === "datetime" && o.allDayFlag && o.exclusive,
-  )
 
   // All non-positional options: body fields + query fields (excluding path params, which are positional)
   // Path params that are positional are already handled via .argument()
@@ -554,11 +550,7 @@ export function emitCommand(input: EmitInput): string | null {
       if (optDef.allDayFlag) {
         const camelAllDay = kebabToCamel(kebab(optDef.allDayFlag))
         conversionLines.push(`      if (opts.${camelAllDay}) {`)
-        if (optDef.exclusive) {
-          conversionLines.push(`        ${valueVar} = inclusiveEndToExclusive(opts.${camelKey} as string)`)
-        } else {
-          conversionLines.push(`        ${valueVar} = parseDateOnly(opts.${camelKey} as string)`)
-        }
+        conversionLines.push(`        ${valueVar} = parseDateOnly(opts.${camelKey} as string)`)
         conversionLines.push(`      } else {`)
         conversionLines.push(
           ...timedConversionLines(
@@ -638,7 +630,6 @@ export function emitCommand(input: EmitInput): string | null {
   }
   const dateImports: string[] = []
   if (usesParseDateOnly) dateImports.push("parseDateOnly")
-  if (usesInclusiveEndToExclusive) dateImports.push("inclusiveEndToExclusive")
   if (dateImports.length > 0) {
     imports.push(`import { ${dateImports.join(", ")} } from "${handwrittenRelPrefix}handwritten/utils/parse-date.js"`)
   }

@@ -362,6 +362,17 @@ describe("event add", () => {
     expect(call.body.end).toBe("2026-05-13")
   })
 
+  it.each([
+    ["2026-05-31", "2026-06-01"],
+    ["2028-02-29", "2028-03-01"],
+  ])("does not perform date math for all-day boundaries %s to %s", async (start, end) => {
+    const { eventCreateCommand, eventCreate } = await loadCommands()
+    await eventCreateCommand.parseAsync(["node", "add", "Boundary", "--all-day", "--start", start, "--end", end])
+
+    expect(eventCreate.mock.calls[0]![0].body.start).toBe(start)
+    expect(eventCreate.mock.calls[0]![0].body.end).toBe(end)
+  })
+
   it("collects multiple --attendee flags and parses display name / email", async () => {
     const { eventCreateCommand, eventCreate } = await loadCommands()
     await eventCreateCommand.parseAsync([

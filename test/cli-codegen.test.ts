@@ -152,7 +152,7 @@ describe("emitCommand", () => {
         command: "event add",
         options: {
           start: { parser: "datetime", allDayFlag: "all_day" },
-          end: { parser: "datetime", allDayFlag: "all_day", exclusive: true },
+          end: { parser: "datetime", allDayFlag: "all_day" },
         },
       },
       bodyFields: [
