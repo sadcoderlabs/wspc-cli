@@ -81,6 +81,38 @@ describe("render", () => {
     expect(out).toContain("2026-06-01")
   })
 
+  it("renders a single occurrence mutation as one fixed-column table row", () => {
+    render(
+      {
+        kind: "event_occurrence_set",
+        display: {
+          shape: "list",
+          columns: [
+            "recurrence_id",
+            "start",
+            "end",
+            "status",
+            "exception_version",
+            "time_zone",
+          ],
+        },
+      },
+      {
+        recurrence_id: "2026-06-01T09:00:00Z",
+        start: "2026-06-02T09:00:00Z",
+        end: "2026-06-02T10:00:00Z",
+        status: "confirmed",
+        exception_version: 1,
+      },
+    )
+
+    const out = stripAnsi(cap.output())
+    expect(out).toContain("EXCEPTION_VERSION")
+    expect(out).toContain("TIME_ZONE")
+    expect(out).toContain("2026-06-01T09:00:00Z")
+    expect(out).toContain("1")
+  })
+
   it("keeps fixed agenda union columns blank for a single item", () => {
     render(
       {
