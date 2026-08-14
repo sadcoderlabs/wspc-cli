@@ -172,6 +172,37 @@ describe("emitCommand: agenda parsers", () => {
   })
 })
 
+describe("emitCommand: occurrence mutation parser", () => {
+  it("requires both times, reads the master, and delegates series-aware parsing", () => {
+    const out = emitCommand({
+      operationId: "event_occurrence_set",
+      method: "patch",
+      path: "/calendar/events/{series_id}/occurrences/{recurrence_id}",
+      xCli: {
+        command: "event occurrence set",
+        positional: ["series_id", "recurrence_id"],
+        options: {
+          start: { parser: "occurrence-time", required: true },
+          end: { parser: "occurrence-time", required: true },
+          tz: { parser: "occurrence-time-zone" },
+        },
+      },
+      pathParams: ["series_id", "recurrence_id"],
+      bodyFields: [
+        { name: "start", type: "string", required: true },
+        { name: "end", type: "string", required: true },
+      ],
+    })
+
+    expect(out).toContain('.requiredOption("--start <value>"')
+    expect(out).toContain('.requiredOption("--end <value>"')
+    expect(out).toContain("operation: eventGet")
+    expect(out).toContain("parseOccurrenceMutationTimes(")
+    expect(out).toContain("start: startValue as string")
+    expect(out).toContain("end: endValue as string")
+  })
+})
+
 describe("emitCommand: body unwrap", () => {
   it("supports body.unwrap to flatten 1-level nested body wrapper field into top-level flags, and reconstructs it when calling the SDK", () => {
     const out = emitCommand({

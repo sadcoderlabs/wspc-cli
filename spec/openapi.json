@@ -1916,6 +1916,96 @@
         ],
         "additionalProperties": false
       },
+      "EventOccurrence": {
+        "type": "object",
+        "properties": {
+          "series_id": {
+            "type": "string"
+          },
+          "recurrence_id": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string"
+          },
+          "end": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "tentative",
+              "cancelled"
+            ],
+            "description": "Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses."
+          },
+          "all_day": {
+            "type": "boolean"
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "attendees": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "description": "Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out."
+                },
+                "display_name": {
+                  "type": "string",
+                  "description": "Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address."
+                }
+              },
+              "required": [
+                "email"
+              ],
+              "description": "A single attendee on a calendar event. Each event supports up to 50 unique attendees after case-insensitive email dedupe; new attendees receive an invitation email with an `.ics` REQUEST attachment, kept attendees receive an update email when the event is mutated, and removed attendees receive a cancellation."
+            }
+          },
+          "exception_version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "series_id",
+          "recurrence_id",
+          "start",
+          "end",
+          "title",
+          "description",
+          "status",
+          "all_day",
+          "attendees",
+          "exception_version"
+        ]
+      },
+      "OccurrenceVersionBody": {
+        "type": "object",
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "Event": {
         "type": "object",
         "properties": {
@@ -2297,6 +2387,10 @@
                     },
                     "time_zone": {
                       "type": "string"
+                    },
+                    "exception_version": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   },
                   "required": [
@@ -2309,7 +2403,8 @@
                     "attendees",
                     "kind",
                     "series_id",
-                    "recurrence_id"
+                    "recurrence_id",
+                    "exception_version"
                   ]
                 }
               ]
@@ -2353,79 +2448,7 @@
           "occurrences": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "series_id": {
-                  "type": "string"
-                },
-                "recurrence_id": {
-                  "type": "string"
-                },
-                "start": {
-                  "type": "string"
-                },
-                "end": {
-                  "type": "string"
-                },
-                "title": {
-                  "type": "string"
-                },
-                "description": {
-                  "type": "string"
-                },
-                "location": {
-                  "type": "string"
-                },
-                "url": {
-                  "type": "string"
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "confirmed",
-                    "tentative",
-                    "cancelled"
-                  ],
-                  "description": "Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses."
-                },
-                "all_day": {
-                  "type": "boolean"
-                },
-                "time_zone": {
-                  "type": "string"
-                },
-                "attendees": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "email": {
-                        "type": "string",
-                        "description": "Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out."
-                      },
-                      "display_name": {
-                        "type": "string",
-                        "description": "Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address."
-                      }
-                    },
-                    "required": [
-                      "email"
-                    ],
-                    "description": "A single attendee on a calendar event. Each event supports up to 50 unique attendees after case-insensitive email dedupe; new attendees receive an invitation email with an `.ics` REQUEST attachment, kept attendees receive an update email when the event is mutated, and removed attendees receive a cancellation."
-                  }
-                }
-              },
-              "required": [
-                "series_id",
-                "recurrence_id",
-                "start",
-                "end",
-                "title",
-                "description",
-                "status",
-                "all_day",
-                "attendees"
-              ]
+              "$ref": "#/components/schemas/EventOccurrence"
             }
           },
           "next_cursor": {
@@ -2535,6 +2558,28 @@
         },
         "additionalProperties": false,
         "description": "Request body for PATCH `/calendar/events/{id}`. All fields are optional partial updates. To CANCEL a meeting (preserve the record and notify attendees) set `status: cancelled`; to remove the event from default listings, call DELETE instead."
+      },
+      "UpdateOccurrenceBody": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "minLength": 1
+          },
+          "end": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "additionalProperties": false
       },
       "DriveLibrary": {
         "type": "object",
@@ -19963,6 +20008,404 @@
         }
       }
     },
+    "/calendar/events/{series_id}/occurrences/{recurrence_id}/cancel": {
+      "post": {
+        "operationId": "event_occurrence_cancel",
+        "tags": [
+          "Events"
+        ],
+        "x-cli": {
+          "command": "event occurrence cancel",
+          "positional": [
+            "series_id",
+            "recurrence_id"
+          ],
+          "display": {
+            "shape": "list",
+            "columns": [
+              "recurrence_id",
+              "start",
+              "end",
+              "status",
+              "exception_version",
+              "time_zone"
+            ],
+            "format": {
+              "recurrence_id": "truncate",
+              "start": "relative-time",
+              "end": "relative-time",
+              "status": "status-badge"
+            },
+            "emptyMessage": "no occurrences"
+          }
+        },
+        "summary": "Cancel one recurring occurrence",
+        "description": "Persist a cancellation exception for one recurrence identity without cancelling the whole series.",
+        "parameters": [
+          {
+            "name": "x-cb-cal",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "series_id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "recurrence_id",
+            "in": "path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/calendar/events/evt_xxx/occurrences/2026-01-12T09%3A00%3A00Z/cancel \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc event occurrence cancel evt_xxx 2026-01-12T09:00:00Z"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OccurrenceVersionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Effective occurrence after mutation.",
+            "headers": {
+              "x-cb-cal": {
+                "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOccurrence"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/calendar/events": {
       "post": {
         "operationId": "event_create",
@@ -23472,6 +23915,9 @@
           "positional": [
             "id"
           ],
+          "booleanFlags": [
+            "include_cancelled"
+          ],
           "options": {
             "from": {
               "parser": "occurrence-boundary",
@@ -23493,15 +23939,14 @@
               "recurrence_id",
               "start",
               "end",
-              "title",
               "status",
+              "exception_version",
               "time_zone"
             ],
             "format": {
               "recurrence_id": "truncate",
               "start": "relative-time",
               "end": "relative-time",
-              "title": "truncate",
               "status": "status-badge"
             },
             "emptyMessage": "no occurrences"
@@ -23561,6 +24006,19 @@
             },
             "required": false,
             "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false"
+            },
+            "required": false,
+            "name": "include_cancelled",
             "in": "query"
           }
         ],
@@ -24018,6 +24476,816 @@
                       ]
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/events/{series_id}/occurrences/{recurrence_id}/restore": {
+      "post": {
+        "operationId": "event_occurrence_restore",
+        "tags": [
+          "Events"
+        ],
+        "x-cli": {
+          "command": "event occurrence restore",
+          "positional": [
+            "series_id",
+            "recurrence_id"
+          ],
+          "display": {
+            "shape": "list",
+            "columns": [
+              "recurrence_id",
+              "start",
+              "end",
+              "status",
+              "exception_version",
+              "time_zone"
+            ],
+            "format": {
+              "recurrence_id": "truncate",
+              "start": "relative-time",
+              "end": "relative-time",
+              "status": "status-badge"
+            },
+            "emptyMessage": "no occurrences"
+          }
+        },
+        "summary": "Restore one recurring occurrence",
+        "description": "Delete one persisted exception so the recurrence identity inherits the master again.",
+        "parameters": [
+          {
+            "name": "x-cb-cal",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "series_id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "recurrence_id",
+            "in": "path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/calendar/events/evt_xxx/occurrences/2026-01-12T09%3A00%3A00Z/restore \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc event occurrence restore evt_xxx 2026-01-12T09:00:00Z"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OccurrenceVersionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Effective occurrence after mutation.",
+            "headers": {
+              "x-cb-cal": {
+                "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOccurrence"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/events/{series_id}/occurrences/{recurrence_id}": {
+      "patch": {
+        "operationId": "event_occurrence_set",
+        "tags": [
+          "Events"
+        ],
+        "x-cli": {
+          "command": "event occurrence set",
+          "positional": [
+            "series_id",
+            "recurrence_id"
+          ],
+          "options": {
+            "start": {
+              "parser": "occurrence-time",
+              "required": true
+            },
+            "end": {
+              "parser": "occurrence-time",
+              "required": true
+            },
+            "tz": {
+              "parser": "occurrence-time-zone",
+              "requestOnly": true
+            }
+          },
+          "display": {
+            "shape": "list",
+            "columns": [
+              "recurrence_id",
+              "start",
+              "end",
+              "status",
+              "exception_version",
+              "time_zone"
+            ],
+            "format": {
+              "recurrence_id": "truncate",
+              "start": "relative-time",
+              "end": "relative-time",
+              "status": "status-badge"
+            },
+            "emptyMessage": "no occurrences"
+          }
+        },
+        "summary": "Reschedule one recurring occurrence",
+        "description": "Replace the complete effective start and end of one immutable recurrence identity. The series recurrence rule and time zone remain unchanged.",
+        "parameters": [
+          {
+            "name": "x-cb-cal",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "series_id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "recurrence_id",
+            "in": "path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X PATCH https://api.wspc.ai/calendar/events/evt_xxx/occurrences/2026-01-12T09%3A00%3A00Z \\\n  -H \"Authorization: Bearer $WSPC_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"start\":\"2026-01-13T11:00:00Z\",\"end\":\"2026-01-13T12:00:00Z\"}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc event occurrence set evt_xxx 2026-01-12T09:00:00Z --start \"tomorrow 11am\" --end \"tomorrow noon\""
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOccurrenceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Effective occurrence after reschedule.",
+            "headers": {
+              "x-cb-cal": {
+                "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOccurrence"
                 }
               }
             }

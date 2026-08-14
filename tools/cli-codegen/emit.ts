@@ -7,7 +7,7 @@ export interface XCliDisplay {
 }
 
 export interface XCliOption {
-  parser?: "datetime" | "occurrence-boundary" | "agenda-boundary" | "agenda-time-zone" | "attendee" | "series-time-zone"
+  parser?: "datetime" | "occurrence-boundary" | "occurrence-time" | "occurrence-time-zone" | "agenda-boundary" | "agenda-time-zone" | "attendee" | "series-time-zone"
   required?: boolean
   array?: boolean
   mapsTo?: string
@@ -133,6 +133,9 @@ export function emitCommand(input: EmitInput): string | null {
     ([key, option]) => (option.mapsTo ?? key) === "recurrence_rule",
   )?.[0]
   const hasSeriesTimeZoneParser = seriesTimeZoneOptionKey !== undefined
+  const hasOccurrenceTimeParser = Object.values(xCliOptions).some(
+    (option) => option.parser === "occurrence-time",
+  )
 
   // Find the alias entry for a field: alias key can be exact field name, its kebab,
   // or a prefix segment (e.g. alias key "project" covers field "project_id").
@@ -172,7 +175,10 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Does this operation need a --tz flag and resolveTimezone() call?
   const hasDatetimeParser = Object.values(xCliOptions).some(
-    (o) => o.parser === "datetime" || o.parser === "occurrence-boundary" || o.parser === "agenda-boundary",
+    (o) =>
+      o.parser === "datetime" ||
+      o.parser === "occurrence-boundary" ||
+      o.parser === "agenda-boundary",
   )
   const usesParseTimeInput = Object.values(xCliOptions).some((o) => o.parser === "datetime")
   const hasOccurrenceBoundaryParser = Object.values(xCliOptions).some((o) => o.parser === "occurrence-boundary")
@@ -270,7 +276,7 @@ export function emitCommand(input: EmitInput): string | null {
   const bodyOptionFields = input.bodyFields.filter(
     (f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !bodyFieldOwnedByVariadicPositional(f),
   )
-  const bodyOptions = bodyOptionFields.map((field) => emitFieldOption(field))
+  const bodyOptions = bodyOptionFields.map((field) => emitFieldOption(field, true))
 
   // fixedQuery keys win over same-named query fields — suppress the dynamic field
   // from both the options list and the query block to avoid duplicate object keys.
@@ -342,7 +348,12 @@ export function emitCommand(input: EmitInput): string | null {
   function valueExprForOption(optKey: string): string {
     const optDef = xCliOptions[optKey]!
     const camelKey = kebabToCamel(kebab(optKey))
-    if (optDef.parser === "datetime" || optDef.parser === "occurrence-boundary" || optDef.parser === "agenda-boundary") {
+    if (
+      optDef.parser === "datetime" ||
+      optDef.parser === "occurrence-boundary" ||
+      optDef.parser === "occurrence-time" ||
+      optDef.parser === "agenda-boundary"
+    ) {
       return `${camelKey}Value`
     }
     if (optDef.parser === "attendee") {
@@ -455,6 +466,23 @@ export function emitCommand(input: EmitInput): string | null {
 
   // Emit parser conversion block at top of action body.
   const conversionLines: string[] = []
+  if (hasOccurrenceTimeParser) {
+    conversionLines.push(
+      `    const masterResult = await runSdkCommand({`,
+      `      operation: eventGet,`,
+      `      input: { path: { id: series_id } },`,
+      `      context: { kind: "event_get", display: undefined },`,
+      `      renderResult: false,`,
+      `    })`,
+      `    if (masterResult === undefined) return`,
+      `    const { start: startValue, end: endValue } = parseOccurrenceMutationTimes(`,
+      `      masterResult,`,
+      `      opts.start as string,`,
+      `      opts.end as string,`,
+      `      opts.tz as string | undefined,`,
+      `    )`,
+    )
+  }
   if (hasSeriesTimeZoneParser && seriesTimeZoneOptionKey && recurrenceOptionKey) {
     const timeZoneCamel = kebabToCamel(kebab(seriesTimeZoneOptionKey))
     const recurrenceCamel = kebabToCamel(kebab(recurrenceOptionKey))
@@ -595,12 +623,17 @@ export function emitCommand(input: EmitInput): string | null {
   // Build import list — only include helpers actually used.
   const imports: string[] = [
     `import { Command } from "commander"`,
-    `import { ${[fnName, ...(input.operationId === "event_update" && hasSeriesTimeZoneParser ? ["eventGet"] : [])].join(", ")} } from "${sdkRelPrefix}sdk/index.js"`,
+    `import { ${[fnName, ...((input.operationId === "event_update" && hasSeriesTimeZoneParser) || hasOccurrenceTimeParser ? ["eventGet"] : [])].join(", ")} } from "${sdkRelPrefix}sdk/index.js"`,
     `import { runSdkCommand } from "${handwrittenRelPrefix}handwritten/commands/run-sdk-command.js"`,
   ]
   if (hasDatetimeParser) {
     imports.push(
       `import { ${[...(usesParseTimeInput ? ["parseTimeInput"] : []), "resolveTimezone", ...(hasOccurrenceBoundaryParser ? ["parseOccurrenceBoundary"] : []), ...(hasAgendaBoundaryParser ? ["parseAgendaBoundary"] : [])].join(", ")} } from "${handwrittenRelPrefix}handwritten/utils/parse-time.js"`,
+    )
+  }
+  if (hasOccurrenceTimeParser) {
+    imports.push(
+      `import { parseOccurrenceMutationTimes } from "${handwrittenRelPrefix}handwritten/utils/parse-time.js"`,
     )
   }
   const dateImports: string[] = []

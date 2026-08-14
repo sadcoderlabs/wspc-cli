@@ -15,6 +15,7 @@ import { inviteRejectCommand } from "./invite/reject.js"
 import { keyRevokeCommand } from "./keys/rm.js"
 import { keyUpdateCommand } from "./keys/edit.js"
 import { orgInviteRevokeCommand } from "./org/invite/revoke.js"
+import { eventOccurrenceCancelCommand } from "./event/occurrence/cancel.js"
 import { eventCreateCommand } from "./event/add.js"
 import { eventListCommand } from "./event/ls.js"
 import { eventDeleteCommand } from "./event/rm.js"
@@ -24,6 +25,8 @@ import { eventIcsDownloadCommand } from "./event/ics.js"
 import { eventAgendaCommand } from "./event/agenda.js"
 import { eventOccurrencesCommand } from "./event/occurrences.js"
 import { eventRestoreCommand } from "./event/restore.js"
+import { eventOccurrenceRestoreCommand } from "./event/occurrence/restore.js"
+import { eventOccurrenceSetCommand } from "./event/occurrence/set.js"
 import { driveLibraryCreateCommand } from "./drive/library/add.js"
 import { driveLibraryListCommand } from "./drive/library/ls.js"
 import { driveFileDeleteCommand } from "./drive/file/rm.js"
@@ -98,6 +101,10 @@ export function registerGeneratedCommands(root: Command): void {
   root_auth.addCommand(authMeCommand)
   root.addCommand(invitesListCommand)
   const root_event = root.command("event").description("event commands")
+  const root_event_occurrence = root_event.command("occurrence").description("occurrence commands")
+  root_event_occurrence.addCommand(eventOccurrenceCancelCommand)
+  root_event_occurrence.addCommand(eventOccurrenceRestoreCommand)
+  root_event_occurrence.addCommand(eventOccurrenceSetCommand)
   root_event.addCommand(eventCreateCommand)
   root_event.addCommand(eventListCommand)
   root_event.addCommand(eventDeleteCommand)

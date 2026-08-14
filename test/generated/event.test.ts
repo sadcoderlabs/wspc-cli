@@ -38,6 +38,18 @@ vi.mock("../../src/generated/sdk/index.js", () => ({
     data: {},
     response: { ok: true, status: 200 },
   })),
+  eventOccurrenceSet: vi.fn(async () => ({
+    data: {},
+    response: { ok: true, status: 200 },
+  })),
+  eventOccurrenceCancel: vi.fn(async () => ({
+    data: {},
+    response: { ok: true, status: 200 },
+  })),
+  eventOccurrenceRestore: vi.fn(async () => ({
+    data: {},
+    response: { ok: true, status: 200 },
+  })),
 }))
 
 // Mock loadSdkClient so commands don't try to read config / network.
@@ -61,6 +73,9 @@ async function loadCommands() {
   const ics = await import("../../src/generated/cli/event/ics.js")
   const occurrences = await import("../../src/generated/cli/event/occurrences.js")
   const agenda = await import("../../src/generated/cli/event/agenda.js")
+  const occurrenceSet = await import("../../src/generated/cli/event/occurrence/set.js")
+  const occurrenceCancel = await import("../../src/generated/cli/event/occurrence/cancel.js")
+  const occurrenceRestore = await import("../../src/generated/cli/event/occurrence/restore.js")
   const sdk = await import("../../src/generated/sdk/index.js")
   return {
     eventCreateCommand: add.eventCreateCommand,
@@ -69,6 +84,9 @@ async function loadCommands() {
     eventIcsDownloadCommand: ics.eventIcsDownloadCommand,
     eventOccurrencesCommand: occurrences.eventOccurrencesCommand,
     eventAgendaCommand: agenda.eventAgendaCommand,
+    eventOccurrenceSetCommand: occurrenceSet.eventOccurrenceSetCommand,
+    eventOccurrenceCancelCommand: occurrenceCancel.eventOccurrenceCancelCommand,
+    eventOccurrenceRestoreCommand: occurrenceRestore.eventOccurrenceRestoreCommand,
     eventCreate: sdk.eventCreate as ReturnType<typeof vi.fn>,
     eventUpdate: sdk.eventUpdate as ReturnType<typeof vi.fn>,
     eventGet: sdk.eventGet as ReturnType<typeof vi.fn>,
@@ -76,6 +94,9 @@ async function loadCommands() {
     eventIcsDownload: sdk.eventIcsDownload as ReturnType<typeof vi.fn>,
     eventOccurrences: sdk.eventOccurrences as ReturnType<typeof vi.fn>,
     eventAgenda: sdk.eventAgenda as ReturnType<typeof vi.fn>,
+    eventOccurrenceSet: sdk.eventOccurrenceSet as ReturnType<typeof vi.fn>,
+    eventOccurrenceCancel: sdk.eventOccurrenceCancel as ReturnType<typeof vi.fn>,
+    eventOccurrenceRestore: sdk.eventOccurrenceRestore as ReturnType<typeof vi.fn>,
   }
 }
 
@@ -114,6 +135,7 @@ describe("event occurrences", () => {
         end: "2026-07-01",
         limit: 25,
         cursor: "next-page",
+        include_cancelled: undefined,
       },
     })
   })
@@ -146,6 +168,106 @@ describe("event occurrences", () => {
       end: "2026-11-08T09:00:00.000-05:00",
     })
     expect(eventOccurrences.mock.calls[0]![0].query.time_zone).toBeUndefined()
+  })
+
+  it("forwards --include-cancelled", async () => {
+    const { eventOccurrencesCommand, eventOccurrences } = await loadCommands()
+    await eventOccurrencesCommand.parseAsync([
+      "node",
+      "occurrences",
+      "evt_1",
+      "--from",
+      "2026-06-01",
+      "--to",
+      "2026-07-01",
+      "--include-cancelled",
+    ])
+    expect(eventOccurrences.mock.calls[0]![0].query.include_cancelled).toBe(true)
+  })
+})
+
+describe("event occurrence mutations", () => {
+  it("requires start/end and parses UTC times after reading the series master", async () => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    eventGet.mockResolvedValueOnce({
+      data: { all_day: false, time_zone: "UTC" },
+      response: { ok: true, status: 200 },
+    })
+    await eventOccurrenceSetCommand.parseAsync([
+      "node",
+      "set",
+      "evt_1",
+      "2026-06-01T09:00:00Z",
+      "--start",
+      "tomorrow 10am",
+      "--end",
+      "tomorrow 11am",
+      "--expected-version",
+      "2",
+    ])
+    expect(eventGet).toHaveBeenCalledWith(expect.objectContaining({ path: { id: "evt_1" } }))
+    expect(eventOccurrenceSet).toHaveBeenCalledWith({
+      client: expect.anything(),
+      path: { series_id: "evt_1", recurrence_id: "2026-06-01T09:00:00Z" },
+      body: {
+        start: "2026-05-28T10:00:00.000Z",
+        end: "2026-05-28T11:00:00.000Z",
+        expected_version: 2,
+      },
+    })
+  })
+
+  it("keeps local wall-clock offsets and rejects a mismatched --tz", async () => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    eventGet.mockResolvedValue({
+      data: { all_day: false, time_zone: "America/New_York" },
+      response: { ok: true, status: 200 },
+    })
+    await eventOccurrenceSetCommand.parseAsync([
+      "node",
+      "set",
+      "evt_1",
+      "2026-11-02T09:00:00-05:00",
+      "--start",
+      "2026-11-03 9am",
+      "--end",
+      "2026-11-03 10am",
+      "--tz",
+      "America/New_York",
+    ])
+    expect(eventOccurrenceSet.mock.calls[0]![0].body).toMatchObject({
+      start: "2026-11-03T09:00:00.000-05:00",
+      end: "2026-11-03T10:00:00.000-05:00",
+    })
+
+    await expect(
+      eventOccurrenceSetCommand.parseAsync([
+        "node",
+        "set",
+        "evt_1",
+        "2026-11-02T09:00:00-05:00",
+        "--start",
+        "2026-11-03 9am",
+        "--end",
+        "2026-11-03 10am",
+        "--tz",
+        "Asia/Taipei",
+      ]),
+    ).rejects.toThrow("--tz must match the series time zone")
+  })
+
+  it("round-trips expected versions for cancel and restore", async () => {
+    const {
+      eventOccurrenceCancelCommand,
+      eventOccurrenceRestoreCommand,
+      eventOccurrenceCancel,
+      eventOccurrenceRestore,
+    } = await loadCommands()
+    const args = ["evt_1", "2026-06-01T09:00:00Z", "--expected-version", "3"]
+    await eventOccurrenceCancelCommand.parseAsync(["node", "cancel", ...args])
+    await eventOccurrenceRestoreCommand.parseAsync(["node", "restore", ...args])
+    expect(eventOccurrenceCancel.mock.calls[0]![0].body.expected_version).toBe(3)
+    expect(eventOccurrenceRestore.mock.calls[0]![0].body.expected_version).toBe(3)
   })
 })
 

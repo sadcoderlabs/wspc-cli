@@ -41,6 +41,9 @@ scopes todos per project. Run `wspc todo project ls` to discover ids.
 | `wspc todo rule ls` | List recurrence rules. |
 | `wspc event occurrences <id> --from <value> --to <value>` | Expand one recurring series in a bounded half-open window; supports cursor pagination and parse-only `--tz`. |
 | `wspc event agenda --from <value> --to <value>` | Merge overlapping single events and recurring occurrences in a bounded view-zone agenda. |
+| `wspc event occurrence set <series-id> <recurrence-id> --start <value> --end <value>` | 改期單次 occurrence，同時保留不可變的 recurrence identity。 |
+| `wspc event occurrence cancel <series-id> <recurrence-id>` | 取消單次 occurrence，不取消整個 series。 |
+| `wspc event occurrence restore <series-id> <recurrence-id>` | 移除單次 occurrence exception，重新繼承 series。 |
 | `wspc drive bind --library <id> [path]` | Bind an existing Drive library to a local folder. |
 | `wspc drive sync once [path]` | Run one manual whole-file Drive sync pass. |
 | `wspc drive watch [path]` | Keep a bound Drive folder in foreground watch mode. |
