@@ -187,6 +187,55 @@ describe("event occurrences", () => {
 })
 
 describe("event occurrence mutations", () => {
+  it("requires both reschedule boundaries before reading the series master", async () => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    eventOccurrenceSetCommand.exitOverride()
+
+    await expect(
+      eventOccurrenceSetCommand.parseAsync([
+        "node",
+        "set",
+        "evt_1",
+        "2026-06-01",
+        "--start",
+        "2026-06-02",
+      ]),
+    ).rejects.toMatchObject({ code: "commander.missingMandatoryOptionValue" })
+    expect(eventGet).not.toHaveBeenCalled()
+    expect(eventOccurrenceSet).not.toHaveBeenCalled()
+  })
+
+  it("sends all-day occurrence boundaries as unchanged Exclusive End dates", async () => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    eventGet.mockResolvedValueOnce({
+      data: { all_day: true },
+      response: { ok: true, status: 200 },
+    })
+
+    await eventOccurrenceSetCommand.parseAsync([
+      "node",
+      "set",
+      "evt_1",
+      "2026-06-01",
+      "--start",
+      "2026-06-02",
+      "--end",
+      "2026-06-03",
+      "--expected-version",
+      "2",
+    ])
+
+    expect(eventOccurrenceSet).toHaveBeenCalledWith({
+      client: expect.anything(),
+      path: { series_id: "evt_1", recurrence_id: "2026-06-01" },
+      body: {
+        start: "2026-06-02",
+        end: "2026-06-03",
+        expected_version: 2,
+      },
+    })
+  })
+
   it("requires start/end and parses UTC times after reading the series master", async () => {
     const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
     eventGet.mockResolvedValueOnce({
