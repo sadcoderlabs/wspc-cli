@@ -36,6 +36,44 @@ export function parseAgendaBoundary(input: string, zone: string): string {
   return iso
 }
 
+export function parseOccurrenceMutationTimes(
+  master: { all_day: boolean; time_zone?: string },
+  startInput: string,
+  endInput: string,
+  zoneHint?: string,
+): { start: string; end: string } {
+  if (master.all_day) {
+    if (zoneHint !== undefined) {
+      throw new ParseTimeError("--tz is not valid for an all-day recurring series.")
+    }
+    const start = DateTime.fromISO(startInput, { zone: "utc" })
+    const end = DateTime.fromISO(endInput, { zone: "utc" })
+    if (
+      !DATE_ONLY.test(startInput) ||
+      !DATE_ONLY.test(endInput) ||
+      !start.isValid ||
+      !end.isValid ||
+      start.toISODate() !== startInput ||
+      end.toISODate() !== endInput
+    ) {
+      throw new ParseTimeError("All-day occurrence times must be ISO dates.")
+    }
+    return { start: startInput, end: endInput }
+  }
+
+  const seriesZone = master.time_zone ?? "UTC"
+  if (zoneHint !== undefined && zoneHint !== seriesZone) {
+    throw new ParseTimeError(`--tz must match the series time zone (${seriesZone}).`)
+  }
+  const zone = seriesZone === "UTC" ? "UTC" : seriesZone
+  const start = parseTimeInput(startInput, zone)
+  const end = parseTimeInput(endInput, zone)
+  return {
+    start: (seriesZone === "UTC" ? start.toUTC() : start.setZone(seriesZone)).toISO()!,
+    end: (seriesZone === "UTC" ? end.toUTC() : end.setZone(seriesZone)).toISO()!,
+  }
+}
+
 export function parseTimeInput(input: string, zone: string): DateTime {
   // Only fast-path ISO strings that carry an explicit offset/Z. Naive ISO
   // (e.g. "2026-05-12T10:00") would land in the system zone with setZone:true,

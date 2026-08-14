@@ -13,6 +13,7 @@ export const eventOccurrencesCommand = new Command("occurrences")
   .requiredOption("--to <value>", "to")
   .option("--limit <value>", "limit", (value: string) => parseIntegerField(value, "limit"))
   .option("--cursor <value>", "cursor")
+  .option("--include-cancelled", "include_cancelled")
   .option("--tz <zone>", "IANA timezone for relative time parsing")
   .action(async (id, opts) => {
     const zone = resolveTimezone(opts.tz as string | undefined)
@@ -29,8 +30,9 @@ export const eventOccurrencesCommand = new Command("occurrences")
           end: toValue,
           limit: opts.limit,
           cursor: opts.cursor,
+          include_cancelled: opts.includeCancelled,
         },
       },
-      context: { kind: "event_occurrences", display: {"shape":"list","columns":["recurrence_id","start","end","title","status","time_zone"],"format":{"recurrence_id":"truncate","start":"relative-time","end":"relative-time","title":"truncate","status":"status-badge"},"emptyMessage":"no occurrences"} },
+      context: { kind: "event_occurrences", display: {"shape":"list","columns":["recurrence_id","start","end","status","exception_version","time_zone"],"format":{"recurrence_id":"truncate","start":"relative-time","end":"relative-time","status":"status-badge"},"emptyMessage":"no occurrences"} },
     })
   })

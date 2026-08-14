@@ -157,6 +157,7 @@ function extractItems(data: unknown): unknown[] {
       const value = getArray(data, key)
       if (value !== undefined) return value
     }
+    return [data]
   }
   return []
 }

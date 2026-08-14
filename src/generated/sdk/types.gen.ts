@@ -757,6 +757,38 @@ export type StartSubscriptionUpgradeInput = {
     preview_token: string;
 };
 
+export type EventOccurrence = {
+    series_id: string;
+    recurrence_id: string;
+    start: string;
+    end: string;
+    title: string;
+    description: string;
+    location?: string;
+    url?: string;
+    /**
+     * Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses.
+     */
+    status: 'confirmed' | 'tentative' | 'cancelled';
+    all_day: boolean;
+    time_zone?: string;
+    attendees: Array<{
+        /**
+         * Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out.
+         */
+        email: string;
+        /**
+         * Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address.
+         */
+        display_name?: string;
+    }>;
+    exception_version: number;
+};
+
+export type OccurrenceVersionBody = {
+    expected_version?: number;
+};
+
 /**
  * A calendar event row as returned by the API.
  */
@@ -975,6 +1007,7 @@ export type ListAgendaResponse = {
         series_id: string;
         recurrence_id: string;
         time_zone?: string;
+        exception_version: number;
     }>;
     view_time_zone: string;
     next_cursor?: string;
@@ -995,32 +1028,7 @@ export type ListEventsResponse = {
 };
 
 export type ListEventOccurrencesResponse = {
-    occurrences: Array<{
-        series_id: string;
-        recurrence_id: string;
-        start: string;
-        end: string;
-        title: string;
-        description: string;
-        location?: string;
-        url?: string;
-        /**
-         * Lifecycle status. `confirmed`: the event will happen (default). `tentative`: organizer has not finalized; still visible in lists. `cancelled`: the event was called off but the record is kept so attendees can be notified and history audited; distinct from soft-delete (DELETE `/calendar/events/{id}`) which hides the event from default list responses.
-         */
-        status: 'confirmed' | 'tentative' | 'cancelled';
-        all_day: boolean;
-        time_zone?: string;
-        attendees: Array<{
-            /**
-             * Attendee email address. Used as the identity key for dedupe and invite/update/cancel fan-out.
-             */
-            email: string;
-            /**
-             * Optional human-readable name shown in invitation emails and `.ics` payloads. Omit to fall back to the email address.
-             */
-            display_name?: string;
-        }>;
-    }>;
+    occurrences: Array<EventOccurrence>;
     next_cursor?: string;
 };
 
@@ -1078,6 +1086,12 @@ export type UpdateEventBody = {
      * Optional recurring-series time zone. Use `UTC` or a supported IANA identifier; aliases are canonicalized. Only timed recurring series may persist this field.
      */
     time_zone?: string;
+};
+
+export type UpdateOccurrenceBody = {
+    start: string;
+    end: string;
+    expected_version?: number;
 };
 
 export type DriveLibrary = {
@@ -5932,6 +5946,99 @@ export type BillingSubscriptionUpgradesCreateResponses = {
 
 export type BillingSubscriptionUpgradesCreateResponse = BillingSubscriptionUpgradesCreateResponses[keyof BillingSubscriptionUpgradesCreateResponses];
 
+export type EventOccurrenceCancelData = {
+    body?: OccurrenceVersionBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
+         */
+        'x-cb-cal'?: string;
+    };
+    path: {
+        series_id: string;
+        recurrence_id: string;
+    };
+    query?: never;
+    url: '/calendar/events/{series_id}/occurrences/{recurrence_id}/cancel';
+};
+
+export type EventOccurrenceCancelErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EventOccurrenceCancelError = EventOccurrenceCancelErrors[keyof EventOccurrenceCancelErrors];
+
+export type EventOccurrenceCancelResponses = {
+    /**
+     * Effective occurrence after mutation.
+     */
+    200: EventOccurrence;
+};
+
+export type EventOccurrenceCancelResponse = EventOccurrenceCancelResponses[keyof EventOccurrenceCancelResponses];
+
 export type EventListData = {
     body?: never;
     headers?: {
@@ -6761,6 +6868,7 @@ export type EventOccurrencesData = {
         end: string;
         limit?: number;
         cursor?: string;
+        include_cancelled?: 'true' | 'false';
     };
     url: '/calendar/events/{id}/occurrences';
 };
@@ -6936,6 +7044,192 @@ export type EventRestoreResponses = {
 };
 
 export type EventRestoreResponse = EventRestoreResponses[keyof EventRestoreResponses];
+
+export type EventOccurrenceRestoreData = {
+    body?: OccurrenceVersionBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
+         */
+        'x-cb-cal'?: string;
+    };
+    path: {
+        series_id: string;
+        recurrence_id: string;
+    };
+    query?: never;
+    url: '/calendar/events/{series_id}/occurrences/{recurrence_id}/restore';
+};
+
+export type EventOccurrenceRestoreErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EventOccurrenceRestoreError = EventOccurrenceRestoreErrors[keyof EventOccurrenceRestoreErrors];
+
+export type EventOccurrenceRestoreResponses = {
+    /**
+     * Effective occurrence after mutation.
+     */
+    200: EventOccurrence;
+};
+
+export type EventOccurrenceRestoreResponse = EventOccurrenceRestoreResponses[keyof EventOccurrenceRestoreResponses];
+
+export type EventOccurrenceSetData = {
+    body?: UpdateOccurrenceBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous calendar response. Send it back unchanged to continue read-after-write consistency for calendar D1 data.
+         */
+        'x-cb-cal'?: string;
+    };
+    path: {
+        series_id: string;
+        recurrence_id: string;
+    };
+    query?: never;
+    url: '/calendar/events/{series_id}/occurrences/{recurrence_id}';
+};
+
+export type EventOccurrenceSetErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EventOccurrenceSetError = EventOccurrenceSetErrors[keyof EventOccurrenceSetErrors];
+
+export type EventOccurrenceSetResponses = {
+    /**
+     * Effective occurrence after reschedule.
+     */
+    200: EventOccurrence;
+};
+
+export type EventOccurrenceSetResponse = EventOccurrenceSetResponses[keyof EventOccurrenceSetResponses];
 
 export type DriveLibraryListData = {
     body?: never;
