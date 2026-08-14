@@ -20430,7 +20430,6 @@
             "end": {
               "parser": "datetime",
               "allDayFlag": "all_day",
-              "exclusive": true,
               "utcWhenPresent": "rrule"
             },
             "attendee": {
@@ -20448,7 +20447,7 @@
           },
           "examples": [
             "wspc event add \"Lunch with Alice\" --start \"tomorrow 12:30pm\" --end \"tomorrow 1:30pm\"",
-            "wspc event add \"Team offsite\" --all-day --start 2026-06-01 --end 2026-06-01"
+            "wspc event add \"Team offsite\" --all-day --start 2026-06-01 --end 2026-06-02"
           ],
           "display": {
             "shape": "object",
@@ -22243,7 +22242,6 @@
             "end": {
               "parser": "datetime",
               "allDayFlag": "all_day",
-              "exclusive": true,
               "utcWhenPresent": "rrule"
             },
             "attendee": {
@@ -22261,6 +22259,7 @@
           },
           "examples": [
             "wspc event set evt_xxx --start \"tomorrow 1pm\" --end \"tomorrow 2pm\"",
+            "wspc event set evt_xxx --all-day --start 2026-06-01 --end 2026-06-02",
             "wspc event set evt_xxx --status cancelled"
           ],
           "display": {

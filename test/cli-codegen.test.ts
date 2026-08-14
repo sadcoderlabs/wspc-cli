@@ -142,7 +142,7 @@ describe("emitCommand", () => {
     expect(code).toContain("parseTimeInput, resolveTimezone")
   })
 
-  it("branches on allDayFlag and uses parseDateOnly / inclusiveEndToExclusive", () => {
+  it("validates every all-day boundary with parseDateOnly", () => {
     const code = emitCommand({
       operationId: "event_create",
       method: "post",
@@ -152,7 +152,7 @@ describe("emitCommand", () => {
         command: "event add",
         options: {
           start: { parser: "datetime", allDayFlag: "all_day" },
-          end: { parser: "datetime", allDayFlag: "all_day", exclusive: true },
+          end: { parser: "datetime", allDayFlag: "all_day" },
         },
       },
       bodyFields: [
@@ -163,10 +163,10 @@ describe("emitCommand", () => {
     expect(code).not.toBeNull()
     expect(code).toContain("if (opts.allDay) {")
     expect(code).toContain("startValue = parseDateOnly(opts.start as string)")
-    expect(code).toContain("endValue = inclusiveEndToExclusive(opts.end as string)")
+    expect(code).toContain("endValue = parseDateOnly(opts.end as string)")
     expect(code).toContain('.option("--all-day"')
     expect(code).toContain("parseDateOnly")
-    expect(code).toContain("inclusiveEndToExclusive")
+    expect(code).not.toContain("inclusiveEndToExclusive")
   })
 
   it("converts a datetime to UTC when the configured option is present", () => {

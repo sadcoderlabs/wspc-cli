@@ -187,6 +187,55 @@ describe("event occurrences", () => {
 })
 
 describe("event occurrence mutations", () => {
+  it("requires both reschedule boundaries before reading the series master", async () => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    eventOccurrenceSetCommand.exitOverride()
+
+    await expect(
+      eventOccurrenceSetCommand.parseAsync([
+        "node",
+        "set",
+        "evt_1",
+        "2026-06-01",
+        "--start",
+        "2026-06-02",
+      ]),
+    ).rejects.toMatchObject({ code: "commander.missingMandatoryOptionValue" })
+    expect(eventGet).not.toHaveBeenCalled()
+    expect(eventOccurrenceSet).not.toHaveBeenCalled()
+  })
+
+  it("sends all-day occurrence boundaries as unchanged Exclusive End dates", async () => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    eventGet.mockResolvedValueOnce({
+      data: { all_day: true },
+      response: { ok: true, status: 200 },
+    })
+
+    await eventOccurrenceSetCommand.parseAsync([
+      "node",
+      "set",
+      "evt_1",
+      "2026-06-01",
+      "--start",
+      "2026-06-02",
+      "--end",
+      "2026-06-03",
+      "--expected-version",
+      "2",
+    ])
+
+    expect(eventOccurrenceSet).toHaveBeenCalledWith({
+      client: expect.anything(),
+      path: { series_id: "evt_1", recurrence_id: "2026-06-01" },
+      body: {
+        start: "2026-06-02",
+        end: "2026-06-03",
+        expected_version: 2,
+      },
+    })
+  })
+
   it("requires start/end and parses UTC times after reading the series master", async () => {
     const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
     eventGet.mockResolvedValueOnce({
@@ -345,7 +394,7 @@ describe("event add", () => {
     expect(dt.offset).toBe(DateTime.now().setZone(ZONE).offset)
   })
 
-  it("encodes --all-day with inclusive end date as date-only strings (end +1 exclusive)", async () => {
+  it("sends all-day boundaries as unchanged Exclusive End dates", async () => {
     const { eventCreateCommand, eventCreate } = await loadCommands()
     await eventCreateCommand.parseAsync([
       "node",
@@ -355,11 +404,22 @@ describe("event add", () => {
       "--start",
       "2026-05-10",
       "--end",
-      "2026-05-12",
+      "2026-05-13",
     ])
     const call = eventCreate.mock.calls[0]![0]
     expect(call.body.start).toBe("2026-05-10")
     expect(call.body.end).toBe("2026-05-13")
+  })
+
+  it.each([
+    ["2026-05-31", "2026-06-01"],
+    ["2028-02-29", "2028-03-01"],
+  ])("does not perform date math for all-day boundaries %s to %s", async (start, end) => {
+    const { eventCreateCommand, eventCreate } = await loadCommands()
+    await eventCreateCommand.parseAsync(["node", "add", "Boundary", "--all-day", "--start", start, "--end", end])
+
+    expect(eventCreate.mock.calls[0]![0].body.start).toBe(start)
+    expect(eventCreate.mock.calls[0]![0].body.end).toBe(end)
   })
 
   it("collects multiple --attendee flags and parses display name / email", async () => {
@@ -389,7 +449,7 @@ describe("event add", () => {
       "--start",
       "2026-08-17",
       "--end",
-      "2026-08-17",
+      "2026-08-18",
       "--rrule",
       "FREQ=WEEKLY;BYDAY=MO,WE",
     ])
@@ -448,6 +508,53 @@ describe("event add", () => {
 })
 
 describe("event set", () => {
+  it("sends both all-day boundaries unchanged", async () => {
+    const { eventUpdateCommand, eventUpdate } = await loadCommands()
+    await eventUpdateCommand.parseAsync([
+      "node",
+      "set",
+      "evt_1",
+      "--all-day",
+      "--start",
+      "2026-05-10",
+      "--end",
+      "2026-05-13",
+    ])
+
+    expect(eventUpdate.mock.calls[0]![0].body.start).toBe("2026-05-10")
+    expect(eventUpdate.mock.calls[0]![0].body.end).toBe("2026-05-13")
+  })
+
+  it("keeps an omitted all-day end out of a partial update", async () => {
+    const { eventUpdateCommand, eventUpdate } = await loadCommands()
+    await eventUpdateCommand.parseAsync([
+      "node",
+      "set",
+      "evt_1",
+      "--all-day",
+      "--start",
+      "2026-05-10",
+    ])
+
+    expect(eventUpdate.mock.calls[0]![0].body.start).toBe("2026-05-10")
+    expect(eventUpdate.mock.calls[0]![0].body.end).toBeUndefined()
+  })
+
+  it("keeps an omitted all-day start out of a partial update", async () => {
+    const { eventUpdateCommand, eventUpdate } = await loadCommands()
+    await eventUpdateCommand.parseAsync([
+      "node",
+      "set",
+      "evt_1",
+      "--all-day",
+      "--end",
+      "2026-05-13",
+    ])
+
+    expect(eventUpdate.mock.calls[0]![0].body.start).toBeUndefined()
+    expect(eventUpdate.mock.calls[0]![0].body.end).toBe("2026-05-13")
+  })
+
   it("preserves an empty --rrule value for recurrence clearing", async () => {
     const { eventUpdateCommand, eventUpdate } = await loadCommands()
     await eventUpdateCommand.parseAsync(["node", "set", "evt_1", "--rrule", ""])

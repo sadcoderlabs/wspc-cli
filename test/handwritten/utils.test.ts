@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
 import { DateTime } from "luxon"
 import { parseAttendee } from "../../src/handwritten/utils/parse-attendee.js"
-import { parseDateOnly, inclusiveEndToExclusive, ParseDateError } from "../../src/handwritten/utils/parse-date.js"
+import { parseDateOnly, ParseDateError } from "../../src/handwritten/utils/parse-date.js"
 import {
   parseTimeInput,
   parseOccurrenceBoundary,
@@ -51,16 +51,6 @@ describe("parseDateOnly", () => {
 
   it("rejects calendar-invalid date", () => {
     expect(() => parseDateOnly("2026-13-40")).toThrow(ParseDateError)
-  })
-})
-
-describe("inclusiveEndToExclusive", () => {
-  it("adds one day", () => {
-    expect(inclusiveEndToExclusive("2026-05-10")).toBe("2026-05-11")
-  })
-
-  it("crosses month boundary", () => {
-    expect(inclusiveEndToExclusive("2026-05-31")).toBe("2026-06-01")
   })
 })
 
