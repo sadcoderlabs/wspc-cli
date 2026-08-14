@@ -4,6 +4,10 @@ Official TypeScript SDK and CLI for [wspc.ai](https://wspc.ai).
 
 > Status: **v0 walking skeleton.** Covers todo commands plus the first Drive bind / sync / watch slice.
 
+## Roadmap
+
+- [所有 Calendar CLI mutation 使用 Exclusive End](docs/superpowers/specs/2026-08-14-calendar-cli-exclusive-end-design.md)
+
 ## Install
 
 ```bash
