@@ -1,9 +1,12 @@
+> 這是唯一正本，`CLAUDE.md` 是指向本檔的 symlink。要改指引改這裡，不要動 `CLAUDE.md`。
+
 # 語言規則
 
 - 對話、討論、解釋：繁體中文
 - README.md / DEVELOPER.md / CLAUDE.md / AGENTS.md：以中文為主，技術術語（HTTP、RPC、TDD、worker、binding 等）保留英文
 - docs/superpowers/ 下的所有文件（spec、plan、研究筆記等）：一律繁體中文撰寫散文段落、章節標題、表格內容。技術術語保留英文
 - 程式碼、程式碼註解、commit message、issue/PR 標題、log 訊息字串：英文
+- PR 敘述（body）：繁體中文。技術術語、錯誤訊息、路徑、程式碼區塊保留英文原文。PR 標題維持英文（見上一條）
 
 # Repo 導覽
 
@@ -26,6 +29,8 @@
 - **僅文件 / spec 更新 skip deploy**：如果這次的 PR 只有文件或 spec 更新，在 PR 的標題上加上 `[skip deploy]`。PR 階段會 job-level skip CI heavy jobs，merge 後也會 skip production deploy。不要把這個旗標用在程式碼、workflow、API surface 或其他需要 CI 驗證的改動。
 
 ## PR 敘述怎麼寫
+
+用繁體中文寫。技術術語、錯誤訊息與路徑保留英文原文，標題還是英文。
 
 按這個順序寫，順序本身就是重點：
 
