@@ -98,6 +98,47 @@ describe("loadSdkClient (multi-account)", () => {
     expect(acctB.refresh_token).toBe("rt_b")
   })
 
+  it("warns on stderr when a rotated token cannot be written back to the account slot", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "wspc-load-lost-slot-"))
+    const store = new ConfigStore({ configDir: dir })
+    await store.write(baseConfig())
+
+    let callCount = 0
+    vi.stubGlobal(
+      "fetch",
+      async (input: RequestInfo | URL): Promise<Response> => {
+        callCount++
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url
+        if (callCount === 1) return new Response("", { status: 401 })
+        if (url.includes("/auth/oauth/token")) {
+          return new Response(
+            JSON.stringify({ access_token: "at_a2", refresh_token: "rt_a2", expires_in: 900 }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          )
+        }
+        return new Response("{}", { status: 200 })
+      },
+    )
+
+    const { fetch: af } = await loadAuthedFetch({ store })
+
+    // The slot disappears after the interceptor resolved the account but before
+    // the rotation lands, which is the shape that made a successful rotation
+    // vanish silently and left the next refresh presenting a superseded token.
+    const withoutA = baseConfig()
+    delete (withoutA.envs.prod.accounts as Record<string, unknown>)["a@x.com"]
+    await store.write(withoutA)
+
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true)
+    await af("https://api.wspc.ai/auth/me")
+
+    const written = stderr.mock.calls.map((call) => String(call[0])).join("")
+    expect(written).toContain("a@x.com")
+    expect(written).toContain("prod")
+    expect(written).toMatch(/rotated/i)
+    expect(written).not.toContain("rt_a2")
+  })
+
   it("errors when multiple accounts and no current_account", async () => {
     const dir = await fs.mkdtemp(join(tmpdir(), "wspc-load-ambig-"))
     const store = new ConfigStore({ configDir: dir })

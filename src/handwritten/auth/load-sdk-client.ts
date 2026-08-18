@@ -60,13 +60,24 @@ function buildInterceptor(
       }
     },
     onTokenRefresh: async ({ accessToken, refreshToken, expiresAt }) => {
+      let saved = false
       await store.update((cfg) => {
         const a = cfg.envs[envName]?.accounts?.[email]
         if (!a) return
         a.access_token = accessToken
         a.refresh_token = refreshToken
         a.access_token_expires_at = expiresAt
+        saved = true
       })
+      // Dropping a rotation on the floor is worse than it looks: the server has
+      // already invalidated the token we still hold, so the next refresh reads
+      // as reuse and revokes the whole family. Say so rather than skip quietly.
+      if (!saved) {
+        process.stderr.write(
+          `wspc: token rotated but not saved: no account '${email}' in env '${envName}'; ` +
+            "the next refresh will present a superseded token and may sign you out\n",
+        )
+      }
     },
   })
 }
