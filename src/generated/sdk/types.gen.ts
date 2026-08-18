@@ -621,6 +621,12 @@ export type EffectiveEntitlements = {
     reserved_platform_address_count: number;
     included_custom_domain_count: number;
     custom_domain_add_on_eligible: boolean;
+    reserved_platform_address_usage: {
+        status: 'ready';
+        count: number;
+    } | {
+        status: 'unavailable';
+    };
 };
 
 export type InboundProtection = {
@@ -667,6 +673,7 @@ export type StorageUsage = {
 export type SubscriptionState = {
     status: 'free' | 'active' | 'pending_payment' | 'payment_issue' | 'restricted';
     checkout_eligible: boolean;
+    current_period_end_at?: number;
     grace_started_at?: number;
     grace_ends_at?: number;
     pending_mutation?: 'checkout' | 'tier_change' | 'add_on_change';
@@ -677,6 +684,33 @@ export type SubscriptionState = {
         currency: 'USD';
         available: number;
     };
+};
+
+export type UsageOverageCapResponse = {
+    status: 'shadow_only';
+    period_start_ms: number;
+    period_end_ms: number;
+    configured_cap_cents: number;
+    tier_default_cap_cents: number;
+    tier_max_cap_cents: number;
+    effective_cap_cents: 0;
+    paid_overage_available: false;
+    version: number;
+} | {
+    status: 'not_available';
+    reason: 'free';
+    configured_cap_cents: 0;
+    tier_default_cap_cents: 0;
+    tier_max_cap_cents: 0;
+    effective_cap_cents: 0;
+    paid_overage_available: false;
+    version: number;
+} | {
+    status: 'pending';
+} | {
+    status: 'mismatch';
+} | {
+    status: 'unavailable';
 };
 
 export type PaddleWebhookResult = {
@@ -755,6 +789,11 @@ export type StartSubscriptionUpgradeInput = {
     tier: 'personal' | 'startup' | 'business';
     idempotency_key: string;
     preview_token: string;
+};
+
+export type UpdateUsageOverageCapInput = {
+    cap_cents: number;
+    expected_version: number;
 };
 
 export type EventOccurrence = {
@@ -5115,6 +5154,10 @@ export type BillingEntitlementsGetData = {
          * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
          */
         'x-cb-billing'?: string;
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
     };
     path?: never;
     query?: never;
@@ -5311,6 +5354,129 @@ export type BillingSubscriptionStateGetResponses = {
 };
 
 export type BillingSubscriptionStateGetResponse = BillingSubscriptionStateGetResponses[keyof BillingSubscriptionStateGetResponses];
+
+export type BillingUsageOverageCapGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/billing/usage-overage-cap';
+};
+
+export type BillingUsageOverageCapGetErrors = {
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Usage evidence is unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingUsageOverageCapGetError = BillingUsageOverageCapGetErrors[keyof BillingUsageOverageCapGetErrors];
+
+export type BillingUsageOverageCapGetResponses = {
+    /**
+     * Current Workspace dormant usage overage cap settings.
+     */
+    200: UsageOverageCapResponse;
+};
+
+export type BillingUsageOverageCapGetResponse = BillingUsageOverageCapGetResponses[keyof BillingUsageOverageCapGetResponses];
+
+export type BillingUsageOverageCapUpdateData = {
+    body: UpdateUsageOverageCapInput;
+    path?: never;
+    query?: never;
+    url: '/billing/usage-overage-cap';
+};
+
+export type BillingUsageOverageCapUpdateErrors = {
+    /**
+     * The cap is invalid.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The cap is unavailable or its version is stale.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Usage evidence is unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingUsageOverageCapUpdateError = BillingUsageOverageCapUpdateErrors[keyof BillingUsageOverageCapUpdateErrors];
+
+export type BillingUsageOverageCapUpdateResponses = {
+    /**
+     * Current Workspace dormant usage overage cap settings.
+     */
+    200: UsageOverageCapResponse;
+};
+
+export type BillingUsageOverageCapUpdateResponse = BillingUsageOverageCapUpdateResponses[keyof BillingUsageOverageCapUpdateResponses];
 
 export type BillingPaddleWebhookReceiveData = {
     body: unknown;

@@ -1256,6 +1256,43 @@
           },
           "custom_domain_add_on_eligible": {
             "type": "boolean"
+          },
+          "reserved_platform_address_usage": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ready"
+                    ]
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "status",
+                  "count"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "unavailable"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            ]
           }
         },
         "required": [
@@ -1266,7 +1303,8 @@
           "workspace_storage_bytes",
           "reserved_platform_address_count",
           "included_custom_domain_count",
-          "custom_domain_add_on_eligible"
+          "custom_domain_add_on_eligible",
+          "reserved_platform_address_usage"
         ]
       },
       "InboundProtection": {
@@ -1522,6 +1560,10 @@
           "checkout_eligible": {
             "type": "boolean"
           },
+          "current_period_end_at": {
+            "type": "integer",
+            "minimum": 0
+          },
           "grace_started_at": {
             "type": "integer",
             "minimum": 0
@@ -1572,6 +1614,169 @@
         "required": [
           "status",
           "checkout_eligible"
+        ]
+      },
+      "UsageOverageCapResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "shadow_only"
+                ]
+              },
+              "period_start_ms": {
+                "type": "integer"
+              },
+              "period_end_ms": {
+                "type": "integer"
+              },
+              "configured_cap_cents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "tier_default_cap_cents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "tier_max_cap_cents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "effective_cap_cents": {
+                "type": "number",
+                "enum": [
+                  0
+                ]
+              },
+              "paid_overage_available": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "status",
+              "period_start_ms",
+              "period_end_ms",
+              "configured_cap_cents",
+              "tier_default_cap_cents",
+              "tier_max_cap_cents",
+              "effective_cap_cents",
+              "paid_overage_available",
+              "version"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_available"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "free"
+                ]
+              },
+              "configured_cap_cents": {
+                "type": "number",
+                "enum": [
+                  0
+                ]
+              },
+              "tier_default_cap_cents": {
+                "type": "number",
+                "enum": [
+                  0
+                ]
+              },
+              "tier_max_cap_cents": {
+                "type": "number",
+                "enum": [
+                  0
+                ]
+              },
+              "effective_cap_cents": {
+                "type": "number",
+                "enum": [
+                  0
+                ]
+              },
+              "paid_overage_available": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "status",
+              "reason",
+              "configured_cap_cents",
+              "tier_default_cap_cents",
+              "tier_max_cap_cents",
+              "effective_cap_cents",
+              "paid_overage_available",
+              "version"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "mismatch"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unavailable"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
         ]
       },
       "PaddleWebhookResult": {
@@ -1913,6 +2118,24 @@
           "tier",
           "idempotency_key",
           "preview_token"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateUsageOverageCapInput": {
+        "type": "object",
+        "properties": {
+          "cap_cents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "cap_cents",
+          "expected_version"
         ],
         "additionalProperties": false
       },
@@ -17118,6 +17341,16 @@
               "type": "string"
             },
             "example": "opaque-consistency-bookmark"
+          },
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
           }
         ],
         "responses": {
@@ -17126,6 +17359,12 @@
             "headers": {
               "x-cb-billing": {
                 "description": "Opaque consistency bookmark for the latest billing database position observed by this request. Store and send it on the next billing request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-cb-email": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
                 "schema": {
                   "type": "string"
                 }
@@ -17687,6 +17926,391 @@
           },
           "503": {
             "description": "Billing storage is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing/usage-overage-cap": {
+      "get": {
+        "operationId": "billing_usage_overage_cap_get",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get the dormant Current Workspace usage overage cap",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current Workspace dormant usage overage cap settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageOverageCapResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Usage evidence is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "billing_usage_overage_cap_update",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Update the dormant Current Workspace usage overage cap",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUsageOverageCapInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current Workspace dormant usage overage cap settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageOverageCapResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The cap is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The cap is unavailable or its version is stale.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Usage evidence is unavailable.",
             "content": {
               "application/json": {
                 "schema": {
