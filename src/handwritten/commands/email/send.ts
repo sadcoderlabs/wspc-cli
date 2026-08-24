@@ -71,6 +71,18 @@ export const sendCommand = new Command("send")
   .description("Send an outbound email")
   .requiredOption("--from <alias-email>", "alias email to send from")
   .option("--to <addr...>", "recipient address (repeatable)", [])
+  .option(
+    "--cc <address>",
+    "CC recipient address (repeatable)",
+    (value: string, recipients: string[]) => [...recipients, value],
+    [] as string[],
+  )
+  .option(
+    "--bcc <address>",
+    "BCC recipient address (repeatable)",
+    (value: string, recipients: string[]) => [...recipients, value],
+    [] as string[],
+  )
   .option("--subject <text>", "subject")
   .option("--text <body>", "plain-text body")
   .option("--text-file <path>", "read text body from file")
@@ -80,7 +92,20 @@ export const sendCommand = new Command("send")
   .action(async (opts) => {
     const isReply = Boolean(opts.reply)
     const to = opts.to as string[]
+    const cc = opts.cc as string[]
+    const bcc = opts.bcc as string[]
     const attachInputs = opts.attach as string[]
+
+    if (isReply && cc.length > 0) {
+      process.stderr.write("--cc is not allowed with --reply\n")
+      process.exitCode = 1
+      return
+    }
+    if (isReply && bcc.length > 0) {
+      process.stderr.write("--bcc is not allowed with --reply\n")
+      process.exitCode = 1
+      return
+    }
 
     // Resolve text source — mutually exclusive options
     if (opts.text && opts.textFile) {
@@ -148,6 +173,8 @@ export const sendCommand = new Command("send")
       body.in_reply_to_email_id = opts.reply
     } else {
       body.to = to
+      if (cc.length > 0) body.cc = cc
+      if (bcc.length > 0) body.bcc = bcc
       body.subject = opts.subject
     }
     if (attachments.length > 0) body.attachments = attachments
