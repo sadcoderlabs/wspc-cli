@@ -53,6 +53,38 @@ describe("wspc email send", () => {
     )
   })
 
+  it("fresh mode sends repeatable CC and BCC recipient roles", async () => {
+    await sendCommand.parseAsync([
+      "node",
+      "send",
+      "--from",
+      "a@d",
+      "--to",
+      "x@y",
+      "--cc",
+      "copy-one@y",
+      "--cc",
+      "copy-two@y",
+      "--bcc",
+      "hidden-one@y",
+      "--bcc",
+      "hidden-two@y",
+      "--subject",
+      "S",
+      "--text",
+      "T",
+      "--idempotency-key",
+      "roles-1",
+    ])
+
+    const body = sendMock.mock.calls[0]![0].body
+    expect(body).toMatchObject({
+      to: ["x@y"],
+      cc: ["copy-one@y", "copy-two@y"],
+      bcc: ["hidden-one@y", "hidden-two@y"],
+    })
+  })
+
   it("auto-generates idempotency_key when --idempotency-key omitted", async () => {
     await sendCommand.parseAsync([
       "node", "send",
@@ -79,6 +111,31 @@ describe("wspc email send", () => {
     expect(body.in_reply_to_email_id).toBe("eml_R")
     expect(body.to).toBeUndefined()
     expect(body.subject).toBeUndefined()
+  })
+
+  it.each(["--cc", "--bcc"])("reply mode rejects %s before sending", async (option) => {
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+
+    try {
+      await sendCommand.parseAsync([
+        "node",
+        "send",
+        "--from",
+        "a@d",
+        "--reply",
+        "eml_R",
+        option,
+        "copy@y",
+        "--text",
+        "T",
+      ])
+
+      expect(sendMock).not.toHaveBeenCalled()
+      expect(process.exitCode).toBe(1)
+      expect(stderr).toHaveBeenCalledWith(`${option} is not allowed with --reply\n`)
+    } finally {
+      stderr.mockRestore()
+    }
   })
 
   it("--attach local file becomes inline attachment with base64", async () => {
