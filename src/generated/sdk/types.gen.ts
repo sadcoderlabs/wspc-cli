@@ -558,6 +558,18 @@ export type ApplyDowngradeResult = {
 
 export type ApplySubscriptionDowngradeInput = {
     tier: 'personal' | 'startup';
+    billing_interval?: 'monthly' | 'annual';
+    idempotency_key: string;
+    preview_token: string;
+};
+
+export type UpgradeSubscriptionResult = {
+    status: 'applied' | 'reconciliation_required';
+    idempotent_replay: boolean;
+};
+
+export type ApplySubscriptionIntervalInput = {
+    billing_interval: 'monthly' | 'annual';
     idempotency_key: string;
     preview_token: string;
 };
@@ -569,7 +581,7 @@ export type CustomDomainAddOnResult = {
 
 export type ChangeCustomDomainAddOnInput = {
     action: 'activate' | 'remove';
-    domain: string;
+    domain?: string;
     idempotency_key: string;
     preview_token: string;
 };
@@ -593,9 +605,13 @@ export type EmailUsage = {
     sent_count: number;
     received_count: number;
     pooled_count: number;
+    pending_outbound_count: number;
     measured_at_ms: number;
     quota: {
         status: 'not_enforced';
+        usage_status: 'below_80' | 'warning' | 'at_limit';
+        included_count: number;
+        remaining_count: number;
     } | {
         status: 'below_80' | 'warning' | 'at_limit';
         included_count: number;
@@ -621,6 +637,7 @@ export type EffectiveEntitlements = {
     reserved_platform_address_count: number;
     included_custom_domain_count: number;
     custom_domain_add_on_eligible: boolean;
+    workspace_member_limit: number | null;
     reserved_platform_address_usage: {
         status: 'ready';
         count: number;
@@ -661,9 +678,14 @@ export type StorageUsage = {
     measured_at: number;
     quota: {
         status: 'not_enforced';
+        usage_status: 'below_80' | 'warning' | 'at_limit';
+        included_bytes: number;
+        pending_bytes: number;
+        remaining_bytes: number;
     } | {
         status: 'below_80' | 'warning' | 'at_limit';
         included_bytes: number;
+        pending_bytes: number;
         remaining_bytes: number;
     };
 } | {
@@ -672,11 +694,13 @@ export type StorageUsage = {
 
 export type SubscriptionState = {
     status: 'free' | 'active' | 'pending_payment' | 'payment_issue' | 'restricted';
+    billing_interval?: 'monthly' | 'annual';
     checkout_eligible: boolean;
+    annual_billing_enabled: boolean;
     current_period_end_at?: number;
     grace_started_at?: number;
     grace_ends_at?: number;
-    pending_mutation?: 'checkout' | 'tier_change' | 'add_on_change';
+    pending_mutation?: 'checkout' | 'tier_change' | 'add_on_change' | 'interval_change';
     cancellation_scheduled?: {
         effective_at: number;
     };
@@ -686,39 +710,12 @@ export type SubscriptionState = {
     };
 };
 
-export type UsageOverageCapResponse = {
-    status: 'shadow_only';
-    period_start_ms: number;
-    period_end_ms: number;
-    configured_cap_cents: number;
-    tier_default_cap_cents: number;
-    tier_max_cap_cents: number;
-    effective_cap_cents: 0;
-    paid_overage_available: false;
-    version: number;
-} | {
-    status: 'not_available';
-    reason: 'free';
-    configured_cap_cents: 0;
-    tier_default_cap_cents: 0;
-    tier_max_cap_cents: 0;
-    effective_cap_cents: 0;
-    paid_overage_available: false;
-    version: number;
-} | {
-    status: 'pending';
-} | {
-    status: 'mismatch';
-} | {
-    status: 'unavailable';
-};
-
 export type PaddleWebhookResult = {
     received: true;
     duplicate: boolean;
 };
 
-export type UpgradePreviewResult = {
+export type CustomDomainAddOnPreviewResult = {
     currency: 'USD';
     line_items: Array<{
         kind: 'unused_credit' | 'target_tier' | 'custom_domain_add_on' | 'tax' | 'other';
@@ -733,11 +730,13 @@ export type UpgradePreviewResult = {
     estimated: true;
     expires_at: number;
     quote_token: string;
+    affected_domain?: string;
+    target_add_on_quantity: number;
 };
 
 export type PreviewCustomDomainAddOnInput = {
     action: 'activate' | 'remove';
-    domain: string;
+    domain?: string;
 };
 
 export type DowngradePreviewResult = {
@@ -759,10 +758,33 @@ export type DowngradePreviewResult = {
 
 export type PreviewSubscriptionDowngradeInput = {
     tier: 'personal' | 'startup';
+    billing_interval?: 'monthly' | 'annual';
+};
+
+export type UpgradePreviewResult = {
+    currency: 'USD';
+    line_items: Array<{
+        kind: 'unused_credit' | 'target_tier' | 'custom_domain_add_on' | 'tax' | 'other';
+        amount: number;
+        description: string;
+    }>;
+    charge_now: number;
+    credit_to_balance: number;
+    next_payment_total: number;
+    recurring_total: number;
+    next_billed_at: number;
+    estimated: true;
+    expires_at: number;
+    quote_token: string;
+};
+
+export type PreviewSubscriptionIntervalInput = {
+    billing_interval: 'monthly' | 'annual';
 };
 
 export type PreviewSubscriptionUpgradeInput = {
     tier: 'personal' | 'startup' | 'business';
+    billing_interval?: 'monthly' | 'annual';
 };
 
 export type SubscriptionCancellationResult = {
@@ -777,23 +799,15 @@ export type CheckoutSessionResult = {
 
 export type StartInitialCheckoutInput = {
     tier: 'personal' | 'startup' | 'business';
+    billing_interval?: 'monthly' | 'annual';
     idempotency_key: string;
-};
-
-export type UpgradeSubscriptionResult = {
-    status: 'applied' | 'reconciliation_required';
-    idempotent_replay: boolean;
 };
 
 export type StartSubscriptionUpgradeInput = {
     tier: 'personal' | 'startup' | 'business';
+    billing_interval?: 'monthly' | 'annual';
     idempotency_key: string;
     preview_token: string;
-};
-
-export type UpdateUsageOverageCapInput = {
-    cap_cents: number;
-    expected_version: number;
 };
 
 export type EventOccurrence = {
@@ -1311,6 +1325,10 @@ export type EmailDomainObjectResponse = {
          */
         status: 'pending' | 'verified' | 'failed' | 'temporary_failure';
         /**
+         * Local Add-on Entitlement state. This is separate from the provider verification and capability statuses.
+         */
+        entitlement_state: 'candidate' | 'enabled' | 'restricted';
+        /**
          * Provider-side sending readiness signal for this domain registration. Custom-domain aliases can send only when this value is `verified`.
          */
         sending_status: 'pending' | 'verified' | 'failed' | 'disabled';
@@ -1421,6 +1439,14 @@ export type PublicOutboundEmail = {
      */
     to: Array<string>;
     /**
+     * Normalized CC addresses in caller order.
+     */
+    cc: Array<string>;
+    /**
+     * Normalized BCC addresses in caller order. Visible only to the sender.
+     */
+    bcc: Array<string>;
+    /**
      * Outbound subject as sent (may include `Re: ` prefix for replies).
      */
     subject?: string;
@@ -1484,6 +1510,10 @@ export type EmailDomainListResponse = {
          * Overall upstream provider status for DNS ownership verification.
          */
         status: 'pending' | 'verified' | 'failed' | 'temporary_failure';
+        /**
+         * Local Add-on Entitlement state. This is separate from the provider verification and capability statuses.
+         */
+        entitlement_state: 'candidate' | 'enabled' | 'restricted';
         /**
          * Provider-side sending readiness signal for this domain registration. Custom-domain aliases can send only when this value is `verified`.
          */
@@ -1583,6 +1613,14 @@ export type SendEmailBody = {
      * Recipient addresses. 1-10 entries. Required for a fresh send; may be omitted when `in_reply_to_email_id` is set (the server then reuses the original sender as the sole recipient).
      */
     to?: Array<string>;
+    /**
+     * CC addresses for a fresh send. Omit or use an empty array for replies.
+     */
+    cc?: Array<string>;
+    /**
+     * BCC addresses for a fresh send. Omit or use an empty array for replies.
+     */
+    bcc?: Array<string>;
     /**
      * Outbound subject. Required for a fresh send; may be omitted on reply (the server prefixes the inbound subject with `Re: `).
      */
@@ -4885,6 +4923,105 @@ export type BillingSubscriptionDowngradesCreateResponses = {
 
 export type BillingSubscriptionDowngradesCreateResponse = BillingSubscriptionDowngradesCreateResponses[keyof BillingSubscriptionDowngradesCreateResponses];
 
+export type BillingSubscriptionIntervalChangesCreateData = {
+    body: ApplySubscriptionIntervalInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/subscription-interval-changes';
+};
+
+export type BillingSubscriptionIntervalChangesCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Paddle could not collect payment; the subscription was not changed.
+     */
+    402: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage or Paddle is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingSubscriptionIntervalChangesCreateError = BillingSubscriptionIntervalChangesCreateErrors[keyof BillingSubscriptionIntervalChangesCreateErrors];
+
+export type BillingSubscriptionIntervalChangesCreateResponses = {
+    /**
+     * Billing Interval change applied or queued for reconciliation.
+     */
+    200: UpgradeSubscriptionResult;
+};
+
+export type BillingSubscriptionIntervalChangesCreateResponse = BillingSubscriptionIntervalChangesCreateResponses[keyof BillingSubscriptionIntervalChangesCreateResponses];
+
 export type BillingCustomDomainAddOnsChangeData = {
     body: ChangeCustomDomainAddOnInput;
     headers?: {
@@ -5068,6 +5205,24 @@ export type BillingPortalSessionsCreateResponses = {
 };
 
 export type BillingPortalSessionsCreateResponse = BillingPortalSessionsCreateResponses[keyof BillingPortalSessionsCreateResponses];
+
+export type BillingPublicRolloutGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/billing/public-rollout';
+};
+
+export type BillingPublicRolloutGetResponses = {
+    /**
+     * Public Billing rollout state.
+     */
+    200: {
+        annual_billing_enabled: boolean;
+    };
+};
+
+export type BillingPublicRolloutGetResponse = BillingPublicRolloutGetResponses[keyof BillingPublicRolloutGetResponses];
 
 export type BillingEmailUsageGetData = {
     body?: never;
@@ -5355,129 +5510,6 @@ export type BillingSubscriptionStateGetResponses = {
 
 export type BillingSubscriptionStateGetResponse = BillingSubscriptionStateGetResponses[keyof BillingSubscriptionStateGetResponses];
 
-export type BillingUsageOverageCapGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/billing/usage-overage-cap';
-};
-
-export type BillingUsageOverageCapGetErrors = {
-    /**
-     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
-     */
-    401: {
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-    /**
-     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
-     */
-    429: {
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-    /**
-     * Usage evidence is unavailable.
-     */
-    503: {
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-};
-
-export type BillingUsageOverageCapGetError = BillingUsageOverageCapGetErrors[keyof BillingUsageOverageCapGetErrors];
-
-export type BillingUsageOverageCapGetResponses = {
-    /**
-     * Current Workspace dormant usage overage cap settings.
-     */
-    200: UsageOverageCapResponse;
-};
-
-export type BillingUsageOverageCapGetResponse = BillingUsageOverageCapGetResponses[keyof BillingUsageOverageCapGetResponses];
-
-export type BillingUsageOverageCapUpdateData = {
-    body: UpdateUsageOverageCapInput;
-    path?: never;
-    query?: never;
-    url: '/billing/usage-overage-cap';
-};
-
-export type BillingUsageOverageCapUpdateErrors = {
-    /**
-     * The cap is invalid.
-     */
-    400: {
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-    /**
-     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
-     */
-    401: {
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-    /**
-     * The caller is authenticated but not permitted to perform this operation on the target resource.
-     */
-    403: {
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-    /**
-     * The cap is unavailable or its version is stale.
-     */
-    409: {
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-    /**
-     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
-     */
-    429: {
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-    /**
-     * Usage evidence is unavailable.
-     */
-    503: {
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-};
-
-export type BillingUsageOverageCapUpdateError = BillingUsageOverageCapUpdateErrors[keyof BillingUsageOverageCapUpdateErrors];
-
-export type BillingUsageOverageCapUpdateResponses = {
-    /**
-     * Current Workspace dormant usage overage cap settings.
-     */
-    200: UsageOverageCapResponse;
-};
-
-export type BillingUsageOverageCapUpdateResponse = BillingUsageOverageCapUpdateResponses[keyof BillingUsageOverageCapUpdateResponses];
-
 export type BillingPaddleWebhookReceiveData = {
     body: unknown;
     headers: {
@@ -5636,7 +5668,7 @@ export type BillingCustomDomainAddOnPreviewResponses = {
     /**
      * Custom-domain capacity change previewed.
      */
-    200: UpgradePreviewResult;
+    200: CustomDomainAddOnPreviewResult;
 };
 
 export type BillingCustomDomainAddOnPreviewResponse = BillingCustomDomainAddOnPreviewResponses[keyof BillingCustomDomainAddOnPreviewResponses];
@@ -5735,6 +5767,96 @@ export type BillingSubscriptionDowngradePreviewResponses = {
 
 export type BillingSubscriptionDowngradePreviewResponse = BillingSubscriptionDowngradePreviewResponses[keyof BillingSubscriptionDowngradePreviewResponses];
 
+export type BillingSubscriptionIntervalPreviewsCreateData = {
+    body: PreviewSubscriptionIntervalInput;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous billing response. Send it back unchanged to continue read-after-write consistency for billing D1 data.
+         */
+        'x-cb-billing'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/billing/subscription-interval-previews';
+};
+
+export type BillingSubscriptionIntervalPreviewsCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Billing storage or Paddle is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type BillingSubscriptionIntervalPreviewsCreateError = BillingSubscriptionIntervalPreviewsCreateErrors[keyof BillingSubscriptionIntervalPreviewsCreateErrors];
+
+export type BillingSubscriptionIntervalPreviewsCreateResponses = {
+    /**
+     * Fresh estimated Billing Interval change invoice.
+     */
+    200: UpgradePreviewResult;
+};
+
+export type BillingSubscriptionIntervalPreviewsCreateResponse = BillingSubscriptionIntervalPreviewsCreateResponses[keyof BillingSubscriptionIntervalPreviewsCreateResponses];
+
 export type BillingSubscriptionUpgradePreviewsCreateData = {
     body: PreviewSubscriptionUpgradeInput;
     headers?: {
@@ -5777,12 +5899,25 @@ export type BillingSubscriptionUpgradePreviewsCreateErrors = {
         };
     };
     /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     * Another billing mutation is pending or current usage does not fit the tier.
      */
     409: {
         error: {
             code: string;
             message: string;
+        };
+    } | {
+        error: {
+            code: 'CHECKOUT_TARGET_TIER_INELIGIBLE';
+            message: string;
+            details: {
+                actions: Array<'reduce_platform_addresses' | 'remove_custom_domains' | 'remove_workspace_members' | 'select_higher_tier' | 'wait_for_email_period_reset' | 'permanently_delete_storage' | 'contact_enterprise'>;
+                blocking_meters?: Array<{
+                    meter: 'email' | 'storage';
+                    required_quantity: number;
+                    included_quantity: number;
+                }>;
+            };
         };
     };
     /**
@@ -5969,7 +6104,12 @@ export type BillingCheckoutSessionsCreateErrors = {
             code: 'CHECKOUT_TARGET_TIER_INELIGIBLE';
             message: string;
             details: {
-                actions: Array<'reduce_platform_addresses' | 'remove_custom_domains' | 'select_higher_tier'>;
+                actions: Array<'reduce_platform_addresses' | 'remove_custom_domains' | 'remove_workspace_members' | 'select_higher_tier' | 'wait_for_email_period_reset' | 'permanently_delete_storage' | 'contact_enterprise'>;
+                blocking_meters?: Array<{
+                    meter: 'email' | 'storage';
+                    required_quantity: number;
+                    included_quantity: number;
+                }>;
             };
         };
     };
@@ -8102,7 +8242,7 @@ export type DriveFileUploadErrors = {
         };
     };
     /**
-     * The expected entry version conflicts with the current version, or the upload would exceed the Workspace pooled storage quota.
+     * The expected entry version conflicts with the current version, or the upload would exceed the Workspace included limit. Use Billing to compare recovery plans when the included limit blocks storage growth.
      */
     409: {
         error: {
@@ -8580,7 +8720,7 @@ export type DriveFileRestoreErrors = {
         };
     };
     /**
-     * The restore would exceed the Workspace pooled storage quota.
+     * The restore would exceed the Workspace included limit. Use Billing to compare recovery plans when the included limit blocks storage growth.
      */
     409: {
         error: {
@@ -10478,7 +10618,7 @@ export type EmailSendErrors = {
         };
     };
     /**
-     * An earlier send under this `idempotency_key` had different content, the sender custom domain is not ready, the sender alias has an active incident, or a current-request recipient has an active organization-scoped suppression.
+     * An earlier send under this `idempotency_key` had different content, the sender custom domain is not ready, the sender alias has an active incident, a current-request recipient has an active organization-scoped suppression, or the whole send would exceed an included limit. Use Billing to compare recovery plans when an included limit blocks the send.
      */
     409: {
         error: {
@@ -11632,6 +11772,9 @@ export type TodoListData = {
          */
         project_id: string;
         user_id?: string;
+        /**
+         * Filter by parent. Omit or pass the literal string `null` to list root-level todos only. Pass a root todo id to list direct children. A soft-deleted root todo is accepted only with `include_deleted=true`.
+         */
         parent_id?: string;
         status?: string | Array<string>;
         include_deleted?: string;

@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccountDeletionCancelData, AccountDeletionCancelErrors, AccountDeletionCancelResponses, AccountDeletionGetData, AccountDeletionGetErrors, AccountDeletionGetResponses, AccountDeletionRequestData, AccountDeletionRequestErrors, AccountDeletionRequestResponses, AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, BillingCheckoutSessionsCreateData, BillingCheckoutSessionsCreateErrors, BillingCheckoutSessionsCreateResponses, BillingCustomDomainAddOnPreviewData, BillingCustomDomainAddOnPreviewErrors, BillingCustomDomainAddOnPreviewResponses, BillingCustomDomainAddOnsChangeData, BillingCustomDomainAddOnsChangeErrors, BillingCustomDomainAddOnsChangeResponses, BillingEmailUsageGetData, BillingEmailUsageGetErrors, BillingEmailUsageGetResponses, BillingEnforcementReadinessGetData, BillingEnforcementReadinessGetErrors, BillingEnforcementReadinessGetResponses, BillingEntitlementsGetData, BillingEntitlementsGetErrors, BillingEntitlementsGetResponses, BillingInboundProtectionGetData, BillingInboundProtectionGetErrors, BillingInboundProtectionGetResponses, BillingPaddleWebhookReceiveData, BillingPaddleWebhookReceiveErrors, BillingPaddleWebhookReceiveResponses, BillingPortalSessionsCreateData, BillingPortalSessionsCreateErrors, BillingPortalSessionsCreateResponses, BillingStorageUsageGetData, BillingStorageUsageGetErrors, BillingStorageUsageGetResponses, BillingSubscriptionCancellationUpdateData, BillingSubscriptionCancellationUpdateErrors, BillingSubscriptionCancellationUpdateResponses, BillingSubscriptionDowngradePreviewData, BillingSubscriptionDowngradePreviewErrors, BillingSubscriptionDowngradePreviewResponses, BillingSubscriptionDowngradesCreateData, BillingSubscriptionDowngradesCreateErrors, BillingSubscriptionDowngradesCreateResponses, BillingSubscriptionStateGetData, BillingSubscriptionStateGetErrors, BillingSubscriptionStateGetResponses, BillingSubscriptionUpgradePreviewsCreateData, BillingSubscriptionUpgradePreviewsCreateErrors, BillingSubscriptionUpgradePreviewsCreateResponses, BillingSubscriptionUpgradesCreateData, BillingSubscriptionUpgradesCreateErrors, BillingSubscriptionUpgradesCreateResponses, BillingUsageOverageCapGetData, BillingUsageOverageCapGetErrors, BillingUsageOverageCapGetResponses, BillingUsageOverageCapUpdateData, BillingUsageOverageCapUpdateErrors, BillingUsageOverageCapUpdateResponses, CalendarExportData, CalendarExportErrors, CalendarExportResponses, DriveFileDeleteData, DriveFileDeleteErrors, DriveFileDeleteResponses, DriveFileDownloadData, DriveFileDownloadErrors, DriveFileDownloadResponses, DriveFileEditData, DriveFileEditErrors, DriveFileEditResponses, DriveFileHistoryData, DriveFileHistoryErrors, DriveFileHistoryResponses, DriveFileMoveData, DriveFileMoveErrors, DriveFileMoveResponses, DriveFileRestoreData, DriveFileRestoreErrors, DriveFileRestoreResponses, DriveFileUploadData, DriveFileUploadErrors, DriveFileUploadResponses, DriveLibraryCreateData, DriveLibraryCreateErrors, DriveLibraryCreateResponses, DriveLibraryDeleteData, DriveLibraryDeleteErrors, DriveLibraryDeleteResponses, DriveLibraryGetData, DriveLibraryGetErrors, DriveLibraryGetResponses, DriveLibraryListData, DriveLibraryListErrors, DriveLibraryListResponses, DriveLibraryUpdateData, DriveLibraryUpdateErrors, DriveLibraryUpdateResponses, DriveManifestGetData, DriveManifestGetErrors, DriveManifestGetResponses, DriveSearchData, DriveSearchErrors, DriveSearchResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainDeleteData, EmailDomainDeleteErrors, EmailDomainDeleteResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EmailSentDeleteData, EmailSentDeleteErrors, EmailSentDeleteResponses, EmailSentGetData, EmailSentGetErrors, EmailSentGetResponses, EmailSentListData, EmailSentListErrors, EmailSentListResponses, EmailSentRestoreData, EmailSentRestoreErrors, EmailSentRestoreResponses, EmailTrashEmptyData, EmailTrashEmptyErrors, EmailTrashEmptyResponses, EmailTrashSummaryData, EmailTrashSummaryErrors, EmailTrashSummaryResponses, EventAgendaData, EventAgendaErrors, EventAgendaResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventOccurrenceCancelData, EventOccurrenceCancelErrors, EventOccurrenceCancelResponses, EventOccurrenceRestoreData, EventOccurrenceRestoreErrors, EventOccurrenceRestoreResponses, EventOccurrencesData, EventOccurrencesErrors, EventOccurrenceSetData, EventOccurrenceSetErrors, EventOccurrenceSetResponses, EventOccurrencesResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthAuthorizeGrantData, OauthAuthorizeGrantErrors, OauthAuthorizeGrantResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthDeviceConfirmData, OauthDeviceConfirmErrors, OauthDeviceConfirmResponses, OauthDeviceVerifyData, OauthDeviceVerifyErrors, OauthDeviceVerifyResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMemberRoleUpdateData, OrgMemberRoleUpdateErrors, OrgMemberRoleUpdateResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoExportData, TodoExportErrors, TodoExportResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
+import type { AccountDeletionCancelData, AccountDeletionCancelErrors, AccountDeletionCancelResponses, AccountDeletionGetData, AccountDeletionGetErrors, AccountDeletionGetResponses, AccountDeletionRequestData, AccountDeletionRequestErrors, AccountDeletionRequestResponses, AuthMeData, AuthMeErrors, AuthMeResponses, AuthRequestCodeData, AuthRequestCodeErrors, AuthRequestCodeResponses, AuthVerifyCodeData, AuthVerifyCodeErrors, AuthVerifyCodeResponses, BillingCheckoutSessionsCreateData, BillingCheckoutSessionsCreateErrors, BillingCheckoutSessionsCreateResponses, BillingCustomDomainAddOnPreviewData, BillingCustomDomainAddOnPreviewErrors, BillingCustomDomainAddOnPreviewResponses, BillingCustomDomainAddOnsChangeData, BillingCustomDomainAddOnsChangeErrors, BillingCustomDomainAddOnsChangeResponses, BillingEmailUsageGetData, BillingEmailUsageGetErrors, BillingEmailUsageGetResponses, BillingEnforcementReadinessGetData, BillingEnforcementReadinessGetErrors, BillingEnforcementReadinessGetResponses, BillingEntitlementsGetData, BillingEntitlementsGetErrors, BillingEntitlementsGetResponses, BillingInboundProtectionGetData, BillingInboundProtectionGetErrors, BillingInboundProtectionGetResponses, BillingPaddleWebhookReceiveData, BillingPaddleWebhookReceiveErrors, BillingPaddleWebhookReceiveResponses, BillingPortalSessionsCreateData, BillingPortalSessionsCreateErrors, BillingPortalSessionsCreateResponses, BillingPublicRolloutGetData, BillingPublicRolloutGetResponses, BillingStorageUsageGetData, BillingStorageUsageGetErrors, BillingStorageUsageGetResponses, BillingSubscriptionCancellationUpdateData, BillingSubscriptionCancellationUpdateErrors, BillingSubscriptionCancellationUpdateResponses, BillingSubscriptionDowngradePreviewData, BillingSubscriptionDowngradePreviewErrors, BillingSubscriptionDowngradePreviewResponses, BillingSubscriptionDowngradesCreateData, BillingSubscriptionDowngradesCreateErrors, BillingSubscriptionDowngradesCreateResponses, BillingSubscriptionIntervalChangesCreateData, BillingSubscriptionIntervalChangesCreateErrors, BillingSubscriptionIntervalChangesCreateResponses, BillingSubscriptionIntervalPreviewsCreateData, BillingSubscriptionIntervalPreviewsCreateErrors, BillingSubscriptionIntervalPreviewsCreateResponses, BillingSubscriptionStateGetData, BillingSubscriptionStateGetErrors, BillingSubscriptionStateGetResponses, BillingSubscriptionUpgradePreviewsCreateData, BillingSubscriptionUpgradePreviewsCreateErrors, BillingSubscriptionUpgradePreviewsCreateResponses, BillingSubscriptionUpgradesCreateData, BillingSubscriptionUpgradesCreateErrors, BillingSubscriptionUpgradesCreateResponses, CalendarExportData, CalendarExportErrors, CalendarExportResponses, DriveFileDeleteData, DriveFileDeleteErrors, DriveFileDeleteResponses, DriveFileDownloadData, DriveFileDownloadErrors, DriveFileDownloadResponses, DriveFileEditData, DriveFileEditErrors, DriveFileEditResponses, DriveFileHistoryData, DriveFileHistoryErrors, DriveFileHistoryResponses, DriveFileMoveData, DriveFileMoveErrors, DriveFileMoveResponses, DriveFileRestoreData, DriveFileRestoreErrors, DriveFileRestoreResponses, DriveFileUploadData, DriveFileUploadErrors, DriveFileUploadResponses, DriveLibraryCreateData, DriveLibraryCreateErrors, DriveLibraryCreateResponses, DriveLibraryDeleteData, DriveLibraryDeleteErrors, DriveLibraryDeleteResponses, DriveLibraryGetData, DriveLibraryGetErrors, DriveLibraryGetResponses, DriveLibraryListData, DriveLibraryListErrors, DriveLibraryListResponses, DriveLibraryUpdateData, DriveLibraryUpdateErrors, DriveLibraryUpdateResponses, DriveManifestGetData, DriveManifestGetErrors, DriveManifestGetResponses, DriveSearchData, DriveSearchErrors, DriveSearchResponses, EmailAliasCreateData, EmailAliasCreateErrors, EmailAliasCreateResponses, EmailAliasDeleteData, EmailAliasDeleteErrors, EmailAliasDeleteResponses, EmailAliasListData, EmailAliasListErrors, EmailAliasListResponses, EmailAliasRestoreData, EmailAliasRestoreErrors, EmailAliasRestoreResponses, EmailAttachmentGetData, EmailAttachmentGetErrors, EmailAttachmentGetResponses, EmailDeleteData, EmailDeleteErrors, EmailDeleteResponses, EmailDomainCreateData, EmailDomainCreateErrors, EmailDomainCreateResponses, EmailDomainDeleteData, EmailDomainDeleteErrors, EmailDomainDeleteResponses, EmailDomainGetData, EmailDomainGetErrors, EmailDomainGetResponses, EmailDomainListData, EmailDomainListErrors, EmailDomainListResponses, EmailDomainVerifyData, EmailDomainVerifyErrors, EmailDomainVerifyResponses, EmailGetData, EmailGetErrors, EmailGetResponses, EmailListData, EmailListErrors, EmailListResponses, EmailMarkReadData, EmailMarkReadErrors, EmailMarkReadResponses, EmailMarkUnreadData, EmailMarkUnreadErrors, EmailMarkUnreadResponses, EmailRestoreData, EmailRestoreErrors, EmailRestoreResponses, EmailSendData, EmailSendErrors, EmailSendResponses, EmailSentDeleteData, EmailSentDeleteErrors, EmailSentDeleteResponses, EmailSentGetData, EmailSentGetErrors, EmailSentGetResponses, EmailSentListData, EmailSentListErrors, EmailSentListResponses, EmailSentRestoreData, EmailSentRestoreErrors, EmailSentRestoreResponses, EmailTrashEmptyData, EmailTrashEmptyErrors, EmailTrashEmptyResponses, EmailTrashSummaryData, EmailTrashSummaryErrors, EmailTrashSummaryResponses, EventAgendaData, EventAgendaErrors, EventAgendaResponses, EventCreateData, EventCreateErrors, EventCreateResponses, EventDeleteData, EventDeleteErrors, EventDeleteResponses, EventGetData, EventGetErrors, EventGetResponses, EventIcsDownloadData, EventIcsDownloadErrors, EventIcsDownloadResponses, EventListData, EventListErrors, EventListResponses, EventOccurrenceCancelData, EventOccurrenceCancelErrors, EventOccurrenceCancelResponses, EventOccurrenceRestoreData, EventOccurrenceRestoreErrors, EventOccurrenceRestoreResponses, EventOccurrencesData, EventOccurrencesErrors, EventOccurrenceSetData, EventOccurrenceSetErrors, EventOccurrenceSetResponses, EventOccurrencesResponses, EventRestoreData, EventRestoreErrors, EventRestoreResponses, EventUpdateData, EventUpdateErrors, EventUpdateResponses, InviteAcceptData, InviteAcceptErrors, InviteAcceptResponses, InviteGetData, InviteGetErrors, InviteGetResponses, InviteRejectData, InviteRejectErrors, InviteRejectResponses, InvitesListData, InvitesListErrors, InvitesListResponses, KeyCreateData, KeyCreateErrors, KeyCreateResponses, KeyListData, KeyListErrors, KeyListResponses, KeyRevokeData, KeyRevokeErrors, KeyRevokeResponses, KeyUpdateData, KeyUpdateErrors, KeyUpdateResponses, OauthAuthorizeGrantData, OauthAuthorizeGrantErrors, OauthAuthorizeGrantResponses, OauthClientRegisterData, OauthClientRegisterErrors, OauthClientRegisterResponses, OauthDeviceAuthorizeData, OauthDeviceAuthorizeErrors, OauthDeviceAuthorizeResponses, OauthDeviceConfirmData, OauthDeviceConfirmErrors, OauthDeviceConfirmResponses, OauthDeviceVerifyData, OauthDeviceVerifyErrors, OauthDeviceVerifyResponses, OauthMetadataData, OauthMetadataErrors, OauthMetadataOpenidAliasData, OauthMetadataOpenidAliasErrors, OauthMetadataOpenidAliasResponses, OauthMetadataResponses, OauthTokenExchangeData, OauthTokenExchangeErrors, OauthTokenExchangeResponses, OauthTokenRevokeData, OauthTokenRevokeErrors, OauthTokenRevokeResponses, OrgGetData, OrgGetErrors, OrgGetResponses, OrgInviteCreateData, OrgInviteCreateErrors, OrgInviteCreateResponses, OrgInviteRevokeData, OrgInviteRevokeErrors, OrgInviteRevokeResponses, OrgInvitesListData, OrgInvitesListErrors, OrgInvitesListResponses, OrgMemberRemoveData, OrgMemberRemoveErrors, OrgMemberRemoveResponses, OrgMemberRoleUpdateData, OrgMemberRoleUpdateErrors, OrgMemberRoleUpdateResponses, OrgMembersListData, OrgMembersListErrors, OrgMembersListResponses, OrgUpdateData, OrgUpdateErrors, OrgUpdateResponses, ProjectCreateData, ProjectCreateErrors, ProjectCreateResponses, ProjectDeleteData, ProjectDeleteErrors, ProjectDeleteResponses, ProjectGetData, ProjectGetErrors, ProjectGetResponses, ProjectListData, ProjectListErrors, ProjectListResponses, ProjectRestoreData, ProjectRestoreErrors, ProjectRestoreResponses, ProjectUpdateData, ProjectUpdateErrors, ProjectUpdateResponses, PushConfigDeleteData, PushConfigDeleteErrors, PushConfigDeleteResponses, PushConfigGetData, PushConfigGetErrors, PushConfigGetResponses, PushConfigSetData, PushConfigSetErrors, PushConfigSetResponses, PushTestData, PushTestErrors, PushTestResponses, RecurrenceRuleCreateData, RecurrenceRuleCreateErrors, RecurrenceRuleCreateResponses, RecurrenceRuleDeleteData, RecurrenceRuleDeleteErrors, RecurrenceRuleDeleteResponses, RecurrenceRuleGetData, RecurrenceRuleGetErrors, RecurrenceRuleGetResponses, RecurrenceRuleListData, RecurrenceRuleListErrors, RecurrenceRuleListResponses, RecurrenceRuleUpdateData, RecurrenceRuleUpdateErrors, RecurrenceRuleUpdateResponses, TodoCommentCreateData, TodoCommentCreateErrors, TodoCommentCreateResponses, TodoCommentDeleteData, TodoCommentDeleteErrors, TodoCommentDeleteResponses, TodoCommentListData, TodoCommentListErrors, TodoCommentListResponses, TodoCommentUpdateData, TodoCommentUpdateErrors, TodoCommentUpdateResponses, TodoCreateData, TodoCreateErrors, TodoCreateResponses, TodoDeleteData, TodoDeleteErrors, TodoDeleteResponses, TodoExportData, TodoExportErrors, TodoExportResponses, TodoGetData, TodoGetErrors, TodoGetResponses, TodoListData, TodoListErrors, TodoListResponses, TodoRestoreData, TodoRestoreErrors, TodoRestoreResponses, TodoTypeCreateData, TodoTypeCreateErrors, TodoTypeCreateResponses, TodoTypeDeleteData, TodoTypeDeleteErrors, TodoTypeDeleteResponses, TodoTypeGetData, TodoTypeGetErrors, TodoTypeGetResponses, TodoTypeListData, TodoTypeListErrors, TodoTypeListResponses, TodoTypeRestoreData, TodoTypeRestoreErrors, TodoTypeRestoreResponses, TodoTypeUpdateData, TodoTypeUpdateErrors, TodoTypeUpdateResponses, TodoUpdateData, TodoUpdateErrors, TodoUpdateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -651,6 +651,21 @@ export const billingSubscriptionDowngradesCreate = <ThrowOnError extends boolean
 });
 
 /**
+ * Apply an immediate Billing Interval change
+ *
+ * Revalidates a fresh Paddle quote and immediately replaces every recurring item with prorated settlement.
+ */
+export const billingSubscriptionIntervalChangesCreate = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionIntervalChangesCreateData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionIntervalChangesCreateResponses, BillingSubscriptionIntervalChangesCreateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/billing/subscription-interval-changes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Change paid custom-domain capacity
  *
  * Activates the next eligible verified custom domain or removes the last billable domain immediately. Paddle settles any prorated charge or credit at the next renewal.
@@ -679,6 +694,13 @@ export const billingPortalSessionsCreate = <ThrowOnError extends boolean = false
         ...options.headers
     }
 });
+
+/**
+ * Get public Billing rollout state
+ *
+ * Returns whether public annual Billing actions are enabled.
+ */
+export const billingPublicRolloutGet = <ThrowOnError extends boolean = false>(options?: Options<BillingPublicRolloutGetData, ThrowOnError>) => (options?.client ?? client).get<BillingPublicRolloutGetResponses, unknown, ThrowOnError>({ url: '/billing/public-rollout', ...options });
 
 /**
  * Get Current Workspace Email usage
@@ -739,28 +761,6 @@ export const billingSubscriptionStateGet = <ThrowOnError extends boolean = false
 });
 
 /**
- * Get the dormant Current Workspace usage overage cap
- */
-export const billingUsageOverageCapGet = <ThrowOnError extends boolean = false>(options?: Options<BillingUsageOverageCapGetData, ThrowOnError>) => (options?.client ?? client).get<BillingUsageOverageCapGetResponses, BillingUsageOverageCapGetErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/billing/usage-overage-cap',
-    ...options
-});
-
-/**
- * Update the dormant Current Workspace usage overage cap
- */
-export const billingUsageOverageCapUpdate = <ThrowOnError extends boolean = false>(options: Options<BillingUsageOverageCapUpdateData, ThrowOnError>) => (options.client ?? client).put<BillingUsageOverageCapUpdateResponses, BillingUsageOverageCapUpdateErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/billing/usage-overage-cap',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Receive Paddle subscription events
  *
  * Verifies Paddle-Signature against the exact raw request body, stores a minimal deduplicated receipt, acknowledges it, then reconciles fresh provider state in the background.
@@ -797,6 +797,21 @@ export const billingCustomDomainAddOnPreview = <ThrowOnError extends boolean = f
 export const billingSubscriptionDowngradePreview = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionDowngradePreviewData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionDowngradePreviewResponses, BillingSubscriptionDowngradePreviewErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/billing/subscription-downgrade-preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Preview an immediate Billing Interval change
+ *
+ * Returns a read-only Paddle estimate for replacing every recurring item with the target Billing Interval.
+ */
+export const billingSubscriptionIntervalPreviewsCreate = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionIntervalPreviewsCreateData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionIntervalPreviewsCreateResponses, BillingSubscriptionIntervalPreviewsCreateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/billing/subscription-interval-previews',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -2053,11 +2068,11 @@ export const projectList = <ThrowOnError extends boolean = false>(options?: Opti
  *
  * ### 💡 Key Features & Constraints
  * * **Project Partitioning**: Projects act as strict boundaries. Custom todo types and recurrence rules created under this project are strictly confined to it.
- * * **Name Uniqueness**: Project names are free-form and do not have to be unique.
+ * * **Name Uniqueness**: Project names do not have to be unique, but `Default Project` is reserved for the organization default project.
  * * **Default Type Inheritance**: Omit `default_todo_type_id` to automatically inherit the Default Project's default task type.
  *
  * ### ⚠️ Common Errors & Troubleshooting
- * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if required fields are missing, if name is empty, or if name length constraints are violated.
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if required fields are missing, if name is empty, if name length constraints are violated, or if the reserved `Default Project` name is used.
  */
 export const projectCreate = <ThrowOnError extends boolean = false>(options?: Options<ProjectCreateData, ThrowOnError>) => (options?.client ?? client).post<ProjectCreateResponses, ProjectCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -2283,7 +2298,9 @@ export const todoCommentUpdate = <ThrowOnError extends boolean = false>(options:
  * * Use this to archive a completed project and hide it from default listings without losing historical metrics.
  *
  * ### 💡 Key Features & Constraints
- * * **Cascading Effects**: Deleting a project automatically soft-deletes the project record and cascades to soft-delete all todos created under it.
+ * * **Atomic Cascade**: Deleting a project archives its active user-visible root and direct child todos in the same aggregate write.
+ * * **Recurring Todos**: Recurrence templates remain active, but materialization pauses while the project is archived. Restoring the project resumes future materialization. Already-materialized occurrences are archived with other user-visible todos.
+ * * **Existing Trash**: Todos that were already archived keep their original deletion time, version, and cascade lineage.
  *
  * ### ⚠️ Common Errors & Troubleshooting
  * * **`NOT_FOUND` (HTTP 404)**: Thrown if the project ID does not exist or has already been archived.
@@ -2327,9 +2344,11 @@ export const projectGet = <ThrowOnError extends boolean = false>(options: Option
  * ### 💡 Key Features & Constraints
  * * **Optimistic Locking (`expected_version`)**: Pass `expected_version` to enforce optimistic write control. If the database version mismatches, the request fails with `VERSION_CONFLICT`.
  * * **Todo Type Binding**: If updating `default_todo_type_id`, the target type must be active and visible to the caller's organization.
+ * * **Reserved Name**: `Default Project` may only identify the organization default project.
  *
  * ### ⚠️ Common Errors & Troubleshooting
  * * **`VERSION_CONFLICT` (HTTP 409)**: Thrown if the provided `expected_version` does not match the database.
+ * * **`VALIDATION_ERROR` (HTTP 400)**: Thrown if another project is renamed to `Default Project`.
  * * **`NOT_FOUND` (HTTP 404)**: Thrown if the project ID does not exist or has been soft-deleted.
  */
 export const projectUpdate = <ThrowOnError extends boolean = false>(options: Options<ProjectUpdateData, ThrowOnError>) => (options.client ?? client).patch<ProjectUpdateResponses, ProjectUpdateErrors, ThrowOnError>({
@@ -2610,6 +2629,8 @@ export const todoExport = <ThrowOnError extends boolean = false>(options?: Optio
  *
  * ### 💡 Key Features & Constraints
  * * **No ID Alteration**: Restoring a project fully recovers the record without changing its stable ID or history.
+ * * **Todos Stay Archived**: Restoring a project does not restore its todos. They remain in Trash and can be recovered through the todo restore operation.
+ * * **Recurrence Resumes Forward**: Active recurrence templates can create future occurrences after restore, but missed historical occurrences are not backfilled.
  *
  * ### ⚠️ Common Errors & Troubleshooting
  * * **`NOT_FOUND` (HTTP 404)**: Thrown if the project ID does not exist.
