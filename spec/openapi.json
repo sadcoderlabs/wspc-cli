@@ -1762,6 +1762,12 @@
       "CustomDomainAddOnPreviewResult": {
         "type": "object",
         "properties": {
+          "amount_basis": {
+            "type": "string",
+            "enum": [
+              "before_tax"
+            ]
+          },
           "currency": {
             "type": "string",
             "enum": [
@@ -1779,14 +1785,44 @@
                     "unused_credit",
                     "target_tier",
                     "custom_domain_add_on",
+                    "discount",
+                    "customer_credit",
                     "tax",
                     "other"
-                  ]
+                  ],
+                  "description": "`tax` is deprecated for read compatibility. The Billing runtime does not emit tax rows because every emitted amount is before tax."
                 },
                 "amount": {
                   "type": "integer"
                 },
                 "description": {
+                  "type": "string"
+                },
+                "period_kind": {
+                  "type": "string",
+                  "enum": [
+                    "next_billing_period",
+                    "prorated_current_period"
+                  ]
+                },
+                "billing_period": {
+                  "type": "object",
+                  "properties": {
+                    "starts_at": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ends_at": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "starts_at",
+                    "ends_at"
+                  ]
+                },
+                "proration_rate": {
                   "type": "string"
                 }
               },
@@ -1838,6 +1874,7 @@
           }
         },
         "required": [
+          "amount_basis",
           "currency",
           "line_items",
           "charge_now",
@@ -1875,6 +1912,12 @@
       "DowngradePreviewResult": {
         "type": "object",
         "properties": {
+          "amount_basis": {
+            "type": "string",
+            "enum": [
+              "before_tax"
+            ]
+          },
           "currency": {
             "type": "string",
             "enum": [
@@ -1892,14 +1935,44 @@
                     "unused_credit",
                     "target_tier",
                     "custom_domain_add_on",
+                    "discount",
+                    "customer_credit",
                     "tax",
                     "other"
-                  ]
+                  ],
+                  "description": "`tax` is deprecated for read compatibility. The Billing runtime does not emit tax rows because every emitted amount is before tax."
                 },
                 "amount": {
                   "type": "integer"
                 },
                 "description": {
+                  "type": "string"
+                },
+                "period_kind": {
+                  "type": "string",
+                  "enum": [
+                    "next_billing_period",
+                    "prorated_current_period"
+                  ]
+                },
+                "billing_period": {
+                  "type": "object",
+                  "properties": {
+                    "starts_at": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ends_at": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "starts_at",
+                    "ends_at"
+                  ]
+                },
+                "proration_rate": {
                   "type": "string"
                 }
               },
@@ -1944,6 +2017,7 @@
           }
         },
         "required": [
+          "amount_basis",
           "currency",
           "line_items",
           "charge_now",
@@ -1982,6 +2056,12 @@
       "UpgradePreviewResult": {
         "type": "object",
         "properties": {
+          "amount_basis": {
+            "type": "string",
+            "enum": [
+              "before_tax"
+            ]
+          },
           "currency": {
             "type": "string",
             "enum": [
@@ -1999,14 +2079,44 @@
                     "unused_credit",
                     "target_tier",
                     "custom_domain_add_on",
+                    "discount",
+                    "customer_credit",
                     "tax",
                     "other"
-                  ]
+                  ],
+                  "description": "`tax` is deprecated for read compatibility. The Billing runtime does not emit tax rows because every emitted amount is before tax."
                 },
                 "amount": {
                   "type": "integer"
                 },
                 "description": {
+                  "type": "string"
+                },
+                "period_kind": {
+                  "type": "string",
+                  "enum": [
+                    "next_billing_period",
+                    "prorated_current_period"
+                  ]
+                },
+                "billing_period": {
+                  "type": "object",
+                  "properties": {
+                    "starts_at": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ends_at": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "starts_at",
+                    "ends_at"
+                  ]
+                },
+                "proration_rate": {
                   "type": "string"
                 }
               },
@@ -2051,6 +2161,7 @@
           }
         },
         "required": [
+          "amount_basis",
           "currency",
           "line_items",
           "charge_now",
@@ -3614,127 +3725,333 @@
           "ids"
         ]
       },
-      "PublicOutboundEmail": {
+      "ReceivedEmailDetail": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "description": "Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted)."
+          "email": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Server-assigned inbound email id (`eml_<ULID>` for new rows; legacy UUID ids remain accepted). Stable; safe to use as a key in your own storage."
+              },
+              "org_id": {
+                "type": "string",
+                "description": "Organization scope that owns the email."
+              },
+              "user_id": {
+                "type": "string",
+                "description": "Owner of the email. Always equals the authenticated user."
+              },
+              "alias_email": {
+                "type": "string",
+                "format": "email",
+                "description": "Full wspc alias email address the email was addressed to."
+              },
+              "from_addr": {
+                "type": "string",
+                "description": "Sender envelope/header address."
+              },
+              "from_name": {
+                "type": "string",
+                "description": "Sender display name parsed from the `From` header, if present."
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Subject header. Absent if the sender omitted it."
+              },
+              "text_body": {
+                "type": "string",
+                "description": "Plain-text body. May be truncated in list views; use `GET /email/messages/{id}` for the full body."
+              },
+              "html_body_r2_key": {
+                "type": "string",
+                "description": "Internal R2 object key for the HTML body, if the email had one. Fetch the rendered HTML via `GET /email/messages/{id}?include_html=true` rather than reading this directly."
+              },
+              "raw_r2_key": {
+                "type": "string",
+                "description": "Internal R2 object key for the raw MIME source. Not directly fetchable."
+              },
+              "size_bytes": {
+                "type": "number",
+                "description": "Size of the raw MIME source in bytes."
+              },
+              "attachment_count": {
+                "type": "number",
+                "description": "Number of attachments parsed from the message. Index into them via `GET /email/messages/{id}/attachments/{idx}` (0-based)."
+              },
+              "spf_pass": {
+                "type": "boolean",
+                "description": "Whether the inbound message passed SPF at ingest time."
+              },
+              "dkim_pass": {
+                "type": "boolean",
+                "description": "Whether the inbound message passed DKIM at ingest time."
+              },
+              "dmarc_pass": {
+                "type": "boolean",
+                "description": "Whether the inbound message passed DMARC at ingest time."
+              },
+              "auth_results_raw": {
+                "type": "string",
+                "description": "Raw `Authentication-Results` header for debugging, if present."
+              },
+              "is_read": {
+                "type": "boolean",
+                "description": "Whether the user has marked the email as read."
+              },
+              "read_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the email was first marked read; absent if unread."
+              },
+              "received_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the email was received by the inbound pipeline."
+              },
+              "created_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the row was written to the database."
+              },
+              "deleted_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the email was soft-deleted, if applicable. Soft-deleted emails are hidden from default list/get responses; pass `include_deleted=true` to surface them, then `POST /email/messages/restore` to undelete."
+              }
+            },
+            "required": [
+              "id",
+              "org_id",
+              "user_id",
+              "alias_email",
+              "from_addr",
+              "raw_r2_key",
+              "size_bytes",
+              "attachment_count",
+              "spf_pass",
+              "dkim_pass",
+              "dmarc_pass",
+              "is_read",
+              "received_at",
+              "created_at"
+            ]
           },
-          "org_id": {
-            "type": "string",
-            "description": "Organization scope that owns the outbound email."
-          },
-          "user_id": {
-            "type": "string",
-            "description": "Sender (the authenticated user)."
-          },
-          "from_alias_email": {
-            "type": "string",
-            "format": "email",
-            "description": "Full wspc alias email address the message was sent from."
-          },
-          "from_addr": {
-            "type": "string",
-            "description": "Materialized `From` address."
-          },
-          "to": {
+          "attachments": {
             "type": "array",
             "items": {
-              "type": "string"
-            },
-            "description": "Recipient addresses as actually submitted to the provider."
+              "type": "object",
+              "properties": {
+                "idx": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Zero-based index into the email's attachments array, as seen during MIME parsing. Use this as the `{idx}` path parameter when fetching attachment bytes."
+                },
+                "filename": {
+                  "type": "string",
+                  "description": "Original filename from the `Content-Disposition` header."
+                },
+                "mime_type": {
+                  "type": "string",
+                  "description": "Parsed MIME type. Used as the `Content-Type` of the attachment download."
+                },
+                "size_bytes": {
+                  "type": "number",
+                  "description": "Decoded size in bytes."
+                }
+              },
+              "required": [
+                "idx",
+                "filename",
+                "mime_type",
+                "size_bytes"
+              ]
+            }
           },
-          "cc": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Normalized CC addresses in caller order."
-          },
-          "bcc": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Normalized BCC addresses in caller order. Visible only to the sender."
-          },
-          "subject": {
-            "type": "string",
-            "maxLength": 500,
-            "description": "Outbound subject as sent (may include `Re: ` prefix for replies)."
-          },
-          "text_body": {
-            "type": "string",
-            "description": "Plain-text body as sent."
-          },
-          "in_reply_to_email_id": {
-            "type": "string",
-            "description": "Inbound email id this is a reply to, if applicable."
-          },
-          "message_id": {
-            "type": "string",
-            "description": "Observed outbound RFC 5322 `Message-ID`, when known."
-          },
-          "references_header": {
-            "type": "string",
-            "description": "Materialized `References` header for threaded replies."
-          },
-          "status": {
+          "attachment_availability": {
             "type": "string",
             "enum": [
-              "submitted",
-              "sent",
-              "failed"
-            ],
-            "description": "Lifecycle status. `submitted`: the row is persisted; provider call is in flight. `sent`: provider accepted the message. `failed`: provider rejected; see `error_code`/`error_message`."
+              "available",
+              "unavailable"
+            ]
           },
-          "idempotency_key": {
-            "type": "string",
-            "description": "Echo of the idempotency key used for this send."
-          },
-          "idempotency_expires_at": {
-            "type": "number",
-            "description": "Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged."
-          },
-          "deleted_at": {
-            "type": "number",
-            "description": "Unix epoch milliseconds the sent message entered trash."
-          },
-          "attachment_count": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Number of attachments on this outbound email. 0 when none."
-          },
-          "submitted_at": {
-            "type": "number",
-            "description": "Unix epoch milliseconds the provider accepted the message."
-          },
-          "created_at": {
-            "type": "number",
-            "description": "Unix epoch milliseconds the outbound row was first written."
-          },
-          "updated_at": {
-            "type": "number",
-            "description": "Unix epoch milliseconds the outbound row was last modified."
+          "html_body": {
+            "type": "string"
           }
         },
         "required": [
-          "id",
-          "org_id",
-          "user_id",
-          "from_alias_email",
-          "from_addr",
-          "to",
-          "cc",
-          "bcc",
-          "text_body",
-          "status",
-          "idempotency_key",
-          "idempotency_expires_at",
-          "attachment_count",
-          "created_at",
-          "updated_at"
+          "email",
+          "attachments",
+          "attachment_availability"
+        ]
+      },
+      "SentEmailDetail": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted)."
+              },
+              "org_id": {
+                "type": "string",
+                "description": "Organization scope that owns the outbound email."
+              },
+              "user_id": {
+                "type": "string",
+                "description": "Sender (the authenticated user)."
+              },
+              "from_alias_email": {
+                "type": "string",
+                "format": "email",
+                "description": "Full wspc alias email address the message was sent from."
+              },
+              "from_addr": {
+                "type": "string",
+                "description": "Materialized `From` address."
+              },
+              "to": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Recipient addresses as actually submitted to the provider."
+              },
+              "cc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Normalized CC addresses in caller order."
+              },
+              "bcc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Normalized BCC addresses in caller order. Visible only to the sender."
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Outbound subject as sent (may include `Re: ` prefix for replies)."
+              },
+              "text_body": {
+                "type": "string",
+                "description": "Plain-text body as sent."
+              },
+              "in_reply_to_email_id": {
+                "type": "string",
+                "description": "Inbound email id this is a reply to, if applicable."
+              },
+              "message_id": {
+                "type": "string",
+                "description": "Observed outbound RFC 5322 `Message-ID`, when known."
+              },
+              "references_header": {
+                "type": "string",
+                "description": "Materialized `References` header for threaded replies."
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "submitted",
+                  "sent",
+                  "failed"
+                ],
+                "description": "Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details."
+              },
+              "idempotency_key": {
+                "type": "string",
+                "description": "Echo of the idempotency key used for this send."
+              },
+              "idempotency_expires_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged."
+              },
+              "deleted_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the sent message entered trash."
+              },
+              "attachment_count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of attachments on this outbound email. 0 when none."
+              },
+              "submitted_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the provider accepted the message."
+              },
+              "created_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the outbound row was first written."
+              },
+              "updated_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the outbound row was last modified."
+              }
+            },
+            "required": [
+              "id",
+              "org_id",
+              "user_id",
+              "from_alias_email",
+              "from_addr",
+              "to",
+              "cc",
+              "bcc",
+              "text_body",
+              "status",
+              "idempotency_key",
+              "idempotency_expires_at",
+              "attachment_count",
+              "created_at",
+              "updated_at"
+            ]
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "idx": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Zero-based index into the email's attachments array, as seen during MIME parsing. Use this as the `{idx}` path parameter when fetching attachment bytes."
+                },
+                "filename": {
+                  "type": "string",
+                  "description": "Original filename from the `Content-Disposition` header."
+                },
+                "mime_type": {
+                  "type": "string",
+                  "description": "Parsed MIME type. Used as the `Content-Type` of the attachment download."
+                },
+                "size_bytes": {
+                  "type": "number",
+                  "description": "Decoded size in bytes."
+                }
+              },
+              "required": [
+                "idx",
+                "filename",
+                "mime_type",
+                "size_bytes"
+              ]
+            }
+          },
+          "attachment_availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "attachments",
+          "attachment_availability"
         ]
       },
       "EmailDomainListResponse": {
@@ -3928,7 +4245,165 @@
         "type": "object",
         "properties": {
           "email": {
-            "$ref": "#/components/schemas/PublicOutboundEmail"
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted)."
+              },
+              "org_id": {
+                "type": "string",
+                "description": "Organization scope that owns the outbound email."
+              },
+              "user_id": {
+                "type": "string",
+                "description": "Sender (the authenticated user)."
+              },
+              "from_alias_email": {
+                "type": "string",
+                "format": "email",
+                "description": "Full wspc alias email address the message was sent from."
+              },
+              "from_addr": {
+                "type": "string",
+                "description": "Materialized `From` address."
+              },
+              "to": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Recipient addresses as actually submitted to the provider."
+              },
+              "cc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Normalized CC addresses in caller order."
+              },
+              "bcc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Normalized BCC addresses in caller order. Visible only to the sender."
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Outbound subject as sent (may include `Re: ` prefix for replies)."
+              },
+              "text_body": {
+                "type": "string",
+                "description": "Plain-text body as sent."
+              },
+              "in_reply_to_email_id": {
+                "type": "string",
+                "description": "Inbound email id this is a reply to, if applicable."
+              },
+              "message_id": {
+                "type": "string",
+                "description": "Observed outbound RFC 5322 `Message-ID`, when known."
+              },
+              "references_header": {
+                "type": "string",
+                "description": "Materialized `References` header for threaded replies."
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "submitted",
+                  "sent",
+                  "failed"
+                ],
+                "description": "Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details."
+              },
+              "idempotency_key": {
+                "type": "string",
+                "description": "Echo of the idempotency key used for this send."
+              },
+              "idempotency_expires_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged."
+              },
+              "deleted_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the sent message entered trash."
+              },
+              "attachment_count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of attachments on this outbound email. 0 when none."
+              },
+              "submitted_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the provider accepted the message."
+              },
+              "created_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the outbound row was first written."
+              },
+              "updated_at": {
+                "type": "number",
+                "description": "Unix epoch milliseconds the outbound row was last modified."
+              }
+            },
+            "required": [
+              "id",
+              "org_id",
+              "user_id",
+              "from_alias_email",
+              "from_addr",
+              "to",
+              "cc",
+              "bcc",
+              "text_body",
+              "status",
+              "idempotency_key",
+              "idempotency_expires_at",
+              "attachment_count",
+              "created_at",
+              "updated_at"
+            ]
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "idx": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Zero-based index into the email's attachments array, as seen during MIME parsing. Use this as the `{idx}` path parameter when fetching attachment bytes."
+                },
+                "filename": {
+                  "type": "string",
+                  "description": "Original filename from the `Content-Disposition` header."
+                },
+                "mime_type": {
+                  "type": "string",
+                  "description": "Parsed MIME type. Used as the `Content-Type` of the attachment download."
+                },
+                "size_bytes": {
+                  "type": "number",
+                  "description": "Decoded size in bytes."
+                }
+              },
+              "required": [
+                "idx",
+                "filename",
+                "mime_type",
+                "size_bytes"
+              ]
+            }
+          },
+          "attachment_availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ]
           },
           "idempotent_replay": {
             "type": "boolean",
@@ -3937,6 +4412,8 @@
         },
         "required": [
           "email",
+          "attachments",
+          "attachment_availability",
           "idempotent_replay"
         ]
       },
@@ -4375,6 +4852,12 @@
           "dtstart": {
             "type": "string"
           },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "version": {
             "type": "integer",
             "minimum": 0
@@ -4395,6 +4878,7 @@
           "project_id",
           "rrule",
           "dtstart",
+          "parent_id",
           "version",
           "created_at",
           "updated_at"
@@ -18684,7 +19168,7 @@
           "Billing"
         ],
         "summary": "Preview a paid custom-domain capacity change",
-        "description": "Returns the next-renewal Paddle estimate. The immediate charge and credit are zero; next_payment_total reports the expected renewal payment.",
+        "description": "Returns a before-tax Paddle estimate. The amount due now is zero; next_payment_total is the before-tax Next renewal amount and next_billed_at is its provider-authoritative date.",
         "security": [
           {
             "bearerAuth": []
@@ -19027,7 +19511,7 @@
           "Billing"
         ],
         "summary": "Preview an immediate downgrade",
-        "description": "Uses authoritative Email resource counts to validate retained resources and return the target period base and custom-domain add-on price without creating a billing mutation.",
+        "description": "Uses authoritative Email resource counts to validate retained resources and returns a before-tax Paddle estimate with settlement periods and proration metadata without creating a billing mutation.",
         "security": [
           {
             "bearerAuth": []
@@ -19370,7 +19854,7 @@
           "Billing"
         ],
         "summary": "Preview an immediate Billing Interval change",
-        "description": "Returns a read-only Paddle estimate for replacing every recurring item with the target Billing Interval.",
+        "description": "Returns a read-only before-tax Paddle estimate with settlement periods and proration metadata for replacing every recurring item with the target Billing Interval.",
         "security": [
           {
             "bearerAuth": []
@@ -19413,6 +19897,42 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpgradePreviewResult"
+                },
+                "example": {
+                  "amount_basis": "before_tax",
+                  "currency": "USD",
+                  "line_items": [
+                    {
+                      "kind": "target_tier",
+                      "amount": 1800,
+                      "description": "Business",
+                      "period_kind": "prorated_current_period",
+                      "billing_period": {
+                        "starts_at": 1785888000000,
+                        "ends_at": 1788566400000
+                      },
+                      "proration_rate": "0.75"
+                    },
+                    {
+                      "kind": "unused_credit",
+                      "amount": -900,
+                      "description": "Startup",
+                      "period_kind": "prorated_current_period",
+                      "billing_period": {
+                        "starts_at": 1785888000000,
+                        "ends_at": 1788566400000
+                      },
+                      "proration_rate": "0.75"
+                    }
+                  ],
+                  "charge_now": 900,
+                  "credit_to_balance": 0,
+                  "next_payment_total": 2400,
+                  "recurring_total": 2400,
+                  "next_billed_at": 1788566400000,
+                  "estimated": true,
+                  "expires_at": 1785891600000,
+                  "quote_token": "preview-token"
                 }
               }
             }
@@ -19703,7 +20223,7 @@
           "Billing"
         ],
         "summary": "Preview a paid subscription upgrade",
-        "description": "Returns a read-only Paddle estimate for the complete recurring items replacement. No subscription mutation or charge is created.",
+        "description": "Returns a read-only before-tax Paddle estimate with settlement periods and proration metadata. No subscription mutation or charge is created.",
         "security": [
           {
             "bearerAuth": []
@@ -19746,6 +20266,42 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpgradePreviewResult"
+                },
+                "example": {
+                  "amount_basis": "before_tax",
+                  "currency": "USD",
+                  "line_items": [
+                    {
+                      "kind": "target_tier",
+                      "amount": 1800,
+                      "description": "Business",
+                      "period_kind": "prorated_current_period",
+                      "billing_period": {
+                        "starts_at": 1785888000000,
+                        "ends_at": 1788566400000
+                      },
+                      "proration_rate": "0.75"
+                    },
+                    {
+                      "kind": "unused_credit",
+                      "amount": -900,
+                      "description": "Startup",
+                      "period_kind": "prorated_current_period",
+                      "billing_period": {
+                        "starts_at": 1785888000000,
+                        "ends_at": 1788566400000
+                      },
+                      "proration_rate": "0.75"
+                    }
+                  ],
+                  "charge_now": 900,
+                  "credit_to_balance": 0,
+                  "next_payment_total": 2400,
+                  "recurring_total": 2400,
+                  "next_billed_at": 1788566400000,
+                  "estimated": true,
+                  "expires_at": 1785891600000,
+                  "quote_token": "preview-token"
                 }
               }
             }
@@ -35522,7 +36078,7 @@
           "Emails"
         ],
         "summary": "Download an attachment by index",
-        "description": "### Overview\nStreams the raw decoded bytes of a parsed attachment belonging to an inbound email. The response body is binary data instead of JSON.\n\n### When to Use\n- Use this endpoint when a user clicks to download a file attachment (such as an invoice PDF or image) or when an automated agent needs to process a file payload.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Response Headers**: The server sets the HTTP `Content-Type` matching the attachment's parsed MIME format and provides a `Content-Disposition: attachment; filename=\"<filename>\"` header.\n- **Soft-Deleted Parents**: Downloading files from soft-deleted emails is blocked with a 404 error, unless the query parameter `include_deleted=true` is provided.\n- **Path Parameter**: The `{idx}` must be a valid 0-based integer index pointing to the attachment list metadata.\n\n### Troubleshooting\n- **401 Unauthorized**: Invalid Bearer token.\n- **404 Not Found / EMAIL_NOT_FOUND**: The specified email ID does not exist or belongs to another user.\n- **404 Not Found / ATTACHMENT_NOT_FOUND**: The index `{idx}` is out of range for the email's attachment array.",
+        "description": "### Overview\nStreams the raw decoded bytes of a parsed attachment belonging to a received or sent email. The response body is binary data instead of JSON.\n\n### When to Use\n- Use this endpoint when a user clicks to download a file attachment (such as an invoice PDF or image) or when an automated agent needs to process a file payload.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Response Headers**: The server sets the HTTP `Content-Type` matching the attachment's parsed MIME format and provides a `Content-Disposition: attachment; filename=\"<filename>\"` header.\n- **Soft-Deleted Received Email**: A received parent in trash returns 404 unless `include_deleted=true` is provided.\n- **Sent Email in Trash**: A sent parent remains downloadable during Trash Retention and does not require `include_deleted=true`.\n- **Path Parameter**: The `{idx}` must be a valid 0-based integer index pointing to the attachment list metadata.\n- **Download example**: For `{ email: { id: \"out_...\" }, attachments: [{ idx: 0, ... }] }`, request `GET /email/messages/out_.../attachments/0`.\n\n### Troubleshooting\n- **401 Unauthorized**: Invalid Bearer token.\n- **404 Not Found / EMAIL_NOT_FOUND**: The specified email ID does not exist or belongs to another user.\n- **404 Not Found / ATTACHMENT_NOT_FOUND**: The index `{idx}` is out of range for the email's attachment array.",
         "security": [
           {
             "bearerAuth": []
@@ -35764,7 +36320,7 @@
           "Emails"
         ],
         "summary": "Get an inbound email by id",
-        "description": "### Overview\nFetches the metadata and plain-text body of a single inbound email by its unique ID. It also returns metadata for all associated attachments and optionally resolves the rendered HTML content.\n\n### When to Use\n- Use this endpoint to display the complete detail view of an email message.\n- Use it to extract attachment files or read complex HTML layouts.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **R2 HTML Read**: The HTML body is stored in Object Storage (R2). To fetch it, explicitly pass `include_html=true` (this incurs an extra R2 read charge; leave unset if only plain text is needed).\n- Returns a 404 error if the email has been soft-deleted, unless `include_deleted=true` is set.\n\n### Troubleshooting\n- **401 Unauthorized**: Missing or expired token.\n- **404 Not Found**: The specified email ID does not exist, belongs to another user, or has been soft-deleted (without `include_deleted=true`).",
+        "description": "### Overview\nFetches the metadata and plain-text body of a single inbound email by its unique ID. It also returns metadata for all associated attachments and optionally resolves the rendered HTML content.\n\n### When to Use\n- Use this endpoint to display the complete detail view of an email message.\n- Use it to extract attachment files or read complex HTML layouts.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **R2 HTML Read**: The HTML body is stored in Object Storage (R2). To fetch it, explicitly pass `include_html=true` (this incurs an extra R2 read charge; leave unset if only plain text is needed).\n- Returns a 404 error if the email has been soft-deleted, unless `include_deleted=true` is set.\n- The response now requires `attachment_availability`. Existing `email`, `attachments`, and optional `html_body` fields keep their positions.\n- **Attachment migration**: Each former `{ email_id, idx, filename, mime_type, size_bytes, sha256, r2_key, created_at }` item is now `{ idx, filename, mime_type, size_bytes }`. Use the wrapper's `email.id` with the item `idx` for downloads.\n\n### Troubleshooting\n- **401 Unauthorized**: Missing or expired token.\n- **404 Not Found**: The specified email ID does not exist, belongs to another user, or has been soft-deleted (without `include_deleted=true`).",
         "security": [
           {
             "bearerAuth": []
@@ -35856,173 +36412,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "email": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "description": "Server-assigned inbound email id (`eml_<ULID>` for new rows; legacy UUID ids remain accepted). Stable; safe to use as a key in your own storage."
-                        },
-                        "org_id": {
-                          "type": "string",
-                          "description": "Organization scope that owns the email."
-                        },
-                        "user_id": {
-                          "type": "string",
-                          "description": "Owner of the email. Always equals the authenticated user."
-                        },
-                        "alias_email": {
-                          "type": "string",
-                          "format": "email",
-                          "description": "Full wspc alias email address the email was addressed to."
-                        },
-                        "from_addr": {
-                          "type": "string",
-                          "description": "Sender envelope/header address."
-                        },
-                        "from_name": {
-                          "type": "string",
-                          "description": "Sender display name parsed from the `From` header, if present."
-                        },
-                        "subject": {
-                          "type": "string",
-                          "maxLength": 500,
-                          "description": "Subject header. Absent if the sender omitted it."
-                        },
-                        "text_body": {
-                          "type": "string",
-                          "description": "Plain-text body. May be truncated in list views; use `GET /email/messages/{id}` for the full body."
-                        },
-                        "html_body_r2_key": {
-                          "type": "string",
-                          "description": "Internal R2 object key for the HTML body, if the email had one. Fetch the rendered HTML via `GET /email/messages/{id}?include_html=true` rather than reading this directly."
-                        },
-                        "raw_r2_key": {
-                          "type": "string",
-                          "description": "Internal R2 object key for the raw MIME source. Not directly fetchable."
-                        },
-                        "size_bytes": {
-                          "type": "number",
-                          "description": "Size of the raw MIME source in bytes."
-                        },
-                        "attachment_count": {
-                          "type": "number",
-                          "description": "Number of attachments parsed from the message. Index into them via `GET /email/messages/{id}/attachments/{idx}` (0-based)."
-                        },
-                        "spf_pass": {
-                          "type": "boolean",
-                          "description": "Whether the inbound message passed SPF at ingest time."
-                        },
-                        "dkim_pass": {
-                          "type": "boolean",
-                          "description": "Whether the inbound message passed DKIM at ingest time."
-                        },
-                        "dmarc_pass": {
-                          "type": "boolean",
-                          "description": "Whether the inbound message passed DMARC at ingest time."
-                        },
-                        "auth_results_raw": {
-                          "type": "string",
-                          "description": "Raw `Authentication-Results` header for debugging, if present."
-                        },
-                        "is_read": {
-                          "type": "boolean",
-                          "description": "Whether the user has marked the email as read."
-                        },
-                        "read_at": {
-                          "type": "number",
-                          "description": "Unix epoch milliseconds the email was first marked read; absent if unread."
-                        },
-                        "received_at": {
-                          "type": "number",
-                          "description": "Unix epoch milliseconds the email was received by the inbound pipeline."
-                        },
-                        "created_at": {
-                          "type": "number",
-                          "description": "Unix epoch milliseconds the row was written to the database."
-                        },
-                        "deleted_at": {
-                          "type": "number",
-                          "description": "Unix epoch milliseconds the email was soft-deleted, if applicable. Soft-deleted emails are hidden from default list/get responses; pass `include_deleted=true` to surface them, then `POST /email/messages/restore` to undelete."
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "org_id",
-                        "user_id",
-                        "alias_email",
-                        "from_addr",
-                        "raw_r2_key",
-                        "size_bytes",
-                        "attachment_count",
-                        "spf_pass",
-                        "dkim_pass",
-                        "dmarc_pass",
-                        "is_read",
-                        "received_at",
-                        "created_at"
-                      ]
-                    },
-                    "attachments": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "email_id": {
-                            "type": "string",
-                            "description": "Owning email id."
-                          },
-                          "idx": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "description": "Zero-based index into the email's attachments array, as seen during MIME parsing. Use this as the `{idx}` path parameter when fetching attachment bytes."
-                          },
-                          "filename": {
-                            "type": "string",
-                            "description": "Original filename from the `Content-Disposition` header."
-                          },
-                          "mime_type": {
-                            "type": "string",
-                            "description": "Parsed MIME type. Used as the `Content-Type` of the attachment download."
-                          },
-                          "size_bytes": {
-                            "type": "number",
-                            "description": "Decoded size in bytes."
-                          },
-                          "sha256": {
-                            "type": "string",
-                            "description": "Hex SHA-256 of the attachment bytes; present for outbound attachments, NULL for inbound v1 (not computed at ingest)."
-                          },
-                          "r2_key": {
-                            "type": "string",
-                            "description": "Internal R2 object key for the attachment body. Not directly fetchable."
-                          },
-                          "created_at": {
-                            "type": "number",
-                            "description": "Unix epoch milliseconds the attachment row was written."
-                          }
-                        },
-                        "required": [
-                          "email_id",
-                          "idx",
-                          "filename",
-                          "mime_type",
-                          "size_bytes",
-                          "r2_key",
-                          "created_at"
-                        ]
-                      }
-                    },
-                    "html_body": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "email",
-                    "attachments"
-                  ]
+                  "$ref": "#/components/schemas/ReceivedEmailDetail"
                 },
                 "examples": {
                   "happyPath": {
@@ -36049,15 +36439,13 @@
                       },
                       "attachments": [
                         {
-                          "email_id": "eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                           "idx": 0,
                           "filename": "invoice.pdf",
                           "mime_type": "application/pdf",
-                          "size_bytes": 102400,
-                          "r2_key": "att/usr_.../eml_.../0",
-                          "created_at": 1748736000000
+                          "size_bytes": 102400
                         }
-                      ]
+                      ],
+                      "attachment_availability": "available"
                     }
                   },
                   "withHtml": {
@@ -36084,15 +36472,13 @@
                       },
                       "attachments": [
                         {
-                          "email_id": "eml_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                           "idx": 0,
                           "filename": "invoice.pdf",
                           "mime_type": "application/pdf",
-                          "size_bytes": 102400,
-                          "r2_key": "att/usr_.../eml_.../0",
-                          "created_at": 1748736000000
+                          "size_bytes": 102400
                         }
                       ],
+                      "attachment_availability": "available",
                       "html_body": "<p>Hi Alice — welcome aboard.</p>"
                     }
                   }
@@ -36274,7 +36660,7 @@
           "Emails"
         ],
         "summary": "Get a sent email",
-        "description": "Returns one non-purged sent message owned by the current user.",
+        "description": "Returns one non-purged sent message with storage-independent attachment metadata. `attachments` is empty and `attachment_availability` is `unavailable` when the retained metadata set is incomplete. This endpoint now wraps the former bare sent-email object under `email`; clients must migrate `response.<field>` reads to `response.email.<field>`.",
         "security": [
           {
             "bearerAuth": []
@@ -36320,7 +36706,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicOutboundEmail"
+                  "$ref": "#/components/schemas/SentEmailDetail"
                 }
               }
             }
@@ -37135,7 +37521,127 @@
                     "items": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/PublicOutboundEmail"
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted)."
+                          },
+                          "org_id": {
+                            "type": "string",
+                            "description": "Organization scope that owns the outbound email."
+                          },
+                          "user_id": {
+                            "type": "string",
+                            "description": "Sender (the authenticated user)."
+                          },
+                          "from_alias_email": {
+                            "type": "string",
+                            "format": "email",
+                            "description": "Full wspc alias email address the message was sent from."
+                          },
+                          "from_addr": {
+                            "type": "string",
+                            "description": "Materialized `From` address."
+                          },
+                          "to": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Recipient addresses as actually submitted to the provider."
+                          },
+                          "cc": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Normalized CC addresses in caller order."
+                          },
+                          "bcc": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Normalized BCC addresses in caller order. Visible only to the sender."
+                          },
+                          "subject": {
+                            "type": "string",
+                            "maxLength": 500,
+                            "description": "Outbound subject as sent (may include `Re: ` prefix for replies)."
+                          },
+                          "text_body": {
+                            "type": "string",
+                            "description": "Plain-text body as sent."
+                          },
+                          "in_reply_to_email_id": {
+                            "type": "string",
+                            "description": "Inbound email id this is a reply to, if applicable."
+                          },
+                          "message_id": {
+                            "type": "string",
+                            "description": "Observed outbound RFC 5322 `Message-ID`, when known."
+                          },
+                          "references_header": {
+                            "type": "string",
+                            "description": "Materialized `References` header for threaded replies."
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "submitted",
+                              "sent",
+                              "failed"
+                            ],
+                            "description": "Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details."
+                          },
+                          "idempotency_key": {
+                            "type": "string",
+                            "description": "Echo of the idempotency key used for this send."
+                          },
+                          "idempotency_expires_at": {
+                            "type": "number",
+                            "description": "Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged."
+                          },
+                          "deleted_at": {
+                            "type": "number",
+                            "description": "Unix epoch milliseconds the sent message entered trash."
+                          },
+                          "attachment_count": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Number of attachments on this outbound email. 0 when none."
+                          },
+                          "submitted_at": {
+                            "type": "number",
+                            "description": "Unix epoch milliseconds the provider accepted the message."
+                          },
+                          "created_at": {
+                            "type": "number",
+                            "description": "Unix epoch milliseconds the outbound row was first written."
+                          },
+                          "updated_at": {
+                            "type": "number",
+                            "description": "Unix epoch milliseconds the outbound row was last modified."
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "org_id",
+                          "user_id",
+                          "from_alias_email",
+                          "from_addr",
+                          "to",
+                          "cc",
+                          "bcc",
+                          "text_body",
+                          "status",
+                          "idempotency_key",
+                          "idempotency_expires_at",
+                          "attachment_count",
+                          "created_at",
+                          "updated_at"
+                        ]
                       }
                     },
                     "next_cursor": {
@@ -38835,7 +39341,7 @@
           "Emails"
         ],
         "summary": "Send an outbound email",
-        "description": "### Overview\nSubmits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified before sending. Platform-domain aliases use Cloudflare Email Service; verified custom-domain aliases use their active provider.\n\n### When to Use\n- Use this endpoint to send new standalone emails or to reply to threaded inbound messages.\n- Use this in automated agent pipelines (like calendar invite generation or notifications) and CLI email send utilities.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Size Limits**: Individual attachments must not exceed 5 MiB, and the total size of all attachments per send must be 25 MiB or less.\n- **Security**: Up to 10 attachments are allowed. Outbound files with dangerous executable extensions (such as `.exe`, `.bat`, `.com`, `.scr`, `.cmd`, `.jar`, `.js`) are strictly blocked.\n- **Daily Quotas**: Sending is protected by per-user (100 sends/day) and per-alias (50 sends/day) daily quotas. Exceeding them triggers `RATE_LIMITED` or `QUOTA_EXCEEDED` errors.\n- **Custom Domains**: Platform-domain aliases use Cloudflare Email Service. Custom-domain aliases use the domain's active provider when `sending_status = verified`; otherwise the send returns `CUSTOM_DOMAIN_NOT_READY`.\n- **Recipient safety**: Custom-domain sends are rejected before provider delivery when any current-request recipient has an active organization-scoped suppression.\n- **Idempotency**: A stable `idempotency_key` (1-200 characters) must be supplied. Retrying a send with identical content and the same key returns `idempotent_replay: true` without sending duplicates. Reusing the key with changed content returns 409 `IDEMPOTENCY_KEY_REUSED`.\n\n### Troubleshooting\n- **401 Unauthorized**: Active Bearer token is invalid or has expired.\n- **404 Not Found**: The requested `from_alias_email` does not exist or has been soft-deleted, or the referenced `in_reply_to_email_id` is missing or belongs to a different user.\n- **409 Conflict / IDEMPOTENCY_KEY_REUSED**: An identical `idempotency_key` was reused with modified request payload. Use a fresh unique key.\n- **409 Conflict / CUSTOM_DOMAIN_NOT_READY**: The sender uses a custom domain that has not completed outbound sending verification.\n- **429 Too Many Requests / RATE_LIMITED**: The per-user rate limit or daily sending quota has been exceeded. Wait for quota reset.\n- **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. The outbound row is persisted with `status: failed` along with provider-returned logs.",
+        "description": "### Overview\nSubmits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified before sending. Platform-domain aliases use Cloudflare Email Service; verified custom-domain aliases use their active provider.\n\n### When to Use\n- Use this endpoint to send new standalone emails or to reply to threaded inbound messages.\n- Use this in automated agent pipelines (like calendar invite generation or notifications) and CLI email send utilities.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Size Limits**: Individual attachments must not exceed 5 MiB, and the total size of all attachments per send must be 25 MiB or less.\n- **Security**: Up to 10 attachments are allowed. Outbound files with dangerous executable extensions (such as `.exe`, `.bat`, `.com`, `.scr`, `.cmd`, `.jar`, `.js`) are strictly blocked.\n- **Daily Quotas**: Sending is protected by per-user (100 sends/day) and per-alias (50 sends/day) daily quotas. Exceeding them triggers `RATE_LIMITED` or `QUOTA_EXCEEDED` errors.\n- **Custom Domains**: Platform-domain aliases use Cloudflare Email Service. Custom-domain aliases use the domain's active provider when `sending_status = verified`; otherwise the send returns `CUSTOM_DOMAIN_NOT_READY`.\n- **Recipient safety**: Custom-domain sends are rejected before provider delivery when any current-request recipient has an active organization-scoped suppression.\n- **Idempotency**: A stable `idempotency_key` (1-200 characters) must be supplied. Retrying a send with identical content and the same key returns `idempotent_replay: true` without sending duplicates. Reusing the key with changed content returns 409 `IDEMPOTENCY_KEY_REUSED`.\n- **Response contract**: The result contains `email`, storage-independent `attachments`, `attachment_availability`, and `idempotent_replay`. Clients that only read `email` and `idempotent_replay` remain compatible.\n\n### Troubleshooting\n- **401 Unauthorized**: Active Bearer token is invalid or has expired.\n- **404 Not Found**: The requested `from_alias_email` does not exist or has been soft-deleted, or the referenced `in_reply_to_email_id` is missing or belongs to a different user.\n- **409 Conflict / IDEMPOTENCY_KEY_REUSED**: An identical `idempotency_key` was reused with modified request payload. Use a fresh unique key.\n- **409 Conflict / CUSTOM_DOMAIN_NOT_READY**: The sender uses a custom domain that has not completed outbound sending verification.\n- **429 Too Many Requests / RATE_LIMITED**: The per-user rate limit or daily sending quota has been exceeded. Wait for quota reset.\n- **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. A later identical idempotent replay returns the persisted generic `failed` result without provider details.",
         "security": [
           {
             "bearerAuth": []
@@ -38944,15 +39450,28 @@
                         "to": [
                           "alice@example.com"
                         ],
+                        "cc": [],
+                        "bcc": [],
                         "subject": "Welcome to WSPC",
                         "text_body": "Hi Alice — welcome aboard.",
                         "message_id": "<01HW3K4N9V5G6Z8C2Q7B1Y0M3G@wspc.app>",
                         "status": "sent",
                         "idempotency_key": "retry-20260601-001",
+                        "idempotency_expires_at": 1751328000000,
+                        "attachment_count": 1,
                         "submitted_at": 1748736000500,
                         "created_at": 1748736000000,
                         "updated_at": 1748736000500
                       },
+                      "attachments": [
+                        {
+                          "idx": 0,
+                          "filename": "invoice.pdf",
+                          "mime_type": "application/pdf",
+                          "size_bytes": 102400
+                        }
+                      ],
+                      "attachment_availability": "available",
                       "idempotent_replay": false
                     }
                   },
@@ -38968,15 +39487,28 @@
                         "to": [
                           "alice@example.com"
                         ],
+                        "cc": [],
+                        "bcc": [],
                         "subject": "Welcome to WSPC",
                         "text_body": "Hi Alice — welcome aboard.",
                         "message_id": "<01HW3K4N9V5G6Z8C2Q7B1Y0M3G@wspc.app>",
                         "status": "sent",
                         "idempotency_key": "retry-20260601-001",
+                        "idempotency_expires_at": 1751328000000,
+                        "attachment_count": 1,
                         "submitted_at": 1748736000500,
                         "created_at": 1748736000000,
                         "updated_at": 1748736000500
                       },
+                      "attachments": [
+                        {
+                          "idx": 0,
+                          "filename": "invoice.pdf",
+                          "mime_type": "application/pdf",
+                          "size_bytes": 102400
+                        }
+                      ],
+                      "attachment_availability": "available",
                       "idempotent_replay": true
                     }
                   }
@@ -43303,6 +43835,7 @@
                         "id": "tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                         "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                         "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                        "parent_id": null,
                         "rrule": "FREQ=WEEKLY;BYDAY=MO",
                         "dtstart": "2026-05-18",
                         "version": 1,
@@ -43707,6 +44240,7 @@
                           "id": "tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                           "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                           "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "parent_id": null,
                           "rrule": "FREQ=WEEKLY;BYDAY=MO",
                           "dtstart": "2026-05-18",
                           "version": 1,
@@ -48228,6 +48762,7 @@
                         "id": "tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                         "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                         "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                        "parent_id": null,
                         "rrule": "FREQ=WEEKLY;BYDAY=MO",
                         "dtstart": "2026-05-18",
                         "version": 1,
@@ -48641,6 +49176,7 @@
                       "id": "tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                       "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                       "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                      "parent_id": null,
                       "rrule": "FREQ=WEEKLY;BYDAY=FR",
                       "dtstart": "2026-05-18",
                       "version": 2,

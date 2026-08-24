@@ -777,7 +777,7 @@ export const billingPaddleWebhookReceive = <ThrowOnError extends boolean = false
 /**
  * Preview a paid custom-domain capacity change
  *
- * Returns the next-renewal Paddle estimate. The immediate charge and credit are zero; next_payment_total reports the expected renewal payment.
+ * Returns a before-tax Paddle estimate. The amount due now is zero; next_payment_total is the before-tax Next renewal amount and next_billed_at is its provider-authoritative date.
  */
 export const billingCustomDomainAddOnPreview = <ThrowOnError extends boolean = false>(options: Options<BillingCustomDomainAddOnPreviewData, ThrowOnError>) => (options.client ?? client).post<BillingCustomDomainAddOnPreviewResponses, BillingCustomDomainAddOnPreviewErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -792,7 +792,7 @@ export const billingCustomDomainAddOnPreview = <ThrowOnError extends boolean = f
 /**
  * Preview an immediate downgrade
  *
- * Uses authoritative Email resource counts to validate retained resources and return the target period base and custom-domain add-on price without creating a billing mutation.
+ * Uses authoritative Email resource counts to validate retained resources and returns a before-tax Paddle estimate with settlement periods and proration metadata without creating a billing mutation.
  */
 export const billingSubscriptionDowngradePreview = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionDowngradePreviewData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionDowngradePreviewResponses, BillingSubscriptionDowngradePreviewErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -807,7 +807,7 @@ export const billingSubscriptionDowngradePreview = <ThrowOnError extends boolean
 /**
  * Preview an immediate Billing Interval change
  *
- * Returns a read-only Paddle estimate for replacing every recurring item with the target Billing Interval.
+ * Returns a read-only before-tax Paddle estimate with settlement periods and proration metadata for replacing every recurring item with the target Billing Interval.
  */
 export const billingSubscriptionIntervalPreviewsCreate = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionIntervalPreviewsCreateData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionIntervalPreviewsCreateResponses, BillingSubscriptionIntervalPreviewsCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -822,7 +822,7 @@ export const billingSubscriptionIntervalPreviewsCreate = <ThrowOnError extends b
 /**
  * Preview a paid subscription upgrade
  *
- * Returns a read-only Paddle estimate for the complete recurring items replacement. No subscription mutation or charge is created.
+ * Returns a read-only before-tax Paddle estimate with settlement periods and proration metadata. No subscription mutation or charge is created.
  */
 export const billingSubscriptionUpgradePreviewsCreate = <ThrowOnError extends boolean = false>(options: Options<BillingSubscriptionUpgradePreviewsCreateData, ThrowOnError>) => (options.client ?? client).post<BillingSubscriptionUpgradePreviewsCreateResponses, BillingSubscriptionUpgradePreviewsCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1598,7 +1598,7 @@ export const emailTrashEmpty = <ThrowOnError extends boolean = false>(options: O
  * Download an attachment by index
  *
  * ### Overview
- * Streams the raw decoded bytes of a parsed attachment belonging to an inbound email. The response body is binary data instead of JSON.
+ * Streams the raw decoded bytes of a parsed attachment belonging to a received or sent email. The response body is binary data instead of JSON.
  *
  * ### When to Use
  * - Use this endpoint when a user clicks to download a file attachment (such as an invoice PDF or image) or when an automated agent needs to process a file payload.
@@ -1606,8 +1606,10 @@ export const emailTrashEmpty = <ThrowOnError extends boolean = false>(options: O
  * ### Constraints
  * - Requires a valid Bearer token in the `Authorization` header.
  * - **Response Headers**: The server sets the HTTP `Content-Type` matching the attachment's parsed MIME format and provides a `Content-Disposition: attachment; filename="<filename>"` header.
- * - **Soft-Deleted Parents**: Downloading files from soft-deleted emails is blocked with a 404 error, unless the query parameter `include_deleted=true` is provided.
+ * - **Soft-Deleted Received Email**: A received parent in trash returns 404 unless `include_deleted=true` is provided.
+ * - **Sent Email in Trash**: A sent parent remains downloadable during Trash Retention and does not require `include_deleted=true`.
  * - **Path Parameter**: The `{idx}` must be a valid 0-based integer index pointing to the attachment list metadata.
+ * - **Download example**: For `{ email: { id: "out_..." }, attachments: [{ idx: 0, ... }] }`, request `GET /email/messages/out_.../attachments/0`.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Invalid Bearer token.
@@ -1634,6 +1636,8 @@ export const emailAttachmentGet = <ThrowOnError extends boolean = false>(options
  * - Requires a valid Bearer token in the `Authorization` header.
  * - **R2 HTML Read**: The HTML body is stored in Object Storage (R2). To fetch it, explicitly pass `include_html=true` (this incurs an extra R2 read charge; leave unset if only plain text is needed).
  * - Returns a 404 error if the email has been soft-deleted, unless `include_deleted=true` is set.
+ * - The response now requires `attachment_availability`. Existing `email`, `attachments`, and optional `html_body` fields keep their positions.
+ * - **Attachment migration**: Each former `{ email_id, idx, filename, mime_type, size_bytes, sha256, r2_key, created_at }` item is now `{ idx, filename, mime_type, size_bytes }`. Use the wrapper's `email.id` with the item `idx` for downloads.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Missing or expired token.
@@ -1648,7 +1652,7 @@ export const emailGet = <ThrowOnError extends boolean = false>(options: Options<
 /**
  * Get a sent email
  *
- * Returns one non-purged sent message owned by the current user.
+ * Returns one non-purged sent message with storage-independent attachment metadata. `attachments` is empty and `attachment_availability` is `unavailable` when the retained metadata set is incomplete. This endpoint now wraps the former bare sent-email object under `email`; clients must migrate `response.<field>` reads to `response.email.<field>`.
  */
 export const emailSentGet = <ThrowOnError extends boolean = false>(options: Options<EmailSentGetData, ThrowOnError>) => (options.client ?? client).get<EmailSentGetResponses, EmailSentGetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1832,6 +1836,7 @@ export const emailSentRestore = <ThrowOnError extends boolean = false>(options: 
  * - **Custom Domains**: Platform-domain aliases use Cloudflare Email Service. Custom-domain aliases use the domain's active provider when `sending_status = verified`; otherwise the send returns `CUSTOM_DOMAIN_NOT_READY`.
  * - **Recipient safety**: Custom-domain sends are rejected before provider delivery when any current-request recipient has an active organization-scoped suppression.
  * - **Idempotency**: A stable `idempotency_key` (1-200 characters) must be supplied. Retrying a send with identical content and the same key returns `idempotent_replay: true` without sending duplicates. Reusing the key with changed content returns 409 `IDEMPOTENCY_KEY_REUSED`.
+ * - **Response contract**: The result contains `email`, storage-independent `attachments`, `attachment_availability`, and `idempotent_replay`. Clients that only read `email` and `idempotent_replay` remain compatible.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Active Bearer token is invalid or has expired.
@@ -1839,7 +1844,7 @@ export const emailSentRestore = <ThrowOnError extends boolean = false>(options: 
  * - **409 Conflict / IDEMPOTENCY_KEY_REUSED**: An identical `idempotency_key` was reused with modified request payload. Use a fresh unique key.
  * - **409 Conflict / CUSTOM_DOMAIN_NOT_READY**: The sender uses a custom domain that has not completed outbound sending verification.
  * - **429 Too Many Requests / RATE_LIMITED**: The per-user rate limit or daily sending quota has been exceeded. Wait for quota reset.
- * - **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. The outbound row is persisted with `status: failed` along with provider-returned logs.
+ * - **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. A later identical idempotent replay returns the persisted generic `failed` result without provider details.
  */
 export const emailSend = <ThrowOnError extends boolean = false>(options: Options<EmailSendData, ThrowOnError>) => (options.client ?? client).post<EmailSendResponses, EmailSendErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

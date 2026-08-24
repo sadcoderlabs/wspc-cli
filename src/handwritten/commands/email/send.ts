@@ -182,7 +182,9 @@ export const sendCommand = new Command("send")
     await runSdkCommand({
       operation: emailSend,
       input: { body },
-      context: { kind: "object", display: { shape: "object", format: { id: "id-short" } } },
-      selectData: (data: { email: unknown }) => data.email,
+      context: {
+        kind: "object",
+        display: { shape: "object", dataPath: "email", format: { id: "id-short" } },
+      },
     })
   })

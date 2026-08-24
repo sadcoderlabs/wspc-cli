@@ -716,11 +716,21 @@ export type PaddleWebhookResult = {
 };
 
 export type CustomDomainAddOnPreviewResult = {
+    amount_basis: 'before_tax';
     currency: 'USD';
     line_items: Array<{
-        kind: 'unused_credit' | 'target_tier' | 'custom_domain_add_on' | 'tax' | 'other';
+        /**
+         * `tax` is deprecated for read compatibility. The Billing runtime does not emit tax rows because every emitted amount is before tax.
+         */
+        kind: 'unused_credit' | 'target_tier' | 'custom_domain_add_on' | 'discount' | 'customer_credit' | 'tax' | 'other';
         amount: number;
         description: string;
+        period_kind?: 'next_billing_period' | 'prorated_current_period';
+        billing_period?: {
+            starts_at: number;
+            ends_at: number;
+        };
+        proration_rate?: string;
     }>;
     charge_now: number;
     credit_to_balance: number;
@@ -740,11 +750,21 @@ export type PreviewCustomDomainAddOnInput = {
 };
 
 export type DowngradePreviewResult = {
+    amount_basis: 'before_tax';
     currency: 'USD';
     line_items: Array<{
-        kind: 'unused_credit' | 'target_tier' | 'custom_domain_add_on' | 'tax' | 'other';
+        /**
+         * `tax` is deprecated for read compatibility. The Billing runtime does not emit tax rows because every emitted amount is before tax.
+         */
+        kind: 'unused_credit' | 'target_tier' | 'custom_domain_add_on' | 'discount' | 'customer_credit' | 'tax' | 'other';
         amount: number;
         description: string;
+        period_kind?: 'next_billing_period' | 'prorated_current_period';
+        billing_period?: {
+            starts_at: number;
+            ends_at: number;
+        };
+        proration_rate?: string;
     }>;
     charge_now: number;
     credit_to_balance: number;
@@ -762,11 +782,21 @@ export type PreviewSubscriptionDowngradeInput = {
 };
 
 export type UpgradePreviewResult = {
+    amount_basis: 'before_tax';
     currency: 'USD';
     line_items: Array<{
-        kind: 'unused_credit' | 'target_tier' | 'custom_domain_add_on' | 'tax' | 'other';
+        /**
+         * `tax` is deprecated for read compatibility. The Billing runtime does not emit tax rows because every emitted amount is before tax.
+         */
+        kind: 'unused_credit' | 'target_tier' | 'custom_domain_add_on' | 'discount' | 'customer_credit' | 'tax' | 'other';
         amount: number;
         description: string;
+        period_kind?: 'next_billing_period' | 'prorated_current_period';
+        billing_period?: {
+            starts_at: number;
+            ends_at: number;
+        };
+        proration_rate?: string;
     }>;
     charge_now: number;
     credit_to_balance: number;
@@ -1413,91 +1443,221 @@ export type BatchIdsBody = {
     ids: Array<string>;
 };
 
-export type PublicOutboundEmail = {
-    /**
-     * Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted).
-     */
-    id: string;
-    /**
-     * Organization scope that owns the outbound email.
-     */
-    org_id: string;
-    /**
-     * Sender (the authenticated user).
-     */
-    user_id: string;
-    /**
-     * Full wspc alias email address the message was sent from.
-     */
-    from_alias_email: string;
-    /**
-     * Materialized `From` address.
-     */
-    from_addr: string;
-    /**
-     * Recipient addresses as actually submitted to the provider.
-     */
-    to: Array<string>;
-    /**
-     * Normalized CC addresses in caller order.
-     */
-    cc: Array<string>;
-    /**
-     * Normalized BCC addresses in caller order. Visible only to the sender.
-     */
-    bcc: Array<string>;
-    /**
-     * Outbound subject as sent (may include `Re: ` prefix for replies).
-     */
-    subject?: string;
-    /**
-     * Plain-text body as sent.
-     */
-    text_body: string;
-    /**
-     * Inbound email id this is a reply to, if applicable.
-     */
-    in_reply_to_email_id?: string;
-    /**
-     * Observed outbound RFC 5322 `Message-ID`, when known.
-     */
-    message_id?: string;
-    /**
-     * Materialized `References` header for threaded replies.
-     */
-    references_header?: string;
-    /**
-     * Lifecycle status. `submitted`: the row is persisted; provider call is in flight. `sent`: provider accepted the message. `failed`: provider rejected; see `error_code`/`error_message`.
-     */
-    status: 'submitted' | 'sent' | 'failed';
-    /**
-     * Echo of the idempotency key used for this send.
-     */
-    idempotency_key: string;
-    /**
-     * Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged.
-     */
-    idempotency_expires_at: number;
-    /**
-     * Unix epoch milliseconds the sent message entered trash.
-     */
-    deleted_at?: number;
-    /**
-     * Number of attachments on this outbound email. 0 when none.
-     */
-    attachment_count: number;
-    /**
-     * Unix epoch milliseconds the provider accepted the message.
-     */
-    submitted_at?: number;
-    /**
-     * Unix epoch milliseconds the outbound row was first written.
-     */
-    created_at: number;
-    /**
-     * Unix epoch milliseconds the outbound row was last modified.
-     */
-    updated_at: number;
+export type ReceivedEmailDetail = {
+    email: {
+        /**
+         * Server-assigned inbound email id (`eml_<ULID>` for new rows; legacy UUID ids remain accepted). Stable; safe to use as a key in your own storage.
+         */
+        id: string;
+        /**
+         * Organization scope that owns the email.
+         */
+        org_id: string;
+        /**
+         * Owner of the email. Always equals the authenticated user.
+         */
+        user_id: string;
+        /**
+         * Full wspc alias email address the email was addressed to.
+         */
+        alias_email: string;
+        /**
+         * Sender envelope/header address.
+         */
+        from_addr: string;
+        /**
+         * Sender display name parsed from the `From` header, if present.
+         */
+        from_name?: string;
+        /**
+         * Subject header. Absent if the sender omitted it.
+         */
+        subject?: string;
+        /**
+         * Plain-text body. May be truncated in list views; use `GET /email/messages/{id}` for the full body.
+         */
+        text_body?: string;
+        /**
+         * Internal R2 object key for the HTML body, if the email had one. Fetch the rendered HTML via `GET /email/messages/{id}?include_html=true` rather than reading this directly.
+         */
+        html_body_r2_key?: string;
+        /**
+         * Internal R2 object key for the raw MIME source. Not directly fetchable.
+         */
+        raw_r2_key: string;
+        /**
+         * Size of the raw MIME source in bytes.
+         */
+        size_bytes: number;
+        /**
+         * Number of attachments parsed from the message. Index into them via `GET /email/messages/{id}/attachments/{idx}` (0-based).
+         */
+        attachment_count: number;
+        /**
+         * Whether the inbound message passed SPF at ingest time.
+         */
+        spf_pass: boolean;
+        /**
+         * Whether the inbound message passed DKIM at ingest time.
+         */
+        dkim_pass: boolean;
+        /**
+         * Whether the inbound message passed DMARC at ingest time.
+         */
+        dmarc_pass: boolean;
+        /**
+         * Raw `Authentication-Results` header for debugging, if present.
+         */
+        auth_results_raw?: string;
+        /**
+         * Whether the user has marked the email as read.
+         */
+        is_read: boolean;
+        /**
+         * Unix epoch milliseconds the email was first marked read; absent if unread.
+         */
+        read_at?: number;
+        /**
+         * Unix epoch milliseconds the email was received by the inbound pipeline.
+         */
+        received_at: number;
+        /**
+         * Unix epoch milliseconds the row was written to the database.
+         */
+        created_at: number;
+        /**
+         * Unix epoch milliseconds the email was soft-deleted, if applicable. Soft-deleted emails are hidden from default list/get responses; pass `include_deleted=true` to surface them, then `POST /email/messages/restore` to undelete.
+         */
+        deleted_at?: number;
+    };
+    attachments: Array<{
+        /**
+         * Zero-based index into the email's attachments array, as seen during MIME parsing. Use this as the `{idx}` path parameter when fetching attachment bytes.
+         */
+        idx: number;
+        /**
+         * Original filename from the `Content-Disposition` header.
+         */
+        filename: string;
+        /**
+         * Parsed MIME type. Used as the `Content-Type` of the attachment download.
+         */
+        mime_type: string;
+        /**
+         * Decoded size in bytes.
+         */
+        size_bytes: number;
+    }>;
+    attachment_availability: 'available' | 'unavailable';
+    html_body?: string;
+};
+
+export type SentEmailDetail = {
+    email: {
+        /**
+         * Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted).
+         */
+        id: string;
+        /**
+         * Organization scope that owns the outbound email.
+         */
+        org_id: string;
+        /**
+         * Sender (the authenticated user).
+         */
+        user_id: string;
+        /**
+         * Full wspc alias email address the message was sent from.
+         */
+        from_alias_email: string;
+        /**
+         * Materialized `From` address.
+         */
+        from_addr: string;
+        /**
+         * Recipient addresses as actually submitted to the provider.
+         */
+        to: Array<string>;
+        /**
+         * Normalized CC addresses in caller order.
+         */
+        cc: Array<string>;
+        /**
+         * Normalized BCC addresses in caller order. Visible only to the sender.
+         */
+        bcc: Array<string>;
+        /**
+         * Outbound subject as sent (may include `Re: ` prefix for replies).
+         */
+        subject?: string;
+        /**
+         * Plain-text body as sent.
+         */
+        text_body: string;
+        /**
+         * Inbound email id this is a reply to, if applicable.
+         */
+        in_reply_to_email_id?: string;
+        /**
+         * Observed outbound RFC 5322 `Message-ID`, when known.
+         */
+        message_id?: string;
+        /**
+         * Materialized `References` header for threaded replies.
+         */
+        references_header?: string;
+        /**
+         * Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details.
+         */
+        status: 'submitted' | 'sent' | 'failed';
+        /**
+         * Echo of the idempotency key used for this send.
+         */
+        idempotency_key: string;
+        /**
+         * Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged.
+         */
+        idempotency_expires_at: number;
+        /**
+         * Unix epoch milliseconds the sent message entered trash.
+         */
+        deleted_at?: number;
+        /**
+         * Number of attachments on this outbound email. 0 when none.
+         */
+        attachment_count: number;
+        /**
+         * Unix epoch milliseconds the provider accepted the message.
+         */
+        submitted_at?: number;
+        /**
+         * Unix epoch milliseconds the outbound row was first written.
+         */
+        created_at: number;
+        /**
+         * Unix epoch milliseconds the outbound row was last modified.
+         */
+        updated_at: number;
+    };
+    attachments: Array<{
+        /**
+         * Zero-based index into the email's attachments array, as seen during MIME parsing. Use this as the `{idx}` path parameter when fetching attachment bytes.
+         */
+        idx: number;
+        /**
+         * Original filename from the `Content-Disposition` header.
+         */
+        filename: string;
+        /**
+         * Parsed MIME type. Used as the `Content-Type` of the attachment download.
+         */
+        mime_type: string;
+        /**
+         * Decoded size in bytes.
+         */
+        size_bytes: number;
+    }>;
+    attachment_availability: 'available' | 'unavailable';
 };
 
 export type EmailDomainListResponse = {
@@ -1597,7 +1757,111 @@ export type RestoreBatchResponse = {
 };
 
 export type SendEmailResponse = {
-    email: PublicOutboundEmail;
+    email: {
+        /**
+         * Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted).
+         */
+        id: string;
+        /**
+         * Organization scope that owns the outbound email.
+         */
+        org_id: string;
+        /**
+         * Sender (the authenticated user).
+         */
+        user_id: string;
+        /**
+         * Full wspc alias email address the message was sent from.
+         */
+        from_alias_email: string;
+        /**
+         * Materialized `From` address.
+         */
+        from_addr: string;
+        /**
+         * Recipient addresses as actually submitted to the provider.
+         */
+        to: Array<string>;
+        /**
+         * Normalized CC addresses in caller order.
+         */
+        cc: Array<string>;
+        /**
+         * Normalized BCC addresses in caller order. Visible only to the sender.
+         */
+        bcc: Array<string>;
+        /**
+         * Outbound subject as sent (may include `Re: ` prefix for replies).
+         */
+        subject?: string;
+        /**
+         * Plain-text body as sent.
+         */
+        text_body: string;
+        /**
+         * Inbound email id this is a reply to, if applicable.
+         */
+        in_reply_to_email_id?: string;
+        /**
+         * Observed outbound RFC 5322 `Message-ID`, when known.
+         */
+        message_id?: string;
+        /**
+         * Materialized `References` header for threaded replies.
+         */
+        references_header?: string;
+        /**
+         * Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details.
+         */
+        status: 'submitted' | 'sent' | 'failed';
+        /**
+         * Echo of the idempotency key used for this send.
+         */
+        idempotency_key: string;
+        /**
+         * Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged.
+         */
+        idempotency_expires_at: number;
+        /**
+         * Unix epoch milliseconds the sent message entered trash.
+         */
+        deleted_at?: number;
+        /**
+         * Number of attachments on this outbound email. 0 when none.
+         */
+        attachment_count: number;
+        /**
+         * Unix epoch milliseconds the provider accepted the message.
+         */
+        submitted_at?: number;
+        /**
+         * Unix epoch milliseconds the outbound row was first written.
+         */
+        created_at: number;
+        /**
+         * Unix epoch milliseconds the outbound row was last modified.
+         */
+        updated_at: number;
+    };
+    attachments: Array<{
+        /**
+         * Zero-based index into the email's attachments array, as seen during MIME parsing. Use this as the `{idx}` path parameter when fetching attachment bytes.
+         */
+        idx: number;
+        /**
+         * Original filename from the `Content-Disposition` header.
+         */
+        filename: string;
+        /**
+         * Parsed MIME type. Used as the `Content-Type` of the attachment download.
+         */
+        mime_type: string;
+        /**
+         * Decoded size in bytes.
+         */
+        size_bytes: number;
+    }>;
+    attachment_availability: 'available' | 'unavailable';
     /**
      * `true` if this response is a replay of an earlier send with the same `idempotency_key` + identical content; `false` if the message was newly submitted on this request.
      */
@@ -1798,6 +2062,7 @@ export type RecurrenceRule = {
     type_id?: string;
     rrule: string;
     dtstart: string;
+    parent_id: string | null;
     version: number;
     created_at: number;
     updated_at: number;
@@ -9766,129 +10031,7 @@ export type EmailGetResponses = {
     /**
      * The email row, attachment metadata, and (when requested) the HTML body.
      */
-    200: {
-        email: {
-            /**
-             * Server-assigned inbound email id (`eml_<ULID>` for new rows; legacy UUID ids remain accepted). Stable; safe to use as a key in your own storage.
-             */
-            id: string;
-            /**
-             * Organization scope that owns the email.
-             */
-            org_id: string;
-            /**
-             * Owner of the email. Always equals the authenticated user.
-             */
-            user_id: string;
-            /**
-             * Full wspc alias email address the email was addressed to.
-             */
-            alias_email: string;
-            /**
-             * Sender envelope/header address.
-             */
-            from_addr: string;
-            /**
-             * Sender display name parsed from the `From` header, if present.
-             */
-            from_name?: string;
-            /**
-             * Subject header. Absent if the sender omitted it.
-             */
-            subject?: string;
-            /**
-             * Plain-text body. May be truncated in list views; use `GET /email/messages/{id}` for the full body.
-             */
-            text_body?: string;
-            /**
-             * Internal R2 object key for the HTML body, if the email had one. Fetch the rendered HTML via `GET /email/messages/{id}?include_html=true` rather than reading this directly.
-             */
-            html_body_r2_key?: string;
-            /**
-             * Internal R2 object key for the raw MIME source. Not directly fetchable.
-             */
-            raw_r2_key: string;
-            /**
-             * Size of the raw MIME source in bytes.
-             */
-            size_bytes: number;
-            /**
-             * Number of attachments parsed from the message. Index into them via `GET /email/messages/{id}/attachments/{idx}` (0-based).
-             */
-            attachment_count: number;
-            /**
-             * Whether the inbound message passed SPF at ingest time.
-             */
-            spf_pass: boolean;
-            /**
-             * Whether the inbound message passed DKIM at ingest time.
-             */
-            dkim_pass: boolean;
-            /**
-             * Whether the inbound message passed DMARC at ingest time.
-             */
-            dmarc_pass: boolean;
-            /**
-             * Raw `Authentication-Results` header for debugging, if present.
-             */
-            auth_results_raw?: string;
-            /**
-             * Whether the user has marked the email as read.
-             */
-            is_read: boolean;
-            /**
-             * Unix epoch milliseconds the email was first marked read; absent if unread.
-             */
-            read_at?: number;
-            /**
-             * Unix epoch milliseconds the email was received by the inbound pipeline.
-             */
-            received_at: number;
-            /**
-             * Unix epoch milliseconds the row was written to the database.
-             */
-            created_at: number;
-            /**
-             * Unix epoch milliseconds the email was soft-deleted, if applicable. Soft-deleted emails are hidden from default list/get responses; pass `include_deleted=true` to surface them, then `POST /email/messages/restore` to undelete.
-             */
-            deleted_at?: number;
-        };
-        attachments: Array<{
-            /**
-             * Owning email id.
-             */
-            email_id: string;
-            /**
-             * Zero-based index into the email's attachments array, as seen during MIME parsing. Use this as the `{idx}` path parameter when fetching attachment bytes.
-             */
-            idx: number;
-            /**
-             * Original filename from the `Content-Disposition` header.
-             */
-            filename: string;
-            /**
-             * Parsed MIME type. Used as the `Content-Type` of the attachment download.
-             */
-            mime_type: string;
-            /**
-             * Decoded size in bytes.
-             */
-            size_bytes: number;
-            /**
-             * Hex SHA-256 of the attachment bytes; present for outbound attachments, NULL for inbound v1 (not computed at ingest).
-             */
-            sha256?: string;
-            /**
-             * Internal R2 object key for the attachment body. Not directly fetchable.
-             */
-            r2_key: string;
-            /**
-             * Unix epoch milliseconds the attachment row was written.
-             */
-            created_at: number;
-        }>;
-        html_body?: string;
-    };
+    200: ReceivedEmailDetail;
 };
 
 export type EmailGetResponse = EmailGetResponses[keyof EmailGetResponses];
@@ -9980,7 +10123,7 @@ export type EmailSentGetResponses = {
     /**
      * Sent message
      */
-    200: PublicOutboundEmail;
+    200: SentEmailDetail;
 };
 
 export type EmailSentGetResponse = EmailSentGetResponses[keyof EmailSentGetResponses];
@@ -10241,7 +10384,92 @@ export type EmailSentListResponses = {
      * Sent messages
      */
     200: {
-        items: Array<PublicOutboundEmail>;
+        items: Array<{
+            /**
+             * Server-assigned outbound email id (`out_<ULID>` for new rows; legacy UUID ids remain accepted).
+             */
+            id: string;
+            /**
+             * Organization scope that owns the outbound email.
+             */
+            org_id: string;
+            /**
+             * Sender (the authenticated user).
+             */
+            user_id: string;
+            /**
+             * Full wspc alias email address the message was sent from.
+             */
+            from_alias_email: string;
+            /**
+             * Materialized `From` address.
+             */
+            from_addr: string;
+            /**
+             * Recipient addresses as actually submitted to the provider.
+             */
+            to: Array<string>;
+            /**
+             * Normalized CC addresses in caller order.
+             */
+            cc: Array<string>;
+            /**
+             * Normalized BCC addresses in caller order. Visible only to the sender.
+             */
+            bcc: Array<string>;
+            /**
+             * Outbound subject as sent (may include `Re: ` prefix for replies).
+             */
+            subject?: string;
+            /**
+             * Plain-text body as sent.
+             */
+            text_body: string;
+            /**
+             * Inbound email id this is a reply to, if applicable.
+             */
+            in_reply_to_email_id?: string;
+            /**
+             * Observed outbound RFC 5322 `Message-ID`, when known.
+             */
+            message_id?: string;
+            /**
+             * Materialized `References` header for threaded replies.
+             */
+            references_header?: string;
+            /**
+             * Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details.
+             */
+            status: 'submitted' | 'sent' | 'failed';
+            /**
+             * Echo of the idempotency key used for this send.
+             */
+            idempotency_key: string;
+            /**
+             * Unix epoch milliseconds after which the bounded idempotency result may be revoked and its content purged.
+             */
+            idempotency_expires_at: number;
+            /**
+             * Unix epoch milliseconds the sent message entered trash.
+             */
+            deleted_at?: number;
+            /**
+             * Number of attachments on this outbound email. 0 when none.
+             */
+            attachment_count: number;
+            /**
+             * Unix epoch milliseconds the provider accepted the message.
+             */
+            submitted_at?: number;
+            /**
+             * Unix epoch milliseconds the outbound row was first written.
+             */
+            created_at: number;
+            /**
+             * Unix epoch milliseconds the outbound row was last modified.
+             */
+            updated_at: number;
+        }>;
         next_cursor?: string;
     };
 };
