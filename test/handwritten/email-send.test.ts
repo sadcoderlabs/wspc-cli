@@ -23,7 +23,14 @@ beforeEach(() => {
   renderMock.mockReset()
   process.exitCode = undefined
   sendMock.mockResolvedValue({
-    data: { email: { id: "out_X" }, idempotent_replay: false },
+    data: {
+      email: { id: "out_X", attachment_count: 1 },
+      attachments: [
+        { idx: 0, filename: "hello.txt", mime_type: "text/plain", size_bytes: 11 },
+      ],
+      attachment_availability: "available",
+      idempotent_replay: false,
+    },
     response: { ok: true, status: 200 },
   })
 })
@@ -48,8 +55,18 @@ describe("wspc email send", () => {
     expect(body.in_reply_to_email_id).toBeUndefined()
     expect(body.attachments).toBeUndefined()
     expect(renderMock).toHaveBeenCalledWith(
-      { kind: "object", display: { shape: "object", format: { id: "id-short" } } },
-      { id: "out_X" },
+      {
+        kind: "object",
+        display: { shape: "object", dataPath: "email", format: { id: "id-short" } },
+      },
+      {
+        email: { id: "out_X", attachment_count: 1 },
+        attachments: [
+          { idx: 0, filename: "hello.txt", mime_type: "text/plain", size_bytes: 11 },
+        ],
+        attachment_availability: "available",
+        idempotent_replay: false,
+      },
     )
   })
 

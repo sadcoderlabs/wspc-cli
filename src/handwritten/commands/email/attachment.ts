@@ -6,7 +6,7 @@ import { loadAuthedFetch } from "../../auth/load-sdk-client.js"
 import { parseContentDispositionFilename } from "../../utils/parse-content-disposition.js"
 
 export const attachmentCommand = new Command("attachment")
-  .description("Download an inbound email attachment by index")
+  .description("Download a received or sent email attachment by index")
   .argument("<email-id>")
   .argument("<idx>")
   .option("--output <path>", "output file path")

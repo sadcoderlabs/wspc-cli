@@ -20,6 +20,12 @@ beforeEach(() => {
 })
 
 describe("wspc email attachment", () => {
+  it("describes downloads for received and sent email", () => {
+    expect(attachmentCommand.description()).toBe(
+      "Download a received or sent email attachment by index",
+    )
+  })
+
   it("writes binary body to --output path", async () => {
     const dir = mkdtempSync(join(tmpdir(), "wspc-test-"))
     const out = join(dir, "got.pdf")
