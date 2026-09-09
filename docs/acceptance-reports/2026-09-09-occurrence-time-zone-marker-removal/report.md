@@ -24,6 +24,8 @@ Backend [PR #1234](https://github.com/sadcoderlabs/wspc/pull/1234) exact head `4
 
 Calendar live SHA-256：`dd44612ca7062711605592df731060fb3cc55b505804e02e69d6ff734513f609`；merged：`3ab9b5d18d0080187ac3bc7bbf4cef0dc1f5dff1320bb303fd645499e5b7f89a`。兩個 GET 都為 HTTP 200，options 保存於 JSON。
 
+原始 command source 前後 SHA-256 均為 `70117ec2ff1f573d56f89e87821c8b82d0f287cf345d0ab8164388d8a94ece86`；原始 help 前後均為 `448f7b286501a91c43fd0edf3e40cebe0599979411fe1a8e2ddfa84bc2850043`。保存的 help.txt 僅去除結尾空白行，以符合 git diff --check。
+
 重跑方式：`npm run sync-spec && npm run generate`、`npm run typecheck`、`env -u NO_COLOR TERM=xterm-256color npm test`、`npm run build`、`node dist/cli.js event occurrence set --help`，再 generate 與 `git diff --exit-code -- src/generated`。
 
 ## 審查
