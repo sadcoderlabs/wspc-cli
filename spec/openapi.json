@@ -3465,6 +3465,10 @@
                 "snippet"
               ]
             }
+          },
+          "next_cursor": {
+            "type": "string",
+            "description": "Present only when more results exist. Omitted on the last or empty page."
           }
         },
         "required": [
@@ -3525,7 +3529,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "description": "Full alias address under the platform email domain or a fully verified organization custom domain, for example alice-shop@wspc.app or alice-shop@example.com."
+            "description": "Full alias address under the platform email domain or a fully verified organization custom domain, for example alice-shop@wspc.app or me@example.com. The local part must be 5–32 characters on the platform domain or 1–64 characters on a custom domain."
           }
         },
         "required": [
@@ -3959,7 +3963,7 @@
                   "sent",
                   "failed"
                 ],
-                "description": "Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details."
+                "description": "Lifecycle status. `submitted`: the outbound row is persisted, but the provider outcome is not yet known; public responses do not expose provider details. `sent`: the provider accepted the message. `failed`: the provider rejected the message; public responses do not expose provider failure detail."
               },
               "idempotency_key": {
                 "type": "string",
@@ -4317,7 +4321,7 @@
                   "sent",
                   "failed"
                 ],
-                "description": "Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details."
+                "description": "Lifecycle status. `submitted`: the outbound row is persisted, but the provider outcome is not yet known; public responses do not expose provider details. `sent`: the provider accepted the message. `failed`: the provider rejected the message; public responses do not expose provider failure detail."
               },
               "idempotency_key": {
                 "type": "string",
@@ -21778,7 +21782,7 @@
           }
         },
         "summary": "Cancel one recurring occurrence",
-        "description": "Persist a cancellation exception for one recurrence identity without cancelling the whole series.",
+        "description": "Persist an Occurrence Exception for the target Recurrence ID. An effective cancellation sends an instance `CANCEL` and does not cancel the whole Recurring Series. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.",
         "parameters": [
           {
             "name": "x-cb-cal",
@@ -21837,7 +21841,7 @@
         },
         "responses": {
           "200": {
-            "description": "Effective occurrence after mutation.",
+            "description": "The effective Occurrence after mutation. Any attendee email is scheduled asynchronously through `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not change the mutation response or Calendar state.",
             "headers": {
               "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
@@ -24047,7 +24051,7 @@
             "in": "path"
           }
         ],
-        "description": "### Overview\nPartially update fields of an existing calendar event. All properties in the request body are optional.\n\n### When to Use\nReschedule an event, update its location or notes, cancel the meeting (retaining the record but notifying participants), or replace/update the attendee list.\n\n### Constraints\n- **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.\n- **Field Clearing**: Pass an empty string `\"\"` for `description`, `location`, `url`, `recurrence_rule`, or `time_zone` to clear that field. Clearing recurrence also clears its zone; clearing only the zone preserves the instants and returns the series to UTC semantics.\n- **Recurring Series**: A recurrence rule is an RFC 5545 RRULE value without the `RRULE:` prefix. Local timed series provide canonicalizable `time_zone` and matching offset-bearing start/end. Update, cancel, delete, and restore always affect the whole series master.\n- **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list. The server automatically diffs participants and asynchronously sends invitations (for newly added), updates (for kept), or cancellations (for removed) via Cloudflare `waitUntil`.\n- **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.\n- **Attendee Limit**: A maximum of 50 unique attendees is allowed.\n\n### Troubleshooting\n- Returns 404 `NOT_FOUND` if the event does not exist or is soft-deleted.\n- Returns 409 `VERSION_CONFLICT` if `expected_version` is provided but stale.\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` kinds do not match, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if unique attendees exceed 50.",
+        "description": "### Overview\nPartially update fields of an existing calendar event. All properties in the request body are optional.\n\n### When to Use\nReschedule an event, update its location or notes, cancel the meeting (retaining the record but notifying participants), or replace/update the attendee list.\n\n### Constraints\n- **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.\n- **Field Clearing**: Pass an empty string `\"\"` for `description`, `location`, `url`, `recurrence_rule`, or `time_zone` to clear that field. Clearing recurrence also clears its zone; clearing only the zone preserves the instants and returns the series to UTC semantics.\n- **Recurring Series**: A recurrence rule is an RFC 5545 RRULE value without the `RRULE:` prefix. Local timed series provide canonicalizable `time_zone` and matching offset-bearing start/end. Update, cancel, delete, and restore always affect the whole series master.\n- **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list.\n- **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.\n- **Attendee Limit**: A maximum of 50 unique attendees is allowed.\n\n### Notification Scope and Side Effects\nUpdating a single Event affects only that Event. Updating a Series Master affects the whole Recurring Series; its whole-series ICS uses the Series `UID`, contains `RRULE`, and does not contain `RECURRENCE-ID`.\nThe attendee fan-out is: newly added attendees receive an invitation `REQUEST`, kept attendees receive an update `REQUEST`, and removed attendees receive a `CANCEL`. If the request does not provide `attendees`, an effective change to `start` or `end`, `title`, `description`, `location`, `url`, `status`, or other attendee-visible content still sends an update `REQUEST` to current attendees.\nWhen status changes to cancelled, original attendees receive a `CANCEL`. When status changes from cancelled to active, current attendees receive an invitation `REQUEST`.\nEmail is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.\n\n### Troubleshooting\n- Returns 404 `NOT_FOUND` if the event does not exist or is soft-deleted.\n- Returns 409 `VERSION_CONFLICT` if `expected_version` is provided but stale.\n- Returns 400 `VALIDATION_ERROR` if `start` and `end` kinds do not match, or if `end <= start`.\n- Returns 400 `ATTENDEE_LIMIT_EXCEEDED` if unique attendees exceed 50.",
         "security": [
           {
             "bearerAuth": []
@@ -24112,7 +24116,7 @@
         },
         "responses": {
           "200": {
-            "description": "The updated event with `version` incremented. Attendee diff emails are sent asynchronously.",
+            "description": "The updated event with `version` incremented. Notification emails are scheduled asynchronously through `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not change the mutation response or Calendar state.",
             "headers": {
               "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
@@ -26549,7 +26553,7 @@
           }
         },
         "summary": "Restore one recurring occurrence",
-        "description": "Delete one persisted exception so the recurrence identity inherits the master again.",
+        "description": "Delete the target Occurrence Exception. An effective restore sends a newer-revision instance `REQUEST`, and the target Occurrence inherits the Series Master again. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.",
         "parameters": [
           {
             "name": "x-cb-cal",
@@ -26608,7 +26612,7 @@
         },
         "responses": {
           "200": {
-            "description": "Effective occurrence after mutation.",
+            "description": "The effective Occurrence after mutation. Any attendee email is scheduled asynchronously through `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not change the mutation response or Calendar state.",
             "headers": {
               "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
@@ -26961,7 +26965,7 @@
           }
         },
         "summary": "Reschedule one recurring occurrence",
-        "description": "Replace the complete effective start and end of one immutable recurrence identity. The series recurrence rule and time zone remain unchanged.",
+        "description": "Replace the complete Effective Occurrence Time of one immutable Recurrence ID. The Recurrence Rule and Series Time Zone remain unchanged. An effective reschedule sends an instance `REQUEST` with the new Effective Occurrence Time. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.",
         "parameters": [
           {
             "name": "x-cb-cal",
@@ -27020,7 +27024,7 @@
         },
         "responses": {
           "200": {
-            "description": "Effective occurrence after reschedule.",
+            "description": "The effective Occurrence after mutation. Any attendee email is scheduled asynchronously through `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not change the mutation response or Calendar state.",
             "headers": {
               "x-cb-cal": {
                 "description": "Opaque consistency bookmark for the latest calendar database position observed by this request. Store and send it on the next calendar request to continue read-after-write consistency.",
@@ -32619,7 +32623,7 @@
           "DriveFiles"
         ],
         "summary": "Search drive library text",
-        "description": "Full-text search over indexed text files in a library (FTS5).",
+        "description": "Search indexed text files by relevance, then file ID. Pass next_cursor as cursor with the same exact query and library; stop when next_cursor is absent. No TTL or snapshot. Index changes, including other libraries, can cause repeats or omissions. Invalid cursors return VALIDATION_ERROR; restart the search. Libraries that are missing, deleted or outside the Workspace return NOT_FOUND before cursor validation.",
         "security": [
           {
             "bearerAuth": []
@@ -32658,6 +32662,16 @@
             },
             "required": false,
             "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque Search Cursor from next_cursor; reuse with the same query and library. No TTL."
+            },
+            "required": false,
+            "description": "Opaque Search Cursor from next_cursor; reuse with the same query and library. No TTL.",
+            "name": "cursor",
             "in": "query"
           }
         ],
@@ -32707,7 +32721,13 @@
                           "path": "notes/today.md",
                           "snippet": "the [quick] brown fox"
                         }
-                      ]
+                      ],
+                      "next_cursor": "<opaque-search-cursor>"
+                    }
+                  },
+                  "last": {
+                    "value": {
+                      "results": []
                     }
                   }
                 }
@@ -33011,7 +33031,7 @@
           "EmailAliases"
         ],
         "summary": "Create a receiving alias",
-        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.\n- **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization, fully verified, and enabled by the Workspace entitlement.\n- **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 40, Business 200) for both active capacity and a Workspace-wide rolling 30-day creation budget. Soft-deleted platform addresses release active capacity but remain in the creation budget until their original creation leaves the window. Custom-domain aliases use the per-user limit of 10 active aliases.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.\n- **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain is not fully verified, enabled, or currently within entitlement.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The Current Workspace has reached its reserved platform address capacity, or the caller has reached the custom-domain per-user alias limit.\n- **429 Too Many Requests / ALIAS_CREATION_LIMIT_EXCEEDED**: The Workspace exhausted its rolling 30-day platform-address creation budget. Retry timing is in the `Retry-After` header.\n- **503 Service Unavailable / EMAIL_ENTITLEMENTS_UNAVAILABLE**: Billing could not provide a trustworthy entitlement, so creation failed closed.",
+        "description": "### Overview\nReserves and provisions a new passwordless/disposable receiving email alias address under the configured WSPC domain or a fully verified organization custom domain. All inbound emails received on this alias will be forwarded into the caller's inbox.\n\n### When to Use\n- Use this endpoint to spin up a fresh, dedicated email address (e.g., `alice-shop@wspc.app`) for specific websites, newsletters, or contexts to prevent spam or categorize incoming mail.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Alias Formatting**: The local part must be 5–32 characters on the platform domain or 1–64 characters on a custom domain. It must start with a letter or number and contain only letters, numbers, dots, underscores, and hyphens. Reserved words are blocked only on the platform domain.\n- **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization, fully verified, and enabled by the Workspace entitlement.\n- **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 40, Business 200) for both active capacity and a Workspace-wide rolling 30-day creation budget. Soft-deleted platform addresses release active capacity but remain in the creation budget until their original creation leaves the window. Custom-domain aliases use the per-user limit of 10 active aliases.\n\n### Troubleshooting\n- **401 Unauthorized**: Bearer token is missing, invalid, or expired.\n- **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is outside the domain's length limits, or matches a reserved word on the platform domain.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.\n- **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.\n- **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain is not fully verified, enabled, or currently within entitlement.\n- **409 Conflict / ALIAS_CONFLICT**: An alias with the exact requested email address already exists globally (whether active or soft-deleted by any user).\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The Current Workspace has reached its reserved platform address capacity, or the caller has reached the custom-domain per-user alias limit.\n- **429 Too Many Requests / ALIAS_CREATION_LIMIT_EXCEEDED**: The Workspace exhausted its rolling 30-day platform-address creation budget. Retry timing is in the `Retry-After` header.\n- **503 Service Unavailable / EMAIL_ENTITLEMENTS_UNAVAILABLE**: Billing could not provide a trustworthy entitlement, so creation failed closed.",
         "security": [
           {
             "bearerAuth": []
@@ -37603,7 +37623,7 @@
                               "sent",
                               "failed"
                             ],
-                            "description": "Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details."
+                            "description": "Lifecycle status. `submitted`: the outbound row is persisted, but the provider outcome is not yet known; public responses do not expose provider details. `sent`: the provider accepted the message. `failed`: the provider rejected the message; public responses do not expose provider failure detail."
                           },
                           "idempotency_key": {
                             "type": "string",
@@ -39351,7 +39371,7 @@
           "Emails"
         ],
         "summary": "Send an outbound email",
-        "description": "### Overview\nSubmits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified before sending. Platform-domain aliases use Cloudflare Email Service; verified custom-domain aliases use their active provider.\n\n### When to Use\n- Use this endpoint to send new standalone emails or to reply to threaded inbound messages.\n- Use this in automated agent pipelines (like calendar invite generation or notifications) and CLI email send utilities.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Size Limits**: Individual attachments must not exceed 5 MiB, and the total size of all attachments per send must be 25 MiB or less.\n- **Security**: Up to 10 attachments are allowed. Outbound files with dangerous executable extensions (such as `.exe`, `.bat`, `.com`, `.scr`, `.cmd`, `.jar`, `.js`) are strictly blocked.\n- **Daily Quotas**: Sending is protected by per-user (100 sends/day) and per-alias (50 sends/day) daily quotas. Exceeding them triggers `RATE_LIMITED` or `QUOTA_EXCEEDED` errors.\n- **Custom Domains**: Platform-domain aliases use Cloudflare Email Service. Custom-domain aliases use the domain's active provider when `sending_status = verified`; otherwise the send returns `CUSTOM_DOMAIN_NOT_READY`.\n- **Recipient safety**: Custom-domain sends are rejected before provider delivery when any current-request recipient has an active organization-scoped suppression.\n- **Idempotency**: A stable `idempotency_key` (1-200 characters) must be supplied. Retrying a send with identical content and the same key returns `idempotent_replay: true` without sending duplicates. Reusing the key with changed content returns 409 `IDEMPOTENCY_KEY_REUSED`.\n- **Response contract**: The result contains `email`, storage-independent `attachments`, `attachment_availability`, and `idempotent_replay`. Clients that only read `email` and `idempotent_replay` remain compatible.\n\n### Troubleshooting\n- **401 Unauthorized**: Active Bearer token is invalid or has expired.\n- **404 Not Found**: The requested `from_alias_email` does not exist or has been soft-deleted, or the referenced `in_reply_to_email_id` is missing or belongs to a different user.\n- **409 Conflict / IDEMPOTENCY_KEY_REUSED**: An identical `idempotency_key` was reused with modified request payload. Use a fresh unique key.\n- **409 Conflict / CUSTOM_DOMAIN_NOT_READY**: The sender uses a custom domain that has not completed outbound sending verification.\n- **429 Too Many Requests / RATE_LIMITED**: The per-user rate limit or daily sending quota has been exceeded. Wait for quota reset.\n- **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. A later identical idempotent replay returns the persisted generic `failed` result without provider details.",
+        "description": "### Overview\nSubmits a single outbound email for delivery from one of the caller's active aliases. All details, including attachments (inline base64 blobs or references to existing inbound attachments), are verified before sending. Platform-domain aliases use Cloudflare Email Service; verified custom-domain aliases use their active provider.\n\n### When to Use\n- Use this endpoint to send new standalone emails or to reply to threaded inbound messages.\n- Use this in automated agent pipelines (like calendar invite generation or notifications) and CLI email send utilities.\n\n### Constraints\n- Requires a valid Bearer token in the `Authorization` header.\n- **Size Limits**: Individual attachments must not exceed 5 MiB, and the total size of all attachments per send must be 25 MiB or less.\n- **Security**: Up to 10 attachments are allowed. Outbound files with dangerous executable extensions (such as `.exe`, `.bat`, `.com`, `.scr`, `.cmd`, `.jar`, `.js`) are strictly blocked.\n- **Daily Quotas**: Sending is protected by per-user (100 sends/day) and per-alias (50 sends/day) daily quotas. Exceeding them triggers `RATE_LIMITED` or `QUOTA_EXCEEDED` errors.\n- **Custom Domains**: Platform-domain aliases use Cloudflare Email Service. Custom-domain aliases use the domain's active provider when `sending_status = verified`; otherwise the send returns `CUSTOM_DOMAIN_NOT_READY`.\n- **Recipient safety**: Custom-domain sends are rejected before provider delivery when any current-request recipient has an active organization-scoped suppression.\n- **Idempotency**: A stable `idempotency_key` (1-200 characters) must be supplied. Retrying a send with identical content and the same key returns `idempotent_replay: true` without sending duplicates. Reusing the key with changed content returns 409 `IDEMPOTENCY_KEY_REUSED`.\n- **Response contract**: The result contains `email`, storage-independent `attachments`, `attachment_availability`, and `idempotent_replay`. Clients that only read `email` and `idempotent_replay` remain compatible.\n\n### Troubleshooting\n- **401 Unauthorized**: Active Bearer token is invalid or has expired.\n- **404 Not Found**: The requested `from_alias_email` does not exist or has been soft-deleted, or the referenced `in_reply_to_email_id` is missing or belongs to a different user.\n- **409 Conflict / IDEMPOTENCY_KEY_REUSED**: An identical `idempotency_key` was reused with modified request payload. Use a fresh unique key.\n- **409 Conflict / CUSTOM_DOMAIN_NOT_READY**: The sender uses a custom domain that has not completed outbound sending verification.\n- **429 Too Many Requests / RATE_LIMITED**: The per-user rate limit or daily sending quota has been exceeded. Wait for quota reset.\n- **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. The public error body is generic. A later identical idempotent replay returns the persisted generic `failed` result without provider failure detail.",
         "security": [
           {
             "bearerAuth": []
@@ -40053,7 +40073,7 @@
             }
           },
           "502": {
-            "description": "The upstream email provider rejected the message. The row is persisted with `status: failed` and `error_code` / `error_message` set.",
+            "description": "The upstream email provider rejected the message. The public error body is generic; WSPC retains internal audit evidence without exposing provider failure detail.",
             "content": {
               "application/json": {
                 "schema": {

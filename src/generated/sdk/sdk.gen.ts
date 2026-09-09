@@ -878,7 +878,7 @@ export const billingSubscriptionUpgradesCreate = <ThrowOnError extends boolean =
 /**
  * Cancel one recurring occurrence
  *
- * Persist a cancellation exception for one recurrence identity without cancelling the whole series.
+ * Persist an Occurrence Exception for the target Recurrence ID. An effective cancellation sends an instance `CANCEL` and does not cancel the whole Recurring Series. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.
  */
 export const eventOccurrenceCancel = <ThrowOnError extends boolean = false>(options: Options<EventOccurrenceCancelData, ThrowOnError>) => (options.client ?? client).post<EventOccurrenceCancelResponses, EventOccurrenceCancelErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1012,9 +1012,15 @@ export const eventGet = <ThrowOnError extends boolean = false>(options: Options<
  * - **Optimistic Locking**: Pass `expected_version` to fail with `VERSION_CONFLICT` if another mutation occurred concurrently since you last read. Omit to let the server force the update.
  * - **Field Clearing**: Pass an empty string `""` for `description`, `location`, `url`, `recurrence_rule`, or `time_zone` to clear that field. Clearing recurrence also clears its zone; clearing only the zone preserves the instants and returns the series to UTC semantics.
  * - **Recurring Series**: A recurrence rule is an RFC 5545 RRULE value without the `RRULE:` prefix. Local timed series provide canonicalizable `time_zone` and matching offset-bearing start/end. Update, cancel, delete, and restore always affect the whole series master.
- * - **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list. The server automatically diffs participants and asynchronously sends invitations (for newly added), updates (for kept), or cancellations (for removed) via Cloudflare `waitUntil`.
+ * - **Attendee replacement**: Providing the `attendees` property fully REPLACES the existing participant list.
  * - **Validation Rules**: Mismatched start/end formats or chronological order violations will fail the request.
  * - **Attendee Limit**: A maximum of 50 unique attendees is allowed.
+ *
+ * ### Notification Scope and Side Effects
+ * Updating a single Event affects only that Event. Updating a Series Master affects the whole Recurring Series; its whole-series ICS uses the Series `UID`, contains `RRULE`, and does not contain `RECURRENCE-ID`.
+ * The attendee fan-out is: newly added attendees receive an invitation `REQUEST`, kept attendees receive an update `REQUEST`, and removed attendees receive a `CANCEL`. If the request does not provide `attendees`, an effective change to `start` or `end`, `title`, `description`, `location`, `url`, `status`, or other attendee-visible content still sends an update `REQUEST` to current attendees.
+ * When status changes to cancelled, original attendees receive a `CANCEL`. When status changes from cancelled to active, current attendees receive an invitation `REQUEST`.
+ * Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.
  *
  * ### Troubleshooting
  * - Returns 404 `NOT_FOUND` if the event does not exist or is soft-deleted.
@@ -1130,7 +1136,7 @@ export const eventRestore = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Restore one recurring occurrence
  *
- * Delete one persisted exception so the recurrence identity inherits the master again.
+ * Delete the target Occurrence Exception. An effective restore sends a newer-revision instance `REQUEST`, and the target Occurrence inherits the Series Master again. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.
  */
 export const eventOccurrenceRestore = <ThrowOnError extends boolean = false>(options: Options<EventOccurrenceRestoreData, ThrowOnError>) => (options.client ?? client).post<EventOccurrenceRestoreResponses, EventOccurrenceRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1145,7 +1151,7 @@ export const eventOccurrenceRestore = <ThrowOnError extends boolean = false>(opt
 /**
  * Reschedule one recurring occurrence
  *
- * Replace the complete effective start and end of one immutable recurrence identity. The series recurrence rule and time zone remain unchanged.
+ * Replace the complete Effective Occurrence Time of one immutable Recurrence ID. The Recurrence Rule and Series Time Zone remain unchanged. An effective reschedule sends an instance `REQUEST` with the new Effective Occurrence Time. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.
  */
 export const eventOccurrenceSet = <ThrowOnError extends boolean = false>(options: Options<EventOccurrenceSetData, ThrowOnError>) => (options.client ?? client).patch<EventOccurrenceSetResponses, EventOccurrenceSetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1336,7 +1342,7 @@ export const driveFileRestore = <ThrowOnError extends boolean = false>(options: 
 /**
  * Search drive library text
  *
- * Full-text search over indexed text files in a library (FTS5).
+ * Search indexed text files by relevance, then file ID. Pass next_cursor as cursor with the same exact query and library; stop when next_cursor is absent. No TTL or snapshot. Index changes, including other libraries, can cause repeats or omissions. Invalid cursors return VALIDATION_ERROR; restart the search. Libraries that are missing, deleted or outside the Workspace return NOT_FOUND before cursor validation.
  */
 export const driveSearch = <ThrowOnError extends boolean = false>(options: Options<DriveSearchData, ThrowOnError>) => (options.client ?? client).get<DriveSearchResponses, DriveSearchErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1377,13 +1383,13 @@ export const emailAliasList = <ThrowOnError extends boolean = false>(options?: O
  *
  * ### Constraints
  * - Requires a valid Bearer token in the `Authorization` header.
- * - **Alias Formatting**: The local part must be between 5 and 32 characters, start with an alphanumeric character, and only contain letters, numbers, dots, underscores, and hyphens.
+ * - **Alias Formatting**: The local part must be 5–32 characters on the platform domain or 1–64 characters on a custom domain. It must start with a letter or number and contain only letters, numbers, dots, underscores, and hyphens. Reserved words are blocked only on the platform domain.
  * - **Custom Domains**: If the address uses a non-platform host, that domain must be registered to the caller's organization, fully verified, and enabled by the Workspace entitlement.
  * - **Limit Check**: Reserved platform addresses use the Current Workspace tier limit (Free 3, Personal 10, Startup 40, Business 200) for both active capacity and a Workspace-wide rolling 30-day creation budget. Soft-deleted platform addresses release active capacity but remain in the creation budget until their original creation leaves the window. Custom-domain aliases use the per-user limit of 10 active aliases.
  *
  * ### Troubleshooting
  * - **401 Unauthorized**: Bearer token is missing, invalid, or expired.
- * - **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is too short/long, or matches a reserved keyword.
+ * - **400 Bad Request / INVALID_CHARSET / RESERVED**: The alias local part contains invalid characters, is outside the domain's length limits, or matches a reserved word on the platform domain.
  * - **400 Bad Request / ALIAS_DOMAIN_NOT_FOUND**: The custom domain is not registered to the caller's organization.
  * - **400 Bad Request / UNVERIFIED_DOMAIN**: The custom domain exists but is not verified yet.
  * - **400 Bad Request / ALIAS_DOMAIN_NOT_READY**: The custom domain is not fully verified, enabled, or currently within entitlement.
@@ -1845,7 +1851,7 @@ export const emailSentRestore = <ThrowOnError extends boolean = false>(options: 
  * - **409 Conflict / IDEMPOTENCY_KEY_REUSED**: An identical `idempotency_key` was reused with modified request payload. Use a fresh unique key.
  * - **409 Conflict / CUSTOM_DOMAIN_NOT_READY**: The sender uses a custom domain that has not completed outbound sending verification.
  * - **429 Too Many Requests / RATE_LIMITED**: The per-user rate limit or daily sending quota has been exceeded. Wait for quota reset.
- * - **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. A later identical idempotent replay returns the persisted generic `failed` result without provider details.
+ * - **502 Bad Gateway**: The upstream outbound provider failed or rejected the message. The public error body is generic. A later identical idempotent replay returns the persisted generic `failed` result without provider failure detail.
  */
 export const emailSend = <ThrowOnError extends boolean = false>(options: Options<EmailSendData, ThrowOnError>) => (options.client ?? client).post<EmailSendResponses, EmailSendErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

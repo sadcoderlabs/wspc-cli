@@ -6,7 +6,7 @@ import { parseIntegerField } from "../../../../handwritten/utils/parse-scalar-fi
 
 export const eventOccurrenceRestoreCommand = new Command("restore")
   .description("Restore one recurring occurrence")
-  .addHelpText("after", "\nDelete one persisted exception so the recurrence identity inherits the master again.\n")
+  .addHelpText("after", "\nDelete the target Occurrence Exception. An effective restore sends a newer-revision instance `REQUEST`, and the target Occurrence inherits the Series Master again. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.\n")
   .argument("<series_id>", "series_id")
   .argument("<recurrence_id>", "recurrence_id")
   .option("--expected-version <value>", "expected_version", (value: string) => parseIntegerField(value, "expected-version"))

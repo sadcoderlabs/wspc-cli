@@ -1307,6 +1307,10 @@ export type DriveSearchResponse = {
         path: string;
         snippet: string;
     }>;
+    /**
+     * Present only when more results exist. Omitted on the last or empty page.
+     */
+    next_cursor?: string;
 };
 
 export type UpdateDriveLibraryBody = {
@@ -1339,7 +1343,7 @@ export type Alias = {
 
 export type CreateAliasBody = {
     /**
-     * Full alias address under the platform email domain or a fully verified organization custom domain, for example alice-shop@wspc.app or alice-shop@example.com.
+     * Full alias address under the platform email domain or a fully verified organization custom domain, for example alice-shop@wspc.app or me@example.com. The local part must be 5–32 characters on the platform domain or 1–64 characters on a custom domain.
      */
     email: string;
 };
@@ -1607,7 +1611,7 @@ export type SentEmailDetail = {
          */
         references_header?: string;
         /**
-         * Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details.
+         * Lifecycle status. `submitted`: the outbound row is persisted, but the provider outcome is not yet known; public responses do not expose provider details. `sent`: the provider accepted the message. `failed`: the provider rejected the message; public responses do not expose provider failure detail.
          */
         status: 'submitted' | 'sent' | 'failed';
         /**
@@ -1811,7 +1815,7 @@ export type SendEmailResponse = {
          */
         references_header?: string;
         /**
-         * Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details.
+         * Lifecycle status. `submitted`: the outbound row is persisted, but the provider outcome is not yet known; public responses do not expose provider details. `sent`: the provider accepted the message. `failed`: the provider rejected the message; public responses do not expose provider failure detail.
          */
         status: 'submitted' | 'sent' | 'failed';
         /**
@@ -6603,7 +6607,7 @@ export type EventOccurrenceCancelError = EventOccurrenceCancelErrors[keyof Event
 
 export type EventOccurrenceCancelResponses = {
     /**
-     * Effective occurrence after mutation.
+     * The effective Occurrence after mutation. Any attendee email is scheduled asynchronously through `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not change the mutation response or Calendar state.
      */
     200: EventOccurrence;
 };
@@ -7108,7 +7112,7 @@ export type EventUpdateError = EventUpdateErrors[keyof EventUpdateErrors];
 
 export type EventUpdateResponses = {
     /**
-     * The updated event with `version` incremented. Attendee diff emails are sent asynchronously.
+     * The updated event with `version` incremented. Notification emails are scheduled asynchronously through `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not change the mutation response or Calendar state.
      */
     200: Event;
 };
@@ -7703,7 +7707,7 @@ export type EventOccurrenceRestoreError = EventOccurrenceRestoreErrors[keyof Eve
 
 export type EventOccurrenceRestoreResponses = {
     /**
-     * Effective occurrence after mutation.
+     * The effective Occurrence after mutation. Any attendee email is scheduled asynchronously through `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not change the mutation response or Calendar state.
      */
     200: EventOccurrence;
 };
@@ -7796,7 +7800,7 @@ export type EventOccurrenceSetError = EventOccurrenceSetErrors[keyof EventOccurr
 
 export type EventOccurrenceSetResponses = {
     /**
-     * Effective occurrence after reschedule.
+     * The effective Occurrence after mutation. Any attendee email is scheduled asynchronously through `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not change the mutation response or Calendar state.
      */
     200: EventOccurrence;
 };
@@ -9048,6 +9052,10 @@ export type DriveSearchData = {
     query: {
         query: string;
         limit?: string;
+        /**
+         * Opaque Search Cursor from next_cursor; reuse with the same query and library. No TTL.
+         */
+        cursor?: string;
     };
     url: '/drive/libraries/{id}/search';
 };
@@ -10439,7 +10447,7 @@ export type EmailSentListResponses = {
              */
             references_header?: string;
             /**
-             * Lifecycle status. `submitted`: the row is persisted and provider submission is in flight. `sent`: the provider accepted the message. `failed`: submission failed; public responses do not expose provider details.
+             * Lifecycle status. `submitted`: the outbound row is persisted, but the provider outcome is not yet known; public responses do not expose provider details. `sent`: the provider accepted the message. `failed`: the provider rejected the message; public responses do not expose provider failure detail.
              */
             status: 'submitted' | 'sent' | 'failed';
             /**
@@ -10915,7 +10923,7 @@ export type EmailSendErrors = {
         };
     };
     /**
-     * The upstream email provider rejected the message. The row is persisted with `status: failed` and `error_code` / `error_message` set.
+     * The upstream email provider rejected the message. The public error body is generic; WSPC retains internal audit evidence without exposing provider failure detail.
      */
     502: {
         error: {
