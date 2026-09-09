@@ -1,0 +1,16 @@
+Usage: wspc event occurrence set [options] <series_id> <recurrence_id>
+
+Reschedule one recurring occurrence
+
+Arguments:
+  series_id                   series_id
+  recurrence_id               recurrence_id
+
+Options:
+  --start <value>             start
+  --end <value>               end
+  --expected-version <value>  expected_version
+  --tz <value>                tz
+  -h, --help                  display help for command
+
+Replace the complete Effective Occurrence Time of one immutable Recurrence ID. The Recurrence Rule and Series Time Zone remain unchanged. An effective reschedule sends an instance `REQUEST` with the new Effective Occurrence Time. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.

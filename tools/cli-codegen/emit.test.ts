@@ -214,7 +214,7 @@ describe("emitCommand: occurrence mutation parser", () => {
         options: {
           start: { parser: "occurrence-time", required: true },
           end: { parser: "occurrence-time", required: true },
-          tz: { parser: "occurrence-time-zone" },
+          tz: {},
         },
       },
       pathParams: ["series_id", "recurrence_id"],
@@ -228,6 +228,8 @@ describe("emitCommand: occurrence mutation parser", () => {
     expect(out).toContain('.requiredOption("--end <value>"')
     expect(out).toContain("operation: eventGet")
     expect(out).toContain("parseOccurrenceMutationTimes(")
+    expect(out?.split('.option("--tz <value>"')).toHaveLength(2)
+    expect(out).toContain("opts.tz as string | undefined")
     expect(out).toContain("start: startValue as string")
     expect(out).toContain("end: endValue as string")
   })
