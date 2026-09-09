@@ -1371,7 +1371,7 @@ export const driveFileMove = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Restore a drive file version
  *
- * Promote a previous file version to be the current content.
+ * Restore retained bytes only while the confirmed entry ID, path, and Entry Version still match. Stale confirmation fails with VERSION_CONFLICT. Same bytes return unchanged after the same atomic checks. Never fetch a newer Entry Version to retry.
  */
 export const driveFileRestore = <ThrowOnError extends boolean = false>(options: Options<DriveFileRestoreData, ThrowOnError>) => (options.client ?? client).post<DriveFileRestoreResponses, DriveFileRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
