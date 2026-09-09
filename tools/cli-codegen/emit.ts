@@ -7,7 +7,7 @@ export interface XCliDisplay {
 }
 
 export interface XCliOption {
-  parser?: "datetime" | "occurrence-boundary" | "occurrence-time" | "occurrence-time-zone" | "agenda-boundary" | "agenda-time-zone" | "attendee" | "series-time-zone"
+  parser?: "datetime" | "occurrence-boundary" | "occurrence-time" | "agenda-boundary" | "agenda-time-zone" | "attendee" | "series-time-zone"
   required?: boolean
   array?: boolean
   mapsTo?: string

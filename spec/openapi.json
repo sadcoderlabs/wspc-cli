@@ -26941,7 +26941,6 @@
               "required": true
             },
             "tz": {
-              "parser": "occurrence-time-zone",
               "requestOnly": true
             }
           },

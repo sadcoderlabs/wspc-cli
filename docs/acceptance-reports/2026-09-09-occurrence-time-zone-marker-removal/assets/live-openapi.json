@@ -1,0 +1,39 @@
+{
+  "deploymentSha": "80cc01af4ef1a83b475f1e9ddd1cc90379b56ec9",
+  "surfaces": [
+    {
+      "url": "https://api.wspc.ai/calendar/openapi.json",
+      "sha256": "dd44612ca7062711605592df731060fb3cc55b505804e02e69d6ff734513f609",
+      "options": {
+        "start": {
+          "parser": "occurrence-time",
+          "required": true
+        },
+        "end": {
+          "parser": "occurrence-time",
+          "required": true
+        },
+        "tz": {
+          "requestOnly": true
+        }
+      }
+    },
+    {
+      "url": "https://api.wspc.ai/openapi.json",
+      "sha256": "3ab9b5d18d0080187ac3bc7bbf4cef0dc1f5dff1320bb303fd645499e5b7f89a",
+      "options": {
+        "start": {
+          "parser": "occurrence-time",
+          "required": true
+        },
+        "end": {
+          "parser": "occurrence-time",
+          "required": true
+        },
+        "tz": {
+          "requestOnly": true
+        }
+      }
+    }
+  ]
+}
