@@ -7,6 +7,7 @@ import { resolveAccount } from "./resolve-account.js"
 export interface AuthedFetch {
   fetch: typeof globalThis.fetch
   baseUrl: string
+  account: string
 }
 
 export interface RealtimeAuthHeaders {
@@ -92,8 +93,8 @@ export async function loadSdkClient(
 export async function loadAuthedFetch(
   opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
 ): Promise<AuthedFetch> {
-  const { fetch, baseUrl } = await loadClientParts(opts)
-  return { fetch, baseUrl }
+  const { fetch, baseUrl, account } = await loadClientParts(opts)
+  return { fetch, baseUrl, account }
 }
 
 export async function loadRealtimeAuthHeaders(
@@ -112,8 +113,8 @@ export async function loadRealtimeAuthHeaders(
 export async function loadSdkClientWithAuthedFetch(
   opts: { store?: ConfigStore; fetchImpl?: typeof globalThis.fetch } = {},
 ): Promise<LoadedClientWithAuthedFetch> {
-  const { _rawClient, fetch, baseUrl } = await loadClientParts(opts)
-  return { _rawClient, fetch, baseUrl }
+  const { _rawClient, fetch, baseUrl, account } = await loadClientParts(opts)
+  return { _rawClient, fetch, baseUrl, account }
 }
 
 async function loadClientParts(
@@ -138,5 +139,5 @@ async function loadClientParts(
       fetch: authedFetch,
     }),
   )
-  return { _rawClient: rawClient, fetch: authedFetch, baseUrl: resolved.apiBase, authInterceptor: interceptor }
+  return { _rawClient: rawClient, fetch: authedFetch, baseUrl: resolved.apiBase, account: resolved.email, authInterceptor: interceptor }
 }

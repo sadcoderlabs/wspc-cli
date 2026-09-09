@@ -7807,6 +7807,333 @@ export type EventOccurrenceSetResponses = {
 
 export type EventOccurrenceSetResponse = EventOccurrenceSetResponses[keyof EventOccurrenceSetResponses];
 
+export type DriveExportCancelData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/export/cancel';
+};
+
+export type DriveExportCancelErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveExportCancelError = DriveExportCancelErrors[keyof DriveExportCancelErrors];
+
+export type DriveExportCancelResponses = {
+    /**
+     * Latest Export Job after cancellation, or null
+     */
+    200: {
+        workspace_id: string;
+        job: {
+            id: string;
+            status: 'pending' | 'running' | 'completed' | 'failed' | 'expired';
+            created_at: number;
+            updated_at: number;
+            completed_at: number | null;
+            expires_at: number | null;
+            items_written: number;
+            items_total: number | null;
+            bytes_written: number;
+            error_code: string | null;
+        } | null;
+    };
+};
+
+export type DriveExportCancelResponse = DriveExportCancelResponses[keyof DriveExportCancelResponses];
+
+export type DriveExportGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/export';
+};
+
+export type DriveExportGetErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveExportGetError = DriveExportGetErrors[keyof DriveExportGetErrors];
+
+export type DriveExportGetResponses = {
+    /**
+     * Latest Export Job, or null
+     */
+    200: {
+        workspace_id: string;
+        job: {
+            id: string;
+            status: 'pending' | 'running' | 'completed' | 'failed' | 'expired';
+            created_at: number;
+            updated_at: number;
+            completed_at: number | null;
+            expires_at: number | null;
+            items_written: number;
+            items_total: number | null;
+            bytes_written: number;
+            error_code: string | null;
+        } | null;
+    };
+};
+
+export type DriveExportGetResponse = DriveExportGetResponses[keyof DriveExportGetResponses];
+
+export type DriveExportCreateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/export';
+};
+
+export type DriveExportCreateErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * DRIVE_EXPORT_IN_PROGRESS: the same Workspace's unfinished job, with workspace_id in details.
+     */
+    409: {
+        error: {
+            code: 'DRIVE_EXPORT_IN_PROGRESS';
+            message: string;
+            details: {
+                workspace_id: string;
+                job: {
+                    id: string;
+                    status: 'pending' | 'running' | 'completed' | 'failed' | 'expired';
+                    created_at: number;
+                    updated_at: number;
+                    completed_at: number | null;
+                    expires_at: number | null;
+                    items_written: number;
+                    items_total: number | null;
+                    bytes_written: number;
+                    error_code: string | null;
+                };
+            };
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveExportCreateError = DriveExportCreateErrors[keyof DriveExportCreateErrors];
+
+export type DriveExportCreateResponses = {
+    /**
+     * Export Job accepted
+     */
+    202: {
+        workspace_id: string;
+        job: {
+            id: string;
+            status: 'pending' | 'running' | 'completed' | 'failed' | 'expired';
+            created_at: number;
+            updated_at: number;
+            completed_at: number | null;
+            expires_at: number | null;
+            items_written: number;
+            items_total: number | null;
+            bytes_written: number;
+            error_code: string | null;
+        };
+    };
+};
+
+export type DriveExportCreateResponse = DriveExportCreateResponses[keyof DriveExportCreateResponses];
+
 export type DriveLibraryListData = {
     body?: never;
     headers?: {
@@ -8651,6 +8978,96 @@ export type DriveFileEditResponses = {
 };
 
 export type DriveFileEditResponse = DriveFileEditResponses[keyof DriveFileEditResponses];
+
+export type DriveExportDownloadData = {
+    body?: never;
+    path?: never;
+    query?: {
+        job_id?: string;
+        /**
+         * Authenticated Workspace ID; requires job_id.
+         */
+        workspace_id?: string;
+    };
+    url: '/drive/export/download';
+};
+
+export type DriveExportDownloadErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveExportDownloadError = DriveExportDownloadErrors[keyof DriveExportDownloadErrors];
+
+export type DriveExportDownloadResponses = {
+    /**
+     * The Export Package as an uncompressed tar archive.
+     */
+    200: Blob | File;
+};
+
+export type DriveExportDownloadResponse = DriveExportDownloadResponses[keyof DriveExportDownloadResponses];
 
 export type DriveFileHistoryData = {
     body?: never;

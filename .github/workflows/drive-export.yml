@@ -1,0 +1,44 @@
+name: Drive export streaming
+
+on:
+  push:
+    paths:
+      - src/cli.ts
+      - src/handwritten/commands/drive/export.ts
+      - src/handwritten/auth/**
+      - scripts/check-drive-export-*
+      - test/handwritten/drive-export.test.ts
+      - package*.json
+      - .github/workflows/drive-export.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  streaming:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: npx vitest run test/handwritten/drive-export.test.ts
+      - run: npm run build
+      - name: Verify streaming, OS peak RSS, and no-clobber publication
+        shell: bash
+        run: node scripts/check-drive-export-streaming.mjs > drive-export-streaming.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: drive-export-${{ matrix.os }}
+          path: drive-export-streaming.json

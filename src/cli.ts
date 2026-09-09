@@ -15,6 +15,7 @@ import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
 import { driveBindCommand } from "./handwritten/commands/drive/bind.js"
 import { driveSyncCommand } from "./handwritten/commands/drive/sync.js"
 import { driveWatchCommand } from "./handwritten/commands/drive/watch.js"
+import { driveExportCommand } from "./handwritten/commands/drive/export.js"
 import { VERSION, SPEC_SHA, SPEC_FETCHED_AT } from "./version.js"
 
 export function mountDriveCommands(program: Command): void {
@@ -26,6 +27,7 @@ export function mountDriveCommands(program: Command): void {
   if (!drive.commands.some((c) => c.name() === "bind")) {
     drive.addCommand(driveBindCommand())
   }
+  if (!drive.commands.some((c) => c.name() === "export")) drive.addCommand(driveExportCommand())
   const sync = drive.commands.find((c) => c.name() === "sync")
   if (!sync) {
     drive.addCommand(driveSyncCommand())

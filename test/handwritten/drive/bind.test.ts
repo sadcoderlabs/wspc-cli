@@ -131,7 +131,7 @@ describe("drive bind", () => {
 
     const driveRoots = program.commands.filter((cmd) => cmd.name() === "drive")
     expect(driveRoots).toHaveLength(1)
-    expect(driveRoots[0]!.commands.map((cmd) => cmd.name())).toEqual(["generated", "bind", "sync", "watch"])
+    expect(driveRoots[0]!.commands.map((cmd) => cmd.name())).toEqual(["generated", "bind", "export", "sync", "watch"])
   })
 
   it("does not duplicate a generated drive bind command", async () => {
