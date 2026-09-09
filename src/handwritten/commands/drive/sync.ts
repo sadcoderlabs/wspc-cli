@@ -19,13 +19,11 @@ import {
 import { render } from "../../output/render.js"
 import {
   DriveRetryableSyncError,
-  isDriveAuthFailure,
   isRetryableDriveFailure,
 } from "./retry.js"
 import {
   cloneDriveState,
   drivePathErrorSummary,
-  errorMessage,
   executeDrivePathAction,
   recordDrivePathError,
   stateEntryFromRemote,
@@ -432,25 +430,19 @@ async function applyRenamesAsMoves(args: {
     const entry = state.entries[fromPath]
     const local = localFiles[toPath]
     if (entry === undefined || local === undefined) continue
-    try {
-      const moved = await api.moveFile(state.library_id, fromPath, toPath, entry.entry_version)
-      const nextState = cloneDriveState(state)
-      delete nextState.entries[fromPath]
-      delete nextState.conflicts[fromPath]
-      nextState.entries[toPath] = stateEntryFromRemote(moved.entry, local.sha256, clock)
-      delete nextState.conflicts[toPath]
-      await writeDriveState(root, nextState, clock)
-      state = nextState
-      onStateChange(nextState)
-      movedPaths.add(fromPath)
-      movedPaths.add(toPath)
-      summary.paths.push({ path: toPath, action: "move" })
-      debug.log("decision", { path: toPath, action: "move", from_path: fromPath })
-    } catch (error) {
-      if (isRetryableDriveFailure(error) || isDriveAuthFailure(error)) throw error
-      // Move is an optimization: on any failure fall back to upload + delete.
-      debug.log("error", { path: toPath, op: "move", message: errorMessage(error) })
-    }
+    const moved = await api.moveFile(state.library_id, fromPath, toPath, entry.entry_version, entry.entry_id)
+    const nextState = cloneDriveState(state)
+    delete nextState.entries[fromPath]
+    delete nextState.conflicts[fromPath]
+    nextState.entries[toPath] = stateEntryFromRemote(moved.entry, local.sha256, clock)
+    delete nextState.conflicts[toPath]
+    await writeDriveState(root, nextState, clock)
+    state = nextState
+    onStateChange(nextState)
+    movedPaths.add(fromPath)
+    movedPaths.add(toPath)
+    summary.paths.push({ path: toPath, action: "move" })
+    debug.log("decision", { path: toPath, action: "move", from_path: fromPath })
   }
   return movedPaths
 }

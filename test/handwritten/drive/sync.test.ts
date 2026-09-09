@@ -1493,7 +1493,7 @@ describe("drive sync once", () => {
     expect(after.entries["new-name.md"]).toMatchObject({ entry_version: 2 })
   })
 
-  it("falls back to upload + delete when the move optimization has a permanent failure", async () => {
+  it("stops without upload or delete when move has a permanent failure", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-fallback-"))
     const state = await initDriveState(root, "lib_1")
     state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
@@ -1504,11 +1504,9 @@ describe("drive sync once", () => {
       throw new Error("move unsupported")
     }
 
-    const result = await runDriveSyncOnce(root, api)
-
-    expect(result.errors).toBe(0)
-    expect(api.uploads.map((upload) => upload.path)).toEqual(["new-name.md"])
-    expect(api.deletes.map((del) => del.path)).toEqual(["old-name.md"])
+    await expect(runDriveSyncOnce(root, api)).rejects.toThrow("move unsupported")
+    expect(api.uploads).toEqual([])
+    expect(api.deletes).toEqual([])
   })
 
   it("does not degrade a rate-limited move into upload and delete", async () => {
@@ -1834,3 +1832,33 @@ describe("drive sync once", () => {
 function digestOf(content: string): string {
   return sha256(content)
 }
+
+it.each(["delete", "move"])("uses the saved identity for sync %s when another entry has the same path and version", async operation => {
+  const root = await mkdtemp(join(tmpdir(), "confirmation-sync-"))
+  const state = await initDriveState(root, "lib_1")
+  state.entries["a.txt"] = { ...stateEntry("a.txt", "original"), entry_id: "original-id" }
+  await writeDriveState(root, state)
+  if (operation === "move") await writeFile(join(root, "b.txt"), "original")
+  const api = mkApi([{ entries: [{ ...entry("a.txt", "original"), id: "replacement-id" }] }])
+  const calls: unknown[][] = []
+  const fail = async (...args: unknown[]) => { calls.push(args); throw new DriveHttpError(409, { code: "VERSION_CONFLICT" }) }
+  api.deleteFile = fail
+  if (operation === "move") api.moveFile = fail
+  if (operation === "move") await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({ code: "VERSION_CONFLICT" })
+  else expect((await runDriveSyncOnce(root, api)).deleted).toBe(0)
+  expect(calls).toEqual([operation === "move" ? ["lib_1", "a.txt", "b.txt", 1, "original-id"] : ["lib_1", "a.txt", 1, "original-id"]])
+  expect(api.uploads).toEqual([])
+  expect((await readDriveState(root)).entries["a.txt"]?.entry_id).toBe("original-id")
+})
+
+it("rejects legacy sync state without identity before fetching a manifest", async () => {
+  const root = await mkdtemp(join(tmpdir(), "confirmation-legacy-"))
+  const state = await initDriveState(root, "lib_1")
+  const { entry_id, ...legacy } = stateEntry("a.txt", "original")
+  await writeFile(join(root, ".wspc-drive/state.json"), JSON.stringify({ ...state, entries: { "a.txt": legacy } }))
+  const api = mkApi([{ entries: [entry("a.txt", "replacement")] }])
+  await expect(runDriveSyncOnce(root, api)).rejects.toThrow("schema")
+  expect(api.manifests).toEqual([])
+  expect(api.deletes).toEqual([])
+  expect(JSON.parse(await readFile(join(root, ".wspc-drive/state.json"), "utf8")).entries["a.txt"]).toEqual(legacy)
+})

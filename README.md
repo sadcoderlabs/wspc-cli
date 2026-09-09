@@ -97,10 +97,15 @@ wspc drive sync once ./notes
 `bind` 不會建立 server library。它只會驗證既有 library、寫入
 `.wspc-drive/state.json`，然後等待明確的 `sync once` 或 `watch`。
 
-`sync once` 是安全的一次性 sync path：它會完整掃描資料夾、比對 remote
-manifest、上傳 / 下載 whole files、用 optimistic remote versions 做 update /
-delete，並把 conflicts 記在本機 state，而不是自動 merge。它不會啟動 watcher、
-保留空目錄、偵測 rename，或建立 remote libraries。
+`sync once` 會掃描資料夾、比對 remote manifest、上傳／下載 whole files。Delete 與明確 1:1 同 hash rename 的 move 使用原 sync base 的 entry ID／版本；move 失敗會停止，不退回 upload＋delete。缺 entry ID 的舊 state 會拒絕載入；需保留本機資料、重新建立明確的同步確認，不能取得現在的 identity 後執行舊刪除意圖。它不啟動 watcher、不保留空目錄，也不建立 remote Library。
+
+直接刪除須提供使用者已確認的 identity／版本：
+
+```bash
+wspc drive file rm <library-id> notes.txt --entry-id <confirmed-entry-id> --expected-entry-version 3
+```
+
+版本須為大於等於 1 的 safe integer。Conflict 後不要自動換成最新 ID／版本重送；timeout 可能已提交，先依 identity 讀回，無法確認就保持 unknown。CLI 可先發布相容 caller，但須等 live OpenAPI 把 move／delete 的 identity／version 列為 required，且 backend 部署驗收通過，才能宣稱 server 已提供此保護。此 release 的 candidate 驗收見 `docs/acceptance-reports/2026-09-09-drive-confirmation/report.md`。
 
 需要 foreground 監看時使用：
 

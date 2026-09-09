@@ -1297,8 +1297,31 @@ export type MoveDriveFileBody = {
     expected_entry_version?: number;
 };
 
+export type RestoreDriveFileResponse = {
+    entry: {
+        id: string;
+        path: string;
+        kind: 'file';
+        entry_version: number;
+        current_version_id?: string;
+        content_sha256?: string;
+        size_bytes: number;
+        updated_at: string;
+        deleted_at?: string;
+    };
+    result: 'updated' | 'unchanged';
+};
+
 export type RestoreDriveFileBody = {
+    /**
+     * Entry ID from the caller's confirmation.
+     */
+    entry_id: string;
     path: string;
+    /**
+     * Entry Version from the caller's confirmation. Do not fetch a newer value to retry.
+     */
+    expected_entry_version: number;
     version_id: string;
 };
 
@@ -9371,7 +9394,7 @@ export type DriveFileRestoreData = {
 
 export type DriveFileRestoreErrors = {
     /**
-     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     * Invalid confirmation or path, invalid bookmark, or source hash mismatch.
      */
     400: {
         error: {
@@ -9398,7 +9421,7 @@ export type DriveFileRestoreErrors = {
         };
     };
     /**
-     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     * Library is not visible, or the selected source is missing or does not belong to this entry.
      */
     404: {
         error: {
@@ -9407,9 +9430,18 @@ export type DriveFileRestoreErrors = {
         };
     };
     /**
-     * The restore would exceed the Workspace included limit. Use Billing to compare recovery plans when the included limit blocks storage growth.
+     * The confirmed entry changed, source purge is in progress, or storage quota is insufficient.
      */
     409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The source exceeds the 100 MiB file limit.
+     */
+    413: {
         error: {
             code: string;
             message: string;
@@ -9434,7 +9466,7 @@ export type DriveFileRestoreErrors = {
         };
     };
     /**
-     * Workspace quota accounting is temporarily unavailable.
+     * Storage or Workspace quota accounting is temporarily unavailable.
      */
     503: {
         error: {
@@ -9450,7 +9482,7 @@ export type DriveFileRestoreResponses = {
     /**
      * Restored
      */
-    200: UploadDriveFileResponse;
+    200: RestoreDriveFileResponse;
 };
 
 export type DriveFileRestoreResponse = DriveFileRestoreResponses[keyof DriveFileRestoreResponses];

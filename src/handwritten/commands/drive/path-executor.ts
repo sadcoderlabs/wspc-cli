@@ -90,7 +90,7 @@ export async function executeDrivePathAction(
 
     if (action.type === "delete_remote") {
       await assertLocalAbsentBeforeRemoteDelete(root, path)
-      await api.deleteFile(state.library_id, path, action.expectedEntryVersion)
+      await api.deleteFile(state.library_id, path, action.expectedEntryVersion, state.entries[path]!.entry_id)
       durableStateRequired = true
       await assertLocalAbsentBeforeRemoteDelete(root, path)
       const nextState = cloneDriveState(state)

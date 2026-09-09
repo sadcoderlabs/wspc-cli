@@ -3430,18 +3430,93 @@
           "to_path"
         ]
       },
-      "RestoreDriveFileBody": {
+      "RestoreDriveFileResponse": {
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string"
+          "entry": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "file"
+                ]
+              },
+              "entry_version": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "current_version_id": {
+                "type": "string"
+              },
+              "content_sha256": {
+                "type": "string"
+              },
+              "size_bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "deleted_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "path",
+              "kind",
+              "entry_version",
+              "size_bytes",
+              "updated_at"
+            ]
           },
-          "version_id": {
-            "type": "string"
+          "result": {
+            "type": "string",
+            "enum": [
+              "updated",
+              "unchanged"
+            ]
           }
         },
         "required": [
+          "entry",
+          "result"
+        ]
+      },
+      "RestoreDriveFileBody": {
+        "type": "object",
+        "properties": {
+          "entry_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Entry ID from the caller's confirmation."
+          },
+          "path": {
+            "type": "string"
+          },
+          "expected_entry_version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Entry Version from the caller's confirmation. Do not fetch a newer value to retry."
+          },
+          "version_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "entry_id",
           "path",
+          "expected_entry_version",
           "version_id"
         ]
       },
@@ -33879,7 +33954,7 @@
           "DriveFiles"
         ],
         "summary": "Restore a drive file version",
-        "description": "Promote a previous file version to be the current content.",
+        "description": "Restore retained bytes only while the confirmed entry ID, path, and Entry Version still match. Stale confirmation fails with VERSION_CONFLICT. Same bytes return unchanged after the same atomic checks. Never fetch a newer Entry Version to retry.",
         "security": [
           {
             "bearerAuth": []
@@ -33924,7 +33999,7 @@
           {
             "lang": "shell",
             "label": "curl",
-            "source": "curl -X POST https://api.wspc.ai/drive/libraries/lib_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/files/restore -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"path\":\"notes/today.md\",\"version_id\":\"fvr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\"}'"
+            "source": "curl -X POST https://api.wspc.ai/drive/libraries/lib_01HW3K4N9V5G6Z8C2Q7B1Y0M3F/files/restore -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"entry_id\":\"fle_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\",\"path\":\"notes/today.md\",\"expected_entry_version\":2,\"version_id\":\"fvr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F\"}'"
           }
         ],
         "requestBody": {
@@ -33936,7 +34011,9 @@
               "examples": {
                 "restore": {
                   "value": {
+                    "entry_id": "fle_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                     "path": "notes/today.md",
+                    "expected_entry_version": 2,
                     "version_id": "fvr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
                   }
                 }
@@ -33958,7 +34035,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UploadDriveFileResponse"
+                  "$ref": "#/components/schemas/RestoreDriveFileResponse"
                 },
                 "examples": {
                   "updated": {
@@ -33981,7 +34058,7 @@
             }
           },
           "400": {
-            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "description": "Invalid confirmation or path, invalid bookmark, or source hash mismatch.",
             "content": {
               "application/json": {
                 "schema": {
@@ -34008,12 +34085,19 @@
                   ]
                 },
                 "examples": {
-                  "validationError": {
-                    "summary": "Body failed schema validation",
+                  "validation": {
                     "value": {
                       "error": {
                         "code": "VALIDATION_ERROR",
-                        "message": "title must not be empty"
+                        "message": "Restore confirmation is required."
+                      }
+                    }
+                  },
+                  "hashMismatch": {
+                    "value": {
+                      "error": {
+                        "code": "HASH_MISMATCH",
+                        "message": "Content hash mismatch."
                       }
                     }
                   }
@@ -34104,7 +34188,7 @@
             }
           },
           "404": {
-            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "description": "Library is not visible, or the selected source is missing or does not belong to this entry.",
             "content": {
               "application/json": {
                 "schema": {
@@ -34131,12 +34215,19 @@
                   ]
                 },
                 "examples": {
-                  "notFound": {
-                    "summary": "Resource id is unknown to the service",
+                  "libraryMissing": {
                     "value": {
                       "error": {
                         "code": "NOT_FOUND",
-                        "message": "todo not found"
+                        "message": "Library not found."
+                      }
+                    }
+                  },
+                  "sourceMissing": {
+                    "value": {
+                      "error": {
+                        "code": "FILE_NOT_FOUND",
+                        "message": "File not found."
                       }
                     }
                   }
@@ -34145,7 +34236,7 @@
             }
           },
           "409": {
-            "description": "The restore would exceed the Workspace included limit. Use Billing to compare recovery plans when the included limit blocks storage growth.",
+            "description": "The confirmed entry changed, source purge is in progress, or storage quota is insufficient.",
             "content": {
               "application/json": {
                 "schema": {
@@ -34172,6 +34263,30 @@
                   ]
                 },
                 "examples": {
+                  "versionConflict": {
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "The remote entry changed before this write."
+                      }
+                    }
+                  },
+                  "purgeInProgress": {
+                    "value": {
+                      "error": {
+                        "code": "PURGE_IN_PROGRESS",
+                        "message": "Purge is in progress."
+                      }
+                    }
+                  },
+                  "libraryLimit": {
+                    "value": {
+                      "error": {
+                        "code": "LIBRARY_STORAGE_LIMIT_EXCEEDED",
+                        "message": "Library storage limit exceeded."
+                      }
+                    }
+                  },
                   "quotaExceeded": {
                     "value": {
                       "error": {
@@ -34179,6 +34294,42 @@
                         "message": "Workspace storage quota exceeded."
                       }
                     }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The source exceeds the 100 MiB file limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": {
+                    "code": "FILE_TOO_LARGE",
+                    "message": "File too large."
                   }
                 }
               }
@@ -34267,7 +34418,7 @@
             }
           },
           "503": {
-            "description": "Workspace quota accounting is temporarily unavailable.",
+            "description": "Storage or Workspace quota accounting is temporarily unavailable.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds before retrying.",
@@ -34303,6 +34454,14 @@
                   ]
                 },
                 "examples": {
+                  "storageUnavailable": {
+                    "value": {
+                      "error": {
+                        "code": "STORAGE_UNAVAILABLE",
+                        "message": "Storage is temporarily unavailable."
+                      }
+                    }
+                  },
                   "quotaUnavailable": {
                     "value": {
                       "error": {
