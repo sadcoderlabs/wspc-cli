@@ -1,6 +1,36 @@
 import { describe, expect, it } from "vitest"
 import { emitCommand } from "./emit.js"
 
+describe("emitCommand: field option requirements", () => {
+  it.each(["bodyFields", "queryFields"] as const)("uses x-cli required metadata for %s", (source) => {
+    const out = emitCommand({
+      operationId: "example_update",
+      method: "patch",
+      path: "/example",
+      xCli: {
+        command: "example set",
+        options: {
+          required: { mapsTo: "required_field", required: true },
+          optional: { mapsTo: "optional_field", required: false },
+          implicit: { mapsTo: "implicit_field" },
+        },
+      },
+      bodyFields: [],
+      [source]: [
+        { name: "required_field", type: "string", required: false },
+        { name: "optional_field", type: "string", required: true },
+        { name: "implicit_field", type: "string", required: true },
+        { name: "plain", type: "string", required: true },
+      ],
+    })
+
+    expect(out).toContain('.requiredOption("--required <value>", "required")')
+    expect(out).toContain('.option("--optional <value>", "optional")')
+    expect(out).toContain('.option("--implicit <value>", "implicit")')
+    expect(out).toContain('.option("--plain <value>", "plain")')
+  })
+})
+
 describe("emitCommand: path params auto-positional", () => {
   it("auto-adds a required path param as a positional argument when x-cli.positional omits it", () => {
     const out = emitCommand({

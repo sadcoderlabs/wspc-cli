@@ -234,7 +234,7 @@ export function emitCommand(input: EmitInput): string | null {
     return `.argument("${required ? `<${name}>` : `[${name}]`}", "${name}")`
   })
 
-  function emitFieldOption(f: BodyField, enforceRequired = false): string {
+  function emitFieldOption(f: BodyField): string {
     if (f.boolFlag) {
       const { longFlag, short } = resolveAlias(f.name)
       const flagSpec = short ? `-${short}, --${longFlag}` : `--${longFlag}`
@@ -250,15 +250,14 @@ export function emitCommand(input: EmitInput): string | null {
       if (optDef.array) {
         return `.option("${flagSpec}", ${optLabel}, (val: string, memo: string[]) => { memo.push(val); return memo }, [] as string[])`
       }
-      const method = enforceRequired && optDef.required ? "requiredOption" : "option"
+      const method = optDef.required ? "requiredOption" : "option"
       return `.${method}("${flagSpec}", ${optLabel}${scalarParserArgument(f, longFlag)})`
     }
     const { longFlag, short } = resolveAlias(f.name)
     const flagSpec = short ? `-${short}, --${longFlag} <value>` : `--${longFlag} <value>`
     // Prefer the field's OpenAPI description so `--help` carries real guidance;
     // fall back to the field name. JSON.stringify keeps quotes/newlines safe.
-    const method = "option"
-    return `.${method}("${flagSpec}", ${JSON.stringify(f.description ?? f.name)}${scalarParserArgument(f, longFlag)})`
+    return `.option("${flagSpec}", ${JSON.stringify(f.description ?? f.name)}${scalarParserArgument(f, longFlag)})`
   }
 
   // Skip body fields whose x-cli option key has been promoted to a variadic
@@ -272,7 +271,7 @@ export function emitCommand(input: EmitInput): string | null {
   const bodyOptionFields = input.bodyFields.filter(
     (f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !bodyFieldOwnedByVariadicPositional(f),
   )
-  const bodyOptions = bodyOptionFields.map((field) => emitFieldOption(field, true))
+  const bodyOptions = bodyOptionFields.map(emitFieldOption)
 
   // fixedQuery keys win over same-named query fields — suppress the dynamic field
   // from both the options list and the query block to avoid duplicate object keys.
@@ -282,7 +281,7 @@ export function emitCommand(input: EmitInput): string | null {
   const queryOptionFields = queryFields.filter(
     (f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name),
   )
-  const queryOptions = queryOptionFields.map((field) => emitFieldOption(field, true))
+  const queryOptions = queryOptionFields.map(emitFieldOption)
 
   // Virtual x-cli options: option keys that map to no existing body/query field
   // (e.g. `attendee` mapping to `attendees` is NOT virtual; `all_day` mapping
@@ -520,7 +519,6 @@ export function emitCommand(input: EmitInput): string | null {
     if (optDef.parser === "occurrence-boundary") {
       const camelKey = kebabToCamel(kebab(optKey))
       const valueVar = `${camelKey}Value`
-      const target = optDef.mapsTo ?? optKey
       const required = optDef.required === true
       if (required) {
         conversionLines.push(
