@@ -16,7 +16,7 @@ Backend tz metadata 改成 `{ requestOnly: true }`；CLI 刪除沒有專屬 emit
 | 2 | PASS | 同一 baseline 的舊／新 emitter 生成整份 `src/generated/` 相同。實際 build 的 [help](assets/help.txt) 前後逐 byte 相同，只有一個 --tz。codegen test 驗普通 option、master fetch、parser argument；command tests 驗缺 start 或 end 時 Commander 拒絕。 |
 | 3 | PASS | Generated command tests 透過 SDK seam 驗 GET 在 mutation 前、exact path/body、保留 expected_version、不送 tz body/query；GET 404 不送 mutation，維持 exit code 與錯誤訊息。 |
 | 4 | PASS | Command/utils 覆蓋 leap-day 2028-02-29→2028-03-01 Exclusive End、2026-02-29 拒絕、all-day UTC hint 拒絕、Asia/Taipei 同 hint 接受、UTC hint 不合拒絕、missing zone 使用 UTC、忽略不同 WSPC_TZ 與 offset Instant 保留。新增 9 個 command cases 在舊實作即通過，沒有虛構 runtime red。 |
-| 5 | Pre-merge PASS | 部署後 sync/generate，CLI 730 tests、typecheck、build、diff --check 通過；再次 generate 的 src/generated zero drift。待 CLI exact-head CI、merge/main readback。 |
+| 5 | PASS | 部署後 sync/generate，CLI 730 tests、typecheck、build、diff --check 通過；再次 generate 的 src/generated zero drift。CLI exact-head CI、merge/main readback 已通過，見下方。 |
 
 ## 部署與比對
 
@@ -36,6 +36,12 @@ Governing contract：PASS（pre-merge）。AC1–4 有完整證據，AC5 部署�
 
 Ponytail review：Lean already. Ship. 刪除 marker／union，沿用既有 option emitter、Series Master 與 parser；只補規格所列 coverage 缺口。
 
+## Post-merge 驗收
+
+CLI [PR #127](https://github.com/sadcoderlabs/wspc-cli/pull/127) exact head `11741d1f4bf20c74bb3bd0ada0dbacdcc18cefad` 的 [CI check](https://github.com/sadcoderlabs/wspc-cli/actions/runs/34342381718) 成功，無未解 review threads。Squash merge `bbf22424831750db2e0a75a27d70991df92c3f45` 已從 remote main 讀回；tree 與 reviewed head 完全一致，remote implementation branch 已刪除。
+
+以該 main checkout 再執行 `npm run generate`，`git diff --exit-code -- src/generated` 無差異；讀回 snapshot 的 tz 恰為 `{ requestOnly: true }`，union 無該 marker。Backend merge/deploy/live 證據如上，兩端交付完成。
+
 ## Remaining acceptances
 
-CLI exact-head CI、squash merge、remote main 的 snapshot/source readback 與 generate zero drift。完成後追加證據並將 Todo done。依 final spec，不需 production Calendar 寫入或專屬 npm release。
+無。依 final spec，完成至兩端 main 與 production metadata，不需 production Calendar 寫入或專屬 npm release；套件隨下次正常 release 發布。
