@@ -1,0 +1,56 @@
+[
+  {
+    "command": "drive file rm",
+    "exit": 1
+  },
+  {
+    "command": "drive file rm",
+    "exit": 0
+  },
+  {
+    "command": "drive file rm",
+    "exit": 1
+  },
+  {
+    "command": "drive bind --library",
+    "exit": 0
+  },
+  {
+    "command": "drive sync once",
+    "exit": 0
+  },
+  {
+    "command": "drive sync once",
+    "exit": 0
+  },
+  {
+    "command": "drive sync once",
+    "exit": 0
+  },
+  {
+    "command": "drive sync once",
+    "exit": 0
+  },
+  {
+    "command": "drive sync once",
+    "exit": 1
+  },
+  {
+    "command": "drive sync once",
+    "exit": 1
+  },
+  {
+    "rm_identity": true,
+    "sync_move_identity": true,
+    "sync_delete": true,
+    "stale_replacement_preserved": true,
+    "legacy_state_unchanged": true
+  },
+  {
+    "cleanup": {
+      "active_files": 0,
+      "library_soft_deleted": true,
+      "purge": false
+    }
+  }
+]
