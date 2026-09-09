@@ -5,6 +5,7 @@ import { parseDateOnly, ParseDateError } from "../../src/handwritten/utils/parse
 import {
   parseTimeInput,
   parseOccurrenceBoundary,
+  parseOccurrenceMutationTimes,
   resolveTimezone,
   ParseTimeError,
 } from "../../src/handwritten/utils/parse-time.js"
@@ -130,5 +131,27 @@ describe("parseOccurrenceBoundary", () => {
 
   it("resolves a timed boundary with the parse-only zone", () => {
     expect(parseOccurrenceBoundary("tomorrow 9am", "Asia/Taipei")).toMatch(/T09:00:00\.000\+08:00$/)
+  })
+})
+
+describe("all-day occurrence Calendar Dates", () => {
+  it("preserves leap-day boundaries and Exclusive End without date math", () => {
+    expect(parseOccurrenceBoundary("2028-02-29", "Pacific/Apia")).toBe("2028-02-29")
+    expect(parseOccurrenceMutationTimes({ all_day: true }, "2028-02-29", "2028-03-01")).toEqual({
+      start: "2028-02-29",
+      end: "2028-03-01",
+    })
+  })
+
+  it.each([
+    ["2028/02/29", "2028-03-01"],
+    ["2028-02-29", "2028-03-01T00:00:00Z"],
+  ])("rejects non-Calendar Date input: %s to %s", (start, end) => {
+    expect(() => parseOccurrenceMutationTimes({ all_day: true }, start, end)).toThrow(ParseDateError)
+  })
+
+  it("still rejects an explicit time zone for an all-day series", () => {
+    expect(() => parseOccurrenceMutationTimes({ all_day: true }, "2028-02-29", "2028-03-01", "UTC"))
+      .toThrow("--tz is not valid for an all-day recurring series.")
   })
 })

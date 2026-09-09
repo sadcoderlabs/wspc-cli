@@ -45,19 +45,7 @@ export function parseOccurrenceMutationTimes(
     if (zoneHint !== undefined) {
       throw new ParseTimeError("--tz is not valid for an all-day recurring series.")
     }
-    const start = DateTime.fromISO(startInput, { zone: "utc" })
-    const end = DateTime.fromISO(endInput, { zone: "utc" })
-    if (
-      !DATE_ONLY.test(startInput) ||
-      !DATE_ONLY.test(endInput) ||
-      !start.isValid ||
-      !end.isValid ||
-      start.toISODate() !== startInput ||
-      end.toISODate() !== endInput
-    ) {
-      throw new ParseTimeError("All-day occurrence times must be ISO dates.")
-    }
-    return { start: startInput, end: endInput }
+    return { start: parseDateOnly(startInput), end: parseDateOnly(endInput) }
   }
 
   const seriesZone = master.time_zone ?? "UTC"

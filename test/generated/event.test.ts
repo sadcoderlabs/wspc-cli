@@ -198,6 +198,22 @@ describe("event occurrences", () => {
 })
 
 describe("event occurrence mutations", () => {
+  it.each([
+    ["2026-02-29", "2026-03-01"],
+    ["2026-02-28", "2026-02-29"],
+  ])("rejects invalid Calendar Dates before mutation: %s to %s", async (start, end) => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    eventGet.mockResolvedValueOnce({
+      data: { all_day: true },
+      response: { ok: true, status: 200 },
+    })
+    await expect(
+      eventOccurrenceSetCommand.parseAsync(["node", "set", "evt_1", "2026-02-28", "--start", start, "--end", end]),
+    ).rejects.toMatchObject({ name: "ParseDateError", message: 'Invalid date: "2026-02-29".' })
+    expect(eventGet).toHaveBeenCalledOnce()
+    expect(eventOccurrenceSet).not.toHaveBeenCalled()
+  })
+
   it("requires both reschedule boundaries before reading the series master", async () => {
     const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
     eventOccurrenceSetCommand.exitOverride()
