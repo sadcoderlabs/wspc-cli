@@ -75,15 +75,14 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       })
       return expectJsonResult(result)
     },
-    async deleteFile(id: string, path: string, expectedEntryVersion: number) {
+    async deleteFile(id: string, path: string, expectedEntryVersion: number, entryId: string) {
+      requireFileConfirmation(entryId, expectedEntryVersion)
+      const body = { entry_id: entryId, path, expected_entry_version: expectedEntryVersion }
       const result = await driveFileDelete({
         client: rawClient,
         path: { id },
         headers: clientHeaders,
-        body: {
-          path,
-          expected_entry_version: expectedEntryVersion,
-        },
+        body,
       })
       return expectJsonResult<DeleteDriveFileResponse>(result)
     },
@@ -91,17 +90,16 @@ export async function createDriveApi(opts: DriveApiOptions = {}) {
       id: string,
       fromPath: string,
       toPath: string,
-      expectedEntryVersion?: number,
+      expectedEntryVersion: number,
+      entryId: string,
     ): Promise<MoveDriveFileResponse> {
+      requireFileConfirmation(entryId, expectedEntryVersion)
+      const body = { entry_id: entryId, from_path: fromPath, to_path: toPath, expected_entry_version: expectedEntryVersion }
       const result = await driveFileMove({
         client: rawClient,
         path: { id },
         headers: clientHeaders,
-        body: {
-          from_path: fromPath,
-          to_path: toPath,
-          ...(expectedEntryVersion === undefined ? {} : { expected_entry_version: expectedEntryVersion }),
-        },
+        body,
       })
       return expectJsonResult<MoveDriveFileResponse>(result)
     },
@@ -158,5 +156,11 @@ function parseErrorPayload(text: string): unknown {
     return JSON.parse(text)
   } catch {
     return undefined
+  }
+}
+
+export function requireFileConfirmation(entryId: string, version: number): void {
+  if (typeof entryId !== "string" || entryId.length === 0 || !Number.isSafeInteger(version) || version < 1) {
+    throw new Error("The original entry ID and positive safe-integer version are required. Read and confirm the file again; do not retry the old intent with current values.")
   }
 }

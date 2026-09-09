@@ -12,6 +12,7 @@ import { tourCommand } from "./handwritten/commands/tour.js"
 import { todoDoneCommand } from "./handwritten/commands/todo-done.js"
 import { sendCommand } from "./handwritten/commands/email/send.js"
 import { attachmentCommand } from "./handwritten/commands/email/attachment.js"
+import { driveRemoveCommand } from "./handwritten/commands/drive/rm.js"
 import { driveBindCommand } from "./handwritten/commands/drive/bind.js"
 import { driveSyncCommand } from "./handwritten/commands/drive/sync.js"
 import { driveWatchCommand } from "./handwritten/commands/drive/watch.js"
@@ -24,6 +25,11 @@ export function mountDriveCommands(program: Command): void {
     drive = new Command("drive").description("Drive commands")
     program.addCommand(drive)
   }
+  const file = drive.commands.find(c => c.name() === "file") ?? drive.command("file")
+  // Keep confirmation required when release codegen still reads the older live schema.
+  const remove = file.commands.find(c => c.name() === "rm")
+  if (remove) driveRemoveCommand(remove)
+  else file.addCommand(driveRemoveCommand())
   if (!drive.commands.some((c) => c.name() === "bind")) {
     drive.addCommand(driveBindCommand())
   }

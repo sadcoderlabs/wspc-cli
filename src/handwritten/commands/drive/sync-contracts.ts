@@ -18,12 +18,13 @@ export interface DriveSyncApi {
     expectedEntryVersion?: number,
   ): Promise<UploadDriveFileResponse>
   downloadFile(id: string, path: string, versionId?: string): Promise<Response>
-  deleteFile(id: string, path: string, expectedEntryVersion: number): Promise<unknown>
+  deleteFile(id: string, path: string, expectedEntryVersion: number, entryId: string): Promise<unknown>
   moveFile?(
     id: string,
     fromPath: string,
     toPath: string,
-    expectedEntryVersion?: number,
+    expectedEntryVersion: number,
+    entryId: string,
   ): Promise<MoveDriveFileResponse>
 }
 
