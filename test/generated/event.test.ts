@@ -109,6 +109,17 @@ beforeEach(() => {
 })
 
 describe("event occurrences", () => {
+  it.each([
+    ["2026-02-29", "2026-03-01"],
+    ["2026-02-28", "2026-02-29"],
+  ])("rejects invalid Calendar Dates before querying: %s to %s", async (start, end) => {
+    const { eventOccurrencesCommand, eventOccurrences } = await loadCommands()
+    await expect(
+      eventOccurrencesCommand.parseAsync(["node", "occurrences", "evt_1", "--from", start, "--to", end]),
+    ).rejects.toMatchObject({ name: "ParseDateError", message: 'Invalid date: "2026-02-29".' })
+    expect(eventOccurrences).not.toHaveBeenCalled()
+  })
+
   it("preserves date-only boundaries and forwards pagination", async () => {
     const { eventOccurrencesCommand, eventOccurrences } = await loadCommands()
     await eventOccurrencesCommand.parseAsync([

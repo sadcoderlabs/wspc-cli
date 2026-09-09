@@ -1,5 +1,6 @@
 import * as chrono from "chrono-node"
 import { DateTime } from "luxon"
+import { parseDateOnly } from "./parse-date.js"
 
 export class ParseTimeError extends Error {
   constructor(message: string) {
@@ -20,9 +21,7 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
 export function parseOccurrenceBoundary(input: string, zone: string): string {
   if (DATE_ONLY.test(input)) {
-    const date = DateTime.fromISO(input, { zone: "utc" })
-    if (date.isValid && date.toISODate() === input) return input
-    throw new ParseTimeError(`Cannot parse occurrence boundary: "${input}".`)
+    return parseDateOnly(input)
   }
   return parseTimeInput(input, zone).toISO()!
 }
