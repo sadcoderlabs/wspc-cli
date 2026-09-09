@@ -141,7 +141,7 @@ describe("createDriveApi", () => {
     }) as typeof fetch
 
     const api = await mkDriveApi(fetchImpl)
-    const result = await api.deleteFile("lib_1", "notes/hello.txt", 2)
+    const result = await api.deleteFile("lib_1", "notes/hello.txt", 2, "ent_1")
 
     expect(result).toMatchObject(DRIVE_DELETE)
     expect(fetchImpl).toHaveBeenCalledOnce()
@@ -161,7 +161,7 @@ describe("createDriveApi", () => {
 
     const api = await mkDriveApi(fetchImpl)
     await api.uploadFile("lib_1", "notes/hello.txt", new TextEncoder().encode("hello"), "3a6eb7", 2)
-    await api.deleteFile("lib_1", "notes/hello.txt", 2)
+    await api.deleteFile("lib_1", "notes/hello.txt", 2, "ent_1")
 
     expect(seenHeaders).toEqual(["drive-sync", "drive-sync"])
   })
@@ -180,7 +180,7 @@ describe("createDriveApi", () => {
 
     const api = await mkDriveApi(fetchImpl, "https://api.wspc.ai", "drvcli_abc123")
     await api.uploadFile("lib_1", "notes/hello.txt", new TextEncoder().encode("hello"), "3a6eb7", 2)
-    await api.deleteFile("lib_1", "notes/hello.txt", 2)
+    await api.deleteFile("lib_1", "notes/hello.txt", 2, "ent_1")
 
     expect(seenHeaders).toEqual(["drive-sync/drvcli_abc123", "drive-sync/drvcli_abc123"])
   })
@@ -209,8 +209,8 @@ describe("createDriveApi", () => {
 
     for (const request of [
       () => api.getManifest("lib_1"),
-      () => api.deleteFile("lib_1", "notes/hello.txt", 2),
-      () => api.moveFile("lib_1", "notes/hello.txt", "notes/moved.txt", 2),
+      () => api.deleteFile("lib_1", "notes/hello.txt", 2, "ent_1"),
+      () => api.moveFile("lib_1", "notes/hello.txt", "notes/moved.txt", 2, "ent_1"),
     ]) {
       await expect(request()).rejects.toMatchObject({
         name: "DriveHttpError",
@@ -451,4 +451,18 @@ describe("createDriveApi", () => {
     await expect(api.downloadFile("lib_1", "notes/missing.txt")).rejects.toMatchObject({ status: 404, message: "HTTP 404" })
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
+})
+
+it.each(["delete", "move"])("forwards the original %s confirmation once on conflict", async operation => {
+  const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = mkReq(input, init)
+    expect(await request.json()).toEqual(operation === "delete"
+      ? { entry_id: "original-id", path: "a.txt", expected_entry_version: 2 }
+      : { entry_id: "original-id", from_path: "a.txt", to_path: "b.txt", expected_entry_version: 2 })
+    return Response.json({ error: { code: "VERSION_CONFLICT" } }, { status: 409 })
+  })
+  const api = await mkDriveApi(fetchImpl)
+  const result = operation === "delete" ? api.deleteFile("lib_1", "a.txt", 2, "original-id") : api.moveFile("lib_1", "a.txt", "b.txt", 2, "original-id")
+  await expect(result).rejects.toMatchObject({ code: "VERSION_CONFLICT" })
+  expect(fetchImpl).toHaveBeenCalledTimes(1)
 })
