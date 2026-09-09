@@ -1,3 +1,4 @@
+import type { DriveExportGetResponse } from "../../../generated/sdk/types.gen.js"
 import { Command } from "commander"
 import { DateTime } from "luxon"
 import { open, lstat, link, unlink } from "node:fs/promises"
@@ -8,19 +9,8 @@ import { pipeline } from "node:stream/promises"
 import { loadAuthedFetch, type AuthedFetch } from "../../auth/load-sdk-client.js"
 import { render, renderObject, shouldOutputJson } from "../../output/render.js"
 
-type Job = {
-  id: string
-  status: string
-  created_at: number
-  updated_at: number
-  completed_at: number | null
-  expires_at: number | null
-  items_written: number
-  items_total: number | null
-  bytes_written: number
-  error_code: string | null
-}
-type Envelope = { workspace_id: string; job: Job | null }
+type Envelope = DriveExportGetResponse
+type Job = NonNullable<Envelope["job"]>
 const incompatible = () =>
   new Error("Drive export requires a compatible server; update the server before retrying.")
 function record(value: unknown): value is Record<string, unknown> {
@@ -165,7 +155,9 @@ function show(account: string, data: Envelope, reused?: boolean): void {
     process.stdout.write(
       data.job.status === "completed"
         ? `Next: wspc drive export download ${data.job.id} --output <path>\n`
-        : "Next: wspc drive export show\n",
+        : ["failed", "expired"].includes(data.job.status)
+          ? "Next: wspc drive export add\n"
+          : "Next: wspc drive export show\n",
     )
   } else {
     renderObject(fields)
@@ -227,7 +219,7 @@ export function driveExportCommand(options: Parameters<typeof loadAuthedFetch>[0
           throw new Error("Drive export download failed; check the connection and authentication.")
         }
         if (!response.ok) {
-          await response.body?.cancel()
+          await response.body?.cancel().catch(() => undefined)
           throw httpError(response)
         }
         const length = response.headers.get("content-length")
@@ -243,7 +235,7 @@ export function driveExportCommand(options: Parameters<typeof loadAuthedFetch>[0
           expected < 0 ||
           !response.body
         ) {
-          await response.body?.cancel()
+          await response.body?.cancel().catch(() => undefined)
           throw incompatible()
         }
         try {

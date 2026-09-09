@@ -6,7 +6,7 @@ import { parseIntegerField } from "../../../../handwritten/utils/parse-scalar-fi
 
 export const eventOccurrenceCancelCommand = new Command("cancel")
   .description("Cancel one recurring occurrence")
-  .addHelpText("after", "\nPersist a cancellation exception for one recurrence identity without cancelling the whole series.\n")
+  .addHelpText("after", "\nPersist an Occurrence Exception for the target Recurrence ID. An effective cancellation sends an instance `CANCEL` and does not cancel the whole Recurring Series. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.\n")
   .argument("<series_id>", "series_id")
   .argument("<recurrence_id>", "recurrence_id")
   .option("--expected-version <value>", "expected_version", (value: string) => parseIntegerField(value, "expected-version"))

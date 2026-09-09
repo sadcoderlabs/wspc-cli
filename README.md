@@ -55,6 +55,35 @@ scopes todos per project. Run `wspc todo project ls` to discover ids.
 
 Pass `--help` to any subcommand for flags, aliases, and examples.
 
+## Drive export
+
+匯出目前 Workspace 所有 active Library 的 current files：
+
+```bash
+wspc --account example@example.com drive export add
+wspc --account example@example.com --json drive export show
+wspc --account example@example.com drive export download exp_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --output ./drive-export.tar
+```
+
+`add` 立即返回 job，不等待打包；已有 unfinished job 時返回該 job 並標示 `reused: true`。
+若建立回應遺失，結果會標示未知，請先 `show` 查詢再決定是否重試。`show` 顯示帳號、
+Workspace、job 狀態、已處理檔數、bytes、期限與錯誤；沒有工作為 `job: null`。
+`download` 固定下載指定 ID，新工作不會取代該份 package。JSON 時間維持 Unix ms。
+
+Package 是未壓縮 tar，不含 history／Trash，不占 Workspace Storage，配額已滿仍可匯出。
+它不是時間點 snapshot：每批讀取當時的 current version，並行修改可能使檔數與建立時不同。
+需要穩定副本時先停止寫入，再建立新 job。來源缺失會讓新 job 失敗，不提供部分 package；
+部署前的舊包無法回溯保證完整性，應重新匯出。每份 package 自完成起保留七天。
+
+輸出父目錄必須存在，filesystem 必須支援同目錄 hard link。下載使用私有暫存檔並在完整
+接收後發布；既有檔案、symlink 或下載途中新增的目標都不會被覆蓋，沒有 overwrite／copy
+fallback。失敗時不輸出成功物件；若暫存檔無法清理，stderr 會列出殘留路徑。舊 server
+缺少身分／長度 headers 時會要求相容版本，不改用 latest 下載。
+
+開發時可執行 `npm run build && node scripts/check-drive-export-streaming.mjs`，用實際 CLI
+子程序下載 128／512 MiB tar，各跑三次並驗證 OS peak RSS、獨立 tar/hash 與 no-clobber。
+需要 Python 3；macOS／Linux 另驗 SIGINT／SIGTERM 清理，三平台由 GitHub Actions 驗證。
+
 ## Drive sync
 
 把本機資料夾綁到既有 Drive library，然後先用一次性 sync 驗證狀態：

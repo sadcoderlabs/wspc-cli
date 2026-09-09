@@ -7,7 +7,7 @@ import { parseIntegerField } from "../../../../handwritten/utils/parse-scalar-fi
 
 export const eventOccurrenceSetCommand = new Command("set")
   .description("Reschedule one recurring occurrence")
-  .addHelpText("after", "\nReplace the complete effective start and end of one immutable recurrence identity. The series recurrence rule and time zone remain unchanged.\n")
+  .addHelpText("after", "\nReplace the complete Effective Occurrence Time of one immutable Recurrence ID. The Recurrence Rule and Series Time Zone remain unchanged. An effective reschedule sends an instance `REQUEST` with the new Effective Occurrence Time. The instance message uses the Series `UID` and target `RECURRENCE-ID`, and it affects only the target Occurrence. Other Occurrences do not change. Email is sent only to the Series Master's current attendees. No email is sent when there are no attendees or the mutation is an idempotent no-op. An idempotent no-op does not create a new notification revision. Failed mutations do not schedule email. Email is scheduled asynchronously through Cloudflare `waitUntil()`. A 2xx response does not mean provider delivery completed. Provider delivery failure does not roll back the Calendar mutation or change its response.\n")
   .argument("<series_id>", "series_id")
   .argument("<recurrence_id>", "recurrence_id")
   .requiredOption("--start <value>", "start")

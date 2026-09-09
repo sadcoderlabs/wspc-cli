@@ -401,3 +401,91 @@ it.each([true, false])(
     expect(warning).toContain(published ? "Output is complete" : "Download failed")
   },
 )
+
+it.each(["pending", "running", "completed", "failed", "expired"])(
+  "preserves %s job fields and nullable progress",
+  async (status) => {
+    const job = {
+      id: jobId,
+      status,
+      created_at: 1,
+      updated_at: 2,
+      completed_at: null,
+      expires_at: null,
+      items_written: 3,
+      items_total: null,
+      bytes_written: 1024,
+      error_code: null,
+    }
+    const fetchImpl: typeof fetch = async () => Response.json({ workspace_id: "org_test", job })
+    await driveExportCommand({ store, fetchImpl }).parseAsync(["node", "export", "show"])
+    expect(JSON.parse(output)).toEqual({
+      account: "one@example.test",
+      workspace_id: "org_test",
+      job,
+    })
+  },
+)
+
+it("does not create a missing parent directory and cancels the response body", async () => {
+  let cancelled = false
+  const fetchImpl: typeof fetch = async (input) =>
+    new URL(new Request(input).url).pathname === "/drive/export"
+      ? Response.json({ workspace_id: "org_test", job: null })
+      : packageResponse(
+          new ReadableStream({
+            cancel() {
+              cancelled = true
+            },
+          }),
+        )
+  await expect(
+    driveExportCommand({ store, fetchImpl }).parseAsync([
+      "node",
+      "export",
+      "download",
+      jobId,
+      "--output",
+      join(root, "missing", "package.tar"),
+    ]),
+  ).rejects.toThrow("ENOENT")
+  expect(cancelled).toBe(true)
+  expect(await readdir(root)).toEqual(["config.json"])
+  expect(output).toBe("")
+})
+
+it("does not expose a provider cancellation error when rejecting headers", async () => {
+  await expect(
+    download(() =>
+      packageResponse(
+        new ReadableStream({
+          cancel() {
+            throw new Error("secret-one")
+          },
+        }),
+        { "content-type": "application/json" },
+      ),
+    ),
+  ).rejects.toThrow("compatible server")
+  expect(await readdir(root)).toEqual(["config.json"])
+})
+
+it("shows a new-export next step after a terminal failure", async () => {
+  vi.stubEnv("WSPC_OUTPUT", "pretty")
+  const job = {
+    id: jobId,
+    status: "failed",
+    created_at: 1,
+    updated_at: 2,
+    completed_at: null,
+    expires_at: null,
+    items_written: 0,
+    items_total: null,
+    bytes_written: 0,
+    error_code: "packing_failed",
+  }
+  const fetchImpl: typeof fetch = async () => Response.json({ workspace_id: "org_test", job })
+  await driveExportCommand({ store, fetchImpl }).parseAsync(["node", "export", "show"])
+  expect(output).toContain("Next: wspc drive export add")
+  expect(output).toContain("packing_failed")
+})
