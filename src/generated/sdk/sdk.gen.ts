@@ -902,8 +902,9 @@ export const eventOccurrenceCancel = <ThrowOnError extends boolean = false>(opti
  * ### Constraints
  * - **Default Visibility**: By default, soft-deleted events and past events (events where `end` is before the current time) are automatically hidden.
  * - **Time Bounds Override**: Supplying any explicit time bound query parameter (`start_from`, `start_to`, `end_from`, `end_to`) or passing `include_past=true` overrides and disables the implicit past filter.
+ * - **Calendar Trash**: `deleted_only=true` returns only soft-deleted events for the current user and Workspace. It overrides `include_deleted` and disables the implicit past filter regardless of `include_past`. Explicit time bounds and `q` still apply. Series Masters remain single rows; cancelled occurrences are not Trash.
  * - **Search Scope**: `q` performs a case-insensitive substring search across `title`, `description`, and `location`.
- * - **Pagination**: The `limit` query parameter is clamped to `[1, 200]`; cursor pagination is enabled via the opaque `cursor` parameter.
+ * - **Pagination**: Default `limit` is 50, clamped to `[1, 200]`. Matching events are ordered by `start ASC, id ASC` before cursor pagination. Cursor is a page position, not a Consistency bookmark or snapshot.
  *
  * ### Troubleshooting
  * - Returns 400 `VALIDATION_ERROR` if date query bounds are invalid (e.g. `start_from > start_to` or `end_from > end_to`).

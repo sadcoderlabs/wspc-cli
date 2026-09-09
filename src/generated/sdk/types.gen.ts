@@ -937,7 +937,7 @@ export type Event = {
      */
     updated_at: number;
     /**
-     * Soft-delete time in Unix milliseconds. Absent for live events; present only when `include_deleted=true` is used.
+     * Soft-delete time in Unix milliseconds. Absent for live events; present on soft-deleted rows returned with `include_deleted=true` or `deleted_only=true`.
      */
     deleted_at?: number;
     /**
@@ -1101,7 +1101,7 @@ export type ListAgendaResponse = {
  */
 export type ListEventsResponse = {
     /**
-     * Events matching the query, ordered by `start` ascending.
+     * Events matching the query, ordered by `start ASC, id ASC`.
      */
     events: Array<Event>;
     /**
@@ -6649,12 +6649,13 @@ export type EventListData = {
          */
         cursor?: string;
         /**
-         * Maximum number of events to return. Clamped to `[1, 200]`. Default is server-defined.
+         * Maximum number of events to return. Clamped to `[1, 200]`. Default is 50.
          */
         limit?: string;
+        deleted_only?: string;
         include_deleted?: string;
         /**
-         * When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win.
+         * When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when `deleted_only=true` or any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win.
          */
         include_past?: string;
     };

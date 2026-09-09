@@ -2473,7 +2473,7 @@
           },
           "deleted_at": {
             "type": "number",
-            "description": "Soft-delete time in Unix milliseconds. Absent for live events; present only when `include_deleted=true` is used."
+            "description": "Soft-delete time in Unix milliseconds. Absent for live events; present on soft-deleted rows returned with `include_deleted=true` or `deleted_only=true`."
           },
           "attendees": {
             "type": "array",
@@ -2825,7 +2825,7 @@
             "items": {
               "$ref": "#/components/schemas/Event"
             },
-            "description": "Events matching the query, ordered by `start` ascending."
+            "description": "Events matching the query, ordered by `start ASC, id ASC`."
           },
           "next_cursor": {
             "type": "string",
@@ -22632,7 +22632,8 @@
         "x-cli": {
           "command": "event ls",
           "booleanFlags": [
-            "include_deleted"
+            "include_deleted",
+            "deleted_only"
           ],
           "aliases": {
             "query": "q"
@@ -22649,6 +22650,7 @@
           },
           "examples": [
             "wspc event ls",
+            "wspc event ls --deleted-only",
             "wspc event ls --from \"today\" --to \"next week\""
           ],
           "display": {
@@ -22745,11 +22747,19 @@
           {
             "schema": {
               "type": "string",
-              "description": "Maximum number of events to return. Clamped to `[1, 200]`. Default is server-defined."
+              "description": "Maximum number of events to return. Clamped to `[1, 200]`. Default is 50."
             },
             "required": false,
-            "description": "Maximum number of events to return. Clamped to `[1, 200]`. Default is server-defined.",
+            "description": "Maximum number of events to return. Clamped to `[1, 200]`. Default is 50.",
             "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "deleted_only",
             "in": "query"
           },
           {
@@ -22763,15 +22773,15 @@
           {
             "schema": {
               "type": "string",
-              "description": "When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win."
+              "description": "When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when `deleted_only=true` or any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win."
             },
             "required": false,
-            "description": "When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win.",
+            "description": "When omitted or `false`, events whose `end` is before now are hidden. Pass `true` to include them. Ignored when `deleted_only=true` or any of `start_from`/`start_to`/`end_from`/`end_to` is provided — explicit time bounds always win.",
             "name": "include_past",
             "in": "query"
           }
         ],
-        "description": "### Overview\nReturn the authenticated user's events, ordered by `start` ascending, with cursor pagination.\n\n### When to Use\nRender calendar list/grid views, search for specific terms using full-text search, query events within a specific time window, or retrieve historically past events.\n\n### Constraints\n- **Default Visibility**: By default, soft-deleted events and past events (events where `end` is before the current time) are automatically hidden.\n- **Time Bounds Override**: Supplying any explicit time bound query parameter (`start_from`, `start_to`, `end_from`, `end_to`) or passing `include_past=true` overrides and disables the implicit past filter.\n- **Search Scope**: `q` performs a case-insensitive substring search across `title`, `description`, and `location`.\n- **Pagination**: The `limit` query parameter is clamped to `[1, 200]`; cursor pagination is enabled via the opaque `cursor` parameter.\n\n### Troubleshooting\n- Returns 400 `VALIDATION_ERROR` if date query bounds are invalid (e.g. `start_from > start_to` or `end_from > end_to`).",
+        "description": "### Overview\nReturn the authenticated user's events, ordered by `start` ascending, with cursor pagination.\n\n### When to Use\nRender calendar list/grid views, search for specific terms using full-text search, query events within a specific time window, or retrieve historically past events.\n\n### Constraints\n- **Default Visibility**: By default, soft-deleted events and past events (events where `end` is before the current time) are automatically hidden.\n- **Time Bounds Override**: Supplying any explicit time bound query parameter (`start_from`, `start_to`, `end_from`, `end_to`) or passing `include_past=true` overrides and disables the implicit past filter.\n- **Calendar Trash**: `deleted_only=true` returns only soft-deleted events for the current user and Workspace. It overrides `include_deleted` and disables the implicit past filter regardless of `include_past`. Explicit time bounds and `q` still apply. Series Masters remain single rows; cancelled occurrences are not Trash.\n- **Search Scope**: `q` performs a case-insensitive substring search across `title`, `description`, and `location`.\n- **Pagination**: Default `limit` is 50, clamped to `[1, 200]`. Matching events are ordered by `start ASC, id ASC` before cursor pagination. Cursor is a page position, not a Consistency bookmark or snapshot.\n\n### Troubleshooting\n- Returns 400 `VALIDATION_ERROR` if date query bounds are invalid (e.g. `start_from > start_to` or `end_from > end_to`).",
         "security": [
           {
             "bearerAuth": []
