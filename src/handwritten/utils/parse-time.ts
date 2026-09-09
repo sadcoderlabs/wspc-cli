@@ -1,5 +1,6 @@
 import * as chrono from "chrono-node"
 import { DateTime } from "luxon"
+import { parseDateOnly } from "./parse-date.js"
 
 export class ParseTimeError extends Error {
   constructor(message: string) {
@@ -20,9 +21,7 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
 export function parseOccurrenceBoundary(input: string, zone: string): string {
   if (DATE_ONLY.test(input)) {
-    const date = DateTime.fromISO(input, { zone: "utc" })
-    if (date.isValid && date.toISODate() === input) return input
-    throw new ParseTimeError(`Cannot parse occurrence boundary: "${input}".`)
+    return parseDateOnly(input)
   }
   return parseTimeInput(input, zone).toISO()!
 }
@@ -46,19 +45,7 @@ export function parseOccurrenceMutationTimes(
     if (zoneHint !== undefined) {
       throw new ParseTimeError("--tz is not valid for an all-day recurring series.")
     }
-    const start = DateTime.fromISO(startInput, { zone: "utc" })
-    const end = DateTime.fromISO(endInput, { zone: "utc" })
-    if (
-      !DATE_ONLY.test(startInput) ||
-      !DATE_ONLY.test(endInput) ||
-      !start.isValid ||
-      !end.isValid ||
-      start.toISODate() !== startInput ||
-      end.toISODate() !== endInput
-    ) {
-      throw new ParseTimeError("All-day occurrence times must be ISO dates.")
-    }
-    return { start: startInput, end: endInput }
+    return { start: parseDateOnly(startInput), end: parseDateOnly(endInput) }
   }
 
   const seriesZone = master.time_zone ?? "UTC"
