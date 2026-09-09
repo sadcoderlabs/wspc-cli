@@ -199,6 +199,65 @@ describe("event occurrences", () => {
 
 describe("event occurrence mutations", () => {
   it.each([
+    { master: { all_day: true }, start: "2028-02-29", end: "2028-03-01", hint: undefined, expectedStart: "2028-02-29", expectedEnd: "2028-03-01" },
+    { master: { all_day: false, time_zone: "Asia/Taipei" }, start: "2028-02-29 9am", end: "2028-02-29 10am", hint: "Asia/Taipei", expectedStart: "2028-02-29T09:00:00.000+08:00", expectedEnd: "2028-02-29T10:00:00.000+08:00" },
+    { master: { all_day: false, time_zone: "Asia/Taipei" }, start: "2028-02-29 9am", end: "2028-02-29 10am", hint: undefined, expectedStart: "2028-02-29T09:00:00.000+08:00", expectedEnd: "2028-02-29T10:00:00.000+08:00" },
+    { master: { all_day: false }, start: "2028-02-29 9am", end: "2028-02-29 10am", hint: undefined, expectedStart: "2028-02-29T09:00:00.000Z", expectedEnd: "2028-02-29T10:00:00.000Z" },
+    { master: { all_day: false, time_zone: "Asia/Taipei" }, start: "2028-02-29T09:00:00-05:00", end: "2028-02-29T10:00:00-05:00", hint: undefined, expectedStart: "2028-02-29T22:00:00.000+08:00", expectedEnd: "2028-02-29T23:00:00.000+08:00" },
+  ])("preserves Series Master request semantics: $expectedStart", async ({ master, start, end, hint, expectedStart, expectedEnd }) => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    process.env.WSPC_TZ = "Pacific/Honolulu"
+    eventGet.mockResolvedValueOnce({ data: master, response: { ok: true, status: 200 } })
+    await eventOccurrenceSetCommand.parseAsync([
+      "node", "set", "evt_1", "2028-02-28", "--start", start, "--end", end,
+      "--expected-version", "2", ...(hint ? ["--tz", hint] : []),
+    ])
+    expect(eventGet).toHaveBeenCalledWith({ client: expect.anything(), path: { id: "evt_1" } })
+    expect(eventGet.mock.invocationCallOrder[0]).toBeLessThan(eventOccurrenceSet.mock.invocationCallOrder[0]!)
+    expect(eventOccurrenceSet).toHaveBeenCalledExactlyOnceWith({
+      client: expect.anything(), path: { series_id: "evt_1", recurrence_id: "2028-02-28" },
+      body: { start: expectedStart, end: expectedEnd, expected_version: 2 },
+    })
+  })
+
+  it.each([
+    [{ all_day: true }, "--tz is not valid for an all-day recurring series."],
+    [{ all_day: false, time_zone: "Asia/Taipei" }, "--tz must match the series time zone (Asia/Taipei)."],
+  ])("rejects a UTC hint that does not apply to the master: %j", async (master, message) => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    eventGet.mockResolvedValueOnce({ data: master, response: { ok: true, status: 200 } })
+    await expect(eventOccurrenceSetCommand.parseAsync([
+      "node", "set", "evt_1", "2028-02-28", "--start", "2028-02-29", "--end", "2028-03-01", "--tz", "UTC",
+    ])).rejects.toMatchObject({ name: "ParseTimeError", message })
+    expect(eventOccurrenceSet).not.toHaveBeenCalled()
+  })
+
+  it("does not mutate when the Series Master read fails", async () => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+    eventGet.mockResolvedValueOnce({ error: { code: "NOT_FOUND" }, response: { ok: false, status: 404 } })
+    try {
+      await eventOccurrenceSetCommand.parseAsync(["node", "set", "evt_1", "2028-02-28", "--start", "2028-02-29", "--end", "2028-03-01"])
+      expect(eventGet).toHaveBeenCalledOnce()
+      expect(eventOccurrenceSet).not.toHaveBeenCalled()
+      expect(process.exitCode).toBe(1)
+      expect(stderr).toHaveBeenCalledWith('HTTP 404: {\n  "code": "NOT_FOUND"\n}\n')
+    } finally {
+      process.exitCode = 0
+      stderr.mockRestore()
+    }
+  })
+
+  it("requires start even when end is supplied", async () => {
+    const { eventOccurrenceSetCommand, eventOccurrenceSet, eventGet } = await loadCommands()
+    eventOccurrenceSetCommand.exitOverride()
+    await expect(eventOccurrenceSetCommand.parseAsync(["node", "set", "evt_1", "2028-02-28", "--end", "2028-03-01"]))
+      .rejects.toMatchObject({ code: "commander.missingMandatoryOptionValue" })
+    expect(eventGet).not.toHaveBeenCalled()
+    expect(eventOccurrenceSet).not.toHaveBeenCalled()
+  })
+
+  it.each([
     ["2026-02-29", "2026-03-01"],
     ["2026-02-28", "2026-02-29"],
   ])("rejects invalid Calendar Dates before mutation: %s to %s", async (start, end) => {
