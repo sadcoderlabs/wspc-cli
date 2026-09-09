@@ -6,7 +6,7 @@ import { createServer } from "node:http"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { pipeline } from "node:stream/promises"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 const root = await mkdtemp(join(tmpdir(), "wspc-export-streaming-"))
 const cli = resolve(process.argv[2] ?? "dist/cli.js")
@@ -80,7 +80,7 @@ async function run() {
     process.execPath,
     [
       "--import",
-      preload,
+      pathToFileURL(preload).href,
       cli,
       "--account",
       "fixture@example.test",
