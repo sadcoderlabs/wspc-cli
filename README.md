@@ -187,3 +187,7 @@ See full docs at https://wspc.ai/docs (coming soon).
 ## License
 
 MIT
+
+### 收到的 Calendar 邀請
+
+`event show`／`event agenda` 的 JSON 保留 optional `invitation`（外部 UID／Organizer）；Imported Event 的 `event set` 回 `IMPORTED_EVENT_READ_ONLY`，刪除與還原不寄 attendee email。`email show` 保留 optional `calendar_sync`，event_id 僅在同時具備 Calendar read 權限時回傳。此版 upstream 收件同步預設停用，須待 provider 信任驗證後才啟用。
