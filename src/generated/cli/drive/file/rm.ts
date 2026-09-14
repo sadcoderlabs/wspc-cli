@@ -6,9 +6,10 @@ import { parseIntegerField } from "../../../../handwritten/utils/parse-scalar-fi
 
 export const driveFileDeleteCommand = new Command("rm")
   .description("Delete a drive file")
-  .addHelpText("after", "\nTombstone an active file using optimistic entry version locking.\n")
+  .addHelpText("after", "\nDelete the confirmed entry and version. A confirmed current tombstone returns unchanged. Never replace the original confirmation with current values.\n")
   .argument("<id>", "id")
   .argument("<path>", "path")
+  .option("--entry-id <value>", "entry_id")
   .option("--expected-entry-version <value>", "expected_entry_version", (value: string) => parseIntegerField(value, "expected-entry-version"))
   .action(async (id, path, opts) => {
     await runSdkCommand({
@@ -19,6 +20,7 @@ export const driveFileDeleteCommand = new Command("rm")
         },
         body: {
           path,
+          entry_id: opts.entryId,
           expected_entry_version: opts.expectedEntryVersion,
         },
       },

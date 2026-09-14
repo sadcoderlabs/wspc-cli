@@ -876,6 +876,13 @@ export type OccurrenceVersionBody = {
  * A calendar event row as returned by the API.
  */
 export type Event = {
+    invitation?: {
+        uid: string;
+        organizer: {
+            email: string;
+            display_name?: string;
+        };
+    };
     /**
      * Server-assigned event id (`evt_<ULID>` for new rows; legacy UUID ids remain accepted).
      */
@@ -1063,6 +1070,13 @@ export type ListAgendaResponse = {
             display_name?: string;
         }>;
         kind: 'single';
+        invitation?: {
+            uid: string;
+            organizer: {
+                email: string;
+                display_name?: string;
+            };
+        };
         event_id: string;
     } | {
         start: string;
@@ -1210,6 +1224,7 @@ export type DeleteDriveFileResponse = {
 };
 
 export type DeleteDriveFileBody = {
+    entry_id: string;
     path: string;
     expected_entry_version: number;
 };
@@ -1242,6 +1257,9 @@ export type EditDriveFileBody = {
 
 export type DriveFileHistoryResponse = {
     path: string;
+    entry_id: string;
+    entry_version: number;
+    current_version_id: string;
     versions: Array<{
         version_id: string;
         version_number: number;
@@ -1292,9 +1310,10 @@ export type MoveDriveFileResponse = {
 };
 
 export type MoveDriveFileBody = {
+    entry_id: string;
     from_path: string;
     to_path: string;
-    expected_entry_version?: number;
+    expected_entry_version: number;
 };
 
 export type RestoreDriveFileResponse = {
@@ -1556,6 +1575,11 @@ export type ReceivedEmailDetail = {
          * Unix epoch milliseconds the email was soft-deleted, if applicable. Soft-deleted emails are hidden from default list/get responses; pass `include_deleted=true` to surface them, then `POST /email/messages/restore` to undelete.
          */
         deleted_at?: number;
+    };
+    calendar_sync?: {
+        status: 'pending' | 'retrying' | 'created' | 'updated' | 'cancelled' | 'unchanged' | 'unsupported' | 'invalid' | 'untrusted' | 'conflict' | 'failed';
+        reason?: 'stale_revision' | 'duplicate_revision' | 'unsupported_content' | 'invalid_content' | 'unverified_sender' | 'recipient_mismatch' | 'organizer_mismatch' | 'revision_conflict' | 'temporary_failure' | 'source_unavailable' | 'scope_unavailable';
+        event_id?: string;
     };
     attachments: Array<{
         /**
@@ -8358,7 +8382,7 @@ export type DriveFileDeleteData = {
 
 export type DriveFileDeleteErrors = {
     /**
-     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     * Invalid confirmation, path, or consistency bookmark.
      */
     400: {
         error: {
@@ -8385,7 +8409,7 @@ export type DriveFileDeleteErrors = {
         };
     };
     /**
-     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     * Library is missing, deleted, or outside the Workspace.
      */
     404: {
         error: {
@@ -8394,7 +8418,7 @@ export type DriveFileDeleteErrors = {
         };
     };
     /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     * The original confirmation is stale or purge is in progress. Read the state and confirm again; do not retry with a newer version automatically.
      */
     409: {
         error: {
@@ -9104,6 +9128,7 @@ export type DriveFileHistoryData = {
         id: string;
     };
     query: {
+        entry_id?: string;
         path: string;
     };
     url: '/drive/libraries/{id}/files/history';
@@ -9111,7 +9136,7 @@ export type DriveFileHistoryData = {
 
 export type DriveFileHistoryErrors = {
     /**
-     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     * Invalid path or entry_id. Returns VALIDATION_ERROR.
      */
     400: {
         error: {
@@ -9138,7 +9163,7 @@ export type DriveFileHistoryErrors = {
         };
     };
     /**
-     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     * Library or active file is missing, deleted, or outside the Workspace. Returns NOT_FOUND.
      */
     404: {
         error: {
@@ -9147,7 +9172,7 @@ export type DriveFileHistoryErrors = {
         };
     };
     /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     * The active file at path does not match entry_id. Returns VERSION_CONFLICT. Do not retry without the selected ID.
      */
     409: {
         error: {
@@ -9302,7 +9327,7 @@ export type DriveFileMoveData = {
 
 export type DriveFileMoveErrors = {
     /**
-     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     * Invalid confirmation, path, or consistency bookmark.
      */
     400: {
         error: {
@@ -9329,7 +9354,7 @@ export type DriveFileMoveErrors = {
         };
     };
     /**
-     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     * Library is missing, deleted, or outside the Workspace.
      */
     404: {
         error: {
@@ -9338,7 +9363,7 @@ export type DriveFileMoveErrors = {
         };
     };
     /**
-     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     * The original confirmation is stale or purge is in progress. The destination may be occupied. Read the state and confirm again; do not retry with a newer version automatically.
      */
     409: {
         error: {
@@ -9376,6 +9401,133 @@ export type DriveFileMoveResponses = {
 };
 
 export type DriveFileMoveResponse = DriveFileMoveResponses[keyof DriveFileMoveResponses];
+
+export type DriveFileRestoreDeletedData = {
+    body: {
+        entry_id: string;
+        path: string;
+        expected_entry_version: number;
+    };
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/libraries/{id}/files/restore-deleted';
+};
+
+export type DriveFileRestoreDeletedErrors = {
+    /**
+     * Invalid confirmation, path, or source content.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Library is not visible, or the entry or source is missing.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Confirmation, path, purge, or quota conflict.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The source exceeds the 100 MiB file limit.
+     */
+    413: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Storage or quota accounting is temporarily unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveFileRestoreDeletedError = DriveFileRestoreDeletedErrors[keyof DriveFileRestoreDeletedErrors];
+
+export type DriveFileRestoreDeletedResponses = {
+    /**
+     * Restored deleted file
+     */
+    200: {
+        entry: {
+            id: string;
+            path: string;
+            kind: 'file';
+            entry_version: number;
+            current_version_id?: string;
+            content_sha256?: string;
+            size_bytes: number;
+            updated_at: string;
+            deleted_at?: string;
+        };
+        result: 'updated';
+    };
+};
+
+export type DriveFileRestoreDeletedResponse = DriveFileRestoreDeletedResponses[keyof DriveFileRestoreDeletedResponses];
 
 export type DriveFileRestoreData = {
     body?: RestoreDriveFileBody;
