@@ -17,6 +17,6 @@ export const recurrenceRuleListCommand = new Command("ls")
           user_id: opts.userId,
         },
       },
-      context: { kind: "recurrence_rule_list", display: {"shape":"list","columns":["id","rrule","dtstart","type_id"],"format":{"id":"id-short","rrule":"truncate","type_id":"id-short"},"emptyMessage":"no recurrence rules"} },
+      context: { kind: "recurrence_rule_list", display: {"shape":"list","columns":["id","rrule","dtstart","type_id","user_id","assignee_user_id","assignee_status"],"format":{"id":"id-short","rrule":"truncate","type_id":"id-short"},"emptyMessage":"no recurrence rules"} },
     })
   })
