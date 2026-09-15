@@ -1018,6 +1018,12 @@ export type CreateEventBody = {
     time_zone?: string;
 };
 
+export type CalendarSubscription = {
+    enabled: boolean;
+    version: number;
+    url: string | null;
+};
+
 /**
  * Minimal response for DELETE `/calendar/events/{id}`. Use GET with `?include_deleted=true` to fetch the full soft-deleted row.
  */
@@ -2104,6 +2110,8 @@ export type CreateRecurrenceRuleResponse = {
 };
 
 export type RecurrenceRule = {
+    assignee_user_id: string;
+    assignee_status?: 'valid' | 'not_member' | 'unknown';
     id: string;
     user_id: string;
     /**
@@ -2121,6 +2129,7 @@ export type RecurrenceRule = {
 };
 
 export type CreateRecurrenceRuleBody = {
+    assignee_user_id?: string;
     rrule: string;
     dtstart: string;
     title: string;
@@ -2366,6 +2375,7 @@ export type UpdateRecurrenceRuleBody = {
     title?: string;
     description?: string;
     parent_id?: string | null;
+    [key: string]: unknown;
 };
 
 export type UpdateTodoBody = {
@@ -6672,7 +6682,7 @@ export type EventListData = {
     path?: never;
     query?: {
         /**
-         * Optional full-text search across title, description, and location (case-insensitive substring).
+         * Optional literal substring search across title, description, and location. ASCII case-insensitive; UTF-8 text is supported. Percent and underscore are literal characters, not wildcards.
          */
         q?: string;
         /**
@@ -6875,6 +6885,287 @@ export type EventCreateResponses = {
 };
 
 export type EventCreateResponse = EventCreateResponses[keyof EventCreateResponses];
+
+export type CalendarDisableSubscriptionData = {
+    body: {
+        expected_version: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/calendar/subscription';
+};
+
+export type CalendarDisableSubscriptionErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * VERSION_CONFLICT: read the current state before retrying. SUBSCRIPTION_DISABLED: create a link before resetting it.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * SUBSCRIPTION_UNAVAILABLE: the feature is disabled or Auth is unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type CalendarDisableSubscriptionError = CalendarDisableSubscriptionErrors[keyof CalendarDisableSubscriptionErrors];
+
+export type CalendarDisableSubscriptionResponses = {
+    /**
+     * Current subscription state
+     */
+    200: CalendarSubscription;
+};
+
+export type CalendarDisableSubscriptionResponse = CalendarDisableSubscriptionResponses[keyof CalendarDisableSubscriptionResponses];
+
+export type CalendarGetSubscriptionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/calendar/subscription';
+};
+
+export type CalendarGetSubscriptionErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * VERSION_CONFLICT: read the current state before retrying. SUBSCRIPTION_DISABLED: create a link before resetting it.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * SUBSCRIPTION_UNAVAILABLE: the feature is disabled or Auth is unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type CalendarGetSubscriptionError = CalendarGetSubscriptionErrors[keyof CalendarGetSubscriptionErrors];
+
+export type CalendarGetSubscriptionResponses = {
+    /**
+     * Current subscription state
+     */
+    200: CalendarSubscription;
+};
+
+export type CalendarGetSubscriptionResponse = CalendarGetSubscriptionResponses[keyof CalendarGetSubscriptionResponses];
+
+export type CalendarCreateSubscriptionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/calendar/subscription';
+};
+
+export type CalendarCreateSubscriptionErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * VERSION_CONFLICT: read the current state before retrying. SUBSCRIPTION_DISABLED: create a link before resetting it.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * SUBSCRIPTION_UNAVAILABLE: the feature is disabled or Auth is unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type CalendarCreateSubscriptionError = CalendarCreateSubscriptionErrors[keyof CalendarCreateSubscriptionErrors];
+
+export type CalendarCreateSubscriptionResponses = {
+    /**
+     * Current subscription state
+     */
+    200: CalendarSubscription;
+};
+
+export type CalendarCreateSubscriptionResponse = CalendarCreateSubscriptionResponses[keyof CalendarCreateSubscriptionResponses];
 
 export type EventDeleteData = {
     body?: VersionBody;
@@ -7572,6 +7863,101 @@ export type EventOccurrencesResponses = {
 };
 
 export type EventOccurrencesResponse = EventOccurrencesResponses[keyof EventOccurrencesResponses];
+
+export type CalendarResetSubscriptionData = {
+    body: {
+        expected_version: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/calendar/subscription/reset';
+};
+
+export type CalendarResetSubscriptionErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * VERSION_CONFLICT: read the current state before retrying. SUBSCRIPTION_DISABLED: create a link before resetting it.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * SUBSCRIPTION_UNAVAILABLE: the feature is disabled or Auth is unavailable.
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type CalendarResetSubscriptionError = CalendarResetSubscriptionErrors[keyof CalendarResetSubscriptionErrors];
+
+export type CalendarResetSubscriptionResponses = {
+    /**
+     * Current subscription state
+     */
+    200: CalendarSubscription;
+};
+
+export type CalendarResetSubscriptionResponse = CalendarResetSubscriptionResponses[keyof CalendarResetSubscriptionResponses];
 
 export type EventRestoreData = {
     body?: VersionBody;
@@ -12565,6 +12951,15 @@ export type RecurrenceRuleCreateErrors = {
         };
     };
     /**
+     * INVALID_ASSIGNEE: the assignee is not a current Workspace Member.
+     */
+    422: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
      * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
      */
     429: {
@@ -12577,6 +12972,15 @@ export type RecurrenceRuleCreateErrors = {
      * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
      */
     500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * ASSIGNEE_CHECK_UNAVAILABLE: membership verification failed. No rule or instances were created.
+     */
+    503: {
         error: {
             code: string;
             message: string;
@@ -13735,7 +14139,7 @@ export type RecurrenceRuleUpdateError = RecurrenceRuleUpdateErrors[keyof Recurre
 
 export type RecurrenceRuleUpdateResponses = {
     /**
-     * The rule was updated. Returns the post-update rule with a bumped `version` and refreshed `updated_at`. Future materializations follow the new schedule; existing instances are untouched.
+     * The rule was updated. Returns the post-update rule with a bumped `version` and refreshed `updated_at`. Eligible future instances are rebuilt when membership is valid.
      */
     200: RecurrenceRule;
 };

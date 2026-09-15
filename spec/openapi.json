@@ -2623,6 +2623,29 @@
         ],
         "description": "Request body for POST `/calendar/events`. `start` and `end` must be the same kind (both timed ISO datetimes with offset, or both ISO date-only for all-day) and `end` must be strictly after `start`."
       },
+      "CalendarSubscription": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "version",
+          "url"
+        ]
+      },
       "DeleteEventResponse": {
         "type": "object",
         "properties": {
@@ -5033,6 +5056,17 @@
       "RecurrenceRule": {
         "type": "object",
         "properties": {
+          "assignee_user_id": {
+            "type": "string"
+          },
+          "assignee_status": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "not_member",
+              "unknown"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -5073,6 +5107,7 @@
           }
         },
         "required": [
+          "assignee_user_id",
           "id",
           "user_id",
           "project_id",
@@ -5087,6 +5122,10 @@
       "CreateRecurrenceRuleBody": {
         "type": "object",
         "properties": {
+          "assignee_user_id": {
+            "type": "string",
+            "minLength": 1
+          },
           "rrule": {
             "type": "string",
             "minLength": 1
@@ -5953,7 +5992,8 @@
               }
             ]
           }
-        }
+        },
+        "additionalProperties": {}
       },
       "UpdateTodoBody": {
         "type": "object",
@@ -22883,10 +22923,10 @@
           {
             "schema": {
               "type": "string",
-              "description": "Optional full-text search across title, description, and location (case-insensitive substring)."
+              "description": "Optional literal substring search across title, description, and location. ASCII case-insensitive; UTF-8 text is supported. Percent and underscore are literal characters, not wildcards."
             },
             "required": false,
-            "description": "Optional full-text search across title, description, and location (case-insensitive substring).",
+            "description": "Optional literal substring search across title, description, and location. ASCII case-insensitive; UTF-8 text is supported. Percent and underscore are literal characters, not wildcards.",
             "name": "q",
             "in": "query"
           },
@@ -22977,7 +23017,7 @@
             "in": "query"
           }
         ],
-        "description": "### Overview\nReturn the authenticated user's events, ordered by `start` ascending, with cursor pagination.\n\n### When to Use\nRender calendar list/grid views, search for specific terms using full-text search, query events within a specific time window, or retrieve historically past events.\n\n### Constraints\n- **Default Visibility**: By default, soft-deleted events and past events (events where `end` is before the current time) are automatically hidden.\n- **Time Bounds Override**: Supplying any explicit time bound query parameter (`start_from`, `start_to`, `end_from`, `end_to`) or passing `include_past=true` overrides and disables the implicit past filter.\n- **Calendar Trash**: `deleted_only=true` returns only soft-deleted events for the current user and Workspace. It overrides `include_deleted` and disables the implicit past filter regardless of `include_past`. Explicit time bounds and `q` still apply. Series Masters remain single rows; cancelled occurrences are not Trash.\n- **Search Scope**: `q` performs a case-insensitive substring search across `title`, `description`, and `location`.\n- **Pagination**: Default `limit` is 50, clamped to `[1, 200]`. Matching events are ordered by `start ASC, id ASC` before cursor pagination. Cursor is a page position, not a Consistency bookmark or snapshot.\n\n### Troubleshooting\n- Returns 400 `VALIDATION_ERROR` if date query bounds are invalid (e.g. `start_from > start_to` or `end_from > end_to`).",
+        "description": "### Overview\nReturn the authenticated user's events, ordered by `start` ascending, with cursor pagination.\n\n### When to Use\nRender calendar list/grid views, search for literal text, query events within a specific time window, or retrieve historically past events.\n\n### Constraints\n- **Default Visibility**: By default, soft-deleted events and past events (events where `end` is before the current time) are automatically hidden.\n- **Time Bounds Override**: Supplying any explicit time bound query parameter (`start_from`, `start_to`, `end_from`, `end_to`) or passing `include_past=true` overrides and disables the implicit past filter.\n- **Calendar Trash**: `deleted_only=true` returns only soft-deleted events for the current user and Workspace. It overrides `include_deleted` and disables the implicit past filter regardless of `include_past`. Explicit time bounds and `q` still apply. Series Masters remain single rows; cancelled occurrences are not Trash.\n- **Search Scope**: `q` performs a literal substring search across `title`, `description`, and `location`. ASCII case-insensitive; UTF-8 text is supported. Percent and underscore are literal characters, not wildcards.\n- **Pagination**: Default `limit` is 50, clamped to `[1, 200]`. Matching events are ordered by `start ASC, id ASC` before cursor pagination. Cursor is a page position, not a Consistency bookmark or snapshot.\n\n### Troubleshooting\n- Returns 400 `VALIDATION_ERROR` if date query bounds are invalid (e.g. `start_from > start_to` or `end_from > end_to`).",
         "security": [
           {
             "bearerAuth": []
@@ -23347,6 +23387,1027 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/subscription": {
+      "post": {
+        "operationId": "calendar_create_subscription",
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -X POST \"https://api.wspc.ai/calendar/subscription\" -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
+        "tags": [
+          "Events"
+        ],
+        "summary": "Create a private calendar subscription",
+        "description": "Create a subscription or return the same active link. A private read-only link to all your event details in the current Workspace. Anyone with the link can read them. External calendar updates depend on that app's refresh schedule and can be delayed.",
+        "responses": {
+          "200": {
+            "description": "Current subscription state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarSubscription"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "VERSION_CONFLICT: read the current state before retrying. SUBSCRIPTION_DISABLED: create a link before resetting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SUBSCRIPTION_UNAVAILABLE: the feature is disabled or Auth is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "calendar_disable_subscription",
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -X DELETE \"https://api.wspc.ai/calendar/subscription\" -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"expected_version\":1}'"
+          }
+        ],
+        "tags": [
+          "Events"
+        ],
+        "summary": "Disable the private calendar link",
+        "description": "Disable the link using expected_version. External copies cannot be removed. A private read-only link to all your event details in the current Workspace. Anyone with the link can read them. External calendar updates depend on that app's refresh schedule and can be delayed.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "expected_version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current subscription state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarSubscription"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "VERSION_CONFLICT: read the current state before retrying. SUBSCRIPTION_DISABLED: create a link before resetting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SUBSCRIPTION_UNAVAILABLE: the feature is disabled or Auth is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "calendar_get_subscription",
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -X GET \"https://api.wspc.ai/calendar/subscription\" -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
+        "tags": [
+          "Events"
+        ],
+        "summary": "Read the private calendar subscription",
+        "description": "Read the current subscription state without creating a link. A private read-only link to all your event details in the current Workspace. Anyone with the link can read them. External calendar updates depend on that app's refresh schedule and can be delayed.",
+        "responses": {
+          "200": {
+            "description": "Current subscription state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarSubscription"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "VERSION_CONFLICT: read the current state before retrying. SUBSCRIPTION_DISABLED: create a link before resetting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SUBSCRIPTION_UNAVAILABLE: the feature is disabled or Auth is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -26289,6 +27350,361 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/subscription/reset": {
+      "post": {
+        "operationId": "calendar_reset_subscription",
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -X POST \"https://api.wspc.ai/calendar/subscription/reset\" -H \"Authorization: Bearer $WSPC_API_KEY\" -H \"Content-Type: application/json\" -d '{\"expected_version\":1}'"
+          }
+        ],
+        "tags": [
+          "Events"
+        ],
+        "summary": "Reset the private calendar link",
+        "description": "Replace the link using expected_version. The old link stops working; external copies cannot be removed. Subscribe again with the new link. After an uncertain response, read the current state before retrying. A private read-only link to all your event details in the current Workspace. Anyone with the link can read them. External calendar updates depend on that app's refresh schedule and can be delayed.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "expected_version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current subscription state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarSubscription"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "VERSION_CONFLICT: read the current state before retrying. SUBSCRIPTION_DISABLED: create a link before resetting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SUBSCRIPTION_UNAVAILABLE: the feature is disabled or Auth is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -46330,7 +47746,7 @@
           ]
         },
         "summary": "Create a recurring todo rule",
-        "description": "### 🎯 Overview & Purpose\nCreate a recurrence rule that materializes upcoming todo instances on a repeating schedule.\n\n### 🔍 When to Use\n* Use this to set up recurring work like a weekly Standup, monthly reporting, or cyclical maintenance. The server automatically materializes upcoming todo instances on a 14-day rolling horizon.\n\n### 💡 Key Features & Constraints\n* **RFC-5545 Conformity**: The `rrule` parameter must be a valid RFC-5545 schedule string (e.g., `FREQ=WEEKLY;BYDAY=MO`) and must **not** include the `DTSTART` or `TZID` directive.\n* **Anchor Date**: `dtstart` specifies the local calendar starting date (`YYYY-MM-DD`) where the schedule rule is anchored.\n* **Nesting Constraints**: Recurrence rules can only be bound to root-level tasks. Child tasks (subtasks) cannot have recurrence rules. Setting a child task as a parent will trigger `PARENT_IS_CHILD`.\n* **Instance Independence**: Once materialized, each todo instance is fully independent with its own `status` and `due_at`.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`RRULE_INVALID` (HTTP 400)**: Thrown if the `rrule` schedule string is broken or contains illegal `DTSTART` directives.\n* **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the specified `parent_id` points to a child task.\n* **`VALIDATION_ERROR` (HTTP 400)**: Thrown if date format is invalid or required fields are missing.",
+        "description": "### 🎯 Overview & Purpose\nCreate a recurrence rule that materializes upcoming todo instances on a repeating schedule.\n\n### 🔍 When to Use\n* Use this to set up recurring work like a weekly Standup, monthly reporting, or cyclical maintenance. The server automatically materializes upcoming todo instances on a 14-day rolling horizon.\n\n### 💡 Key Features & Constraints\n* **RFC-5545 Conformity**: The `rrule` parameter must be a valid RFC-5545 schedule string (e.g., `FREQ=WEEKLY;BYDAY=MO`) and must **not** include the `DTSTART` or `TZID` directive.\n* **Anchor Date**: `dtstart` specifies the local calendar starting date (`YYYY-MM-DD`) where the schedule rule is anchored.\n* **Nesting Constraints**: Recurrence rules can only be bound to root-level tasks. Child tasks (subtasks) cannot have recurrence rules. Setting a child task as a parent will trigger `PARENT_IS_CHILD`.\n* **Fixed Assignee**: Optional `assignee_user_id` assigns every occurrence and subtask to a current Workspace Member. Omit to use the creator. Assignment cannot change after rule creation. To change assignee, delete the old rule and create a new one; existing instances remain, so choose a start date that avoids overlap. If membership is absent or unavailable, materialization pauses and existing instances stay intact.\n* **Instance Independence**: Once materialized, each todo instance is fully independent with its own `status` and `due_at`.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`RRULE_INVALID` (HTTP 400)**: Thrown if the `rrule` schedule string is broken or contains illegal `DTSTART` directives.\n* **`PARENT_IS_CHILD` (HTTP 400)**: Thrown if the specified `parent_id` points to a child task.\n* **`VALIDATION_ERROR` (HTTP 400)**: Thrown if date format is invalid or required fields are missing.",
         "security": [
           {
             "bearerAuth": []
@@ -46357,7 +47773,7 @@
           {
             "lang": "bash",
             "label": "wspc CLI",
-            "source": "wspc todo rule add \"Draft weekly review\" --rrule \"FREQ=WEEKLY;BYDAY=MO\" --dtstart 2026-05-18 --project prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --type typ_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
+            "source": "wspc todo rule add \"Draft weekly review\" --rrule \"FREQ=WEEKLY;BYDAY=MO\" --dtstart 2026-05-18 --project prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F --assignee-user-id usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F"
           }
         ],
         "requestBody": {
@@ -46412,6 +47828,8 @@
                     "summary": "Weekly rule with 2 instances materialized in the 14-day window",
                     "value": {
                       "rule": {
+                        "assignee_user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                        "assignee_status": "valid",
                         "id": "tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                         "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                         "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
@@ -46635,6 +48053,36 @@
               }
             }
           },
+          "422": {
+            "description": "INVALID_ASSIGNEE: the assignee is not a current Workspace Member.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
           "429": {
             "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
             "content": {
@@ -46716,6 +48164,36 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "ASSIGNEE_CHECK_UNAVAILABLE: membership verification failed. No rule or instances were created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       },
@@ -46735,7 +48213,10 @@
               "id",
               "rrule",
               "dtstart",
-              "type_id"
+              "type_id",
+              "user_id",
+              "assignee_user_id",
+              "assignee_status"
             ],
             "format": {
               "id": "id-short",
@@ -46817,6 +48298,8 @@
                     "value": {
                       "rules": [
                         {
+                          "assignee_user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "assignee_status": "valid",
                           "id": "tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                           "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                           "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
@@ -51273,6 +52756,7 @@
           ],
           "display": {
             "shape": "object",
+            "dataPath": "rule",
             "format": {
               "id": "id-short",
               "type_id": "id-short"
@@ -51280,7 +52764,7 @@
           }
         },
         "summary": "Get a recurring todo rule",
-        "description": "### 🎯 Overview & Purpose\nFetch a single recurrence rule along with its template todo snapshot and the count of materialized instances.\n\n### 🔍 When to Use\n* Use this to inspect rule details before editing, preview the task template that future occurrences will copy, or check the current materialization metrics.\n\n### 💡 Key Features & Constraints\n* **Snapshot Integrity**: The returned template represents a schema template snapshot — modifying the rule (PATCH) only alters future occurrences; already-materialized tasks are never mutated retroactively.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the specified rule ID does not exist.",
+        "description": "### 🎯 Overview & Purpose\nFetch a single recurrence rule along with its template todo snapshot and the count of materialized instances.\n\n### 🔍 When to Use\n* Use this to inspect rule details before editing, preview the task template that future occurrences will copy, or check the current materialization metrics.\n\n### 💡 Key Features & Constraints\n* **Snapshot Integrity**: The returned template represents a schema template snapshot — rule edits rebuild eligible open instances from today when membership is valid; modified roots are preserved.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the specified rule ID does not exist.",
         "security": [
           {
             "bearerAuth": []
@@ -51339,6 +52823,8 @@
                     "summary": "Weekly rule with template snapshot",
                     "value": {
                       "rule": {
+                        "assignee_user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                        "assignee_status": "valid",
                         "id": "tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                         "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                         "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
@@ -51667,7 +53153,7 @@
           "hidden": true
         },
         "summary": "Update a recurring todo rule",
-        "description": "### 🎯 Overview & Purpose\nUpdate the schedule parameters (`rrule`, `dtstart`) or task template attributes (`title`, `description`, `parent_id`) of a recurrence rule.\n\n🔍 When to Use\n* Use this to shift standup schedules (e.g., from Monday to Friday), update template text details, or change the parent todo mapping for future generated tasks.\n\n### 💡 Key Features & Constraints\n* **Future-Only Effect**: Modifying the rule only applies to future materialized todo tasks; previously generated tasks remain unaffected.\n* **Optimistic Locking**: Supports `expected_version` to prevent concurrent modifications from overwriting workspace rule parameters.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VERSION_CONFLICT` (HTTP 409)**: Thrown if the provided `expected_version` mismatches the database.\n* **`RRULE_INVALID` (HTTP 400)**: Thrown if the updated schedule string contains illegal syntax or includes `DTSTART`.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target rule ID does not exist.",
+        "description": "### 🎯 Overview & Purpose\nUpdate the schedule parameters (`rrule`, `dtstart`) or task template attributes (`title`, `description`, `parent_id`) of a recurrence rule.\n\n🔍 When to Use\n* Use this to shift standup schedules (e.g., from Monday to Friday), update template text details, or change the parent todo mapping for future generated tasks.\n\n### 💡 Key Features & Constraints\n* **Fixed Assignee**: Any PATCH with `assignee_user_id`, including the same value or null, fails with `ASSIGNEE_IMMUTABLE` (HTTP 400).\n* **Rebuild**: Rule edits rebuild open instances from today whose root Todo is unmodified. Membership must be valid before clearing instances; otherwise edits save and rebuilding is deferred.\n* **Optimistic Locking**: Supports `expected_version` to prevent concurrent modifications from overwriting workspace rule parameters.\n\n### ⚠️ Common Errors & Troubleshooting\n* **`VERSION_CONFLICT` (HTTP 409)**: Thrown if the provided `expected_version` mismatches the database.\n* **`RRULE_INVALID` (HTTP 400)**: Thrown if the updated schedule string contains illegal syntax or includes `DTSTART`.\n* **`NOT_FOUND` (HTTP 404)**: Thrown if the target rule ID does not exist.",
         "security": [
           {
             "bearerAuth": []
@@ -51735,7 +53221,7 @@
         },
         "responses": {
           "200": {
-            "description": "The rule was updated. Returns the post-update rule with a bumped `version` and refreshed `updated_at`. Future materializations follow the new schedule; existing instances are untouched.",
+            "description": "The rule was updated. Returns the post-update rule with a bumped `version` and refreshed `updated_at`. Eligible future instances are rebuilt when membership is valid.",
             "headers": {
               "x-cb-todo": {
                 "description": "Opaque consistency bookmark for the latest todo database position observed by this request. Store and send it on the next todo request to continue read-after-write consistency.",
@@ -51753,6 +53239,8 @@
                   "happyPath": {
                     "summary": "Rule moved to Fridays",
                     "value": {
+                      "assignee_user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                      "assignee_status": "valid",
                       "id": "tdr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                       "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                       "project_id": "prj_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",

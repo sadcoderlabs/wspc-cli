@@ -191,3 +191,15 @@ MIT
 ### 收到的 Calendar 邀請
 
 `event show`／`event agenda` 的 JSON 保留 optional `invitation`（外部 UID／Organizer）；Imported Event 的 `event set` 回 `IMPORTED_EVENT_READ_ONLY`，刪除與還原不寄 attendee email。`email show` 保留 optional `calendar_sync`，event_id 僅在同時具備 Calendar read 權限時回傳。此版 upstream 收件同步預設停用，須待 provider 信任驗證後才啟用。
+
+### Recurring Todo 固定 assignee
+
+建立 rule 時可用 `--assignee-user-id` 指定目前 Workspace Member；省略時指派給 creator。Rule 建立後不能修改 assignee。
+
+```bash
+wspc todo rule add "Weekly review" --rrule "FREQ=WEEKLY" --dtstart 2026-09-15 --project prj_xxx --assignee-user-id usr_xxx
+wspc todo rule ls --project-id prj_xxx
+wspc todo rule show tdr_xxx --json
+```
+
+List/show 的 pretty 與 JSON 輸出顯示 creator、assignee 及 `assignee_status`。`not_member` 與 `unknown` 暫停產生或重建，保留既有 Todos。需要換人時先刪除舊 rule，再以適當起始日期建立新 rule，避免重複工作。
