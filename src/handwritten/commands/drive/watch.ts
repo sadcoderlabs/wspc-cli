@@ -5,6 +5,7 @@ import { basename, relative, resolve } from "node:path"
 import { loadRealtimeAuthHeaders } from "../../auth/load-sdk-client.js"
 import { render, shouldOutputJson } from "../../output/render.js"
 import { createDriveDebugLogger, noopDriveDebugLogger, type DriveDebugLogger } from "./debug-log.js"
+import { emptyDriveExcludeRules, loadDriveExcludeRules, type DriveExcludeRules } from "./exclude-rules.js"
 import { createDriveRealtimeSource } from "./realtime.js"
 import { isInternalSyncArtifactName } from "./scanner.js"
 import { DRIVE_DIR, ensureDriveRealtimeState, readDriveState, writeDriveRealtimeState } from "./state.js"
@@ -96,6 +97,17 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
   let stopWatch: (() => void) | undefined
   let stopError: unknown
   let cleanupSignalListeners = () => {}
+  let excludeRules: DriveExcludeRules = emptyDriveExcludeRules
+  let excludeRulesLoad = Promise.resolve()
+
+  // Serialized so an older ignore read can never overwrite a newer one. An
+  // unparsable ignore file filters nothing; sync reports the parse error.
+  function reloadExcludeRules(): Promise<void> {
+    excludeRulesLoad = excludeRulesLoad.then(async () => {
+      excludeRules = await loadDriveExcludeRules(root).catch(() => emptyDriveExcludeRules)
+    })
+    return excludeRulesLoad
+  }
 
   async function requestSync(): Promise<void> {
     if (stopped) return
@@ -252,6 +264,7 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
         writeRealtimeState: (next) => writeDriveRealtimeState(root, next),
       })
     }
+    await reloadExcludeRules()
     source = options.source ?? createDefaultWatchSource(root)
     source.onChange((path) => {
       if (path === undefined) {
@@ -264,13 +277,14 @@ export async function runDriveWatch(root: string, options: DriveWatchOptions = {
       if (drivePath === `${DRIVE_DIR}/ignore`) {
         fullReconciliationRequired = true
         dbg.log("fs_event", { path: drivePath, full_reconciliation: true })
-        scheduleSync(debounceMs, "ignore")
+        void reloadExcludeRules().then(() => scheduleSync(debounceMs, "ignore"))
         return
       }
       if (isDriveInternalPath(root, path)) return
       // Download/backup/merge temp files are our own writes; reacting to them
       // would chain an extra sync after every applied remote change.
       if (isInternalSyncArtifactName(basename(path))) return
+      if (excludeRules.matches(drivePath)) return
       dirtyPaths.add(drivePath)
       dbg.log("fs_event", { path: drivePath })
       scheduleSync(debounceMs, "local")

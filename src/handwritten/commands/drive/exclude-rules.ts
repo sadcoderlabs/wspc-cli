@@ -20,7 +20,7 @@ export interface DriveExcludeRules {
   matches(path: string, kind?: "file" | "directory"): boolean
 }
 
-const emptyDriveExcludeRules: DriveExcludeRules = {
+export const emptyDriveExcludeRules: DriveExcludeRules = {
   size: 0,
   matches: () => false,
 }
