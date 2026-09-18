@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   createChokidarSource,
@@ -622,6 +625,47 @@ describe("drive watch", () => {
     await flushMicrotasks()
 
     expect(dirtyByCall).toEqual([undefined, undefined])
+    await watching
+  })
+
+  it("does not schedule syncs for fs events on excluded paths and follows ignore edits", async () => {
+    vi.useRealTimers()
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-watch-exclude-"))
+    const ignorePath = join(root, ".wspc-drive", "ignore")
+    await mkdir(join(root, ".wspc-drive"))
+    await writeFile(ignorePath, "**/.DS_Store*\n")
+    const source = fakeSource()
+    const timer = manualTimer()
+    const runSync = vi.fn(async () => syncSummary())
+    const fireTimers = async () => {
+      for (const scheduled of timer.pending.splice(0)) scheduled.fire()
+      await flushMicrotasks()
+    }
+    const watching = runDriveWatch(root, { source, realtimeSource: fakeRealtimeSource(), runSync, readState, onEvent: vi.fn(), timer })
+    await source.waitForSubscription()
+    await flushMicrotasks()
+    expect(runSync).toHaveBeenCalledTimes(1)
+
+    source.emit(join(root, ".DS_Store"))
+    source.emit(join(root, "sub", ".DS_Store"))
+    await fireTimers()
+    expect(runSync).toHaveBeenCalledTimes(1)
+
+    source.emit(join(root, "notes.md"))
+    await fireTimers()
+    expect(runSync).toHaveBeenCalledTimes(2)
+
+    await writeFile(ignorePath, "")
+    source.emit(ignorePath)
+    await vi.waitFor(() => expect(timer.pending).toHaveLength(1))
+    await fireTimers()
+    expect(runSync).toHaveBeenCalledTimes(3)
+    expect(runSync).toHaveBeenLastCalledWith(root, expect.any(Function), undefined)
+
+    source.emit(join(root, ".DS_Store"))
+    await fireTimers()
+    expect(runSync).toHaveBeenCalledTimes(4)
+    process.emit("SIGTERM")
     await watching
   })
 

@@ -17,6 +17,7 @@ import {
   type DriveStateEntry,
 } from "./state.js"
 import { render } from "../../output/render.js"
+import { VERSION } from "../../../version.js"
 import {
   DriveRetryableSyncError,
   isRetryableDriveFailure,
@@ -177,19 +178,47 @@ export async function runDriveSyncOnce(
       throw error
     }
 
+    const rejectedPaths = new Set<string>()
+    const uploadRejections = { ...state.upload_rejections }
+    for (const [path, rejection] of Object.entries(uploadRejections)) {
+      const scanned = state.scan_cache?.[path]
+      if (
+        scanned?.mtime_ms !== rejection.mtime_ms ||
+        scanned.size_bytes !== rejection.size_bytes ||
+        scanned.sha256 !== rejection.sha256 ||
+        rejection.cli_version !== VERSION
+      ) {
+        delete uploadRejections[path]
+        continue
+      }
+      const action = decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])
+      if (action.type !== "upload_create" && action.type !== "upload_update") continue
+      rejectedPaths.add(path)
+      const pathError = { path, code: rejection.code, message: rejection.message, retryable: false }
+      await recordDrivePathError(summary, undefined, path, undefined, {
+        appendPathResult: true,
+        debug,
+        op: "upload_rejected",
+        pathError,
+      })
+    }
+    if (Object.keys(uploadRejections).length !== Object.keys(state.upload_rejections ?? {}).length) {
+      state = { ...state, upload_rejections: uploadRejections }
+      if (Object.keys(uploadRejections).length === 0) delete state.upload_rejections
+      await writeDriveState(root, state, clock)
+    }
+
+    const pendingPaths = paths.filter((path) => !movedPaths.has(path) && !rejectedPaths.has(path))
     // decideDriveAction is pure and reads only this path's slices of the
     // initial state, so this pre-pass total matches the loop's actions.
-    const total = paths.filter(
-      (path) =>
-        !movedPaths.has(path) &&
-        isActionableAction(decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])),
+    const total = pendingPaths.filter((path) =>
+      isActionableAction(decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])),
     ).length
     let processed = 0
     onProgress?.(processed, total)
 
     const processStartedMs = Date.now()
-    for (const path of paths) {
-      if (movedPaths.has(path)) continue
+    for (const path of pendingPaths) {
       const remote = remoteFiles[path]
       const local = localFiles[path]
       const action = decideDriveAction(state.entries[path], local, remote)

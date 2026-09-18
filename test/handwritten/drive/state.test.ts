@@ -259,6 +259,63 @@ describe("drive state", () => {
     }
   })
 
+  it("round-trips upload rejections in schema version 1", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-upload-rejections-"))
+    const state = await initDriveState(root, "lib_1")
+    state.upload_rejections = {
+      "big.jsonl": {
+        mtime_ms: 1_789_000_000_000,
+        size_bytes: 291_000_000,
+        sha256: "a".repeat(64),
+        code: "DRIVE_PATH_ERROR",
+        message: "HTTP 413",
+        cli_version: "0.12.0",
+        rejected_at: "2026-09-18T00:00:00.000Z",
+      },
+    }
+
+    await writeDriveState(root, state)
+
+    expect(await readDriveState(root)).toMatchObject({
+      schema_version: 1,
+      upload_rejections: state.upload_rejections,
+    })
+  })
+
+  it("rejects malformed upload rejection records", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-upload-rejections-"))
+    const path = join(root, ".wspc-drive", "state.json")
+    await mkdir(join(root, ".wspc-drive"), { recursive: true })
+    const baseState = {
+      schema_version: 1,
+      library_id: "lib_1",
+      created_at: "2026-06-21T00:00:00.000Z",
+      updated_at: "2026-06-21T00:00:00.000Z",
+      entries: {},
+      conflicts: {},
+    }
+    const valid = {
+      mtime_ms: 1,
+      size_bytes: 2,
+      sha256: "a".repeat(64),
+      code: "DRIVE_PATH_ERROR",
+      message: "HTTP 413",
+      cli_version: "0.12.0",
+      rejected_at: "2026-09-18T00:00:00.000Z",
+    }
+    const malformed = [
+      ["big.jsonl"],
+      { "big.jsonl": { ...valid, size_bytes: "2" } },
+      { "big.jsonl": { ...valid, cli_version: undefined } },
+      { "big.jsonl": { ...valid, response_body: "secret" } },
+    ]
+
+    for (const uploadRejections of malformed) {
+      await writeFile(path, JSON.stringify({ ...baseState, upload_rejections: uploadRejections }), { mode: 0o600 })
+      await expect(readDriveState(root)).rejects.toThrow(/unsupported \.wspc-drive\/state\.json schema/)
+    }
+  })
+
   it("rejects malformed extended conflict metadata", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-state-bad-conflict-meta-"))
     await mkdir(join(root, ".wspc-drive"), { recursive: true })

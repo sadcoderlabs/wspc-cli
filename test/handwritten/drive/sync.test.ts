@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
-import { mkdir, mkdtemp, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, readdir, rename, unlink, utimes, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { DateTime } from "luxon"
@@ -11,6 +11,7 @@ import { render } from "../../../src/handwritten/output/render.js"
 import type { UploadDriveFileResponse } from "../../../src/generated/sdk/index.js"
 import type { DriveClock } from "../../../src/handwritten/commands/drive/clock.js"
 import { DriveHttpError } from "../../../src/handwritten/commands/drive/retry.js"
+import { VERSION } from "../../../src/version.js"
 
 const stateWriteControl = vi.hoisted(() => ({
   failNext: undefined as undefined | ((state: unknown) => Error | undefined),
@@ -181,6 +182,21 @@ function mkApi(
   }
   return api
 }
+
+function rejectUploadsOf(api: TestDriveSyncApi, rejectedPath: string, error: () => unknown = () => new DriveHttpError(413)): void {
+  const uploadFile = api.uploadFile.bind(api)
+  api.uploadFile = async (id, path, body, digest, expectedEntryVersion) => {
+    if (path !== rejectedPath) return uploadFile(id, path, body, digest, expectedEntryVersion)
+    api.uploads.push({ id, path, sha256: digest, expectedEntryVersion })
+    throw error()
+  }
+}
+
+function uploadCount(api: TestDriveSyncApi, path: string): number {
+  return api.uploads.filter((upload) => upload.path === path).length
+}
+
+const rejected413 = { path: "big.jsonl", code: "DRIVE_PATH_ERROR", message: "HTTP 413", retryable: false }
 
 describe("drive sync once", () => {
   beforeEach(() => {
@@ -1753,6 +1769,190 @@ describe("drive sync once", () => {
     const errorEvents = events.filter((candidate) => candidate.event === "error")
     expect(errorEvents).toHaveLength(1)
     expect(errorEvents[0]?.fields).toMatchObject({ path: "gone.txt", message: expect.any(String) })
+  })
+
+  describe("permanent upload rejection", () => {
+    it("uploads an unchanged rejected file only once across rounds and keeps reporting it", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-rejected-"))
+      await initDriveState(root, "lib_1")
+      await writeFile(join(root, "big.jsonl"), "huge")
+      const api = mkApi([{ entries: [] }, { entries: [] }, { entries: [] }])
+      rejectUploadsOf(api, "big.jsonl")
+
+      const summaries = []
+      const progress: number[] = []
+      summaries.push(await runDriveSyncOnce(root, api))
+      const recorded = (await readDriveState(root)).upload_rejections?.["big.jsonl"]
+      summaries.push(await runDriveSyncOnce(root, api, undefined, (_processed, total) => progress.push(total)))
+      summaries.push(await runDriveSyncOnce(root, api))
+
+      expect(uploadCount(api, "big.jsonl")).toBe(1)
+      for (const summary of summaries) {
+        expect(summary.path_errors).toEqual([rejected413])
+        expect(summary.errors).toBe(1)
+        expect(summary.paths).toEqual([{ path: "big.jsonl", action: "error" }])
+      }
+      expect(progress).toEqual([0])
+      const scanned = (await readDriveState(root)).scan_cache?.["big.jsonl"]
+      expect(recorded).toEqual({
+        mtime_ms: scanned?.mtime_ms,
+        size_bytes: 4,
+        sha256: sha256("huge"),
+        code: "DRIVE_PATH_ERROR",
+        message: "HTTP 413",
+        cli_version: VERSION,
+        rejected_at: expect.any(String),
+      })
+    })
+
+    it("keeps syncing other files around a rejected file", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-rejected-others-"))
+      await initDriveState(root, "lib_1")
+      await writeFile(join(root, "big.jsonl"), "huge")
+      await writeFile(join(root, "notes.txt"), "hello")
+      const api = mkApi([{ entries: [] }, { entries: [entry("notes.txt", "hello", 1)] }])
+      rejectUploadsOf(api, "big.jsonl")
+
+      const first = await runDriveSyncOnce(root, api)
+      await writeFile(join(root, "notes.txt"), "hello again")
+      const second = await runDriveSyncOnce(root, api)
+
+      expect(first.uploaded).toBe(1)
+      expect(second.uploaded).toBe(1)
+      expect(second.path_errors).toEqual([rejected413])
+      expect(api.uploads.map((upload) => upload.path)).toEqual(["big.jsonl", "notes.txt", "notes.txt"])
+    })
+
+    async function rejectedLibrary(prefix: string, rounds: number): Promise<{ root: string; api: TestDriveSyncApi }> {
+      const root = await mkdtemp(join(tmpdir(), prefix))
+      await initDriveState(root, "lib_1")
+      await writeFile(join(root, "big.jsonl"), "huge")
+      const api = mkApi(Array.from({ length: rounds }, () => ({ entries: [] })))
+      rejectUploadsOf(api, "big.jsonl")
+      await runDriveSyncOnce(root, api)
+      return { root, api }
+    }
+
+    it("retries once after the content changes", async () => {
+      const { root, api } = await rejectedLibrary("wspc-drive-sync-rejected-content-", 3)
+      await writeFile(join(root, "big.jsonl"), "huger")
+
+      await runDriveSyncOnce(root, api)
+      await runDriveSyncOnce(root, api)
+
+      expect(uploadCount(api, "big.jsonl")).toBe(2)
+      expect((await readDriveState(root)).upload_rejections?.["big.jsonl"]?.sha256).toBe(sha256("huger"))
+    })
+
+    it("retries once after only the mtime changes", async () => {
+      const { root, api } = await rejectedLibrary("wspc-drive-sync-rejected-mtime-", 3)
+      await utimes(join(root, "big.jsonl"), 1_893_456_000, 1_893_456_000)
+
+      await runDriveSyncOnce(root, api)
+      await runDriveSyncOnce(root, api)
+
+      expect(uploadCount(api, "big.jsonl")).toBe(2)
+    })
+
+    it("forgets the rejection when the file is deleted", async () => {
+      const { root, api } = await rejectedLibrary("wspc-drive-sync-rejected-delete-", 2)
+      await unlink(join(root, "big.jsonl"))
+
+      const result = await runDriveSyncOnce(root, api)
+
+      expect(result.path_errors ?? []).toEqual([])
+      expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+
+    it("forgets the rejection when the file is renamed and uploads the new path once", async () => {
+      const { root, api } = await rejectedLibrary("wspc-drive-sync-rejected-rename-", 2)
+      await rename(join(root, "big.jsonl"), join(root, "renamed.jsonl"))
+
+      const result = await runDriveSyncOnce(root, api)
+
+      expect(result.path_errors ?? []).toEqual([])
+      expect(uploadCount(api, "renamed.jsonl")).toBe(1)
+      expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+
+    it("forgets the rejection when the file becomes excluded", async () => {
+      const { root, api } = await rejectedLibrary("wspc-drive-sync-rejected-exclude-", 2)
+      await writeFile(join(root, ".wspc-drive", "ignore"), "big.jsonl\n")
+
+      const result = await runDriveSyncOnce(root, api)
+
+      expect(result.path_errors ?? []).toEqual([])
+      expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+
+    it("retries once when the rejection was recorded by another CLI version", async () => {
+      const { root, api } = await rejectedLibrary("wspc-drive-sync-rejected-version-", 3)
+      const state = await readDriveState(root)
+      state.upload_rejections!["big.jsonl"]!.cli_version = "0.0.0-older"
+      await writeDriveState(root, state)
+
+      await runDriveSyncOnce(root, api)
+      await runDriveSyncOnce(root, api)
+
+      expect(uploadCount(api, "big.jsonl")).toBe(2)
+      expect((await readDriveState(root)).upload_rejections?.["big.jsonl"]?.cli_version).toBe(VERSION)
+    })
+
+    it("removes the rejection once a changed file uploads successfully", async () => {
+      const { root } = await rejectedLibrary("wspc-drive-sync-rejected-success-", 1)
+      await writeFile(join(root, "big.jsonl"), "small")
+      const api = mkApi([{ entries: [] }])
+
+      const result = await runDriveSyncOnce(root, api)
+
+      expect(result.uploaded).toBe(1)
+      expect(result.path_errors ?? []).toEqual([])
+      expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+
+    it.each([
+      ["502", () => new DriveHttpError(502)],
+      ["429", () => new DriveHttpError(429)],
+      ["408", () => new DriveHttpError(408)],
+      ["401", () => new DriveHttpError(401)],
+      ["403", () => new DriveHttpError(403)],
+      ["VERSION_CONFLICT", () => new DriveHttpError(409, { code: "VERSION_CONFLICT" })],
+    ])("does not remember a %s upload failure", async (_name, error) => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-not-rejected-"))
+      await initDriveState(root, "lib_1")
+      await writeFile(join(root, "big.jsonl"), "huge")
+      const api = mkApi([{ entries: [] }])
+      rejectUploadsOf(api, "big.jsonl", error)
+
+      await runDriveSyncOnce(root, api).catch(() => undefined)
+
+      expect(uploadCount(api, "big.jsonl")).toBe(1)
+      expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+
+    it.each([
+      ["a local read error", Object.assign(new Error("permission denied"), { code: "EACCES" })],
+      ["a local change after scan", undefined],
+    ])("does not remember %s before upload", async (_name, readError) => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-not-rejected-read-"))
+      await initDriveState(root, "lib_1")
+      await writeFile(join(root, "big.jsonl"), "huge")
+      const api = mkApi([{ entries: [] }])
+      rejectUploadsOf(api, "big.jsonl")
+      const getManifest = api.getManifest.bind(api)
+      api.getManifest = vi.fn(async (id, cursor) => {
+        const page = await getManifest(id, cursor)
+        if (readError === undefined) await writeFile(join(root, "big.jsonl"), "changed")
+        else scannerControl.afterHash = () => { throw readError }
+        return page
+      })
+
+      const result = await runDriveSyncOnce(root, api)
+
+      expect(result.errors).toBe(1)
+      expect(uploadCount(api, "big.jsonl")).toBe(0)
+      expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
   })
 
   it("renders command summary and sets exit code for conflicts", async () => {

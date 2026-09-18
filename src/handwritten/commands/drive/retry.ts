@@ -98,6 +98,18 @@ export function isRetryableDriveFailure(error: unknown): boolean {
   return classifyDriveRetry(error, 0) !== undefined
 }
 
+const NON_PERMANENT_UPLOAD_STATUSES = new Set([401, 403, 408, 409, 429])
+
+export function isPermanentUploadRejection(error: unknown): boolean {
+  return (
+    error instanceof DriveHttpError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    !NON_PERMANENT_UPLOAD_STATUSES.has(error.status) &&
+    error.code !== "VERSION_CONFLICT"
+  )
+}
+
 export function isDriveAuthFailure(error: unknown): boolean {
   const failure = error instanceof DriveRetryableSyncError ? error.cause : error
   const status = failure instanceof DriveHttpError ? failure.status : structuredStatus(failure)

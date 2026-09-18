@@ -18,8 +18,10 @@ import {
 } from "./local-mutations.js"
 import { classifyMergeText, conflictCopyPath, mergeText3 } from "./merge.js"
 import { resolveInsideRoot, validateDrivePath } from "./path-policy.js"
+import { VERSION } from "../../../version.js"
 import {
   isDriveAuthFailure,
+  isPermanentUploadRejection,
   isRetryableDriveFailure,
   type DrivePathErrorSummary,
 } from "./retry.js"
@@ -64,7 +66,14 @@ export async function executeDrivePathAction(
     if (action.type === "upload_create" || action.type === "upload_update") {
       const localPath = resolveInsideRoot(root, path)
       const { body, digest: uploadDigest } = await readStableUploadBody(localPath, local)
-      const uploaded = await api.uploadFile(state.library_id, path, body, uploadDigest, action.expectedEntryVersion)
+      let uploaded: UploadDriveFileResponse
+      try {
+        uploaded = await api.uploadFile(state.library_id, path, body, uploadDigest, action.expectedEntryVersion)
+      } catch (error) {
+        if (!isPermanentUploadRejection(error)) throw error
+        await recordDrivePathError(summary, undefined, path, error, { debug, op: "process" })
+        return { state: await rememberUploadRejection(root, state, path, uploadDigest, error, clock), stop: false }
+      }
       durableStateRequired = true
       const nextState = cloneDriveState(state)
       nextState.entries[path] = stateEntryFromRemote(uploaded.entry, uploadDigest, clock)
@@ -504,7 +513,30 @@ export function cloneDriveState(state: DriveState): DriveState {
     entries: { ...state.entries },
     conflicts: { ...state.conflicts },
     ...(state.scan_errors === undefined ? {} : { scan_errors: { ...state.scan_errors } }),
+    ...(state.upload_rejections === undefined ? {} : { upload_rejections: { ...state.upload_rejections } }),
   }
+}
+
+// The scan cache is the fingerprint; it must describe the bytes just rejected.
+async function rememberUploadRejection(
+  root: string,
+  state: DriveState,
+  path: string,
+  uploadDigest: string,
+  error: unknown,
+  clock: DriveClock,
+): Promise<DriveState> {
+  const scanned = state.scan_cache?.[path]
+  if (scanned === undefined || scanned.sha256 !== uploadDigest) return state
+  const { mtime_ms, size_bytes, sha256 } = scanned
+  const { code, message } = drivePathErrorSummary(path, error)
+  const nextState = cloneDriveState(state)
+  nextState.upload_rejections = {
+    ...nextState.upload_rejections,
+    [path]: { mtime_ms, size_bytes, sha256, code, message, cli_version: VERSION, rejected_at: driveIsoTimestamp(clock) },
+  }
+  await writeDriveState(root, nextState, clock)
+  return nextState
 }
 
 async function recordConflict(

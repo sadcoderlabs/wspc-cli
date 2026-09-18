@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { DateTime } from "luxon"
-import { DriveHttpError, classifyDriveRetry, parseRetryAfter } from "../../../src/handwritten/commands/drive/retry.js"
+import { DriveHttpError, classifyDriveRetry, isPermanentUploadRejection, parseRetryAfter } from "../../../src/handwritten/commands/drive/retry.js"
 
 describe("Drive retry policy", () => {
   it("parses Retry-After delta seconds", () => {
@@ -46,5 +46,24 @@ describe("Drive retry policy", () => {
     const reset = Object.assign(new Error("socket closed"), { code: "ECONNRESET" })
 
     expect(classifyDriveRetry(reset, 1_000)).toEqual({ reason: "transient", delayMs: 1_000 })
+  })
+
+  it.each([
+    [new DriveHttpError(400), true],
+    [new DriveHttpError(413), true],
+    [new DriveHttpError(422, { code: "FILE_TOO_LARGE" }), true],
+    [new DriveHttpError(401), false],
+    [new DriveHttpError(403), false],
+    [new DriveHttpError(408), false],
+    [new DriveHttpError(409), false],
+    [new DriveHttpError(429), false],
+    [new DriveHttpError(412, { code: "VERSION_CONFLICT" }), false],
+    [new DriveHttpError(399), false],
+    [new DriveHttpError(500), false],
+    [new DriveHttpError(502), false],
+    [Object.assign(new Error("HTTP 413"), { status: 413 }), false],
+    [new Error("local file changed after scan"), false],
+  ])("classifies %s as a permanent upload rejection: %s", (error, expected) => {
+    expect(isPermanentUploadRejection(error)).toBe(expected)
   })
 })
