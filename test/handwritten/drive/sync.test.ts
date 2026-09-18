@@ -2047,6 +2047,110 @@ describe("drive sync once", () => {
       expect(uploadCount(api, "big.bin")).toBe(0)
       expect(summary.path_errors).toEqual([tooLarge("big.bin")])
     })
+
+    async function oversizedLibrary(prefix: string, rounds: number): Promise<{ root: string; api: TestDriveSyncApi }> {
+      const root = await mkdtemp(join(tmpdir(), prefix))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "big.bin", overLimit)
+      const api = mkApi(Array.from({ length: rounds }, () => ({ entries: [] })))
+      await runDriveSyncOnce(root, api)
+      return { root, api }
+    }
+
+    it("uploads the file once it shrinks within the limit", async () => {
+      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-shrink-", 2)
+      await writeFile(join(root, "big.bin"), "small")
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(summary.path_errors ?? []).toEqual([])
+      expect(uploadCount(api, "big.bin")).toBe(1)
+    })
+
+    it.each([
+      ["deleted", (root: string) => unlink(join(root, "big.bin"))],
+      ["excluded", (root: string) => writeFile(join(root, ".wspc-drive", "ignore"), "big.bin\n")],
+    ])("stops reporting the file once it is %s", async (_name, change) => {
+      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-gone-", 2)
+      await change(root)
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(summary.path_errors ?? []).toEqual([])
+      expect(uploadCount(api, "big.bin")).toBe(0)
+    })
+
+    it("reports the new path after renaming an oversized file", async () => {
+      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-rename-", 2)
+      await rename(join(root, "big.bin"), join(root, "renamed.bin"))
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(summary.path_errors).toEqual([tooLarge("renamed.bin")])
+      expect(api.uploads).toEqual([])
+    })
+
+    it("uploads a renamed file once it fits within the limit", async () => {
+      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-rename-small-", 2)
+      await unlink(join(root, "big.bin"))
+      await writeFile(join(root, "renamed.bin"), "small")
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(summary.path_errors ?? []).toEqual([])
+      expect(uploadCount(api, "renamed.bin")).toBe(1)
+    })
+
+    it("replaces a rejection recorded by an older CLI with FILE_TOO_LARGE", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-legacy-"))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "big.bin", overLimit)
+      const api = mkApi([{ entries: [] }, { entries: [] }])
+      await runDriveSyncOnce(root, api)
+      const state = await readDriveState(root)
+      const scanned = state.scan_cache!["big.bin"]!
+      state.upload_rejections = {
+        "big.bin": {
+          mtime_ms: scanned.mtime_ms,
+          size_bytes: scanned.size_bytes,
+          sha256: scanned.sha256,
+          code: "DRIVE_PATH_ERROR",
+          message: "HTTP 413",
+          cli_version: "0.0.0-older",
+          rejected_at: "2026-09-15T00:00:00.000Z",
+        },
+      }
+      await writeDriveState(root, state)
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(uploadCount(api, "big.bin")).toBe(0)
+      expect(summary.path_errors).toEqual([tooLarge("big.bin")])
+      expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+
+    it("reports an oversized file once when a current rejection also matches", async () => {
+      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-dedupe-", 2)
+      const state = await readDriveState(root)
+      const scanned = state.scan_cache!["big.bin"]!
+      state.upload_rejections = {
+        "big.bin": {
+          mtime_ms: scanned.mtime_ms,
+          size_bytes: scanned.size_bytes,
+          sha256: scanned.sha256,
+          code: "FILE_TOO_LARGE",
+          message: "HTTP 413",
+          cli_version: VERSION,
+          rejected_at: "2026-09-18T00:00:00.000Z",
+        },
+      }
+      await writeDriveState(root, state)
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(summary.path_errors).toEqual([tooLarge("big.bin")])
+      expect(summary.errors).toBe(1)
+    })
   })
 
   it("renders command summary and sets exit code for conflicts", async () => {

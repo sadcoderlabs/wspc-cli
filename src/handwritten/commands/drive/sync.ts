@@ -215,7 +215,6 @@ export async function runDriveSyncOnce(
         delete uploadRejections[path]
         continue
       }
-      if (rejectedPaths.has(path)) continue
       const action = decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])
       if (action.type !== "upload_create" && action.type !== "upload_update") continue
       rejectedPaths.add(path)
