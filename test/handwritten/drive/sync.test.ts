@@ -2012,6 +2012,41 @@ describe("drive sync once", () => {
       expect(uploadCount(api, "big.bin")).toBe(0)
       expect(summary.uploaded).toBe(1)
     })
+
+    it("uploads a file of exactly 100 MiB", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-boundary-"))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "edge.bin", 104_857_600)
+      const api = mkApi([{ entries: [] }])
+      const uploadedBytes: number[] = []
+      api.uploadFile = async (id, path, body, digest, expectedEntryVersion) => {
+        api.uploads.push({ id, path, sha256: digest, expectedEntryVersion })
+        uploadedBytes.push(typeof body === "string" ? Buffer.byteLength(body) : body.byteLength)
+        return {
+          entry: { ...entry(path, "", 1), content_sha256: digest, size_bytes: 104_857_600 },
+          result: "created",
+        }
+      }
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(uploadedBytes).toEqual([104_857_600])
+      expect(summary.path_errors ?? []).toEqual([])
+    })
+
+    it("stops uploading a synced file once it grows over the limit", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-grown-"))
+      const state = await initDriveState(root, "lib_1")
+      state.entries["big.bin"] = stateEntry("big.bin", "small")
+      await writeDriveState(root, state)
+      await sparse(root, "big.bin", overLimit)
+      const api = mkApi([{ entries: [entry("big.bin", "small")] }])
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(uploadCount(api, "big.bin")).toBe(0)
+      expect(summary.path_errors).toEqual([tooLarge("big.bin")])
+    })
   })
 
   it("renders command summary and sets exit code for conflicts", async () => {
