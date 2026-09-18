@@ -49,6 +49,16 @@ export interface DriveScanError {
   retryable: boolean
 }
 
+export interface DriveUploadRejection {
+  mtime_ms: number
+  size_bytes: number
+  sha256: string
+  code: string
+  message: string
+  cli_version: string
+  rejected_at: string
+}
+
 export interface DriveState {
   schema_version: 1
   library_id: string
@@ -59,6 +69,7 @@ export interface DriveState {
   realtime?: DriveRealtimeState
   scan_cache?: Record<string, DriveScanCacheEntry>
   scan_errors?: Record<string, DriveScanError>
+  upload_rejections?: Record<string, DriveUploadRejection>
   // Latest manifest cursor seen; enables since_cursor delta fetches.
   manifest_cursor?: string
 }
@@ -313,6 +324,7 @@ function isValidDriveState(value: unknown): value is DriveState {
     (value.realtime !== undefined && !isDriveRealtimeState(value.realtime)) ||
     (value.scan_cache !== undefined && !isRecord(value.scan_cache)) ||
     (value.scan_errors !== undefined && !isRecord(value.scan_errors)) ||
+    (value.upload_rejections !== undefined && !isRecord(value.upload_rejections)) ||
     (value.manifest_cursor !== undefined && typeof value.manifest_cursor !== "string")
   ) {
     return false
@@ -331,6 +343,11 @@ function isValidDriveState(value: unknown): value is DriveState {
   if (value.scan_errors !== undefined) {
     for (const error of Object.values(value.scan_errors)) {
       if (!isDriveScanError(error)) return false
+    }
+  }
+  if (value.upload_rejections !== undefined) {
+    for (const rejection of Object.values(value.upload_rejections)) {
+      if (!isDriveUploadRejection(rejection)) return false
     }
   }
   return true
@@ -353,5 +370,20 @@ function isDriveScanError(value: unknown): value is DriveScanError {
     typeof value.code === "string" &&
     typeof value.message === "string" &&
     typeof value.retryable === "boolean"
+  )
+}
+
+function isDriveUploadRejection(value: unknown): value is DriveUploadRejection {
+  const allowedKeys = new Set(["mtime_ms", "size_bytes", "sha256", "code", "message", "cli_version", "rejected_at"])
+  return (
+    isRecord(value) &&
+    Object.keys(value).every((key) => allowedKeys.has(key)) &&
+    typeof value.mtime_ms === "number" &&
+    typeof value.size_bytes === "number" &&
+    typeof value.sha256 === "string" &&
+    typeof value.code === "string" &&
+    typeof value.message === "string" &&
+    typeof value.cli_version === "string" &&
+    typeof value.rejected_at === "string"
   )
 }
