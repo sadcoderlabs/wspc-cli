@@ -10,7 +10,7 @@ import { driveSyncCommand, runDriveSyncOnce, type DriveSyncApi } from "../../../
 import { render } from "../../../src/handwritten/output/render.js"
 import type { UploadDriveFileResponse } from "../../../src/generated/sdk/index.js"
 import type { DriveClock } from "../../../src/handwritten/commands/drive/clock.js"
-import { DriveHttpError } from "../../../src/handwritten/commands/drive/retry.js"
+import { DriveHttpError, driveHttpError } from "../../../src/handwritten/commands/drive/retry.js"
 import { VERSION } from "../../../src/version.js"
 
 const stateWriteControl = vi.hoisted(() => ({
@@ -1908,6 +1908,19 @@ describe("drive sync once", () => {
       expect(result.uploaded).toBe(1)
       expect(result.path_errors ?? []).toEqual([])
       expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+
+    it("reports a bare upload 413 as FILE_TOO_LARGE and remembers that code", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-rejected-413-"))
+      await initDriveState(root, "lib_1")
+      await writeFile(join(root, "big.jsonl"), "huge")
+      const api = mkApi([{ entries: [] }])
+      rejectUploadsOf(api, "big.jsonl", () => driveHttpError(new Response("", { status: 413 })))
+
+      const result = await runDriveSyncOnce(root, api)
+
+      expect(result.path_errors).toEqual([{ ...rejected413, code: "FILE_TOO_LARGE" }])
+      expect((await readDriveState(root)).upload_rejections?.["big.jsonl"]?.code).toBe("FILE_TOO_LARGE")
     })
 
     it.each([

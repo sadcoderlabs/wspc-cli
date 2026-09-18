@@ -41,7 +41,8 @@ export class DriveRetryableSyncError extends Error {
 }
 
 export function driveHttpError(response: Response, payload?: unknown, now: DateTime = DateTime.utc()): DriveHttpError {
-  const code = errorCode(payload)
+  // The edge rejects oversized bodies with a bare 413 before the worker adds a code.
+  const code = errorCode(payload) ?? (response.status === 413 ? "FILE_TOO_LARGE" : undefined)
   const retryAfterMs = parseRetryAfter(response.headers.get("retry-after") ?? undefined, now)
   return new DriveHttpError(response.status, {
     ...(code === undefined ? {} : { code }),
