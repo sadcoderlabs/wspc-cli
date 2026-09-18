@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
-import { mkdir, mkdtemp, readFile, readdir, rename, unlink, utimes, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, readdir, rename, truncate, unlink, utimes, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { DateTime } from "luxon"
@@ -10,7 +10,7 @@ import { driveSyncCommand, runDriveSyncOnce, type DriveSyncApi } from "../../../
 import { render } from "../../../src/handwritten/output/render.js"
 import type { UploadDriveFileResponse } from "../../../src/generated/sdk/index.js"
 import type { DriveClock } from "../../../src/handwritten/commands/drive/clock.js"
-import { DriveHttpError } from "../../../src/handwritten/commands/drive/retry.js"
+import { DriveHttpError, driveHttpError } from "../../../src/handwritten/commands/drive/retry.js"
 import { VERSION } from "../../../src/version.js"
 
 const stateWriteControl = vi.hoisted(() => ({
@@ -1910,6 +1910,19 @@ describe("drive sync once", () => {
       expect((await readDriveState(root)).upload_rejections).toBeUndefined()
     })
 
+    it("reports a bare upload 413 as FILE_TOO_LARGE and remembers that code", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-rejected-413-"))
+      await initDriveState(root, "lib_1")
+      await writeFile(join(root, "big.jsonl"), "huge")
+      const api = mkApi([{ entries: [] }])
+      rejectUploadsOf(api, "big.jsonl", () => driveHttpError(new Response("", { status: 413 })))
+
+      const result = await runDriveSyncOnce(root, api)
+
+      expect(result.path_errors).toEqual([{ ...rejected413, code: "FILE_TOO_LARGE" }])
+      expect((await readDriveState(root)).upload_rejections?.["big.jsonl"]?.code).toBe("FILE_TOO_LARGE")
+    })
+
     it.each([
       ["502", () => new DriveHttpError(502)],
       ["429", () => new DriveHttpError(429)],
@@ -1952,6 +1965,180 @@ describe("drive sync once", () => {
       expect(result.errors).toBe(1)
       expect(uploadCount(api, "big.jsonl")).toBe(0)
       expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+  })
+
+  describe("oversized file", () => {
+    const overLimit = 104_857_601
+    const tooLarge = (path: string) => ({
+      path,
+      code: "FILE_TOO_LARGE",
+      message: "file is 100.0 MiB (104857601 bytes); Drive per-file limit is 100 MiB",
+      retryable: false,
+    })
+
+    async function sparse(root: string, path: string, size: number): Promise<void> {
+      await writeFile(join(root, path), "")
+      await truncate(join(root, path), size)
+    }
+
+    it("never reads or uploads an oversized file and reports it every round", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-"))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "big.bin", overLimit)
+      const api = mkApi([{ entries: [] }, { entries: [] }])
+
+      for (let round = 0; round < 2; round++) {
+        const summary = await runDriveSyncOnce(root, api)
+        expect(summary.path_errors).toEqual([tooLarge("big.bin")])
+        expect(summary.errors).toBe(1)
+        expect(summary.paths).toEqual([{ path: "big.bin", action: "error" }])
+      }
+      expect(uploadCount(api, "big.bin")).toBe(0)
+    })
+
+    it("leaves an oversized file out of progress and syncs other files", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-others-"))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "big.bin", overLimit)
+      await writeFile(join(root, "notes.txt"), "hello")
+      const api = mkApi([{ entries: [] }])
+      const totals: number[] = []
+
+      const summary = await runDriveSyncOnce(root, api, undefined, (_processed, total) => totals.push(total))
+
+      expect(new Set(totals)).toEqual(new Set([1]))
+      expect(uploadCount(api, "notes.txt")).toBe(1)
+      expect(uploadCount(api, "big.bin")).toBe(0)
+      expect(summary.uploaded).toBe(1)
+    })
+
+    it("uploads a file of exactly 100 MiB", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-boundary-"))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "edge.bin", 104_857_600)
+      const api = mkApi([{ entries: [] }])
+      const uploadedBytes: number[] = []
+      api.uploadFile = async (id, path, body, digest, expectedEntryVersion) => {
+        api.uploads.push({ id, path, sha256: digest, expectedEntryVersion })
+        uploadedBytes.push((body as ArrayBuffer).byteLength)
+        return {
+          entry: { ...entry(path, "", 1), content_sha256: digest, size_bytes: 104_857_600 },
+          result: "created",
+        }
+      }
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(uploadedBytes).toEqual([104_857_600])
+      expect(summary.path_errors ?? []).toEqual([])
+    })
+
+    it("stops uploading a synced file once it grows over the limit", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-grown-"))
+      const state = await initDriveState(root, "lib_1")
+      state.entries["big.bin"] = stateEntry("big.bin", "small")
+      await writeDriveState(root, state)
+      await sparse(root, "big.bin", overLimit)
+      const api = mkApi([{ entries: [entry("big.bin", "small")] }])
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(uploadCount(api, "big.bin")).toBe(0)
+      expect(summary.path_errors).toEqual([tooLarge("big.bin")])
+    })
+
+    async function oversizedLibrary(prefix: string, rounds: number): Promise<{ root: string; api: TestDriveSyncApi }> {
+      const root = await mkdtemp(join(tmpdir(), prefix))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "big.bin", overLimit)
+      const api = mkApi(Array.from({ length: rounds }, () => ({ entries: [] })))
+      await runDriveSyncOnce(root, api)
+      return { root, api }
+    }
+
+    it("uploads the file once it shrinks within the limit", async () => {
+      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-shrink-", 2)
+      await writeFile(join(root, "big.bin"), "small")
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(summary.path_errors ?? []).toEqual([])
+      expect(uploadCount(api, "big.bin")).toBe(1)
+    })
+
+    it.each([
+      ["deleted", (root: string) => unlink(join(root, "big.bin"))],
+      ["excluded", (root: string) => writeFile(join(root, ".wspc-drive", "ignore"), "big.bin\n")],
+    ])("stops reporting the file once it is %s", async (_name, change) => {
+      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-gone-", 2)
+      await change(root)
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(summary.path_errors ?? []).toEqual([])
+      expect(uploadCount(api, "big.bin")).toBe(0)
+    })
+
+    it("reports the new path after renaming an oversized file", async () => {
+      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-rename-", 2)
+      await rename(join(root, "big.bin"), join(root, "renamed.bin"))
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(summary.path_errors).toEqual([tooLarge("renamed.bin")])
+      expect(api.uploads).toEqual([])
+    })
+
+    it("replaces a rejection recorded by an older CLI with FILE_TOO_LARGE", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-legacy-"))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "big.bin", overLimit)
+      const api = mkApi([{ entries: [] }, { entries: [] }])
+      await runDriveSyncOnce(root, api)
+      const state = await readDriveState(root)
+      const scanned = state.scan_cache!["big.bin"]!
+      state.upload_rejections = {
+        "big.bin": {
+          mtime_ms: scanned.mtime_ms,
+          size_bytes: scanned.size_bytes,
+          sha256: scanned.sha256,
+          code: "DRIVE_PATH_ERROR",
+          message: "HTTP 413",
+          cli_version: "0.0.0-older",
+          rejected_at: "2026-09-15T00:00:00.000Z",
+        },
+      }
+      await writeDriveState(root, state)
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(uploadCount(api, "big.bin")).toBe(0)
+      expect(summary.path_errors).toEqual([tooLarge("big.bin")])
+      expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+
+    it("reports an oversized file once when a current rejection also matches", async () => {
+      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-dedupe-", 2)
+      const state = await readDriveState(root)
+      const scanned = state.scan_cache!["big.bin"]!
+      state.upload_rejections = {
+        "big.bin": {
+          mtime_ms: scanned.mtime_ms,
+          size_bytes: scanned.size_bytes,
+          sha256: scanned.sha256,
+          code: "FILE_TOO_LARGE",
+          message: "HTTP 413",
+          cli_version: VERSION,
+          rejected_at: "2026-09-18T00:00:00.000Z",
+        },
+      }
+      await writeDriveState(root, state)
+
+      const summary = await runDriveSyncOnce(root, api)
+
+      expect(summary.path_errors).toEqual([tooLarge("big.bin")])
+      expect(summary.errors).toBe(1)
     })
   })
 

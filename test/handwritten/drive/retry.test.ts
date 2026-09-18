@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest"
 import { DateTime } from "luxon"
-import { DriveHttpError, classifyDriveRetry, isPermanentUploadRejection, parseRetryAfter } from "../../../src/handwritten/commands/drive/retry.js"
+import { DriveHttpError, classifyDriveRetry, driveHttpError, isPermanentUploadRejection, parseRetryAfter } from "../../../src/handwritten/commands/drive/retry.js"
 
 describe("Drive retry policy", () => {
+  it("maps a 413 without a code to FILE_TOO_LARGE", () => {
+    expect(driveHttpError(new Response("", { status: 413 })).code).toBe("FILE_TOO_LARGE")
+  })
+
+  it("keeps the server code on a 413", () => {
+    expect(driveHttpError(new Response("", { status: 413 }), { code: "SOMETHING_ELSE" }).code).toBe("SOMETHING_ELSE")
+  })
+
   it("parses Retry-After delta seconds", () => {
     const now = DateTime.fromISO("2026-07-23T00:00:00Z", { setZone: true })
 
