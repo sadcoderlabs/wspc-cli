@@ -57,6 +57,10 @@ function emptySummary(): DriveSyncSummary {
   }
 }
 
+// Mirrors MAX_FILE_SIZE_BYTES in sadcoderlabs/wspc packages/drive/worker/src/limits.ts;
+// the server does not expose it, so a server change needs a CLI release.
+export const DRIVE_MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
+
 export type DriveSyncProgress = (processed: number, total: number) => void
 
 // Progress counts actionable paths only (transfers and conflict handling);
@@ -179,6 +183,26 @@ export async function runDriveSyncOnce(
     }
 
     const rejectedPaths = new Set<string>()
+    for (const path of paths) {
+      const sizeBytes = localFiles[path]?.size_bytes
+      if (movedPaths.has(path) || sizeBytes === undefined || sizeBytes <= DRIVE_MAX_FILE_SIZE_BYTES) continue
+      const action = decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])
+      if (action.type !== "upload_create" && action.type !== "upload_update") continue
+      rejectedPaths.add(path)
+      const pathError = {
+        path,
+        code: "FILE_TOO_LARGE",
+        message: `file is ${(sizeBytes / 1_048_576).toFixed(1)} MiB (${sizeBytes} bytes); Drive per-file limit is 100 MiB`,
+        retryable: false,
+      }
+      await recordDrivePathError(summary, undefined, path, undefined, {
+        appendPathResult: true,
+        debug,
+        op: "file_too_large",
+        pathError,
+      })
+    }
+
     const uploadRejections = { ...state.upload_rejections }
     for (const [path, rejection] of Object.entries(uploadRejections)) {
       const scanned = state.scan_cache?.[path]
@@ -191,6 +215,7 @@ export async function runDriveSyncOnce(
         delete uploadRejections[path]
         continue
       }
+      if (rejectedPaths.has(path)) continue
       const action = decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])
       if (action.type !== "upload_create" && action.type !== "upload_update") continue
       rejectedPaths.add(path)

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
-import { mkdir, mkdtemp, readFile, readdir, rename, unlink, utimes, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, readdir, rename, truncate, unlink, utimes, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { DateTime } from "luxon"
@@ -1965,6 +1965,52 @@ describe("drive sync once", () => {
       expect(result.errors).toBe(1)
       expect(uploadCount(api, "big.jsonl")).toBe(0)
       expect((await readDriveState(root)).upload_rejections).toBeUndefined()
+    })
+  })
+
+  describe("oversized file", () => {
+    const overLimit = 104_857_601
+    const tooLarge = (path: string) => ({
+      path,
+      code: "FILE_TOO_LARGE",
+      message: "file is 100.0 MiB (104857601 bytes); Drive per-file limit is 100 MiB",
+      retryable: false,
+    })
+
+    async function sparse(root: string, path: string, size: number): Promise<void> {
+      await writeFile(join(root, path), "")
+      await truncate(join(root, path), size)
+    }
+
+    it("never reads or uploads an oversized file and reports it every round", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-"))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "big.bin", overLimit)
+      const api = mkApi([{ entries: [] }, { entries: [] }])
+
+      for (let round = 0; round < 2; round++) {
+        const summary = await runDriveSyncOnce(root, api)
+        expect(summary.path_errors).toEqual([tooLarge("big.bin")])
+        expect(summary.errors).toBe(1)
+        expect(summary.paths).toEqual([{ path: "big.bin", action: "error" }])
+      }
+      expect(uploadCount(api, "big.bin")).toBe(0)
+    })
+
+    it("leaves an oversized file out of progress and syncs other files", async () => {
+      const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-others-"))
+      await initDriveState(root, "lib_1")
+      await sparse(root, "big.bin", overLimit)
+      await writeFile(join(root, "notes.txt"), "hello")
+      const api = mkApi([{ entries: [] }])
+      const totals: number[] = []
+
+      const summary = await runDriveSyncOnce(root, api, undefined, (_processed, total) => totals.push(total))
+
+      expect(new Set(totals)).toEqual(new Set([1]))
+      expect(uploadCount(api, "notes.txt")).toBe(1)
+      expect(uploadCount(api, "big.bin")).toBe(0)
+      expect(summary.uploaded).toBe(1)
     })
   })
 
