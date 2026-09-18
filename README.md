@@ -6,6 +6,7 @@ Official TypeScript SDK and CLI for [wspc.ai](https://wspc.ai).
 
 ## Roadmap
 
+- [Drive watch 不再重傳被永久拒收的檔案](docs/superpowers/specs/2026-09-18-drive-permanent-upload-rejection-design.md)
 - [移除未使用的 occurrence-time-zone parser marker](docs/superpowers/specs/2026-09-09-occurrence-time-zone-marker-removal-design.md)
 - [所有 Calendar CLI mutation 使用 Exclusive End](docs/superpowers/specs/2026-08-14-calendar-cli-exclusive-end-design.md)
 

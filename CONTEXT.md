@@ -39,3 +39,7 @@ _Avoid_: Exception Event、Detached Event、independent Event row
 **Recurrence ID**:
 識別 Recurring Series 內單一 Occurrence 的 immutable original recurrence-set start；Occurrence 改期後仍不改變。
 _Avoid_: Event ID、instance ID、occurrence start
+
+**Permanent Upload Rejection**:
+Server 永久拒收某 Drive path 的一份內容（HTTP 4xx，不含認證、逾時、版本衝突與 rate limit）；同一份內容不再重傳，直到內容改變、path 消失、被排除或 CLI 升級。
+_Avoid_: Upload error、path error、failed upload
