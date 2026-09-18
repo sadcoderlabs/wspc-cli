@@ -1846,7 +1846,7 @@ describe("drive sync once", () => {
 
     it("retries once after only the mtime changes", async () => {
       const { root, api } = await rejectedLibrary("wspc-drive-sync-rejected-mtime-", 3)
-      await utimes(join(root, "big.jsonl"), new Date("2030-01-01T00:00:00Z"), new Date("2030-01-01T00:00:00Z"))
+      await utimes(join(root, "big.jsonl"), 1_893_456_000, 1_893_456_000)
 
       await runDriveSyncOnce(root, api)
       await runDriveSyncOnce(root, api)
