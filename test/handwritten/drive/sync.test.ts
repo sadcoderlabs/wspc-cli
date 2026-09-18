@@ -2021,7 +2021,7 @@ describe("drive sync once", () => {
       const uploadedBytes: number[] = []
       api.uploadFile = async (id, path, body, digest, expectedEntryVersion) => {
         api.uploads.push({ id, path, sha256: digest, expectedEntryVersion })
-        uploadedBytes.push(typeof body === "string" ? Buffer.byteLength(body) : body.byteLength)
+        uploadedBytes.push((body as ArrayBuffer).byteLength)
         return {
           entry: { ...entry(path, "", 1), content_sha256: digest, size_bytes: 104_857_600 },
           result: "created",

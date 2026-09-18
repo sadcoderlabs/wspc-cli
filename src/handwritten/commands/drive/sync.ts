@@ -59,7 +59,7 @@ function emptySummary(): DriveSyncSummary {
 
 // Mirrors MAX_FILE_SIZE_BYTES in sadcoderlabs/wspc packages/drive/worker/src/limits.ts;
 // the server does not expose it, so a server change needs a CLI release.
-export const DRIVE_MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
+const DRIVE_MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
 
 export type DriveSyncProgress = (processed: number, total: number) => void
 
