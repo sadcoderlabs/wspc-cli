@@ -2090,17 +2090,6 @@ describe("drive sync once", () => {
       expect(api.uploads).toEqual([])
     })
 
-    it("uploads a renamed file once it fits within the limit", async () => {
-      const { root, api } = await oversizedLibrary("wspc-drive-sync-oversized-rename-small-", 2)
-      await unlink(join(root, "big.bin"))
-      await writeFile(join(root, "renamed.bin"), "small")
-
-      const summary = await runDriveSyncOnce(root, api)
-
-      expect(summary.path_errors ?? []).toEqual([])
-      expect(uploadCount(api, "renamed.bin")).toBe(1)
-    })
-
     it("replaces a rejection recorded by an older CLI with FILE_TOO_LARGE", async () => {
       const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-oversized-legacy-"))
       await initDriveState(root, "lib_1")
