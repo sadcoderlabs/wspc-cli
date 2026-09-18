@@ -1,6 +1,6 @@
 {
   "name": "@wspc/cli",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Official TypeScript SDK and CLI for wspc (https://wspc.ai)",
   "type": "module",
   "bin": {
