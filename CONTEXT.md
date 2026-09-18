@@ -43,3 +43,7 @@ _Avoid_: Event ID、instance ID、occurrence start
 **Permanent Upload Rejection**:
 Server 永久拒收某 Drive path 的一份內容（HTTP 4xx，不含認證、逾時、版本衝突與 rate limit）；同一份內容不再重傳，直到內容改變、path 消失、被排除或 CLI 升級。
 _Avoid_: Upload error、path error、failed upload
+
+**Oversized File**:
+本機大小超過 Drive 單檔上限（100 MiB）的檔案；sync 不讀取、不上傳，以 `FILE_TOO_LARGE` 回報，直到檔案縮小、消失或被排除。
+_Avoid_: Large file、413 file、upload too large
