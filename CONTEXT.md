@@ -47,3 +47,7 @@ _Avoid_: Upload error、path error、failed upload
 **Oversized File**:
 本機大小超過 Drive 單檔上限（100 MiB）的檔案；sync 不讀取、不上傳，以 `FILE_TOO_LARGE` 回報，直到檔案縮小、消失或被排除。
 _Avoid_: Large file、413 file、upload too large
+
+**Move Rejection**:
+Sync 把本機改名轉成 server move 時，server 以非 retryable、非認證的錯誤拒絕（例如 `409 VERSION_CONFLICT`、`409 PATH_CONFLICT`）；該組改名本輪略過並以 path error 回報，不改用 upload＋delete，也不讓整輪停止。
+_Avoid_: Move failure、move conflict、409

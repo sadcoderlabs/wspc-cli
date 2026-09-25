@@ -120,9 +120,18 @@ export async function dispatch(argv: string[], { allowRetry = true }: { allowRet
       process.exitCode = 2
       return
     }
-    process.stderr.write(`error: ${(err as Error).message ?? err}\n`)
+    process.stderr.write(`error: ${cliErrorMessage(err)}\n`)
     process.exitCode = 1
   }
+}
+
+// HTTP errors keep the server code out of their message, so print it here.
+export function cliErrorMessage(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err)
+  if (typeof err !== "object" || err === null) return message
+  const { status, code } = err as { status?: unknown; code?: unknown }
+  if (typeof status !== "number" || typeof code !== "string" || message.includes(code)) return message
+  return `${message} (${code})`
 }
 
 if (isCliEntrypoint()) {

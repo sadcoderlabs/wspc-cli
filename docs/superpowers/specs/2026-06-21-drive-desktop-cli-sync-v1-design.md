@@ -2,7 +2,7 @@
 
 ## Move／delete 確認契約修訂（2026-09-09）
 
-依 [backend final spec](https://github.com/sadcoderlabs/wspc/blob/bb461ad3299ba16ecd5b9e37f3bc313b25e52595/docs/superpowers/specs/2026-09-09-drive-move-delete-confirmation-design.md) 及使用者授權本次 CLI 發布：rm、sync delete、rename move adapter 必須保存原確認 entry ID／path／Entry Version，不 fresh lookup 替換確認。缺 identity 的舊 sync state 拒絕載入，不執行或標記舊刪除成功。Move 失敗停止，不再 fallback upload＋delete；conflict 不自動改用最新確認。
+依 [backend final spec](https://github.com/sadcoderlabs/wspc/blob/bb461ad3299ba16ecd5b9e37f3bc313b25e52595/docs/superpowers/specs/2026-09-09-drive-move-delete-confirmation-design.md) 及使用者授權本次 CLI 發布：rm、sync delete、rename move adapter 必須保存原確認 entry ID／path／Entry Version，不 fresh lookup 替換確認。缺 identity 的舊 sync state 拒絕載入，不執行或標記舊刪除成功。Move 失敗停止，不再 fallback upload＋delete；conflict 不自動改用最新確認。（2026-09-25 起，非 retryable 的 move 失敗改為只略過該組並回報 path error，不再讓整輪停止；見 [Move Rejection spec](2026-09-25-drive-move-rejection-wedge-design.md)。不 fallback 與不替換確認兩條不變。）
 
 發布流程仍同步 live OpenAPI，再 generate／驗證／publish。因 CLI 須先於 backend rollout，rm 的 required confirmation 由 handwritten command 設定既有 generated command，避免 release 的 live codegen 還原舊 optional 行為；SDK adapter 額外傳送原 entry ID。這不表示舊 server 已驗證 identity：保護能力仍須以 live required fields 及部署驗收為準。取得 release 後須用已發布 package 對 backend candidate 驗收，再允許 backend merge。版本 bump 使用 minor，因 rm 新增 required flags。
 

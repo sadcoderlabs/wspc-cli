@@ -15,16 +15,20 @@ import {
   type DriveScanError,
   type DriveState,
   type DriveStateEntry,
+  type DriveUploadRejection,
 } from "./state.js"
 import { render } from "../../output/render.js"
 import { VERSION } from "../../../version.js"
 import {
   DriveRetryableSyncError,
+  isDriveAuthFailure,
   isRetryableDriveFailure,
+  type DrivePathErrorSummary,
 } from "./retry.js"
 import {
   cloneDriveState,
   drivePathErrorSummary,
+  errorMessage,
   executeDrivePathAction,
   recordDrivePathError,
   stateEntryFromRemote,
@@ -134,116 +138,168 @@ export async function runDriveSyncOnce(
     }
     const scanMs = Date.now() - scanStartedMs
     const manifestStartedMs = Date.now()
-    let manifest: Awaited<ReturnType<typeof fetchRemoteManifest>>
-    try {
-      manifest = await fetchRemoteManifest(root, state, syncApi, summary, blockedPaths, debug)
-    } catch (error) {
-      if (isRetryableDriveFailure(error)) {
-        throw new DriveRetryableSyncError(error, { pathErrors: summary.path_errors ?? [] })
+    const loadRemoteView = async (fullManifest: boolean): Promise<DriveRemoteView> => {
+      let manifest: Awaited<ReturnType<typeof fetchRemoteManifest>>
+      try {
+        manifest = await fetchRemoteManifest(
+          root,
+          fullManifest ? { ...state, manifest_cursor: undefined } : state,
+          syncApi,
+          summary,
+          blockedPaths,
+          debug,
+        )
+      } catch (error) {
+        if (isRetryableDriveFailure(error)) {
+          throw new DriveRetryableSyncError(error, { pathErrors: summary.path_errors ?? [] })
+        }
+        throw error
       }
-      throw error
+      const remoteFiles = removeExcludedPaths(manifest.remoteFiles, excludeRules)
+      const paths = Array.from(
+        new Set([...Object.keys(localFiles), ...Object.keys(remoteFiles), ...Object.keys(state.entries)]),
+      )
+        .filter((path) => !blockedPaths.has(path) && !excludeRules.matches(path))
+        .sort((left, right) => left.localeCompare(right))
+      return { remoteFiles, paths, manifestCursor: manifest.manifestCursor, fromDelta: manifest.fromDelta }
     }
-    const remoteFiles = removeExcludedPaths(manifest.remoteFiles, excludeRules)
-    if (
-      excludeRules.size === 0 &&
-      manifest.manifestCursor !== undefined &&
-      manifest.manifestCursor !== state.manifest_cursor
-    ) {
-      state = { ...state, manifest_cursor: manifest.manifestCursor }
-      await writeDriveState(root, state, clock)
-    }
+    let view = await loadRemoteView(false)
     const manifestMs = Date.now() - manifestStartedMs
-    const paths = Array.from(
-      new Set([...Object.keys(localFiles), ...Object.keys(remoteFiles), ...Object.keys(state.entries)]),
-    )
-      .filter((path) => !blockedPaths.has(path) && !excludeRules.matches(path))
-      .sort((left, right) => left.localeCompare(right))
 
-    let movedPaths: Set<string>
-    try {
-      movedPaths = await applyRenamesAsMoves({
-        root,
-        state,
-        api: syncApi,
-        paths,
-        localFiles,
-        remoteFiles,
-        summary,
-        clock,
-        debug,
-        onStateChange: (nextState) => {
-          state = nextState
-        },
-      })
-    } catch (error) {
-      if (isRetryableDriveFailure(error)) {
-        throw new DriveRetryableSyncError(error, { pathErrors: summary.path_errors ?? [] })
-      }
-      throw error
-    }
+    let plannedMoves =
+      syncApi.moveFile === undefined ? [] : planRenameMoves(state, view.paths, localFiles, view.remoteFiles)
 
-    const rejectedPaths = new Set<string>()
-    for (const path of paths) {
+    // Uploads this round skips: Oversized Files first, then Permanent Upload
+    // Rejections that still match this scan. Pure, so progress and the final
+    // skip use the same answer.
+    const uploadSkip = (path: string): { op: string; pathError: DrivePathErrorSummary } | undefined => {
+      const action = decideDriveAction(state.entries[path], localFiles[path], view.remoteFiles[path])
+      if (action.type !== "upload_create" && action.type !== "upload_update") return undefined
       const sizeBytes = localFiles[path]?.size_bytes
-      if (movedPaths.has(path) || sizeBytes === undefined || sizeBytes <= DRIVE_MAX_FILE_SIZE_BYTES) continue
-      const action = decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])
-      if (action.type !== "upload_create" && action.type !== "upload_update") continue
-      rejectedPaths.add(path)
-      const pathError = {
-        path,
-        code: "FILE_TOO_LARGE",
-        message: `file is ${(sizeBytes / 1_048_576).toFixed(1)} MiB (${sizeBytes} bytes); Drive per-file limit is 100 MiB`,
-        retryable: false,
+      if (sizeBytes !== undefined && sizeBytes > DRIVE_MAX_FILE_SIZE_BYTES) {
+        return {
+          op: "file_too_large",
+          pathError: {
+            path,
+            code: "FILE_TOO_LARGE",
+            message: `file is ${(sizeBytes / 1_048_576).toFixed(1)} MiB (${sizeBytes} bytes); Drive per-file limit is 100 MiB`,
+            retryable: false,
+          },
+        }
       }
+      const rejection = state.upload_rejections?.[path]
+      if (rejection === undefined || !isCurrentUploadRejection(rejection, state.scan_cache?.[path])) return undefined
+      return { op: "upload_rejected", pathError: { path, code: rejection.code, message: rejection.message, retryable: false } }
+    }
+    // decideDriveAction is pure and reads only this path's slices of state, so
+    // a pre-pass count matches the loop's actions.
+    const countActionable = (paths: string[], excluded: Set<string>) =>
+      paths.filter(
+        (path) =>
+          !excluded.has(path) &&
+          uploadSkip(path) === undefined &&
+          isActionableAction(decideDriveAction(state.entries[path], localFiles[path], view.remoteFiles[path])),
+      ).length
+    const recordUploadSkip = async (path: string, skip: { op: string; pathError: DrivePathErrorSummary }) => {
       await recordDrivePathError(summary, undefined, path, undefined, {
         appendPathResult: true,
         debug,
-        op: "file_too_large",
-        pathError,
+        op: skip.op,
+        pathError: skip.pathError,
       })
+    }
+    // Report skips outside the planned pairs now, so a retryable failure during
+    // the moves still carries them to the watch retry event.
+    const plannedPairPaths = pairPaths(plannedMoves)
+    for (const path of view.paths) {
+      if (plannedPairPaths.has(path)) continue
+      const skip = uploadSkip(path)
+      if (skip !== undefined) await recordUploadSkip(path, skip)
+    }
+    let processed = 0
+    let total = plannedMoves.length + countActionable(view.paths, plannedPairPaths)
+    onProgress?.(processed, total)
+
+    const settledPairPaths = new Set<string>()
+    let fullManifestFetched = false
+    for (;;) {
+      let outcome: DriveRenameMovesOutcome
+      try {
+        outcome = await applyRenameMoves({
+          root,
+          state,
+          api: syncApi,
+          moves: plannedMoves,
+          localFiles,
+          summary,
+          clock,
+          debug,
+          stopOnRejection: view.fromDelta && !fullManifestFetched,
+          onStateChange: (nextState) => {
+            state = nextState
+          },
+          onMoveSettled: () => {
+            processed += 1
+            onProgress?.(processed, total)
+          },
+        })
+      } catch (error) {
+        if (isRetryableDriveFailure(error)) {
+          throw new DriveRetryableSyncError(error, {
+            remaining: total - processed,
+            pathErrors: summary.path_errors ?? [],
+          })
+        }
+        throw error
+      }
+      for (const path of outcome.settledPaths) settledPairPaths.add(path)
+      if (!outcome.stoppedOnRejection) break
+      // A delta view can be stale after an interrupted round; confirm with a full manifest before giving up on the pair.
+      fullManifestFetched = true
+      view = await loadRemoteView(true)
+      plannedMoves = planRenameMoves(state, view.paths, localFiles, view.remoteFiles)
+      const nextTotal =
+        processed +
+        plannedMoves.length +
+        countActionable(view.paths, new Set([...settledPairPaths, ...pairPaths(plannedMoves)]))
+      if (nextTotal !== total) {
+        total = nextTotal
+        onProgress?.(processed, total)
+      }
     }
 
-    const uploadRejections = { ...state.upload_rejections }
-    for (const [path, rejection] of Object.entries(uploadRejections)) {
-      const scanned = state.scan_cache?.[path]
-      if (
-        scanned?.mtime_ms !== rejection.mtime_ms ||
-        scanned.size_bytes !== rejection.size_bytes ||
-        scanned.sha256 !== rejection.sha256 ||
-        rejection.cli_version !== VERSION
-      ) {
-        delete uploadRejections[path]
-        continue
-      }
-      const action = decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])
-      if (action.type !== "upload_create" && action.type !== "upload_update") continue
-      rejectedPaths.add(path)
-      const pathError = { path, code: rejection.code, message: rejection.message, retryable: false }
-      await recordDrivePathError(summary, undefined, path, undefined, {
-        appendPathResult: true,
-        debug,
-        op: "upload_rejected",
-        pathError,
-      })
+    // The view and the pairs are final here; the skips below must use them.
+    // recordDrivePathError() ignores paths already reported above.
+    const skippedUploads = new Set<string>()
+    for (const path of view.paths) {
+      if (settledPairPaths.has(path)) continue
+      const skip = uploadSkip(path)
+      if (skip === undefined) continue
+      skippedUploads.add(path)
+      await recordUploadSkip(path, skip)
     }
+    const uploadRejections = Object.fromEntries(
+      Object.entries(state.upload_rejections ?? {}).filter(([path, rejection]) =>
+        isCurrentUploadRejection(rejection, state.scan_cache?.[path]),
+      ),
+    )
     if (Object.keys(uploadRejections).length !== Object.keys(state.upload_rejections ?? {}).length) {
       state = { ...state, upload_rejections: uploadRejections }
       if (Object.keys(uploadRejections).length === 0) delete state.upload_rejections
       await writeDriveState(root, state, clock)
     }
 
-    const pendingPaths = paths.filter((path) => !movedPaths.has(path) && !rejectedPaths.has(path))
-    // decideDriveAction is pure and reads only this path's slices of the
-    // initial state, so this pre-pass total matches the loop's actions.
-    const total = pendingPaths.filter((path) =>
-      isActionableAction(decideDriveAction(state.entries[path], localFiles[path], remoteFiles[path])),
-    ).length
-    let processed = 0
-    onProgress?.(processed, total)
+    const pendingPaths = view.paths.filter((path) => !settledPairPaths.has(path) && !skippedUploads.has(path))
+    const pendingTotal = processed + countActionable(pendingPaths, settledPairPaths)
+    if (pendingTotal !== total) {
+      total = pendingTotal
+      onProgress?.(processed, total)
+    }
 
     const processStartedMs = Date.now()
+    let roundCompleted = true
     for (const path of pendingPaths) {
-      const remote = remoteFiles[path]
+      const remote = view.remoteFiles[path]
       const local = localFiles[path]
       const action = decideDriveAction(state.entries[path], local, remote)
       if (isActionableAction(action)) {
@@ -288,7 +344,24 @@ export async function runDriveSyncOnce(
         processed += 1
         onProgress?.(processed, total)
       }
-      if (result.stop) break
+      if (result.stop) {
+        roundCompleted = false
+        break
+      }
+    }
+
+    // The cursor is persisted only after every change it covers is applied; an
+    // interrupted round replays the same delta next time instead of skipping it.
+    if (!roundCompleted) {
+      debug.log("manifest_cursor", { action: "keep", reason: "round_interrupted" })
+    } else if (
+      excludeRules.size === 0 &&
+      view.manifestCursor !== undefined &&
+      view.manifestCursor !== state.manifest_cursor
+    ) {
+      state = { ...state, manifest_cursor: view.manifestCursor }
+      await writeDriveState(root, state, clock)
+      debug.log("manifest_cursor", { action: "persist", cursor: view.manifestCursor })
     }
 
     recordUnresolvedConflicts(summary, state)
@@ -377,10 +450,17 @@ async function fetchRemoteManifest(
   summary: DriveSyncSummary,
   blockedPaths: Set<string>,
   debug: DriveDebugLogger,
-): Promise<{ remoteFiles: Record<string, RemoteEntry>; manifestCursor: string | undefined }> {
+): Promise<{ remoteFiles: Record<string, RemoteEntry>; manifestCursor: string | undefined; fromDelta: boolean }> {
+  let resyncRequired = false
   if (state.manifest_cursor !== undefined) {
     const delta = await api.getManifest(state.library_id, undefined, state.manifest_cursor)
     if (delta.resync_required !== true) {
+      debug.log("manifest", {
+        mode: "delta",
+        since_cursor: state.manifest_cursor,
+        ...(delta.latest_cursor === undefined ? {} : { latest_cursor: delta.latest_cursor }),
+        entries: delta.entries.length,
+      })
       const remoteFiles = remoteViewFromState(state)
       const changed = delta.entries.filter((entry) => entry.deleted_at === undefined)
       const normalized = normalizeRemoteManifest(root, changed)
@@ -395,9 +475,10 @@ async function fetchRemoteManifest(
         if (entry.deleted_at !== undefined) delete remoteFiles[entry.path]
       }
       Object.assign(remoteFiles, normalized.remoteFiles)
-      return { remoteFiles, manifestCursor: delta.latest_cursor ?? state.manifest_cursor }
+      return { remoteFiles, manifestCursor: delta.latest_cursor ?? state.manifest_cursor, fromDelta: true }
     }
     // resync_required: cursor pruned or invalid, fall back to a full fetch.
+    resyncRequired = true
   }
 
   const entries: RemoteEntry[] = []
@@ -409,6 +490,12 @@ async function fetchRemoteManifest(
     if (page.latest_cursor !== undefined) latestCursor = page.latest_cursor
     cursor = page.next_cursor ?? undefined
   } while (cursor !== undefined)
+  debug.log("manifest", {
+    mode: "full",
+    ...(latestCursor === undefined ? {} : { latest_cursor: latestCursor }),
+    entries: entries.length,
+    ...(resyncRequired ? { resync_required: true } : {}),
+  })
 
   const normalized = normalizeRemoteManifest(root, entries)
   for (const pathError of normalized.pathErrors) {
@@ -418,7 +505,7 @@ async function fetchRemoteManifest(
       op: "manifest",
     })
   }
-  return { remoteFiles: normalized.remoteFiles, manifestCursor: latestCursor }
+  return { remoteFiles: normalized.remoteFiles, manifestCursor: latestCursor, fromDelta: false }
 }
 
 // Reconstructs the last-known remote view from base state so a manifest delta
@@ -440,27 +527,38 @@ function remoteViewFromState(state: DriveState): Record<string, RemoteEntry> {
   return remoteFiles
 }
 
-// Detects local renames (a delete_remote and an upload_create with the same
-// content hash) and applies them via the server move API, preserving version
-// history and skipping a full re-upload. Only unambiguous 1:1 hash pairs are
-// moved; anything else falls back to normal upload + delete processing.
-async function applyRenamesAsMoves(args: {
-  root: string
-  state: DriveState
-  api: DriveSyncApi
-  paths: string[]
-  localFiles: Record<string, { sha256: string; size_bytes: number }>
+interface DriveRemoteView {
   remoteFiles: Record<string, RemoteEntry>
-  summary: DriveSyncSummary
-  clock: DriveClock
-  debug: DriveDebugLogger
-  onStateChange: (state: DriveState) => void
-}): Promise<Set<string>> {
-  const { root, api, paths, localFiles, remoteFiles, summary, clock, debug, onStateChange } = args
-  const movedPaths = new Set<string>()
-  if (api.moveFile === undefined) return movedPaths
+  paths: string[]
+  manifestCursor: string | undefined
+  fromDelta: boolean
+}
 
-  let state = args.state
+interface DriveRenameMove {
+  fromPath: string
+  toPath: string
+}
+
+interface DriveRenameMovesOutcome {
+  // Pairs that were moved or skipped as rejected; neither path is processed again this round.
+  settledPaths: Set<string>
+  stoppedOnRejection: boolean
+}
+
+function pairPaths(moves: DriveRenameMove[]): Set<string> {
+  return new Set(moves.flatMap((move) => [move.fromPath, move.toPath]))
+}
+
+// Detects local renames (a delete_remote and an upload_create with the same
+// content hash) so they can go through the server move API, preserving
+// version history and skipping a full re-upload. Only unambiguous 1:1 hash
+// pairs are moved; anything else falls back to normal upload + delete processing.
+function planRenameMoves(
+  state: DriveState,
+  paths: string[],
+  localFiles: Record<string, { sha256: string; size_bytes: number }>,
+  remoteFiles: Record<string, RemoteEntry>,
+): DriveRenameMove[] {
   const deletesBySha = new Map<string, string[]>()
   const createsBySha = new Map<string, string[]>()
   for (const path of paths) {
@@ -475,15 +573,73 @@ async function applyRenamesAsMoves(args: {
     }
   }
 
+  const moves: DriveRenameMove[] = []
   for (const [sha, fromPaths] of deletesBySha) {
     const toPaths = createsBySha.get(sha)
     if (fromPaths.length !== 1 || toPaths === undefined || toPaths.length !== 1) continue
-    const fromPath = fromPaths[0]!
-    const toPath = toPaths[0]!
+    moves.push({ fromPath: fromPaths[0]!, toPath: toPaths[0]! })
+  }
+  return moves
+}
+
+// A rejected move never falls back to upload + delete and never retries with a
+// fresh confirmation. On a delta view it stops so the caller can confirm with a
+// full manifest; otherwise the pair is skipped for this round as a path error.
+async function applyRenameMoves(args: {
+  root: string
+  state: DriveState
+  api: DriveSyncApi
+  moves: DriveRenameMove[]
+  localFiles: Record<string, { sha256: string; size_bytes: number }>
+  summary: DriveSyncSummary
+  clock: DriveClock
+  debug: DriveDebugLogger
+  stopOnRejection: boolean
+  onStateChange: (state: DriveState) => void
+  onMoveSettled: () => void
+}): Promise<DriveRenameMovesOutcome> {
+  const { root, api, moves, localFiles, summary, clock, debug, stopOnRejection, onStateChange, onMoveSettled } = args
+  const settledPaths = new Set<string>()
+  if (api.moveFile === undefined) return { settledPaths, stoppedOnRejection: false }
+
+  let state = args.state
+  for (const { fromPath, toPath } of moves) {
     const entry = state.entries[fromPath]
     const local = localFiles[toPath]
     if (entry === undefined || local === undefined) continue
-    const moved = await api.moveFile(state.library_id, fromPath, toPath, entry.entry_version, entry.entry_id)
+    let moved: Awaited<ReturnType<NonNullable<DriveSyncApi["moveFile"]>>>
+    try {
+      moved = await api.moveFile(state.library_id, fromPath, toPath, entry.entry_version, entry.entry_id)
+    } catch (error) {
+      if (isRetryableDriveFailure(error) || isDriveAuthFailure(error)) throw error
+      const status = structuredField(error, "status")
+      const code = structuredField(error, "code")
+      debug.log("move_rejected", {
+        from_path: fromPath,
+        to_path: toPath,
+        entry_id: entry.entry_id,
+        expected_entry_version: entry.entry_version,
+        ...(typeof status === "number" ? { status } : {}),
+        ...(typeof code === "string" ? { code } : {}),
+        action: stopOnRejection ? "refetch_full_manifest" : "skip_pair",
+      })
+      if (stopOnRejection) return { settledPaths, stoppedOnRejection: true }
+      settledPaths.add(fromPath)
+      settledPaths.add(toPath)
+      await recordDrivePathError(summary, undefined, toPath, error, {
+        appendPathResult: true,
+        debug,
+        op: "move",
+        pathError: {
+          path: toPath,
+          code: typeof code === "string" ? code : "DRIVE_PATH_ERROR",
+          message: `move from ${fromPath} rejected (${typeof status === "number" ? `HTTP ${status}` : errorMessage(error)})`,
+          retryable: false,
+        },
+      })
+      onMoveSettled()
+      continue
+    }
     const nextState = cloneDriveState(state)
     delete nextState.entries[fromPath]
     delete nextState.conflicts[fromPath]
@@ -492,12 +648,26 @@ async function applyRenamesAsMoves(args: {
     await writeDriveState(root, nextState, clock)
     state = nextState
     onStateChange(nextState)
-    movedPaths.add(fromPath)
-    movedPaths.add(toPath)
+    settledPaths.add(fromPath)
+    settledPaths.add(toPath)
     summary.paths.push({ path: toPath, action: "move" })
     debug.log("decision", { path: toPath, action: "move", from_path: fromPath })
+    onMoveSettled()
   }
-  return movedPaths
+  return { settledPaths, stoppedOnRejection: false }
+}
+
+function isCurrentUploadRejection(rejection: DriveUploadRejection, scanned: DriveScanCacheEntry | undefined): boolean {
+  return (
+    scanned?.mtime_ms === rejection.mtime_ms &&
+    scanned.size_bytes === rejection.size_bytes &&
+    scanned.sha256 === rejection.sha256 &&
+    rejection.cli_version === VERSION
+  )
+}
+
+function structuredField(error: unknown, key: "status" | "code"): unknown {
+  return typeof error === "object" && error !== null ? (error as Record<string, unknown>)[key] : undefined
 }
 
 function recordUnresolvedConflicts(summary: DriveSyncSummary, state: DriveState): void {
