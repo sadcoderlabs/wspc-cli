@@ -1509,7 +1509,7 @@ describe("drive sync once", () => {
     expect(after.entries["new-name.md"]).toMatchObject({ entry_version: 2 })
   })
 
-  it("stops without upload or delete when move has a permanent failure", async () => {
+  it("skips the pair without upload or delete when move has a permanent failure", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-fallback-"))
     const state = await initDriveState(root, "lib_1")
     state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
@@ -1520,7 +1520,16 @@ describe("drive sync once", () => {
       throw new Error("move unsupported")
     }
 
-    await expect(runDriveSyncOnce(root, api)).rejects.toThrow("move unsupported")
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.path_errors).toEqual([
+      {
+        path: "new-name.md",
+        code: "DRIVE_PATH_ERROR",
+        message: "move from old-name.md rejected (move unsupported)",
+        retryable: false,
+      },
+    ])
     expect(api.uploads).toEqual([])
     expect(api.deletes).toEqual([])
   })
@@ -2378,8 +2387,12 @@ it.each(["delete", "move"])("uses the saved identity for sync %s when another en
   const fail = async (...args: unknown[]) => { calls.push(args); throw new DriveHttpError(409, { code: "VERSION_CONFLICT" }) }
   api.deleteFile = fail
   if (operation === "move") api.moveFile = fail
-  if (operation === "move") await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({ code: "VERSION_CONFLICT" })
-  else expect((await runDriveSyncOnce(root, api)).deleted).toBe(0)
+  const result = await runDriveSyncOnce(root, api)
+  if (operation === "move") {
+    expect(result.path_errors).toEqual([
+      { path: "b.txt", code: "VERSION_CONFLICT", message: "move from a.txt rejected (HTTP 409)", retryable: false },
+    ])
+  } else expect(result.deleted).toBe(0)
   expect(calls).toEqual([operation === "move" ? ["lib_1", "a.txt", "b.txt", 1, "original-id"] : ["lib_1", "a.txt", 1, "original-id"]])
   expect(api.uploads).toEqual([])
   expect((await readDriveState(root)).entries["a.txt"]?.entry_id).toBe("original-id")
