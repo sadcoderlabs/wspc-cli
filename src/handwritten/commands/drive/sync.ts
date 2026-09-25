@@ -200,8 +200,24 @@ export async function runDriveSyncOnce(
           uploadSkip(path) === undefined &&
           isActionableAction(decideDriveAction(state.entries[path], localFiles[path], view.remoteFiles[path])),
       ).length
+    const recordUploadSkip = async (path: string, skip: { op: string; pathError: DrivePathErrorSummary }) => {
+      await recordDrivePathError(summary, undefined, path, undefined, {
+        appendPathResult: true,
+        debug,
+        op: skip.op,
+        pathError: skip.pathError,
+      })
+    }
+    // Report skips outside the planned pairs now, so a retryable failure during
+    // the moves still carries them to the watch retry event.
+    const plannedPairPaths = pairPaths(plannedMoves)
+    for (const path of view.paths) {
+      if (plannedPairPaths.has(path)) continue
+      const skip = uploadSkip(path)
+      if (skip !== undefined) await recordUploadSkip(path, skip)
+    }
     let processed = 0
-    let total = plannedMoves.length + countActionable(view.paths, pairPaths(plannedMoves))
+    let total = plannedMoves.length + countActionable(view.paths, plannedPairPaths)
     onProgress?.(processed, total)
 
     const settledPairPaths = new Set<string>()
@@ -253,18 +269,14 @@ export async function runDriveSyncOnce(
     }
 
     // The view and the pairs are final here; the skips below must use them.
+    // recordDrivePathError() ignores paths already reported above.
     const skippedUploads = new Set<string>()
     for (const path of view.paths) {
       if (settledPairPaths.has(path)) continue
       const skip = uploadSkip(path)
       if (skip === undefined) continue
       skippedUploads.add(path)
-      await recordDrivePathError(summary, undefined, path, undefined, {
-        appendPathResult: true,
-        debug,
-        op: skip.op,
-        pathError: skip.pathError,
-      })
+      await recordUploadSkip(path, skip)
     }
     const uploadRejections = Object.fromEntries(
       Object.entries(state.upload_rejections ?? {}).filter(([path, rejection]) =>

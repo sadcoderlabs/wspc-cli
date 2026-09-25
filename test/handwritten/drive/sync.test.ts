@@ -1553,6 +1553,25 @@ describe("drive sync once", () => {
     expect(api.deletes).toEqual([])
   })
 
+  it("keeps reporting an oversized file when a rate-limited move interrupts the round", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-rate-limit-oversized-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "new-name.md"), "same content\n")
+    await writeFile(join(root, "big.bin"), "")
+    await truncate(join(root, "big.bin"), 100 * 1024 * 1024 + 1)
+    const api = mkApi([{ entries: [entry("old-name.md", "same content\n", 1)] }])
+    api.moveFile = async () => {
+      throw new DriveHttpError(429, { retryAfterMs: 60_000 })
+    }
+
+    await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({
+      name: "DriveRetryableSyncError",
+      pathErrors: [expect.objectContaining({ path: "big.bin", code: "FILE_TOO_LARGE", retryable: false })],
+    })
+  })
+
   it("does not degrade a forbidden move into upload and delete", async () => {
     const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-forbidden-"))
     const state = await initDriveState(root, "lib_1")

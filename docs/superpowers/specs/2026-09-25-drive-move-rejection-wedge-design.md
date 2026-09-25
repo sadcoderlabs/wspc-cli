@@ -75,7 +75,7 @@
 - **改名配對拆成規劃與執行**：`planRenameMoves()` 回傳 1:1 的 `{ fromPath, toPath }` 清單（純函式，規則不變）；`applyRenameMoves()` 依序執行，回傳本輪已 move 或已略過的 path（`settledPaths`）與是否因 delta 下被拒而停下（`stoppedOnRejection`）。Move Rejection 的判斷用 `retry.ts` 既有的 `isRetryableDriveFailure()` 與 `isDriveAuthFailure()`。
 - **重新取得 full manifest**：以 `{ ...state, manifest_cursor: undefined }` 呼叫 `fetchRemoteManifest()`，不寫入 state；本輪結束時寫入的是 full manifest 的 `latest_cursor`。manifest normalization 產生的 path error 由 `recordDrivePathError()` 以 path 去重，不會重複計數。
 - **跳過被拒的組合**：兩個 path 與 Oversized File、Permanent Upload Rejection 一樣不進入逐 path 處理，不計入逐 path 的 `total`。
-- **Oversized File 與 Permanent Upload Rejection 的判斷時機**：在所有 move（含重新取得 full manifest 後的重新規劃）結束之後，以最終的遠端現況與最終實際 move 或略過的組合判斷。重新規劃後不再成組的 path 仍會被檢查，不會把已記錄拒收的內容再傳一次。進度預估用同一個純判斷函式，兩者結果一致。`api.moveFile` 不存在時不規劃任何 move。
+- **Oversized File 與 Permanent Upload Rejection 的判斷時機**：在所有 move（含重新取得 full manifest 後的重新規劃）結束之後，以最終的遠端現況與最終實際 move 或略過的組合判斷。重新規劃後不再成組的 path 仍會被檢查，不會把已記錄拒收的內容再傳一次。進度預估用同一個純判斷函式，兩者結果一致。不在任何預計配對中的 path 在 move 開始前就先回報，move 階段因 retryable 錯誤中止時，`drive_watch_retry` 的 `path_errors` 仍帶有這些錯誤。`api.moveFile` 不存在時不規劃任何 move。
 - **為什麼不記成 conflict**：這個 repo 的 conflict 指內容衝突，會觸發 conflict copy 與持久化的 `state.conflicts`；Move Rejection 是改名確認失敗，內容沒有衝突，因此以本輪 path error 回報，下一輪自動再判斷。
 - **錯誤輸出**：在 `src/cli.ts` 的 `dispatch()` 處理；不改 `DriveHttpError.message`，避免 path error 的 `message` 與 wspc-drive dashboard 的 `HTTP 413` 判斷改變。
 - **Rollout／rollback**：隨下一個 CLI release 發佈，wspc-drive 升級內附 CLI 即生效。state 格式不變，回退只會恢復舊行為。
