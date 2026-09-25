@@ -2214,6 +2214,153 @@ describe("drive sync once", () => {
     expect(res.stdout).toContain("once")
     expect(res.stdout).toContain("Run one Drive sync pass")
   })
+
+  it("keeps the stored manifest cursor when the round is interrupted after the manifest fetch", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-cursor-interrupted-"))
+    const state = await initDriveState(root, "lib_1")
+    state.manifest_cursor = "000000000000000005"
+    await writeDriveState(root, state)
+    const api = mkApi([{ entries: [entry("b.txt", "bbb", 1)], latest_cursor: "000000000000000007" }])
+    api.downloadFile = async () => {
+      throw new TypeError("fetch failed")
+    }
+
+    await expect(runDriveSyncOnce(root, api)).rejects.toMatchObject({ name: "DriveRetryableSyncError" })
+
+    expect((await readDriveState(root)).manifest_cursor).toBe("000000000000000005")
+  })
+
+  it("keeps the stored manifest cursor when the round stops on a state write failure", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-cursor-stop-"))
+    const state = await initDriveState(root, "lib_1")
+    state.manifest_cursor = "000000000000000005"
+    await writeDriveState(root, state)
+    const api = mkApi([{ entries: [entry("a.txt", "remote", 3)], latest_cursor: "000000000000000007" }])
+    api.downloads.set("a.txt", "remote")
+    stateWriteControl.failNext = (candidate) =>
+      (candidate as { entries?: Record<string, unknown> }).entries?.["a.txt"] ? new Error("state write failed once") : undefined
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(result.errors).toBe(1)
+    expect((await readDriveState(root)).manifest_cursor).toBe("000000000000000005")
+  })
+
+  it("refetches a full manifest instead of stopping when a move is rejected on a delta view", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-stale-delta-"))
+    const state = await initDriveState(root, "lib_1")
+    // Stale base: the server already moved old-name.md, but the delta that said so was skipped.
+    state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
+    state.manifest_cursor = "000000000000000005"
+    await writeDriveState(root, state)
+    await writeFile(join(root, "new-name.md"), "same content\n")
+    const moved = { ...entry("new-name.md", "same content\n", 2), id: stateEntry("old-name.md", "same content\n", 1).entry_id }
+    const api = mkApi([
+      { entries: [], latest_cursor: "000000000000000005" },
+      { entries: [moved], latest_cursor: "000000000000000009" },
+    ])
+    const moves: string[] = []
+    api.moveFile = async (_id, fromPath, toPath) => {
+      moves.push(`${fromPath}->${toPath}`)
+      throw new DriveHttpError(409, { code: "VERSION_CONFLICT" })
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(moves).toEqual(["old-name.md->new-name.md"])
+    expect(api.deltas).toEqual(["000000000000000005"])
+    expect(api.manifests).toEqual([""])
+    expect(api.uploads).toEqual([])
+    expect(api.deletes).toEqual([])
+    expect(result.errors).toBe(0)
+    const after = await readDriveState(root)
+    expect(Object.keys(after.entries)).toEqual(["new-name.md"])
+    expect(after.entries["new-name.md"]).toMatchObject({ entry_version: 2 })
+    expect(after.manifest_cursor).toBe("000000000000000009")
+  })
+
+  it("reports a move rejected on a full view as a path error and keeps syncing other files", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-rejected-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "new-name.md"), "same content\n")
+    await writeFile(join(root, "other.md"), "other\n")
+    const api = mkApi([{ entries: [entry("old-name.md", "same content\n", 1)], latest_cursor: "000000000000000003" }])
+    api.moveFile = async () => {
+      throw new DriveHttpError(409, { code: "PATH_CONFLICT" })
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(api.manifests).toEqual([""])
+    expect(api.uploads.map((upload) => upload.path)).toEqual(["other.md"])
+    expect(api.deletes).toEqual([])
+    expect(result.errors).toBe(1)
+    expect(result.path_errors).toEqual([
+      { path: "new-name.md", code: "PATH_CONFLICT", message: "move from old-name.md rejected (HTTP 409)", retryable: false },
+    ])
+    expect((await readDriveState(root)).entries["old-name.md"]).toMatchObject({ entry_version: 1 })
+  })
+
+  it("logs a move_rejected debug event with the pair, confirmation, and server code", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-rejected-debug-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "new-name.md"), "same content\n")
+    const api = mkApi([{ entries: [entry("old-name.md", "same content\n", 1)] }])
+    api.moveFile = async () => {
+      throw new DriveHttpError(409, { code: "PATH_CONFLICT" })
+    }
+    const events: Array<{ event: string; fields?: Record<string, unknown> }> = []
+    const debug = { log: (event: string, fields?: Record<string, unknown>) => events.push({ event, fields }) }
+
+    await runDriveSyncOnce(root, api, undefined, undefined, debug)
+
+    expect(events.filter((logged) => logged.event === "move_rejected")).toEqual([
+      {
+        event: "move_rejected",
+        fields: {
+          from_path: "old-name.md",
+          to_path: "new-name.md",
+          entry_id: stateEntry("old-name.md", "same content\n", 1).entry_id,
+          expected_entry_version: 1,
+          status: 409,
+          code: "PATH_CONFLICT",
+          action: "skip_pair",
+        },
+      },
+    ])
+  })
+
+  it("counts planned moves in progress before running them", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-progress-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["a.md"] = stateEntry("a.md", "a\n", 1)
+    state.entries["b.md"] = stateEntry("b.md", "b\n", 1)
+    await writeDriveState(root, state)
+    await writeFile(join(root, "a2.md"), "a\n")
+    await writeFile(join(root, "b2.md"), "b\n")
+    await writeFile(join(root, "new.md"), "new\n")
+    const api = mkApi([{ entries: [entry("a.md", "a\n", 1), entry("b.md", "b\n", 1)] }])
+    api.moveFile = async (_id, _fromPath, toPath) => ({
+      entry: entry(toPath, toPath === "a2.md" ? "a\n" : "b\n", 2),
+      result: "moved" as const,
+    })
+    const progress: Array<[number, number]> = []
+
+    await runDriveSyncOnce(root, api, undefined, (processed, total) => {
+      progress.push([processed, total])
+    })
+
+    expect(progress).toEqual([
+      [0, 3],
+      [1, 3],
+      [2, 3],
+      [3, 3],
+    ])
+  })
 })
 
 function digestOf(content: string): string {
