@@ -72,7 +72,7 @@
 ## Implementation Decisions
 
 - **cursor 延後寫入**：`fetchRemoteManifest()` 仍回傳 `manifestCursor`，但不在取得後立即寫入；改在逐 path 迴圈正常結束（非 `stop`）後、`recordUnresolvedConflicts()` 之前，以同樣的條件（`excludeRules.size === 0`、cursor 有定義且與 state 不同）寫入。
-- **改名配對拆成規劃與執行**：`planRenameMoves()` 回傳 1:1 的 `{ fromPath, toPath }` 清單（純函式，規則不變）；`applyRenameMoves()` 依序執行，回傳 `movedPaths` 與 `rejected`。Move Rejection 的判斷用 `retry.ts` 既有的 `isRetryableDriveFailure()` 與 `isDriveAuthFailure()`。
+- **改名配對拆成規劃與執行**：`planRenameMoves()` 回傳 1:1 的 `{ fromPath, toPath }` 清單（純函式，規則不變）；`applyRenameMoves()` 依序執行，回傳本輪已 move 或已略過的 path（`settledPaths`）與是否因 delta 下被拒而停下（`stoppedOnRejection`）。Move Rejection 的判斷用 `retry.ts` 既有的 `isRetryableDriveFailure()` 與 `isDriveAuthFailure()`。
 - **重新取得 full manifest**：以 `{ ...state, manifest_cursor: undefined }` 呼叫 `fetchRemoteManifest()`，不寫入 state；本輪結束時寫入的是 full manifest 的 `latest_cursor`。manifest normalization 產生的 path error 由 `recordDrivePathError()` 以 path 去重，不會重複計數。
 - **跳過被拒的組合**：兩個 path 與 Oversized File、Permanent Upload Rejection 一樣不進入逐 path 處理，不計入逐 path 的 `total`。
 - **Oversized File 與 Permanent Upload Rejection 的判斷時機**：在所有 move（含重新取得 full manifest 後的重新規劃）結束之後，以最終的遠端現況與最終實際 move 或略過的組合判斷。重新規劃後不再成組的 path 仍會被檢查，不會把已記錄拒收的內容再傳一次。進度預估用同一個純判斷函式，兩者結果一致。`api.moveFile` 不存在時不規劃任何 move。
@@ -88,7 +88,7 @@
 | 1、2 | `test/handwritten/drive/sync-interruption.test.ts`：有狀態 fake server，多輪呼叫 `runDriveSyncOnce()`。 |
 | 3、4、5、7、8（debug） | `test/handwritten/drive/sync.test.ts`：沿用 `mkApi` 與暫存 library。 |
 | 6 | 既有 `sync.test.ts` move 429／403 測試。 |
-| 8（CLI 輸出） | `test/cli-json-error.test.ts` 或同層既有 `dispatch()` 測試。 |
+| 8（CLI 輸出） | `test/cli-error-message.test.ts`：`cliErrorMessage()` 單元測試，以及經由 `dispatch()` 對本機假 HTTP server 的 `drive sync once`。 |
 
 既有測試 `stops without upload or delete when move has a permanent failure` 斷言 move 一般錯誤會讓整輪中止；新行為改為回報 path error 並繼續。該斷言的修改獨立成一個 commit。
 
