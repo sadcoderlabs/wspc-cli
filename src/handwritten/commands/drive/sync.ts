@@ -15,6 +15,7 @@ import {
   type DriveScanError,
   type DriveState,
   type DriveStateEntry,
+  type DriveUploadRejection,
 } from "./state.js"
 import { render } from "../../output/render.js"
 import { VERSION } from "../../../version.js"
@@ -22,6 +23,7 @@ import {
   DriveRetryableSyncError,
   isDriveAuthFailure,
   isRetryableDriveFailure,
+  type DrivePathErrorSummary,
 } from "./retry.js"
 import {
   cloneDriveState,
@@ -164,71 +166,42 @@ export async function runDriveSyncOnce(
     let view = await loadRemoteView(false)
     const manifestMs = Date.now() - manifestStartedMs
 
-    let plannedMoves = planRenameMoves(state, view.paths, localFiles, view.remoteFiles)
-    const plannedPairPaths = pairPaths(plannedMoves)
+    let plannedMoves =
+      syncApi.moveFile === undefined ? [] : planRenameMoves(state, view.paths, localFiles, view.remoteFiles)
 
-    const rejectedPaths = new Set<string>()
-    for (const path of view.paths) {
+    // Uploads this round skips: Oversized Files first, then Permanent Upload
+    // Rejections that still match this scan. Pure, so progress and the final
+    // skip use the same answer.
+    const uploadSkip = (path: string): { op: string; pathError: DrivePathErrorSummary } | undefined => {
+      const action = decideDriveAction(state.entries[path], localFiles[path], view.remoteFiles[path])
+      if (action.type !== "upload_create" && action.type !== "upload_update") return undefined
       const sizeBytes = localFiles[path]?.size_bytes
-      if (plannedPairPaths.has(path) || sizeBytes === undefined || sizeBytes <= DRIVE_MAX_FILE_SIZE_BYTES) continue
-      const action = decideDriveAction(state.entries[path], localFiles[path], view.remoteFiles[path])
-      if (action.type !== "upload_create" && action.type !== "upload_update") continue
-      rejectedPaths.add(path)
-      const pathError = {
-        path,
-        code: "FILE_TOO_LARGE",
-        message: `file is ${(sizeBytes / 1_048_576).toFixed(1)} MiB (${sizeBytes} bytes); Drive per-file limit is 100 MiB`,
-        retryable: false,
+      if (sizeBytes !== undefined && sizeBytes > DRIVE_MAX_FILE_SIZE_BYTES) {
+        return {
+          op: "file_too_large",
+          pathError: {
+            path,
+            code: "FILE_TOO_LARGE",
+            message: `file is ${(sizeBytes / 1_048_576).toFixed(1)} MiB (${sizeBytes} bytes); Drive per-file limit is 100 MiB`,
+            retryable: false,
+          },
+        }
       }
-      await recordDrivePathError(summary, undefined, path, undefined, {
-        appendPathResult: true,
-        debug,
-        op: "file_too_large",
-        pathError,
-      })
+      const rejection = state.upload_rejections?.[path]
+      if (rejection === undefined || !isCurrentUploadRejection(rejection, state.scan_cache?.[path])) return undefined
+      return { op: "upload_rejected", pathError: { path, code: rejection.code, message: rejection.message, retryable: false } }
     }
-
-    const uploadRejections = { ...state.upload_rejections }
-    for (const [path, rejection] of Object.entries(uploadRejections)) {
-      const scanned = state.scan_cache?.[path]
-      if (
-        scanned?.mtime_ms !== rejection.mtime_ms ||
-        scanned.size_bytes !== rejection.size_bytes ||
-        scanned.sha256 !== rejection.sha256 ||
-        rejection.cli_version !== VERSION
-      ) {
-        delete uploadRejections[path]
-        continue
-      }
-      if (plannedPairPaths.has(path)) continue
-      const action = decideDriveAction(state.entries[path], localFiles[path], view.remoteFiles[path])
-      if (action.type !== "upload_create" && action.type !== "upload_update") continue
-      rejectedPaths.add(path)
-      const pathError = { path, code: rejection.code, message: rejection.message, retryable: false }
-      await recordDrivePathError(summary, undefined, path, undefined, {
-        appendPathResult: true,
-        debug,
-        op: "upload_rejected",
-        pathError,
-      })
-    }
-    if (Object.keys(uploadRejections).length !== Object.keys(state.upload_rejections ?? {}).length) {
-      state = { ...state, upload_rejections: uploadRejections }
-      if (Object.keys(uploadRejections).length === 0) delete state.upload_rejections
-      await writeDriveState(root, state, clock)
-    }
-
     // decideDriveAction is pure and reads only this path's slices of state, so
     // a pre-pass count matches the loop's actions.
     const countActionable = (paths: string[], excluded: Set<string>) =>
       paths.filter(
         (path) =>
           !excluded.has(path) &&
-          !rejectedPaths.has(path) &&
+          uploadSkip(path) === undefined &&
           isActionableAction(decideDriveAction(state.entries[path], localFiles[path], view.remoteFiles[path])),
       ).length
     let processed = 0
-    let total = plannedMoves.length + countActionable(view.paths, plannedPairPaths)
+    let total = plannedMoves.length + countActionable(view.paths, pairPaths(plannedMoves))
     onProgress?.(processed, total)
 
     const settledPairPaths = new Set<string>()
@@ -256,7 +229,10 @@ export async function runDriveSyncOnce(
         })
       } catch (error) {
         if (isRetryableDriveFailure(error)) {
-          throw new DriveRetryableSyncError(error, { pathErrors: summary.path_errors ?? [] })
+          throw new DriveRetryableSyncError(error, {
+            remaining: total - processed,
+            pathErrors: summary.path_errors ?? [],
+          })
         }
         throw error
       }
@@ -266,14 +242,42 @@ export async function runDriveSyncOnce(
       fullManifestFetched = true
       view = await loadRemoteView(true)
       plannedMoves = planRenameMoves(state, view.paths, localFiles, view.remoteFiles)
-      const nextTotal = processed + plannedMoves.length + countActionable(view.paths, new Set([...settledPairPaths, ...pairPaths(plannedMoves)]))
+      const nextTotal =
+        processed +
+        plannedMoves.length +
+        countActionable(view.paths, new Set([...settledPairPaths, ...pairPaths(plannedMoves)]))
       if (nextTotal !== total) {
         total = nextTotal
         onProgress?.(processed, total)
       }
     }
 
-    const pendingPaths = view.paths.filter((path) => !settledPairPaths.has(path) && !rejectedPaths.has(path))
+    // The view and the pairs are final here; the skips below must use them.
+    const skippedUploads = new Set<string>()
+    for (const path of view.paths) {
+      if (settledPairPaths.has(path)) continue
+      const skip = uploadSkip(path)
+      if (skip === undefined) continue
+      skippedUploads.add(path)
+      await recordDrivePathError(summary, undefined, path, undefined, {
+        appendPathResult: true,
+        debug,
+        op: skip.op,
+        pathError: skip.pathError,
+      })
+    }
+    const uploadRejections = Object.fromEntries(
+      Object.entries(state.upload_rejections ?? {}).filter(([path, rejection]) =>
+        isCurrentUploadRejection(rejection, state.scan_cache?.[path]),
+      ),
+    )
+    if (Object.keys(uploadRejections).length !== Object.keys(state.upload_rejections ?? {}).length) {
+      state = { ...state, upload_rejections: uploadRejections }
+      if (Object.keys(uploadRejections).length === 0) delete state.upload_rejections
+      await writeDriveState(root, state, clock)
+    }
+
+    const pendingPaths = view.paths.filter((path) => !settledPairPaths.has(path) && !skippedUploads.has(path))
     const pendingTotal = processed + countActionable(pendingPaths, settledPairPaths)
     if (pendingTotal !== total) {
       total = pendingTotal
@@ -639,6 +643,15 @@ async function applyRenameMoves(args: {
     onMoveSettled()
   }
   return { settledPaths, stoppedOnRejection: false }
+}
+
+function isCurrentUploadRejection(rejection: DriveUploadRejection, scanned: DriveScanCacheEntry | undefined): boolean {
+  return (
+    scanned?.mtime_ms === rejection.mtime_ms &&
+    scanned.size_bytes === rejection.size_bytes &&
+    scanned.sha256 === rejection.sha256 &&
+    rejection.cli_version === VERSION
+  )
 }
 
 function structuredField(error: unknown, key: "status" | "code"): unknown {

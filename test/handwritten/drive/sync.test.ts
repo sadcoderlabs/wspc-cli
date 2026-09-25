@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
-import { mkdir, mkdtemp, readFile, readdir, rename, truncate, unlink, utimes, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, readdir, rename, stat, truncate, unlink, utimes, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { DateTime } from "luxon"
@@ -2286,6 +2286,96 @@ describe("drive sync once", () => {
     expect(Object.keys(after.entries)).toEqual(["new-name.md"])
     expect(after.entries["new-name.md"]).toMatchObject({ entry_version: 2 })
     expect(after.manifest_cursor).toBe("000000000000000009")
+  })
+
+  it("still skips a rejected upload when a full manifest refetch drops its rename pair", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-refetch-rejection-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["a.md"] = stateEntry("a.md", "same\n", 1)
+    state.manifest_cursor = "000000000000000005"
+    await writeFile(join(root, "a2.md"), "same\n")
+    const scanned = await stat(join(root, "a2.md"))
+    state.upload_rejections = {
+      "a2.md": {
+        mtime_ms: scanned.mtimeMs,
+        size_bytes: scanned.size,
+        sha256: sha256("same\n"),
+        code: "DRIVE_PATH_ERROR",
+        message: "HTTP 415",
+        cli_version: VERSION,
+        rejected_at: "2026-09-25T00:00:00.000Z",
+      },
+    }
+    await writeDriveState(root, state)
+    // The full manifest shows a.md edited elsewhere, so a.md -> a2.md is no longer a rename.
+    const edited = { ...entry("a.md", "edited elsewhere\n", 2), id: stateEntry("a.md", "same\n", 1).entry_id }
+    const api = mkApi([
+      { entries: [], latest_cursor: "000000000000000005" },
+      { entries: [edited], latest_cursor: "000000000000000009" },
+    ])
+    api.downloads.set("a.md", "edited elsewhere\n")
+    api.downloads.set("a.md@ver_2", "edited elsewhere\n")
+    api.moveFile = async () => {
+      throw new DriveHttpError(409, { code: "VERSION_CONFLICT" })
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    expect(api.manifests).toEqual([""])
+    expect(uploadCount(api, "a2.md")).toBe(0)
+    expect(result.path_errors).toContainEqual({ path: "a2.md", code: "DRIVE_PATH_ERROR", message: "HTTP 415", retryable: false })
+  })
+
+  it("resends the saved confirmation when the full manifest still pairs the rename", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-move-refetch-same-pair-"))
+    const state = await initDriveState(root, "lib_1")
+    state.entries["old-name.md"] = stateEntry("old-name.md", "same content\n", 1)
+    state.manifest_cursor = "000000000000000005"
+    await writeDriveState(root, state)
+    await writeFile(join(root, "new-name.md"), "same content\n")
+    const api = mkApi([
+      { entries: [], latest_cursor: "000000000000000005" },
+      { entries: [entry("old-name.md", "same content\n", 1)], latest_cursor: "000000000000000009" },
+    ])
+    const calls: unknown[][] = []
+    api.moveFile = async (...args) => {
+      calls.push(args)
+      throw new DriveHttpError(400, { code: "VALIDATION_ERROR" })
+    }
+
+    const result = await runDriveSyncOnce(root, api)
+
+    const confirmation = ["lib_1", "old-name.md", "new-name.md", 1, stateEntry("old-name.md", "same content\n", 1).entry_id]
+    expect(calls).toEqual([confirmation, confirmation])
+    expect(api.uploads).toEqual([])
+    expect(api.deletes).toEqual([])
+    expect(result.path_errors).toEqual([
+      { path: "new-name.md", code: "VALIDATION_ERROR", message: "move from old-name.md rejected (HTTP 400)", retryable: false },
+    ])
+  })
+
+  it("logs whether the manifest cursor was persisted or kept", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wspc-drive-sync-cursor-debug-"))
+    const state = await initDriveState(root, "lib_1")
+    state.manifest_cursor = "000000000000000005"
+    await writeDriveState(root, state)
+    const api = mkApi([
+      { entries: [entry("a.txt", "remote", 3)], latest_cursor: "000000000000000007" },
+      { entries: [entry("a.txt", "remote", 3)], latest_cursor: "000000000000000007" },
+    ])
+    api.downloads.set("a.txt", "remote")
+    const events: Array<{ event: string; fields?: Record<string, unknown> }> = []
+    const debug = { log: (event: string, fields?: Record<string, unknown>) => events.push({ event, fields }) }
+    stateWriteControl.failNext = (candidate) =>
+      (candidate as { entries?: Record<string, unknown> }).entries?.["a.txt"] ? new Error("state write failed once") : undefined
+
+    await runDriveSyncOnce(root, api, undefined, undefined, debug)
+    await runDriveSyncOnce(root, api, undefined, undefined, debug)
+
+    expect(events.filter((logged) => logged.event === "manifest_cursor")).toEqual([
+      { event: "manifest_cursor", fields: { action: "keep", reason: "round_interrupted" } },
+      { event: "manifest_cursor", fields: { action: "persist", cursor: "000000000000000007" } },
+    ])
   })
 
   it("reports a move rejected on a full view as a path error and keeps syncing other files", async () => {
