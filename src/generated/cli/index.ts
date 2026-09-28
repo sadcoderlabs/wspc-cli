@@ -51,6 +51,7 @@ import { emailMarkReadCommand } from "./email/read.js"
 import { emailMarkUnreadCommand } from "./email/unread.js"
 import { emailAliasRestoreCommand } from "./alias/restore.js"
 import { emailRestoreCommand } from "./email/restore.js"
+import { emailAliasTransferCommand } from "./alias/transfer.js"
 import { emailDomainVerifyCommand } from "./domain/verify.js"
 import { pushConfigDeleteCommand } from "./push/config/rm.js"
 import { pushConfigSetCommand } from "./push/config/set.js"
@@ -133,6 +134,7 @@ export function registerGeneratedCommands(root: Command): void {
   root_alias.addCommand(emailAliasListCommand)
   root_alias.addCommand(emailAliasDeleteCommand)
   root_alias.addCommand(emailAliasRestoreCommand)
+  root_alias.addCommand(emailAliasTransferCommand)
   const root_domain = root.command("domain").description("domain commands")
   root_domain.addCommand(emailDomainCreateCommand)
   root_domain.addCommand(emailDomainListCommand)

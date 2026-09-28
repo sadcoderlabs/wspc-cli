@@ -1376,7 +1376,7 @@ export type Alias = {
      */
     org_id: string;
     /**
-     * Owner of the alias.
+     * Alias Holder: the Workspace Member who receives new mail at this address and may send from it.
      */
     user_id: string;
     /**
@@ -1984,6 +1984,13 @@ export type SendEmailBody = {
          */
         idx: number;
     }>;
+};
+
+export type TransferAliasBody = {
+    /**
+     * User ID of the active Workspace Member who becomes the new Alias Holder. Find it with `GET /auth/me/org/members`.
+     */
+    to_user_id: string;
 };
 
 export type SetPushConfigBody = {
@@ -11939,6 +11946,110 @@ export type EmailSendResponses = {
 };
 
 export type EmailSendResponse = EmailSendResponses[keyof EmailSendResponses];
+
+export type EmailAliasTransferData = {
+    body: TransferAliasBody;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.
+         */
+        'x-cb-email'?: string;
+    };
+    path: {
+        /**
+         * Full alias email address. URL-encode @ as %40 in paths.
+         */
+        email: string;
+    };
+    query?: never;
+    url: '/email/aliases/{email}/transfer';
+};
+
+export type EmailAliasTransferErrors = {
+    /**
+     * Request body failed validation (`VALIDATION_ERROR`).
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is not the Workspace Owner or an admin using OAuth, or an admin tried to transfer the Owner's alias (`WORKSPACE_FORBIDDEN`).
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * No active alias with this address exists in the caller's Workspace.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target is not an active member of the caller's Workspace (`ALIAS_TRANSFER_TARGET_INVALID`).
+     */
+    422: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target already holds 10 active aliases and the alias is on a custom domain (`ALIAS_LIMIT_EXCEEDED`), or the write rate limit was hit (`RATE_LIMITED`).
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Workspace membership could not be checked; nothing changed (`ALIAS_TRANSFER_UNAVAILABLE`).
+     */
+    503: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type EmailAliasTransferError = EmailAliasTransferErrors[keyof EmailAliasTransferErrors];
+
+export type EmailAliasTransferResponses = {
+    /**
+     * Alias with its new Alias Holder.
+     */
+    200: Alias;
+};
+
+export type EmailAliasTransferResponse = EmailAliasTransferResponses[keyof EmailAliasTransferResponses];
 
 export type EmailTrashSummaryData = {
     body?: never;

@@ -3681,7 +3681,7 @@
           },
           "user_id": {
             "type": "string",
-            "description": "Owner of the alias."
+            "description": "Alias Holder: the Workspace Member who receives new mail at this address and may send from it."
           },
           "created_at": {
             "type": "number",
@@ -4752,6 +4752,19 @@
           "from_alias_email",
           "text",
           "idempotency_key"
+        ]
+      },
+      "TransferAliasBody": {
+        "type": "object",
+        "properties": {
+          "to_user_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "User ID of the active Workspace Member who becomes the new Alias Holder. Find it with `GET /auth/me/org/members`."
+          }
+        },
+        "required": [
+          "to_user_id"
         ]
       },
       "SetPushConfigBody": {
@@ -44138,6 +44151,384 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/aliases/{email}/transfer": {
+      "post": {
+        "operationId": "email_alias_transfer",
+        "tags": [
+          "EmailAliases"
+        ],
+        "summary": "Transfer an alias to another Workspace Member",
+        "description": "### Overview\nMakes another active Workspace Member the Alias Holder of an active alias in the caller's Workspace. Mail received after the transfer goes to the new Alias Holder, and only the new Alias Holder can send from the address.\n\n### When to Use\n- Use this endpoint when a member leaves or changes role and someone else must keep receiving and answering mail at the address.\n- Get the target `user_id` from `GET /auth/me/org/members`.\n\n### Constraints\n- **Permission**: Only the Workspace Owner or an admin, signed in with OAuth. API keys are rejected. An admin cannot transfer an alias held by the Workspace Owner.\n- **Existing mail is not moved**: Emails received or sent before the transfer stay with the previous Alias Holder.\n- **Unchanged fields**: The address, Workspace, and `created_at` stay the same. Transferring to the current Alias Holder returns `200` and changes nothing.\n- **Limit Check**: A custom-domain alias counts toward the target's limit of 10 active aliases. A platform alias uses Workspace capacity, which a transfer does not change.\n- **Path Parameter**: The `@` character in the path parameter must be URL-encoded as `%40`.\n\n### Troubleshooting\n- **400 Bad Request / VALIDATION_ERROR**: The body has no valid `to_user_id`.\n- **403 Forbidden / WORKSPACE_FORBIDDEN**: The caller is a member, used an API key, or is an admin transferring the Owner's alias.\n- **404 Not Found / ALIAS_NOT_FOUND**: No active alias with this address exists in the caller's Workspace.\n- **422 Unprocessable Entity / ALIAS_TRANSFER_TARGET_INVALID**: The target is not an active member of the caller's Workspace.\n- **429 Too Many Requests / ALIAS_LIMIT_EXCEEDED**: The target already holds 10 active custom-domain-limited aliases.\n- **503 Service Unavailable / ALIAS_TRANSFER_UNAVAILABLE**: Workspace membership could not be checked. Nothing changed; retry later.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-email",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous email response. Send it back unchanged to continue read-after-write consistency for email D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Full alias email address. URL-encode @ as %40 in paths."
+            },
+            "required": true,
+            "description": "Full alias email address. URL-encode @ as %40 in paths.",
+            "name": "email",
+            "in": "path"
+          }
+        ],
+        "x-cli": {
+          "command": "alias transfer",
+          "positional": [
+            "email"
+          ],
+          "examples": [
+            "wspc alias transfer alice-shop@wspc.app --to-user-id usr_xxx"
+          ],
+          "display": {
+            "shape": "object",
+            "format": {
+              "id": "id-short",
+              "user_id": "id-short",
+              "created_at": "relative-time",
+              "deleted_at": "relative-time"
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl -X POST https://api.wspc.ai/email/aliases/alice-shop%40wspc.app/transfer \\\n  -H \"Authorization: Bearer $WSPC_ACCESS_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"to_user_id\":\"usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3G\"}'"
+          },
+          {
+            "lang": "bash",
+            "label": "wspc CLI",
+            "source": "wspc alias transfer alice-shop@wspc.app --to-user-id usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3G"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferAliasBody"
+              },
+              "examples": {
+                "minimal": {
+                  "summary": "Transfer to another member",
+                  "value": {
+                    "to_user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3G"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Alias with its new Alias Holder.",
+            "headers": {
+              "x-cb-email": {
+                "description": "Opaque consistency bookmark for the latest email database position observed by this request. Store and send it on the next email request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Alias"
+                },
+                "examples": {
+                  "happyPath": {
+                    "summary": "Transferred alias",
+                    "value": {
+                      "email": "alice-shop@wspc.app",
+                      "org_id": "org_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                      "user_id": "usr_01HW3K4N9V5G6Z8C2Q7B1Y0M3G",
+                      "created_at": 1748736000000
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body failed validation (`VALIDATION_ERROR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is not the Workspace Owner or an admin using OAuth, or an admin tried to transfer the Owner's alias (`WORKSPACE_FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active alias with this address exists in the caller's Workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The target is not an active member of the caller's Workspace (`ALIAS_TRANSFER_TARGET_INVALID`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The target already holds 10 active aliases and the alias is on a custom domain (`ALIAS_LIMIT_EXCEEDED`), or the write rate limit was hit (`RATE_LIMITED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Workspace membership could not be checked; nothing changed (`ALIAS_TRANSFER_UNAVAILABLE`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
