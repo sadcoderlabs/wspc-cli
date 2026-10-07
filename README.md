@@ -55,6 +55,7 @@ scopes todos per project. Run `wspc todo project ls` to discover ids.
 | `wspc drive bind --library <id> [path]` | Bind an existing Drive library to a local folder. |
 | `wspc drive sync once [path]` | Run one manual whole-file Drive sync pass. |
 | `wspc drive watch [path]` | Keep a bound Drive folder in foreground watch mode. |
+| `wspc drive search [id] --query <value> [--path-prefix <prefix>]` | Search Drive text across the Workspace, or one library when `id` is given. |
 | `wspc config` | Inspect / clear local config. |
 
 Pass `--help` to any subcommand for flags, aliases, and examples.
