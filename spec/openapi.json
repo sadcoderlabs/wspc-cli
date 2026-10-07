@@ -3629,6 +3629,9 @@
             "items": {
               "type": "object",
               "properties": {
+                "library_id": {
+                  "type": "string"
+                },
                 "path": {
                   "type": "string"
                 },
@@ -3637,6 +3640,7 @@
                 }
               },
               "required": [
+                "library_id",
                 "path",
                 "snippet"
               ]
@@ -36602,7 +36606,7 @@
           "DriveFiles"
         ],
         "summary": "Search drive library text",
-        "description": "Search indexed text files by relevance, then file ID. Pass next_cursor as cursor with the same exact query and library; stop when next_cursor is absent. No TTL or snapshot. Index changes, including other libraries, can cause repeats or omissions. Invalid cursors return VALIDATION_ERROR; restart the search. Libraries that are missing, deleted or outside the Workspace return NOT_FOUND before cursor validation.",
+        "description": "Search indexed text files by substring, ordered by relevance, then file ID. Whitespace terms are ANDed. Each term needs at least 3 characters; a shorter term returns no results, so add context (日本旅遊, not 日本). path_prefix keeps only paths that start with that literal string; wildcards are not interpreted. Each result has library_id, path and snippet. Pass next_cursor as cursor with the same exact query, library scope and path_prefix; stop when next_cursor is absent. No TTL or snapshot. Index changes, including other libraries, can cause repeats or omissions. Invalid, mismatched or v1 cursors return VALIDATION_ERROR; restart the search. Libraries that are missing, deleted or outside the Workspace return NOT_FOUND before cursor validation.",
         "security": [
           {
             "bearerAuth": []
@@ -36646,11 +36650,19 @@
           {
             "schema": {
               "type": "string",
-              "description": "Opaque Search Cursor from next_cursor; reuse with the same query and library. No TTL."
+              "description": "Opaque Search Cursor from next_cursor; reuse with the same query, library and path_prefix. No TTL."
             },
             "required": false,
-            "description": "Opaque Search Cursor from next_cursor; reuse with the same query and library. No TTL.",
+            "description": "Opaque Search Cursor from next_cursor; reuse with the same query, library and path_prefix. No TTL.",
             "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "path_prefix",
             "in": "query"
           }
         ],
@@ -36697,6 +36709,414 @@
                     "value": {
                       "results": [
                         {
+                          "library_id": "lib_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
+                          "path": "notes/today.md",
+                          "snippet": "the [quick] brown fox"
+                        }
+                      ],
+                      "next_cursor": "<opaque-search-cursor>"
+                    }
+                  },
+                  "last": {
+                    "value": {
+                      "results": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed. The body, query, or path parameters did not match the operation's schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "validationError": {
+                    "summary": "Body failed schema validation",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "title must not be empty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "authRequired": {
+                    "summary": "Missing Authorization header",
+                    "value": {
+                      "error": {
+                        "code": "AUTH_REQUIRED",
+                        "message": "missing bearer token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to perform this operation on the target resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller does not own the resource",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Resource id is unknown to the service",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "todo not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "versionConflict": {
+                    "summary": "expected_version does not match server version",
+                    "value": {
+                      "error": {
+                        "code": "VERSION_CONFLICT",
+                        "message": "expected_version 3 but current is 4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "rateLimited": {
+                    "summary": "Per-key rate limit hit",
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Too many requests, please retry after 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalError": {
+                    "summary": "Unhandled exception",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "internal error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drive/search": {
+      "get": {
+        "operationId": "drive_workspace_search",
+        "tags": [
+          "DriveFiles"
+        ],
+        "summary": "Search drive text across the Workspace",
+        "description": "Search indexed text files by substring, ordered by relevance, then file ID. Whitespace terms are ANDed. Each term needs at least 3 characters; a shorter term returns no results, so add context (日本旅遊, not 日本). path_prefix keeps only paths that start with that literal string; wildcards are not interpreted. Each result has library_id, path and snippet. Pass next_cursor as cursor with the same exact query, library scope and path_prefix; stop when next_cursor is absent. No TTL or snapshot. Index changes, including other libraries, can cause repeats or omissions. Invalid, mismatched or v1 cursors return VALIDATION_ERROR; restart the search. Searches every library in the Workspace except deleted libraries. A Workspace without libraries returns an empty page.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-cb-drive",
+            "in": "header",
+            "required": false,
+            "description": "Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "opaque-consistency-bookmark"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "query",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque Search Cursor from next_cursor; reuse with the same query, library and path_prefix. No TTL."
+            },
+            "required": false,
+            "description": "Opaque Search Cursor from next_cursor; reuse with the same query, library and path_prefix. No TTL.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "path_prefix",
+            "in": "query"
+          }
+        ],
+        "x-cli": {
+          "command": "drive search",
+          "display": {
+            "shape": "list",
+            "dataPath": "results",
+            "columns": [
+              "library_id",
+              "path",
+              "snippet"
+            ],
+            "emptyMessage": "no matches"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "shell",
+            "label": "curl",
+            "source": "curl \"https://api.wspc.ai/drive/search?query=quick&path_prefix=notes/\" -H \"Authorization: Bearer $WSPC_API_KEY\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "headers": {
+              "x-cb-drive": {
+                "description": "Opaque consistency bookmark for the latest drive database position observed by this request. Store and send it on the next drive request to continue read-after-write consistency.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriveSearchResponse"
+                },
+                "examples": {
+                  "hit": {
+                    "value": {
+                      "results": [
+                        {
+                          "library_id": "lib_01HW3K4N9V5G6Z8C2Q7B1Y0M3F",
                           "path": "notes/today.md",
                           "snippet": "the [quick] brown fox"
                         }

@@ -1352,6 +1352,7 @@ export type RestoreDriveFileBody = {
 
 export type DriveSearchResponse = {
     results: Array<{
+        library_id: string;
         path: string;
         snippet: string;
     }>;
@@ -10047,9 +10048,10 @@ export type DriveSearchData = {
         query: string;
         limit?: string;
         /**
-         * Opaque Search Cursor from next_cursor; reuse with the same query and library. No TTL.
+         * Opaque Search Cursor from next_cursor; reuse with the same query, library and path_prefix. No TTL.
          */
         cursor?: string;
+        path_prefix?: string;
     };
     url: '/drive/libraries/{id}/search';
 };
@@ -10130,6 +10132,104 @@ export type DriveSearchResponses = {
 };
 
 export type DriveSearchResponse2 = DriveSearchResponses[keyof DriveSearchResponses];
+
+export type DriveWorkspaceSearchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional opaque consistency bookmark returned by a previous drive response. Send it back unchanged to continue read-after-write consistency for drive D1 data.
+         */
+        'x-cb-drive'?: string;
+    };
+    path?: never;
+    query: {
+        query: string;
+        limit?: string;
+        /**
+         * Opaque Search Cursor from next_cursor; reuse with the same query, library and path_prefix. No TTL.
+         */
+        cursor?: string;
+        path_prefix?: string;
+    };
+    url: '/drive/search';
+};
+
+export type DriveWorkspaceSearchErrors = {
+    /**
+     * Request validation failed. The body, query, or path parameters did not match the operation's schema.
+     */
+    400: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Authentication is required but missing or invalid. The Bearer token (API key or OAuth access token) was absent, malformed, or rejected.
+     */
+    401: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The caller is authenticated but not permitted to perform this operation on the target resource.
+     */
+    403: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * The target resource does not exist or is not visible to the caller. Soft-deleted resources are treated as not found unless an `include_deleted` flag is set.
+     */
+    404: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Optimistic-lock conflict. The supplied `expected_version` does not match the server's current version. Refetch the resource and retry.
+     */
+    409: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Rate limit exceeded. Use the HTTP `Retry-After` header for machine-readable retry timing.
+     */
+    429: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+    /**
+     * Unhandled server error. The request was well-formed but the service failed unexpectedly. Safe to retry idempotent operations.
+     */
+    500: {
+        error: {
+            code: string;
+            message: string;
+        };
+    };
+};
+
+export type DriveWorkspaceSearchError = DriveWorkspaceSearchErrors[keyof DriveWorkspaceSearchErrors];
+
+export type DriveWorkspaceSearchResponses = {
+    /**
+     * Search results
+     */
+    200: DriveSearchResponse;
+};
+
+export type DriveWorkspaceSearchResponse = DriveWorkspaceSearchResponses[keyof DriveWorkspaceSearchResponses];
 
 export type EmailAliasListData = {
     body?: never;
