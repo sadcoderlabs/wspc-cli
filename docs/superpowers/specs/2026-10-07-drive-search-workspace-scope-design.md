@@ -29,7 +29,7 @@
 | `--query`、`--limit`、`--cursor` | 原樣送出；缺 `--query` 由 server 回 400，CLI 不做前置檢查。 |
 | 無命中 | 顯示 `no matches`，exit 0。 |
 | server 4xx | 沿用 `runSdkCommand` 的 `HTTP <status>: {...}` 輸出，exit 1。 |
-| `--help` | summary 與 description 取自沒有 positional 的 op（`drive_workspace_search`）；argument 說明為 `library ID; omit to search every library in the Workspace`；flag 說明來自 spec 的 parameter description。 |
+| `--help` | summary 與 description 取自沒有 positional 的 op（`drive_workspace_search`）；argument 說明由 codegen 以 `<name>; omit to <fallback summary 首字小寫>` 產生（本案為 `id; omit to search drive text across the Workspace`），避免在通用 codegen 寫死 drive 專屬文字；flag 說明來自 spec 的 parameter description。 |
 | `x-cb-drive` bookmark | 由既有 consistency fetch wrapper 依 response header 處理，不需新邏輯。 |
 
 ### codegen 成對 command 規則

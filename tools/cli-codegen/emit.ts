@@ -56,6 +56,14 @@ export interface EmitInput {
   bodyFields: BodyField[]
   pathParams?: string[]
   queryFields?: BodyField[]
+  /** Paired Command: op with the same x-cli command but no path params, called when the positional is omitted */
+  fallback?: {
+    operationId: string
+    summary?: string
+    description?: string
+    xCli: XCli
+    queryFields: BodyField[]
+  }
   /** Number of directory segments in the output file path (e.g. "todo/add.ts" → depth 2) */
   depth?: number
 }
@@ -230,6 +238,10 @@ export function emitCommand(input: EmitInput): string | null {
     // Check in pathParams first (always required), then bodyFields
     const isPathParam = pathParamSet.has(name)
     const field = isPathParam ? undefined : input.bodyFields.find((f) => f.name === name)
+    if (isPathParam && input.fallback) {
+      const omitHelp = (input.fallback.summary ?? input.fallback.xCli.command).replace(/^./, (c) => c.toLowerCase())
+      return `.argument("[${name}]", ${JSON.stringify(`${name}; omit to ${omitHelp}`)})`
+    }
     const required = isPathParam || (field?.required ?? true)
     return `.argument("${required ? `<${name}>` : `[${name}]`}", "${name}")`
   })
@@ -278,9 +290,10 @@ export function emitCommand(input: EmitInput): string | null {
   const fixedQueryKeys = new Set(Object.keys(input.xCli.fixedQuery ?? {}))
 
   // Options from query fields (skip positional, path params, and fixedQuery-shadowed fields)
-  const queryOptionFields = queryFields.filter(
-    (f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name),
-  )
+  const queryOptionFields = [
+    ...queryFields,
+    ...(input.fallback?.queryFields ?? []).filter((f) => !queryFields.some((q) => q.name === f.name)),
+  ].filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name))
   const queryOptions = queryOptionFields.map(emitFieldOption)
 
   // Virtual x-cli options: option keys that map to no existing body/query field
@@ -436,16 +449,18 @@ export function emitCommand(input: EmitInput): string | null {
   }
 
   // Build query block (dynamic query fields + constant fixedQuery).
-  const queryOptLines = queryFields
-    .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name))
-    .map((f) => {
-      const optKey = fieldToOptionKey[f.name]
-      if (optKey !== undefined) {
-        return `        ${f.name}: ${valueExprForOption(optKey)},`
-      }
-      const { longFlag } = resolveAlias(f.name)
-      return `        ${f.name}: opts.${kebabToCamel(longFlag)},`
-    })
+  const queryLines = (fields: BodyField[]) =>
+    fields
+      .filter((f) => !positionalSet.has(f.name) && !pathParamSet.has(f.name) && !fixedQueryKeys.has(f.name))
+      .map((f) => {
+        const optKey = fieldToOptionKey[f.name]
+        if (optKey !== undefined) {
+          return `        ${f.name}: ${valueExprForOption(optKey)},`
+        }
+        const { longFlag } = resolveAlias(f.name)
+        return `        ${f.name}: opts.${kebabToCamel(longFlag)},`
+      })
+  const queryOptLines = queryLines(queryFields)
   const fixedQueryLines = Object.entries(input.xCli.fixedQuery ?? {}).map(
     ([k, v]) => `        ${k}: ${JSON.stringify(v)},`,
   )
@@ -613,7 +628,7 @@ export function emitCommand(input: EmitInput): string | null {
   // Build import list — only include helpers actually used.
   const imports: string[] = [
     `import { Command } from "commander"`,
-    `import { ${[fnName, ...((input.operationId === "event_update" && hasSeriesTimeZoneParser) || hasOccurrenceTimeParser ? ["eventGet"] : [])].join(", ")} } from "${sdkRelPrefix}sdk/index.js"`,
+    `import { ${[fnName, ...(input.fallback ? [snakeToCamel(input.fallback.operationId)] : []), ...((input.operationId === "event_update" && hasSeriesTimeZoneParser) || hasOccurrenceTimeParser ? ["eventGet"] : [])].join(", ")} } from "${sdkRelPrefix}sdk/index.js"`,
     `import { runSdkCommand } from "${handwrittenRelPrefix}handwritten/commands/run-sdk-command.js"`,
   ]
   if (hasDatetimeParser) {
@@ -646,13 +661,32 @@ export function emitCommand(input: EmitInput): string | null {
     )
   }
 
+  const fallbackLines: string[] = []
+  if (input.fallback) {
+    const fallbackQuery = queryLines(input.fallback.queryFields)
+    const fallbackDisplay = input.fallback.xCli.display ? JSON.stringify(input.fallback.xCli.display) : "undefined"
+    fallbackLines.push(
+      `    if (${pathPositionals[0]} === undefined) {`,
+      `      await runSdkCommand({`,
+      `        operation: ${snakeToCamel(input.fallback.operationId)},`,
+      `        input: {`,
+      ...(fallbackQuery.length > 0 ? [`          query: {`, ...fallbackQuery.map((line) => `    ${line}`), `          },`] : []),
+      `        },`,
+      `        context: { kind: ${JSON.stringify(input.fallback.operationId)}, display: ${fallbackDisplay} },`,
+      `      })`,
+      `      return`,
+      `    }`,
+    )
+  }
+
   let helpTextCall = ""
   const helpParts: string[] = []
-  if (input.description) {
-    helpParts.push(input.description)
+  const doc = input.fallback ?? input
+  if (doc.description) {
+    helpParts.push(doc.description)
   }
-  if (input.xCli.examples && input.xCli.examples.length > 0) {
-    helpParts.push("Examples:\n" + input.xCli.examples.map((ex) => `  $ ${ex}`).join("\n"))
+  if (doc.xCli.examples && doc.xCli.examples.length > 0) {
+    helpParts.push("Examples:\n" + doc.xCli.examples.map((ex) => `  $ ${ex}`).join("\n"))
   }
   if (helpParts.length > 0) {
     helpTextCall = `\n  .addHelpText("after", ${JSON.stringify("\n" + helpParts.join("\n\n") + "\n")})`
@@ -663,11 +697,12 @@ export function emitCommand(input: EmitInput): string | null {
     ...imports,
     ``,
     `export const ${fnName}Command = new Command(${JSON.stringify(cmdLeaf)})`,
-    `  .description(${JSON.stringify(input.summary ?? input.xCli.command)})${helpTextCall}`,
+    `  .description(${JSON.stringify(doc.summary ?? doc.xCli.command)})${helpTextCall}`,
     ...args.map((a) => `  ${a}`),
     ...options.map((o) => `  ${o}`),
     `  .action(async (${[...argNames, "opts"].join(", ")}) => {`,
     ...conversionLines,
+    ...fallbackLines,
     `    ${exitOnField ? "const data = " : ""}await runSdkCommand({`,
     `      operation: ${fnName},`,
     `      input: {`,

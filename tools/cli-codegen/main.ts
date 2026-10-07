@@ -132,6 +132,32 @@ export function extractQueryFields(op: OperationLike): BodyField[] {
     }))
 }
 
+export interface RouteOp {
+  routePath: string
+  method: string
+  op: OperationLike & { operationId: string; "x-cli": XCli }
+}
+
+// Two ops sharing an x-cli command form a Paired Command when exactly one has
+// path params: it becomes the primary, the other its no-positional fallback.
+export function groupCommands(routes: RouteOp[]): (RouteOp & { fallback?: RouteOp })[] {
+  const byCommand = new Map<string, RouteOp[]>()
+  for (const r of routes) {
+    const command = r.op["x-cli"].command
+    byCommand.set(command, [...(byCommand.get(command) ?? []), r])
+  }
+  return [...byCommand.entries()].map(([command, group]) => {
+    if (group.length === 1) return group[0]!
+    const withPath = group.filter((r) => extractPathParams(r.op).length > 0)
+    const withoutPath = group.filter((r) => extractPathParams(r.op).length === 0)
+    if (group.length !== 2 || withPath.length !== 1) {
+      const ids = group.map((r) => r.op.operationId).join(", ")
+      throw new Error(`x-cli command "${command}" is shared by ${ids} but is not a Paired Command`)
+    }
+    return { ...withPath[0]!, fallback: withoutPath[0]! }
+  })
+}
+
 interface EmittedCmd {
   commandPath: string[]
   filePath: string // relative to OUT_DIR
@@ -208,37 +234,46 @@ async function main(): Promise<void> {
 
   const emitted: EmittedCmd[] = []
 
+  const routes: RouteOp[] = []
   for (const [routePath, methods] of Object.entries(spec.paths)) {
     for (const [method, op] of Object.entries(methods)) {
       if (!op.operationId || !op["x-cli"] || shouldSkipRoute(op["x-cli"])) continue
-      const bodyFields = extractBodyFields(op, spec)
-      const pathParams = extractPathParams(op)
-      const queryFields = extractQueryFields(op)
-      const code = emitCommand({
-        operationId: op.operationId,
-        method,
-        path: routePath,
-        summary: op.summary,
-        description: op.description,
-        xCli: op["x-cli"],
-        bodyFields,
-        pathParams,
-        queryFields,
-      })
-      if (code === null) continue
-
-      const parts = op["x-cli"].command.split(/\s+/)
-      const relFile = `${parts.join("/")}.ts`
-      const filePath = join(OUT_DIR, relFile)
-      await fs.mkdir(join(OUT_DIR, ...parts.slice(0, -1)), { recursive: true })
-      await fs.writeFile(filePath, code)
-
-      emitted.push({
-        commandPath: parts,
-        filePath: relFile,
-        varName: `${snakeToCamel(op.operationId)}Command`,
-      })
+      routes.push({ routePath, method, op: op as RouteOp["op"] })
     }
+  }
+
+  for (const { routePath, method, op, fallback } of groupCommands(routes)) {
+    const code = emitCommand({
+      operationId: op.operationId,
+      method,
+      path: routePath,
+      summary: op.summary,
+      description: op.description,
+      xCli: op["x-cli"],
+      bodyFields: extractBodyFields(op, spec),
+      pathParams: extractPathParams(op),
+      queryFields: extractQueryFields(op),
+      fallback: fallback && {
+        operationId: fallback.op.operationId,
+        summary: fallback.op.summary,
+        description: fallback.op.description,
+        xCli: fallback.op["x-cli"],
+        queryFields: extractQueryFields(fallback.op),
+      },
+    })
+    if (code === null) continue
+
+    const parts = op["x-cli"].command.split(/\s+/)
+    const relFile = `${parts.join("/")}.ts`
+    const filePath = join(OUT_DIR, relFile)
+    await fs.mkdir(join(OUT_DIR, ...parts.slice(0, -1)), { recursive: true })
+    await fs.writeFile(filePath, code)
+
+    emitted.push({
+      commandPath: parts,
+      filePath: relFile,
+      varName: `${snakeToCamel(op.operationId)}Command`,
+    })
   }
 
   await fs.writeFile(join(OUT_DIR, "index.ts"), emitIndex(emitted))

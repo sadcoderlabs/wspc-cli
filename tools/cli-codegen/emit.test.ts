@@ -534,3 +534,45 @@ describe("emitCommand: x-cli.booleanFlags bare boolean flag", () => {
     expect(code).not.toContain("--include-deleted <value>")
   })
 })
+
+describe("emitCommand: paired command fallback", () => {
+  const queryFields = [
+    { name: "query", type: "string" as const, required: true },
+    { name: "cursor", type: "string" as const, required: false, description: "Opaque cursor from path_prefix search" },
+    { name: "path_prefix", type: "string" as const, required: false },
+  ]
+  const out = emitCommand({
+    operationId: "drive_search",
+    method: "get",
+    path: "/drive/libraries/{id}/search",
+    summary: "Search one library",
+    xCli: { command: "drive search", positional: ["id"], display: { shape: "list", columns: ["path", "snippet"] } },
+    bodyFields: [],
+    pathParams: ["id"],
+    queryFields,
+    fallback: {
+      operationId: "drive_workspace_search",
+      summary: "Search the Workspace",
+      description: "Workspace-wide search.",
+      xCli: { command: "drive search", display: { shape: "list", columns: ["library_id", "path", "snippet"] } },
+      queryFields,
+    },
+  })!
+
+  it("declares the positional optional with fallback help text", () => {
+    expect(out).toContain('.argument("[id]", "id; omit to search the Workspace")')
+    expect(out).toContain('.description("Search the Workspace")')
+    expect(out).toContain("Workspace-wide search.")
+    expect(out).toContain('.option("--path-prefix <value>", "path_prefix")')
+  })
+
+  it("branches to the fallback operation when the positional is omitted", () => {
+    expect(out).toContain("import { driveSearch, driveWorkspaceSearch } from")
+    expect(out).toContain("if (id === undefined) {")
+    expect(out).toContain("operation: driveWorkspaceSearch,")
+    expect(out).toContain("operation: driveSearch,")
+    expect(out).toContain('kind: "drive_workspace_search", display: {"shape":"list","columns":["library_id","path","snippet"]}')
+    expect(out).toContain('kind: "drive_search", display: {"shape":"list","columns":["path","snippet"]}')
+    expect(out.indexOf("operation: driveWorkspaceSearch")).toBeLessThan(out.indexOf("operation: driveSearch,"))
+  })
+})
