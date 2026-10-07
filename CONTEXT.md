@@ -51,3 +51,7 @@ _Avoid_: Large file、413 file、upload too large
 **Move Rejection**:
 Sync 把本機改名轉成 server move 時，server 以非 retryable、非認證的錯誤拒絕（例如 `409 VERSION_CONFLICT`、`409 PATH_CONFLICT`）；該組改名本輪略過並以 path error 回報，不改用 upload＋delete，也不讓整輪停止。
 _Avoid_: Move failure、move conflict、409
+
+**Search Scope**:
+Drive 搜尋的範圍：指定 library ID 時只搜該 library；省略時搜 Workspace 內所有未刪除的 library。Search Cursor 綁定 query、Search Scope 與 `path_prefix`，任一不同即為不同搜尋。
+_Avoid_: Global search、all-libraries search、workspace mode
