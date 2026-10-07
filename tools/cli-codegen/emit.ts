@@ -670,7 +670,7 @@ export function emitCommand(input: EmitInput): string | null {
       `      await runSdkCommand({`,
       `        operation: ${snakeToCamel(input.fallback.operationId)},`,
       `        input: {`,
-      ...(fallbackQuery.length > 0 ? [`        query: {`, ...fallbackQuery.map((line) => `  ${line}`), `        },`] : []),
+      ...(fallbackQuery.length > 0 ? [`          query: {`, ...fallbackQuery.map((line) => `    ${line}`), `          },`] : []),
       `        },`,
       `        context: { kind: ${JSON.stringify(input.fallback.operationId)}, display: ${fallbackDisplay} },`,
       `      })`,
