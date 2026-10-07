@@ -6,6 +6,7 @@ Official TypeScript SDK and CLI for [wspc.ai](https://wspc.ai).
 
 ## Roadmap
 
+- [`wspc drive search` 支援 Workspace scope 與 `--path-prefix`](docs/superpowers/specs/2026-10-07-drive-search-workspace-scope-design.md)
 - [Drive sync 明確回報超過單檔上限的檔案](docs/superpowers/specs/2026-09-18-drive-oversized-file-design.md)
 - [Drive watch 不再重傳被永久拒收的檔案](docs/superpowers/specs/2026-09-18-drive-permanent-upload-rejection-design.md)
 - [移除未使用的 occurrence-time-zone parser marker](docs/superpowers/specs/2026-09-09-occurrence-time-zone-marker-removal-design.md)
